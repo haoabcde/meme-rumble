@@ -1,89 +1,89 @@
 import { harbor } from './harbor.js';
-import type { ArenaDefinition, Duo, Platform } from '../core/types.js';
+import type { ArenaDefinition, Platform } from '../core/types.js';
 
-const artwork = { width: 1672, height: 941 };
+type Surface = [id: string, name: string, tier: Platform['tier'], left: number, right: number,
+  rise: number, prop: NonNullable<Platform['prop']>, travel?: Platform['travel']];
+type Description = Pick<ArenaDefinition, 'id' | 'name' | 'theme' | 'width' | 'terrain' | 'description' | 'routes'>;
 
-type PaintedSurface = [id: string, name: string, tier: Platform['tier'], left: number, right: number, lipY: number];
-type TerrainHeight = [lipY: number, riseFromFloor: number];
-type ArenaDetails = Pick<ArenaDefinition, 'id' | 'name' | 'theme' | 'terrain' | 'description' | 'routes' | 'width'>;
-
-function arena(
-  details: ArenaDetails,
-  levels: TerrainHeight[],
-  surfaces: PaintedSurface[]
-): ArenaDefinition {
-  const { width } = details;
+function stage(description: Description, surfaces: Surface[]): ArenaDefinition {
+  const { width } = description;
   const height = width * 9 / 16;
-  const left = 96;
-  const right = width - left;
   const floor = Math.round(height * .827);
-  const scale = width / artwork.width;
-  const [topLip, topRise] = levels[0];
-  // Most extra vertical room is above the scenery. The playable tiers are calibrated
-  // independently so every climb works with the roster's shared jump.
-  const artFrame = [
-    { sourceY: 0, worldY: 0 },
-    { sourceY: (topLip - 196) / artwork.height, worldY: floor - topRise - Math.round(196 * scale) },
-    ...levels.map(([lip, rise]) => ({ sourceY: lip / artwork.height, worldY: floor - rise })),
-    { sourceY: 1, worldY: height }
-  ];
-  const x = (pixel: number) => Math.min(right, Math.max(left, Math.round(pixel * scale)));
-  const y = (pixel: number) => {
-    const sourceY = pixel / artwork.height;
-    const next = artFrame.findIndex((point, index) => index > 0 && point.sourceY >= sourceY);
-    const start = artFrame[next - 1];
-    const end = artFrame[next];
-    return Math.round(start.worldY + (end.worldY - start.worldY) *
-      (sourceY - start.sourceY) / (end.sourceY - start.sourceY));
-  };
-
-  const platforms = surfaces.map(([id, name, tier, start, end, lipY]) =>
-    ({ id, name, tier, left: x(start), right: x(end), y: y(lipY) }));
-  const [west, east] = details.routes.map(route => platforms.find(platform => platform.id === route[0])!);
-  const split = west.right < east.left;
-  const center = split ? (west.right + east.left) / 2 : width / 2;
-  // Keep both outside approaches in one ordinary jump, with room to land inside the edge.
-  const halfGap = split ? Math.max(173, (east.left - west.right) / 2 - 168) : 173;
-  const spawn: Duo<number> = [Math.round(center - halfGap), Math.round(center + halfGap)];
-  return { ...details, height, left, right, floor, spawn, artFrame, platforms };
+  const platforms = surfaces.map(([id, name, tier, left, right, rise, prop, travel]) =>
+    ({ id, name, tier, left, right, y: floor - rise, prop, ...(travel && { travel }) }));
+  return { ...description, height, floor, left: 96, right: width - 96, artFrame: [],
+    spawn: [width / 2 - 173, width / 2 + 173], platforms };
 }
 
-export const arenas: ArenaDefinition[] = [
-  arena({
-    id: 'dorm-roof', name: '宿舍楼顶', theme: 'dorm', width: 3840, terrain: '花坛起跳 · 连廊追击',
-    description: '西侧树荫和东侧温室都能登阳台。跨楼连廊适合上层追击，也能从台沿落回长走廊。',
-    routes: [['west', 'bridge', 'terrace'], ['east', 'bridge', 'terrace']]
-  }, [[458, 397], [538, 261], [653, 130], [801, 0]], [
-    ['planter', '树荫花坛', 1, 25, 211, 762],
-    ['west', '西侧花箱阳台', 1, 192, 682, 653],
-    ['east', '东侧花箱阳台', 1, 991, 1364, 653],
-    ['greenhouse', '温室门台', 1, 1389, 1549, 761],
-    ['bridge', '跨楼连廊', 2, 366, 1298, 538],
-    ['terrace', '机房屋顶', 3, 699, 974, 458]
-  ]),
-  arena({
-    id: 'night-court', name: '夜训球场', theme: 'court', width: 3968, terrain: '双边半场 · 内外登台',
-    description: '两端半场适合拉开距离。中央席和外侧长椅都能跳上看台，再向内跃上检修台。',
-    routes: [['bench', 'west-stand', 'score-deck'], ['bench', 'east-stand', 'score-deck']]
-  }, [[594, 395], [631, 263], [747, 134], [772, 127], [807, 0]], [
-    ['west-bench', '西侧长椅', 1, 126, 385, 772],
-    ['bench', '中央替补席', 1, 503, 1169, 747],
-    ['east-bench', '东侧长椅', 1, 1289, 1547, 772],
-    ['west-stand', '西翼看台', 2, 272, 698, 631],
-    ['east-stand', '东翼看台', 2, 977, 1400, 631],
-    ['score-deck', '计分牌检修台', 3, 682, 991, 594]
-  ]),
-  harbor,
-  arena({
-    id: 'star-station', name: '星电站', theme: 'station', width: 4096, terrain: '高台分离 · 中层跳桥',
-    description: '双塔各自制高。换边可以走开阔地面，也能在中层桥头起跳，跨到另一座塔。',
-    routes: [['dock-left', 'relay-left', 'upper-left'], ['dock-right', 'relay-right', 'upper-right']]
-  }, [[440, 402], [503, 269], [627, 134], [741, 0]], [
-    ['dock-left', '左塔检修台', 1, 184, 650, 627],
-    ['dock-right', '右塔检修台', 1, 1021, 1489, 627],
-    ['relay-left', '左电缆桥', 2, 452, 788, 503],
-    ['relay-right', '右电缆桥', 2, 890, 1220, 503],
-    ['upper-left', '左塔控制台', 3, 253, 586, 440],
-    ['upper-right', '右塔控制台', 3, 1085, 1426, 440]
-  ])
-];
+const dorm = stage({
+  id: 'dorm-roof', name: '宿舍楼顶', theme: 'dorm', width: 4160, terrain: '温室起跳 · 跨院抢水塔',
+  description: '两段屋廊在中庭断开。可横跳换楼，也可借机房屋顶登水塔，沿另一侧晾晒台落回花园。',
+  routes: [['west', 'bridge', 'terrace', 'tank'], ['east', 'bridge-east', 'east-drying', 'tank']]
+}, [
+  ['planter', '西侧树荫花坛', 1, 142, 597, 92, 'planter'],
+  ['west-annex', '西翼温室顶', 2, 455, 935, 217, 'sunroom'],
+  ['west-yard', '苗圃花台', 1, 724, 1124, 123, 'planter'],
+  ['west-drying', '西楼晾晒台', 3, 756, 1110, 351, 'laundry'],
+  ['west-arch', '西院花廊', 2, 950, 1370, 254, 'skywalk'],
+  ['west', '西侧花房顶', 1, 1170, 1770, 130, 'sunroom'],
+  ['bridge', '西楼连廊', 2, 1386, 1982, 263, 'skywalk'],
+  ['terrace', '机房屋顶', 3, 1515, 1936, 397, 'penthouse'],
+  ['tank', '天台水塔', 4, 1846, 2360, 529, 'water-tank'],
+  ['bridge-east', '东楼连廊', 2, 2180, 2790, 267, 'skywalk'],
+  ['east', '东侧种植台', 1, 2390, 2980, 131, 'planter'],
+  ['east-drying', '东楼晾晒台', 3, 2278, 2730, 393, 'laundry'],
+  ['east-garden', '东院花廊', 2, 2960, 3475, 249, 'skywalk'],
+  ['east-yard', '东侧花圃', 1, 3070, 3540, 119, 'planter'],
+  ['greenhouse', '东翼温室顶', 1, 3368, 3995, 113, 'sunroom']
+]);
+
+const court = stage({
+  id: 'night-court', name: '夜训球场', theme: 'court', width: 4480, terrain: '开阔中圈 · 高位换边',
+  description: '中圈留给地面对打。两翼从替补棚和看台起跳，跃过转播席之间的缺口，能站上实时计分牌。',
+  routes: [['bench', 'west-stand', 'press-west', 'score-deck'], ['away-bench', 'east-stand', 'press-east', 'score-deck']]
+}, [
+  ['west-bench', '主队场边长椅', 1, 185, 690, 111, 'bench-seat'],
+  ['west-end', '主场底线看台', 2, 545, 1072, 237, 'bleachers'],
+  ['home-court', '西区替补棚', 1, 820, 1270, 119, 'shelter'],
+  ['west-lights', '西侧摄像台', 3, 929, 1292, 365, 'camera-deck'],
+  ['west-aisle', '主场观众席', 2, 1114, 1590, 249, 'bleachers'],
+  ['bench', '主队替补棚', 1, 1460, 1925, 130, 'shelter'],
+  ['west-stand', '主队高看台', 2, 1545, 1985, 261, 'bleachers'],
+  ['press-west', '主场转播席', 3, 1770, 2180, 394, 'press-box'],
+  ['score-deck', '中央计分牌', 4, 1970, 2510, 527, 'scoreboard'],
+  ['press-east', '客场转播席', 3, 2310, 2720, 395, 'press-box'],
+  ['east-stand', '客队高看台', 2, 2490, 2930, 261, 'bleachers'],
+  ['away-bench', '客队替补棚', 1, 2554, 3020, 131, 'shelter'],
+  ['east-aisle', '客场观众席', 2, 2990, 3490, 249, 'bleachers'],
+  ['away-court', '东区替补棚', 1, 3250, 3685, 119, 'shelter'],
+  ['east-lights', '东侧摄像台', 3, 3400, 3780, 366, 'camera-deck'],
+  ['east-end', '客场底线看台', 2, 3500, 4005, 235, 'bleachers'],
+  ['east-bench', '客队场边长椅', 1, 3710, 4285, 111, 'bench-seat']
+]);
+
+const station = stage({
+  id: 'star-station', name: '星电站', theme: 'station', width: 4352, terrain: '双塔回路 · 垂直升降井',
+  description: '两塔各有一条固定登顶路线。中央升降机从地面附近直达塔冠，左右电缆桥之间也能用普通跳跨过。',
+  routes: [['dock-left', 'relay-left', 'upper-left', 'coil-left'], ['dock-right', 'relay-right', 'upper-right', 'coil-right']]
+}, [
+  ['west-stair', '西侧接线台', 1, 140, 590, 91, 'stair'],
+  ['west-bank', '西厂配电柜', 2, 456, 940, 214, 'transformer'],
+  ['west-feed', '西厂馈电箱', 1, 838, 1385, 120, 'transformer'],
+  ['west-coil', '辅助线圈', 3, 752, 1100, 348, 'inductor'],
+  ['west-loop', '西厂回路线桥', 2, 1065, 1480, 253, 'conduit'],
+  ['dock-left', '左塔变压器', 1, 1425, 1865, 132, 'transformer'],
+  ['relay-left', '左电缆桥', 2, 1485, 2040, 263, 'conduit'],
+  ['upper-left', '左塔控制室', 3, 1180, 1660, 396, 'control-room'],
+  ['coil-left', '西塔线圈冠', 4, 1455, 1848, 529, 'inductor'],
+  ['service-lift', '中央升降机', 1, 2056, 2296, 61, 'elevator', { axis: 'y', distance: -465, period: 480, dwell: 52, phase: 0 }],
+  ['relay-right', '右电缆桥', 2, 2300, 2890, 263, 'conduit'],
+  ['dock-right', '右塔变压器', 1, 2487, 2972, 132, 'transformer'],
+  ['upper-right', '右塔控制室', 3, 2680, 3160, 395, 'control-room'],
+  ['coil-right', '东塔线圈冠', 4, 2500, 2820, 528, 'inductor'],
+  ['east-loop', '东厂回路线桥', 2, 3050, 3525, 245, 'conduit'],
+  ['east-feed', '东厂馈电箱', 1, 3210, 3705, 117, 'transformer'],
+  ['east-coil', '整流线圈', 3, 3390, 3738, 375, 'inductor'],
+  ['east-stair', '东侧接线台', 1, 3656, 4190, 100, 'stair']
+]);
+
+export const arenas: ArenaDefinition[] = [dorm, court, harbor, station];

@@ -4,12 +4,11 @@ import { backgrounds, harborProps, harborGantry } from './art.js';
 
 // Source rectangles and measured walk lines in the hand-painted port atlas.
 // The ferry's walkable cabin roof is shorter than its hull.
-type Prop = Exclude<NonNullable<Platform['prop']>, 'bridge' | 'gallery'>;
 interface Sprite {
   box: [number, number, number, number];
   lip: [number, number, number];
 }
-const atlas: Record<Prop, Sprite> = {
+const atlas: Partial<Record<NonNullable<Platform['prop']>, Sprite>> = {
   container: { box: [38, 32, 725, 259], lip: [43, 757, 67] },
   trailer:   { box: [869, 26, 582, 289], lip: [892, 1378, 51] },
   catwalk:   { box: [17, 366, 745, 277], lip: [21, 756, 450] },
@@ -46,7 +45,9 @@ function drawProp(ctx: CanvasRenderingContext2D, p: Platform, floor: number) {
     ctx.restore();
     return;
   }
-  const { box: [sx, sy, sw, sh], lip: [left, right, y] } = atlas[p.prop];
+  const sprite = atlas[p.prop];
+  if (!sprite) return;
+  const { box: [sx, sy, sw, sh], lip: [left, right, y] } = sprite;
   const scale = (p.right - p.left) / (right - left);
   const x = p.left - (left - sx) * scale;
   const bottom = sy + sh;

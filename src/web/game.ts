@@ -6,6 +6,7 @@ import { NEUTRAL, type ActionKey, type Axis, type Duo, type InputFrame, type Mat
 import { arcadeArt, arenaArt, fighterArt } from './art.js';
 import { FightAudio } from './audio.js';
 import { cpuInput } from './cpu.js';
+import { tierAt } from '../core/terrain.js';
 import { previewArena, recoveryLabels, Renderer } from './renderer.js';
 import { bindingMap, installSettings, keyHint, loadPreferences, renderGuide, type Control, type Seat } from './settings.js';
 
@@ -233,6 +234,8 @@ function show(next: Screen) {
     screens[id].hidden = id !== next && !(id === 'match' && next === 'pause');
   }
   screens.match.inert = next === 'pause';
+  const modeLabel = screens[next].querySelector<HTMLElement>('[data-mode-name]');
+  if (modeLabel) text(modeLabel, modeNames[mode]);
   if (next === 'roster') renderRoster();
   if (next === 'maps') {
     text(element('map-matchup'), roster[selected[0]].fighter.name + '  VS  ' + roster[selected[1]].fighter.name);
@@ -258,7 +261,6 @@ function go(next: Screen) {
 
 function selectMode(next: Mode) {
   mode = next;
-  for (const node of document.querySelectorAll<HTMLElement>('[data-mode-name]')) text(node, modeNames[mode]);
   go('roster');
 }
 
@@ -333,6 +335,7 @@ function selectArena(index: number) {
 
 function configureMatch(immediate: boolean) {
   config.arena = arenas[arenaIndex];
+  stage.dataset.arena = config.arena.id;
   config.fighters = [roster[selected[0]].fighter, roster[selected[1]].fighter];
   config.training = mode === 'training';
   config.rules = config.training ? rules : {
@@ -651,7 +654,7 @@ function trainingState(seat: Seat) {
 function renderHUD() {
   if (stage.dataset.phase !== state.phase) stage.dataset.phase = state.phase;
   text(roundLabel, config.training ? '自由训练' : '第 ' + state.round + ' 回合');
-  text(timer, config.training ? '∞' : String(Math.ceil(state.remaining / rules.ticksPerSecond)).padStart(2, '0'));
+  text(timer, config.training ? '∞' : String(Math.ceil(state.remaining / config.rules.ticksPerSecond)).padStart(2, '0'));
   for (const seat of seats) {
     const fighter = state.fighters[seat];
     text(names[seat], seatName(seat) + ' · ' + config.fighters[seat].name);
@@ -672,7 +675,7 @@ function renderHUD() {
   if (config.training) {
     const support = state.fighters[0].ground;
     const platform = config.arena.platforms.find(item => item.id === support);
-    if (platform) bestTier = Math.max(bestTier, platform.tier);
+    if (platform) bestTier = Math.max(bestTier, tierAt(config.arena, platform, state.arenaFrame));
     if (trainingGround.dataset.platform !== (support ?? 'air')) trainingGround.dataset.platform = support ?? 'air';
     text(trainingGround, platform ? platform.name : support ? '地面' : '空中');
     text(trainingBest, bestTier ? '已登第 ' + bestTier + ' 层' : '');
@@ -758,5 +761,16 @@ function frame(now: number) {
   requestAnimationFrame(frame);
 }
 
-go('title');
+const practiceMap = new URLSearchParams(location.search).get('practice');
+const practiceIndex = arenas.findIndex(arena => arena.id === practiceMap);
+if (practiceIndex >= 0) {
+  mode = 'training';
+  arenaIndex = practiceIndex;
+  confirmed.fill(true);
+  configureMatch(true);
+  enterMatch();
+  window.addEventListener('keydown', () => audio.enableFromGesture(), { once: true });
+} else {
+  go('title');
+}
 requestAnimationFrame(frame);

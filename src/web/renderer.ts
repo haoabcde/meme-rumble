@@ -1,8 +1,9 @@
 import { roster } from '../content/roster.js';
 import { actionFor, worldBox } from '../core/match.js';
 import type { ActionDefinition, ArenaDefinition, CombatEvent, FighterState, MatchConfig, MatchState } from '../core/types.js';
-import { backgrounds, harborProps, harborGantry, motionArt, sprites } from './art.js';
+import { backgrounds, harborProps, harborGantry, motionArt, sprites, stageKits } from './art.js';
 import { drawHarborScenery, drawHarborLift, drawQuay } from './harbor-art.js';
+import { drawStageBackdrop, drawStageMechanism, drawStageScenery } from './stage-art.js';
 import { platformAt } from '../core/terrain.js';
 import { frameCamera, type CameraView } from './camera.js';
 
@@ -11,6 +12,10 @@ export const recoveryLabels = { fall: '击倒', down: '倒地', rise: '起身' }
 const arenaColors = { dorm: '#ffc08c', court: '#8faaff', harbor: '#8de9cd', station: '#bc9bff' };
 const tierColors = ['#6adfff', '#ffdd87', '#edacff', '#c1ebad'];
 const artSizes = new Map(roster.map(entry => [entry.fighter.id, entry.height]));
+const harborLayers = { backdrop: drawQuay, scenery: drawHarborScenery, mechanism: drawHarborLift };
+const campusLayers = { backdrop: drawStageBackdrop, scenery: drawStageScenery, mechanism: drawStageMechanism };
+const layersFor = (arena: ArenaDefinition) => arena.theme === 'harbor' ? harborLayers : campusLayers;
+const sheetsFor = (arena: ArenaDefinition) => arena.theme === 'harbor' ? [harborProps, harborGantry] : [stageKits[arena.theme]];
 type Point = [number, number];
 const poses = {
   run: 0, stride: 1, jump: 2, guard: 3, windup: 4, strike: 5,
@@ -100,11 +105,11 @@ export function paintArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition
   const image = backgrounds[arena.theme];
   ctx.fillStyle = '#211f4b';
   ctx.fillRect(0, 0, width, height);
-  if (arena.theme === 'harbor') {
-    drawQuay(ctx, arena);
-    drawHarborScenery(ctx, arena);
-  }
-  else if (image.naturalWidth) drawStageArt(ctx, arena, image);
+  if (!arena.artFrame.length) {
+    const layers = layersFor(arena);
+    layers.backdrop(ctx, arena, arena.width / 2);
+    layers.scenery(ctx, arena);
+  } else if (image.naturalWidth) drawStageArt(ctx, arena, image);
 
   const shade = ctx.createLinearGradient(0, 0, 0, 190);
   shade.addColorStop(0, '#0c0d33ac');
@@ -186,7 +191,7 @@ export function previewArena(canvas: HTMLCanvasElement, arena: ArenaDefinition, 
     if (canvas.dataset.variant !== variant) return;
     ctx.setTransform(canvas.width / arena.width, 0, 0, canvas.height / arena.height, 0, 0);
     paintArena(ctx, arena);
-    if (arena.theme === 'harbor') drawHarborLift(ctx, arena, 0);
+    if (!arena.artFrame.length) layersFor(arena).mechanism(ctx, arena, 0);
     if (route) {
       ctx.fillStyle = '#10152b2b';
       ctx.fillRect(0, 0, arena.width, arena.height);
@@ -195,12 +200,8 @@ export function previewArena(canvas: HTMLCanvasElement, arena: ArenaDefinition, 
     ctx.resetTransform();
   };
   draw();
-  const image = backgrounds[arena.theme];
-  if (!image.complete) image.addEventListener('load', draw, { once: true });
-  if (arena.theme === 'harbor') {
-    for (const prop of [harborProps, harborGantry]) {
-      if (!prop.complete) prop.addEventListener('load', draw, { once: true });
-    }
+  for (const image of [backgrounds[arena.theme], ...sheetsFor(arena)]) {
+    if (!image.complete) image.addEventListener('load', draw, { once: true });
   }
 }
 
@@ -225,22 +226,22 @@ export class Renderer {
 
   load(arena: ArenaDefinition) {
     const layer = this.background;
-    if (arena.theme === 'harbor') {
-      // A full-resolution transparent strip holds the static props. The sea and the trolley move independently.
+    if (!arena.artFrame.length) {
+      // Keep the detailed foreground at world resolution. Background and mechanisms have their own transforms.
       layer.width = arena.width;
       layer.height = 1024;
       this.sceneryTop = arena.floor - 950;
-      layer.dataset.variant = 'port-scene';
+      layer.dataset.variant = arena.id;
       const draw = () => {
-        if (layer.dataset.variant !== 'port-scene') return;
+        if (layer.dataset.variant !== arena.id) return;
         const ctx = layer.getContext('2d')!;
         ctx.resetTransform();
         ctx.clearRect(0, 0, layer.width, layer.height);
         ctx.translate(0, -this.sceneryTop);
-        drawHarborScenery(ctx, arena);
+        layersFor(arena).scenery(ctx, arena);
       };
       draw();
-      for (const prop of [harborProps, harborGantry]) {
+      for (const prop of sheetsFor(arena)) {
         if (!prop.complete) prop.addEventListener('load', draw, { once: true });
       }
     } else {
@@ -276,15 +277,16 @@ export class Renderer {
     const shake = shakeEnabled ? Math.sin(this.shake * 3) * this.shake : 0;
     const dx = Math.min(x * zoom, Math.max(width - (config.arena.width - x) * zoom, shake));
     ctx.setTransform(zoom, 0, 0, zoom, -x * zoom + dx, -y * zoom);
-    const inHarbor = config.arena.theme === 'harbor';
-    if (inHarbor) {
-      drawQuay(ctx, config.arena, x + width / (2 * zoom));
+    const layered = !config.arena.artFrame.length;
+    if (layered) {
+      const layers = layersFor(config.arena);
+      layers.backdrop(ctx, config.arena, x + width / (2 * zoom));
       ctx.drawImage(this.background, 0, this.sceneryTop);
-      drawHarborLift(ctx, config.arena, state.arenaFrame);
+      layers.mechanism(ctx, config.arena, state.arenaFrame, state, config);
     } else {
       ctx.drawImage(this.background, 0, 0, config.arena.width, config.arena.height);
     }
-    ctx.fillStyle = inHarbor ? '#10153312' : '#10153324';
+    ctx.fillStyle = layered ? '#10153312' : '#10153324';
     ctx.fillRect(x - dx / zoom, y, width / zoom, height / zoom);
 
     const decks = config.arena.platforms.map(p => platformAt(p, state.arenaFrame));

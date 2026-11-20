@@ -71,8 +71,11 @@ export interface Platform {
   left: number;
   right: number;
   y: number;
-  prop?: 'container' | 'trailer' | 'catwalk' | 'ferry' | 'pallet' | 'office' | 'bridge' | 'gallery';
-  travel?: { distance: number; period: number; dwell: number; phase: number };
+  prop?: 'container' | 'trailer' | 'catwalk' | 'ferry' | 'pallet' | 'office' | 'bridge' | 'gallery' |
+    'planter' | 'sunroom' | 'skywalk' | 'penthouse' | 'water-tank' | 'laundry' |
+    'bench-seat' | 'shelter' | 'bleachers' | 'press-box' | 'scoreboard' | 'camera-deck' |
+    'transformer' | 'control-room' | 'conduit' | 'inductor' | 'elevator' | 'stair';
+  travel?: { axis?: 'x' | 'y'; distance: number; period: number; dwell: number; phase: number };
 }
 
 export interface ArenaDefinition {

@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, rename, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 
@@ -17,8 +17,14 @@ const [template, css, bundle] = await Promise.all([
   })
 ]);
 
+const script = bundle.outputFiles[0].text;
 const html = template
   .replace('<link rel="stylesheet" href="./styles.css">', () => '<style>\n' + css + '</style>')
-  .replace('<script type="module" src="./web/game.js"></script>', () =>
-    '<script>\n' + bundle.outputFiles[0].text.replace(/<\/script/gi, '<\\/script') + '</script>');
-await writeFile(new URL('dist/index.html', root), html);
+  .replace('<script src="./dist/game.bundle.js"></script>', () =>
+    '<script>\n' + script.replace(/<\/script/gi, '<\\/script') + '</script>');
+async function publish(file, content) {
+  const pending = new URL('dist/.' + file + '.' + process.pid, root);
+  await writeFile(pending, content);
+  await rename(pending, new URL('dist/' + file, root));
+}
+await Promise.all([publish('index.html', html), publish('game.bundle.js', script)]);

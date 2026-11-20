@@ -2,7 +2,7 @@ import type {
   ActionDefinition, ArenaDefinition, Box, CombatEvent, Direction, Duo, FighterState,
   InputFrame, MatchConfig, MatchState, RoundResult, Side
 } from './types.js';
-import { platformOffset } from './terrain.js';
+import { platformAt, platformOffset } from './terrain.js';
 
 const seats = [0, 1] as const;
 const slotPriority = ['C', 'B', 'A'] as const;
@@ -207,8 +207,8 @@ function releaseUnsupportedGround(fighter: FighterState, arena: ArenaDefinition,
   if (!fighter.ground || fighter.ground === 'floor') return;
   const support = arena.platforms.find(platform => platform.id === fighter.ground);
   if (support) {
-    const x = fighter.x - platformOffset(support, frame);
-    if (x >= support.left && x <= support.right) return;
+    const deck = platformAt(support, frame);
+    if (fighter.x >= deck.left && fighter.x <= deck.right) return;
   }
   fighter.ground = null;
   fighter.guarding = false;
@@ -216,17 +216,24 @@ function releaseUnsupportedGround(fighter: FighterState, arena: ArenaDefinition,
 }
 
 function landingPlatform(arena: ArenaDefinition, fighter: FighterState, previousX: number, previousY: number, frame: number) {
-  const distanceY = fighter.y - previousY;
-  if (distanceY <= 0) return;
   let next: ArenaDefinition['platforms'][number] | undefined;
-  for (const platform of arena.platforms) {
-    if (platform.id === fighter.ignorePlatform || platform.y < previousY || platform.y > fighter.y ||
-      (next && next.y <= platform.y)) continue;
-    const endX = fighter.x - platformOffset(platform, frame);
-    if (endX < platform.left || endX > platform.right) continue;
-    const startX = previousX - platformOffset(platform, frame - 1);
-    const atX = startX + (endX - startX) * ((platform.y - previousY) / distanceY);
-    if (atX >= platform.left && atX <= platform.right) next = platform;
+  let first = Infinity;
+  for (const raw of arena.platforms) {
+    if (raw.id === fighter.ignorePlatform) continue;
+    const end = platformAt(raw, frame);
+    if (fighter.x < end.left || fighter.x > end.right || fighter.y < end.y) continue;
+    const start = platformAt(raw, frame - 1);
+    const gap = start.y - previousY;
+    const closing = gap + fighter.y - end.y;
+    if (gap < 0 || closing <= 0) continue;
+    const fraction = gap / closing;
+    const startX = previousX - start.left;
+    const endX = fighter.x - end.left;
+    const contactX = startX + fraction * (endX - startX);
+    if (fraction < first && contactX >= 0 && contactX <= end.right - end.left) {
+      next = end;
+      first = fraction;
+    }
   }
   return next;
 }
@@ -258,9 +265,8 @@ function motion(
   const previousY = f.y;
   f.vy += 1;
   f.y += f.vy;
-  if (f.vy <= 0) return;
   const platform = landingPlatform(arena, f, previousX, previousY, state.arenaFrame);
-  if (platform || f.y >= arena.floor) {
+  if (platform || (f.vy > 0 && f.y >= arena.floor)) {
     if (f.vy >= 5 && !f.recovery) events.push({ kind: 'land', source: seat, x: f.x, y: platform?.y ?? arena.floor });
     f.ground = platform?.id ?? 'floor';
     f.y = platform?.y ?? arena.floor;
@@ -415,8 +421,11 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   for (const seat of seats) {
     const fighter = state.fighters[seat];
     const ride = config.arena.platforms.find(platform => platform.travel && platform.id === fighter.ground);
-    if (ride) fighter.x = clamp(fighter.x + platformOffset(ride, state.arenaFrame) -
-      platformOffset(ride, state.arenaFrame - 1), config.arena.left, config.arena.right);
+    if (ride) {
+      const shift = platformOffset(ride, state.arenaFrame) - platformOffset(ride, state.arenaFrame - 1);
+      if (ride.travel?.axis === 'y') fighter.y += shift;
+      else fighter.x = clamp(fighter.x + shift, config.arena.left, config.arena.right);
+    }
   }
   for (const seat of seats) {
     updateControl(state, config, seat, inputs[seat], events);

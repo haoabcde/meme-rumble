@@ -14,6 +14,18 @@ function descendingTicks(y: number, vy: number, target: number) {
   return Math.max(0, Math.ceil(-initial + Math.sqrt(discriminant)));
 }
 
+function flightTo(p: Platform, frame: number, y: number, vy: number) {
+  if (p.travel?.axis !== 'y') return descendingTicks(y, vy, p.y);
+  // An ascending lift can catch the feet before the apex. Predict the same relative crossing as collision.
+  let gap = y - platformAt(p, frame).y;
+  for (let n = 1; n <= 80; n++) {
+    const next = y + n * vy + n * (n + 1) / 2 - platformAt(p, frame + n).y;
+    if (gap <= 0 && next >= 0 && next > gap) return n;
+    gap = next;
+  }
+  return 0;
+}
+
 export function approachPlatform(state: MatchState, config: MatchConfig): InputFrame | undefined {
   const [target, cpu] = state.fighters;
   const arena = config.arena;
@@ -54,7 +66,7 @@ export function approachPlatform(state: MatchState, config: MatchConfig): InputF
     const remaining = costs.get(p);
     if (remaining === undefined || p === support || p.id === cpu.ignorePlatform) continue;
     if (support && p.y > support.y + 40) continue;
-    const ticks = descendingTicks(cpu.y, cpu.ground ? -jump : cpu.vy, p.y);
+    const ticks = flightTo(raw[i], state.arenaFrame, cpu.y, cpu.ground ? -jump : cpu.vy);
     if (!ticks) continue;
     const landing = p.travel ? platformAt(raw[i], state.arenaFrame + ticks) : p;
     const entry = nearest(cpu.x, landing);

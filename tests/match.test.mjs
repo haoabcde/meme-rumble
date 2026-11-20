@@ -7,7 +7,7 @@ import { arenas } from '../dist/content/arenas.js';
 import { roster } from '../dist/content/roster.js';
 import { frameCamera } from '../dist/web/camera.js';
 import { cpuInput } from '../dist/web/cpu.js';
-import { platformAt, platformOffset } from '../dist/core/terrain.js';
+import { platformAt, platformOffset, tierAt } from '../dist/core/terrain.js';
 
 const config = { rules, arena: arenas[0], fighters: [testFighter, testFighter] };
 const input = (pressed = [], x = 0, y = 0) => ({ pressed, x, y });
@@ -255,6 +255,8 @@ test('a second jump trades the air dash for extra height without skipping the mi
   const settings = trainingOn(arenas[1]);
   const state = begin(settings);
   const fighter = state.fighters[0];
+  const bench = settings.arena.platforms.find(p => p.id === 'bench');
+  fighter.x = bench.right - 60;
   step(state, [input(['jump']), NEUTRAL], settings);
   stepFor(state, 16, [NEUTRAL, NEUTRAL], settings);
   assert.deepEqual(step(state, [input(['jump']), NEUTRAL], settings).map(event => event.kind), ['air-jump']);
@@ -356,12 +358,12 @@ function alignOverlapping(state, before, next, settings, seat = 0) {
   assert.ok(fighter.x >= minimum && fighter.x <= maximum);
 }
 
-function landAfter(state, command, settings, seat = 0) {
+function landAfter(state, command, settings, seat = 0, airDirection = 0) {
   const first = step(state, inputForSeat(seat, command), settings);
   assert.equal(state.fighters[seat].ground, null);
   let last = [];
   for (let i = 0; i < 60 && !state.fighters[seat].ground; i++) {
-    last = step(state, [NEUTRAL, NEUTRAL], settings);
+    last = step(state, inputForSeat(seat, input([], airDirection)), settings);
   }
   assert.ok(last.some(event => event.kind === 'land'));
   return first;
@@ -375,8 +377,8 @@ for (const arena of arenas) {
     const floor = { ...arena, id: 'floor', y: arena.floor };
     const path = [floor, ...arena.routes[0].map(id => map.get(id))];
     const peak = settings.fighters[0].jump * (settings.fighters[0].jump - 1) / 2;
-    assert.equal(path.length, arena.id === 'harbor' ? 5 : 4);
-    assert.ok(floor.y - path.at(-1).y >= (arena.id === 'harbor' ? 520 : 390),
+    assert.equal(path.length, 5);
+    assert.ok(floor.y - path.at(-1).y >= 520,
       'the upper route needs usable vertical separation from the floor');
     assert.ok(path[0].y - path[2].y > peak, 'the middle layer cannot be skipped to directly from the floor');
     for (let i = 1; i < path.length; i++) {
@@ -449,7 +451,7 @@ test('walking off a ledge clears its support and lands on the next reachable tie
   step(state, [input([], -1), NEUTRAL], settings);
   assert.equal(fighter.ground, null);
   stepFor(state, 30, [NEUTRAL, NEUTRAL], settings);
-  assert.equal(fighter.ground, 'west-stand');
+  assert.equal(fighter.ground, 'press-west');
 });
 
 for (const arena of arenas) {
@@ -618,10 +620,10 @@ test('the opponent AI can follow across the new station bridge gap', () => {
 
 test('the side entrances link into the main routes with the same shared jump', () => {
   const entries = [
-    [arenas[0], 'planter', 'west', 1],
-    [arenas[0], 'greenhouse', 'east', -1],
-    [arenas[1], 'west-bench', 'west-stand', 1],
-    [arenas[1], 'east-bench', 'east-stand', -1],
+    [arenas[0], 'planter', 'west-annex', 1],
+    [arenas[0], 'greenhouse', 'east-garden', -1],
+    [arenas[1], 'west-bench', 'west-end', 1],
+    [arenas[1], 'east-bench', 'east-end', -1],
     [arenas[2], 'freight-dock', 'east-loading', -1]
   ];
   for (const [arena, entranceId, platformId, direction] of entries) {
@@ -741,6 +743,102 @@ test('at either dock the fourth-tier gallery and the trolley allow a round trip 
     assert.equal(state.fighters[0].ground, 'crane');
     landAfter(state, input(['jump']), settings);
     assert.equal(state.fighters[0].ground, id);
+  }
+});
+
+test('the two dormitory corridors connect across the courtyard, and a jump in center court stays on the floor', () => {
+  const dorm = trainingOn(arenas.find(a => a.id === 'dorm-roof'));
+  const s = begin(dorm);
+  const west = dorm.arena.platforms.find(p => p.id === 'bridge');
+  const east = dorm.arena.platforms.find(p => p.id === 'bridge-east');
+  assert.equal(east.left - west.right, 198);
+  Object.assign(s.fighters[0], { x: west.right - 35, y: west.y, ground: west.id });
+  landAfter(s, input(['jump'], 1), dorm, 0, 1);
+  assert.equal(s.fighters[0].ground, east.id);
+
+  const court = trainingOn(arenas.find(a => a.id === 'night-court'));
+  const game = begin(court);
+  const mid = court.arena.width / 2;
+  const innerLow = court.arena.routes.map(route => court.arena.platforms.find(p => p.id === route[0]));
+  assert.equal(innerLow[1].left - innerLow[0].right, 629);
+  game.fighters[0].x = mid;
+  landAfter(game, input(['jump']), court);
+  assert.equal(game.fighters[0].ground, 'floor');
+});
+
+test('both lift riders keep their height through ascent, turnaround, hitstop, replay and descent', () => {
+  const settings = trainingOn(arenas.find(a => a.id === 'star-station'));
+  const car = settings.arena.platforms.find(p => p.travel);
+  const state = begin(settings);
+  const seats = [car.left + 42, car.right - 42];
+  for (const [seat, f] of state.fighters.entries()) Object.assign(f, { x: seats[seat], y: car.y, ground: car.id });
+  let saved;
+  for (let n = 0; n < car.travel.period; n++) {
+    if (n === 125) {
+      state.freeze = 5;
+      const before = state.fighters.map(f => f.y);
+      stepFor(state, 5, [NEUTRAL, NEUTRAL], settings);
+      assert.equal(state.arenaFrame, n);
+      assert.deepEqual(state.fighters.map(f => f.y), before);
+      saved = structuredClone(state);
+    }
+    step(state, [NEUTRAL, NEUTRAL], settings);
+    if (saved) step(saved, [NEUTRAL, NEUTRAL], settings);
+    const deck = platformAt(car, n + 1);
+    for (const [seat, f] of state.fighters.entries()) {
+      assert.equal(f.ground, car.id);
+      assert.equal(f.y, deck.y);
+      assert.equal(f.x, seats[seat]);
+    }
+  }
+  assert.deepEqual(state, saved);
+  assert.equal(platformAt(car, 480).y, car.y);
+  assert.equal(tierAt(settings.arena, car, 480), 1);
+  assert.equal(car.y - platformAt(car, 240).y, 465);
+  assert.equal(tierAt(settings.arena, car, 240), 4);
+  stepFor(state, 240, [NEUTRAL, NEUTRAL], settings);
+  landAfter(state, input(['jump'], 0, 1), settings);
+  assert.equal(state.fighters[0].ground, 'floor');
+  assert.equal(state.fighters[1].ground, car.id);
+});
+
+test('a one-way vertical lift catches only a relative crossing from above', () => {
+  const settings = trainingOn(arenas.find(a => a.id === 'star-station'));
+  const lift = settings.arena.platforms.find(p => p.travel);
+  for (const [frame, gap, vy, inside, expected] of [
+    [85, .5, -2, true, true], [85, -.5, -2, true, false], [85, .5, -2, false, false],
+    [325, 1, 0, true, false], [325, 1, 5, true, true]
+  ]) {
+    const state = begin(settings);
+    state.arenaFrame = frame;
+    const old = platformAt(lift, frame);
+    const next = platformAt(lift, frame + 1);
+    const f = state.fighters[0];
+    Object.assign(f, { x: inside ? (lift.left + lift.right) / 2 : lift.right + 1, y: old.y - gap, vy, ground: null });
+    step(state, [NEUTRAL, NEUTRAL], settings);
+    assert.equal(f.ground, expected ? lift.id : null);
+    if (expected) assert.equal(f.y, next.y);
+  }
+});
+
+test('either opening seat can board the station lift and step off onto its own tower crown with a single jump', () => {
+  const settings = trainingOn(arenas.find(a => a.id === 'star-station'));
+  const lift = settings.arena.platforms.find(p => p.travel);
+  for (const seat of [0, 1]) {
+    const state = begin(settings);
+    const f = state.fighters[seat];
+    const towardCar = seat === 0 ? 1 : -1;
+    const stop = seat === 0 ? lift.left + 27 : lift.right - 27;
+    step(state, inputForSeat(seat, input(['jump'], towardCar)), settings);
+    for (let n = 0; n < 45 && !f.ground; n++) {
+      const dir = (stop - f.x) * towardCar > 0 ? towardCar : 0;
+      step(state, inputForSeat(seat, input([], dir)), settings);
+    }
+    assert.equal(f.ground, lift.id);
+    stepFor(state, 235 - state.arenaFrame, [NEUTRAL, NEUTRAL], settings);
+    const outward = -towardCar;
+    landAfter(state, input(['jump'], outward), settings, seat, outward);
+    assert.equal(f.ground, seat === 0 ? 'coil-left' : 'coil-right');
   }
 });
 

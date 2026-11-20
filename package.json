@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "node scripts/serve-web.mjs",
     "build": "tsc && node scripts/build-web.mjs",
     "test": "npm run build && node --test tests/match.test.mjs"
   },
