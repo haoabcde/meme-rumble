@@ -2,7 +2,7 @@ import { rules } from '../content/demo.js';
 import { arenas } from '../content/arenas.js';
 import { roster } from '../content/roster.js';
 import { actionFor, createMatch, step } from '../core/match.js';
-import { NEUTRAL, type ActionKey, type Axis, type Duo, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
+import { NEUTRAL, type ActionKey, type Axis, type Duo, type FighterDefinition, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
 import { arcadeArt, arenaArt, fighterArt } from './art.js';
 import { FightAudio } from './audio.js';
 import { cpuInput } from './cpu.js';
@@ -90,6 +90,7 @@ let state = createMatch(config);
 let roundHistory: Array<RoundResult & { round: number }> = [];
 let lastChains: Duo<{ hits: number; until: number } | null> = [null, null];
 const trainingInputs: string[] = [];
+let trainingDownHeld = false;
 let mode: Mode = 'local';
 let screen: Screen = 'title';
 let activeSeat: Seat = 0;
@@ -172,11 +173,27 @@ function seatName(seat: Seat) {
   return seat === 0 ? 'P1' : mode === 'cpu' ? '电脑' : mode === 'training' ? '陪练' : 'P2';
 }
 
+function trainingCounterHints(fighter: FighterDefinition) {
+  const hints: string[] = [];
+  if (fighter.guardCounter) hints.push(keyHint(preferences, 0, ['down']) + ' 精准防反');
+  for (const move of fighter.actions) {
+    if (!('counterTo' in move) || move.linkOnly) continue;
+    const keys: string[] = [];
+    if (move.direction === 'forward') keys.push('前');
+    if (move.direction === 'back') keys.push('后');
+    if (move.direction === 'up' || move.direction === 'down') keys.push(keyHint(preferences, 0, [move.direction]));
+    keys.push(keyHint(preferences, 0, [move.slot]));
+    hints.push(keys.join(' + ') + ' 防反架势');
+  }
+  return hints.join(' · ');
+}
+
 function footer() {
   const fighting = screen === 'match' || screen === 'pause';
   const confirmKey = keyHint(preferences, 0, ['A']);
   const backKey = keyHint(preferences, 0, ['jump']);
   const upDown = keyHint(preferences, 0, ['up', 'down']);
+  const counters = screen === 'match' && mode === 'training' ? trainingCounterHints(config.fighters[0]) : '';
   text(element('footer-main'), fighting ? modeNames[mode] + ' · ' + config.arena.name : 'Meme 乱斗 · 抽象之王');
   const hints = screen === 'roster'
     ? 'P1 ' + keyHint(preferences, 0, ['left', 'right', 'up', 'down'], ' ') + ' 移动 · ' +
@@ -187,6 +204,7 @@ function footer() {
     : screen === 'menu' ? upDown + ' 选模式 · ' + confirmKey + ' 确认'
     : screen === 'title' ? confirmKey + ' 进入游戏'
     : screen === 'result' || screen === 'pause' ? upDown + ' 选择 · ' + confirmKey + ' 确认 · Esc 返回'
+    : counters ? 'P1 ' + counters
     : fighting ? 'P1 ' + keyHint(preferences, 0, ['A']) + ' 普攻 · ' +
         keyHint(preferences, 0, ['up', 'A'], ' + ') + ' 挑空' +
         (mode === 'local' ? '　　P2 ' + keyHint(preferences, 1, ['up', 'A'], ' + ') + ' 挑空'
@@ -264,6 +282,11 @@ function selectMode(next: Mode) {
   go('roster');
 }
 
+function acceptsSkillInput(fighter: FighterDefinition, slot: 'B' | 'C') {
+  return fighter.actions.some(move => move.slot === slot && (!move.linkOnly || fighter.actions.some(source =>
+    source.cancelOnHit?.includes(move.id) || source.cancelOnHit?.includes(slot))));
+}
+
 function renderRoster() {
   for (const seat of seats) {
     const entry = roster[selected[seat]];
@@ -274,9 +297,10 @@ function renderRoster() {
     const src = fighterArt[entry.fighter.id];
     if (art.getAttribute('src') !== src) art.src = src;
     text(panels[seat].querySelector('h3')!, entry.fighter.name);
-    const enabledSlots = (['B', 'C'] as const).filter(slot => entry.fighter.actions.some(action => action.slot === slot));
-    text(panels[seat].querySelector('p')!,
-      enabledSlots.length ? '可用专属槽 · ' + enabledSlots.join(' / ') : '专属技能待接入');
+    const enabledSlots = (['B', 'C'] as const).filter(slot => acceptsSkillInput(entry.fighter, slot));
+    const skills = enabledSlots.length ? ['可用专属槽 · ' + enabledSlots.join(' / ')] : [];
+    if (entry.fighter.guardCounter) skills.push('精准防反');
+    text(panels[seat].querySelector('p')!, skills.join(' · ') || '专属技能待接入');
     lockButtons[seat].setAttribute('aria-pressed', String(confirmed[seat]));
     text(lockButtons[seat], confirmed[seat] ? who + ' 已确认' : '确认 ' + who);
   }
@@ -347,6 +371,7 @@ function configureMatch(immediate: boolean) {
   roundHistory = [];
   lastChains = [null, null];
   trainingInputs.length = 0;
+  trainingDownHeld = false;
   bestTier = 0;
   fightCueUntil = 0;
   if (immediate) state.phase = 'fight';
@@ -589,7 +614,7 @@ window.addEventListener('keydown', event => {
   if (held.has(event.code) || event.repeat || (binding.seat === 1 && mode !== 'local')) return;
   held.add(event.code);
   const { seat, control } = binding;
-  if ((control === 'B' || control === 'C') && !config.fighters[seat].actions.some(action => action.slot === control)) {
+  if ((control === 'B' || control === 'C') && !acceptsSkillInput(config.fighters[seat], control)) {
     notify(seatName(seat) + ' 的专属槽 ' + control + ' 待接入');
     return;
   }
@@ -616,6 +641,9 @@ function readInput(seat: Seat): InputFrame {
 function opponentInput(): InputFrame {
   if (mode === 'local') return readInput(1);
   if (mode === 'cpu' || trainingDummy.value === 'cpu') return cpuInput(state, config);
+  if (trainingDummy.value === 'jab' && !state.freeze && state.arenaFrame % rules.ticksPerSecond === 0) {
+    return { ...NEUTRAL, pressed: ['A'] };
+  }
   return trainingDummy.value === 'guard' ? { x: 0, y: 1, pressed: [] } : NEUTRAL;
 }
 
@@ -635,16 +663,19 @@ function trainingState(seat: Seat) {
   if (fighter.guardBreak) return '破防 · ' + fighter.guardBreak + ' 帧';
   if (fighter.hitstun) return '受击 · ' + fighter.hitstun + ' 帧';
   if (fighter.blockstun) return '格挡 · ' + fighter.blockstun + ' 帧';
+  if (fighter.pendingCounter) return '防反成立';
   const action = actionFor(config, state, seat);
   if (attack && action) {
     const { frame } = attack;
     const activeEnd = action.startup + action.active;
+    const activeLabel = 'counterTo' in action ? (fighter.ground ? '防反窗口' : '空中失效') : '有效';
     const phase = frame < action.startup ? '起手 ' + (frame + 1) + '/' + action.startup
-      : frame < activeEnd ? '有效 ' + (frame - action.startup + 1) + '/' + action.active
+      : frame < activeEnd ? activeLabel + ' ' + (frame - action.startup + 1) + '/' + action.active
         : '收招 ' + (frame - activeEnd + 1) + '/' + action.recovery;
     return (action.name ?? action.id) + ' · ' + phase;
   }
   if (fighter.dash) return '冲刺';
+  if (fighter.guarding && fighter.guardCounterLeft) return '防反窗口 · ' + fighter.guardCounterLeft + ' 帧';
   if (fighter.guarding) return '防御';
   if (fighter.ground) return '地面可操作';
   return fighter.airActionUsed ? '空中机动已用' : '空中机动可用';
@@ -709,6 +740,11 @@ function tick(player: InputFrame) {
     }
   }
   if (config.training && previous === 'fight') {
+    const down = player.y === 1;
+    if (down && !trainingDownHeld && !player.pressed.length) {
+      trainingInputs.push(keyHint(preferences, 0, ['down']));
+    }
+    trainingDownHeld = down;
     for (const key of player.pressed) {
       const { x, y } = player.sampled?.[key] ?? player;
       const controls: Control[] = [];
@@ -760,10 +796,9 @@ function frame(now: number) {
   requestAnimationFrame(frame);
 }
 
-const practiceParams = new URLSearchParams(location.search);
-const practiceMap = practiceParams.get('practice');
-const practiceIndex = arenas.findIndex(arena => arena.id === practiceMap);
-if (practiceIndex >= 0) {
+export function openPractice(practiceParams: URLSearchParams) {
+  const practiceIndex = arenas.findIndex(arena => arena.id === practiceParams.get('practice'));
+  if (practiceIndex < 0) return false;
   mode = 'training';
   arenaIndex = practiceIndex;
   for (const seat of seats) {
@@ -775,7 +810,7 @@ if (practiceIndex >= 0) {
   configureMatch(true);
   enterMatch();
   window.addEventListener('keydown', () => audio.enableFromGesture(), { once: true });
-} else {
-  go('title');
+  return true;
 }
+if (!openPractice(new URLSearchParams(location.search))) go('title');
 requestAnimationFrame(frame);

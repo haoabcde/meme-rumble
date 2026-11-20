@@ -1,4 +1,4 @@
-import type { ActionDefinition, Box, FighterDefinition } from '../core/types.js';
+import type { ActionDefinition, Box, CounterStance, FighterAction, FighterDefinition } from '../core/types.js';
 
 export const motionGrid = {
   columns: 4, defaultRows: 3, cell: 216, footX: 108, footY: 184, referenceHeight: 144
@@ -17,9 +17,7 @@ export interface RosterEntry {
   art: FighterArt;
 }
 
-export interface SignatureMove extends ActionDefinition {
-  slot: 'B' | 'C';
-}
+export type SignatureMove = (ActionDefinition & { slot: 'B' | 'C' }) | CounterStance;
 
 export interface FighterPackage {
   id: string;
@@ -27,8 +25,9 @@ export interface FighterPackage {
   accent: string;
   height: number;
   art: FighterArt;
-  stats?: Partial<Omit<FighterDefinition, 'id' | 'name' | 'actions'>>;
+  stats?: Partial<Omit<FighterDefinition, 'id' | 'name' | 'actions' | 'guardCounter'>>;
   signatureMoves: SignatureMove[];
+  guardCounter?: FighterDefinition['guardCounter'];
   /** Additional destinations after a shared attack lands, applied to this fighter only. */
   extraCancels?: Record<string, string[]>;
 }
@@ -78,7 +77,14 @@ function validBox(box: Box) {
   return [box.x, box.y, box.w, box.h].every(Number.isFinite) && box.w > 0 && box.h > 0;
 }
 
-function validateMoves(owner: string, actions: ActionDefinition[]) {
+function validateCounterTarget(owner: string, targetId: string, actions: FighterAction[]) {
+  const target = actions.find(action => action.id === targetId);
+  if (!target || 'counterTo' in target || target.posture === 'air') {
+    throw Error(owner + ' 的防反必须指向本角色可在地面发动的攻击：' + targetId);
+  }
+}
+
+function validateMoves(owner: string, actions: FighterAction[]) {
   const ids = new Set<string>();
   for (const action of actions) {
     const where = owner + ' / ' + action.id;
@@ -88,11 +94,18 @@ function validateMoves(owner: string, actions: ActionDefinition[]) {
         action.startup < 0 || action.active < 1 || action.recovery < 0) {
       throw Error(where + ' 的动作帧数无效');
     }
-    if (!validBox(action.hitbox)) throw Error(where + ' 的攻击框坐标或宽高无效');
-    if (![action.hitstun, action.blockstun, action.stop].every(n => Number.isInteger(n) && n >= 0) ||
+    if ('counterTo' in action) {
+      if (action.posture !== 'ground' || !['B', 'C'].includes(action.slot)) {
+        throw Error(where + ' 的防反架势须使用地面 B/C 槽');
+      }
+      validateCounterTarget(where, action.counterTo, actions);
+    } else {
+      if (!validBox(action.hitbox)) throw Error(where + ' 的攻击框坐标或宽高无效');
+      if (![action.hitstun, action.blockstun, action.stop].every(n => Number.isInteger(n) && n >= 0) ||
         ![action.damage, action.guardCost].every(n => Number.isFinite(n) && n >= 0) ||
         ![action.push, action.lift, action.advance, action.airControl ?? 0].every(Number.isFinite)) {
-      throw Error(where + ' 的命中、位移或硬直参数无效');
+        throw Error(where + ' 的命中、位移或硬直参数无效');
+      }
     }
     let previous = -1;
     const duration = action.startup + action.active + action.recovery;
@@ -111,19 +124,26 @@ function validateMoves(owner: string, actions: ActionDefinition[]) {
 }
 
 export function defineFighter(spec: FighterPackage): RosterEntry {
-  const { id, name, accent, height, art, stats, signatureMoves, extraCancels = {} } = spec;
+  const { id, name, accent, height, art, stats, signatureMoves, guardCounter, extraCancels = {} } = spec;
   for (const source of Object.keys(extraCancels)) {
     if (!commonActions.some(move => move.id === source)) throw Error(id + ' 找不到公共动作 ' + source);
   }
-  const actions = commonActions.map(move => {
+  const shared = commonActions.map(move => {
     const extra = extraCancels[move.id];
     return extra ? { ...move, cancelOnHit: [...new Set([...(move.cancelOnHit ?? []), ...extra])] } : move;
-  }).concat(signatureMoves);
+  });
+  const actions = [...shared, ...signatureMoves];
   validateMoves(id, actions);
+  if (guardCounter) {
+    if (!Number.isSafeInteger(guardCounter.windowFrames) || guardCounter.windowFrames < 1) {
+      throw Error(id + ' 的防反窗口须为正整数帧');
+    }
+    validateCounterTarget(id, guardCounter.actionId, actions);
+  }
   const fighter: FighterDefinition = {
     maxHp: 1000, run: 8, airSpeed: 9, jump: 18, dash: 23, airDash: true, airJump: 13,
     hurtbox: { x: -28, y: -114, w: 56, h: 114 }, bodyWidth: 72,
-    ...stats, id, name, actions
+    ...stats, id, name, actions, guardCounter
   };
   if (!id.trim() || !name.trim() || !Number.isFinite(height) || height <= 0 ||
       !Number.isFinite(fighter.maxHp) || fighter.maxHp <= 0) {

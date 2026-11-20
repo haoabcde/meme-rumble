@@ -22,7 +22,7 @@ export interface Box {
   h: number;
 }
 
-export interface ActionDefinition {
+interface ActionTiming {
   id: string;
   name?: string;
   slot: Slot;
@@ -31,6 +31,12 @@ export interface ActionDefinition {
   startup: number;
   active: number;
   recovery: number;
+  linkOnly?: boolean;
+  /** Hold each sprite cell from its zero-based action frame until the next key. */
+  animation?: { frame: number; cell: number }[];
+}
+
+export interface ActionDefinition extends ActionTiming {
   hitbox: Box;
   damage: number;
   hitstun: number;
@@ -43,12 +49,19 @@ export interface ActionDefinition {
   advance: number;
   // Action IDs or slot names, plus 'jump' for a grounded chase after a hit.
   cancelOnHit?: string[];
-  linkOnly?: boolean;
   airControl?: number;
   pose: 'strike' | 'sweep' | 'finish' | 'rise' | 'air';
-  /** Hold each sprite cell from its zero-based action frame until the next key. */
-  animation?: { frame: number; cell: number }[];
 }
+
+/** A defensive B/C action. Its active frames catch a frontal hit on the ground. */
+export interface CounterStance extends ActionTiming {
+  slot: 'B' | 'C';
+  posture: 'ground';
+  counterTo: string;
+  cancelOnHit?: never;
+}
+
+export type FighterAction = ActionDefinition | CounterStance;
 
 export interface FighterDefinition {
   id: string;
@@ -63,7 +76,9 @@ export interface FighterDefinition {
   // Boxes use the character's feet as origin, expressed in facing-right coordinates.
   hurtbox: Box;
   bodyWidth: number;
-  actions: ActionDefinition[];
+  actions: FighterAction[];
+  /** A fresh grounded guard can turn a frontal contact into this fighter's named action. */
+  guardCounter?: { windowFrames: number; actionId: string };
 }
 
 export interface Platform {
@@ -151,7 +166,11 @@ export interface FighterState {
   dash: number;
   airActionUsed: boolean;
   guarding: boolean;
+  /** Undefined when released, zero when held past the window, positive while armed. */
+  guardCounterLeft?: number;
   attack: Attack | null;
+  /** Starts on the next playable tick so even frame zero of a counter can hit. */
+  pendingCounter?: string;
   buffer: Command[];
   combo: number;
   controlled: number;
@@ -159,7 +178,7 @@ export interface FighterState {
   moving: boolean;
 }
 
-export type EventKind = 'swing' | 'hit' | 'block' | 'break' | 'whiff' | 'dash' | 'jump' | 'air-jump' |
+export type EventKind = 'swing' | 'hit' | 'block' | 'parry' | 'break' | 'whiff' | 'dash' | 'jump' | 'air-jump' |
   'drop' | 'land' | 'knockdown' | 'rise' | 'ko';
 export interface CombatEvent {
   kind: EventKind;

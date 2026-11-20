@@ -1,7 +1,7 @@
 import { roster } from '../content/roster.js';
 import { motionGrid } from '../content/fighter-kit.js';
-import { actionFor, worldBox } from '../core/match.js';
-import type { ActionDefinition, ArenaDefinition, CombatEvent, FighterState, MatchConfig, MatchState } from '../core/types.js';
+import { actionFor, isActiveFrame, worldBox } from '../core/match.js';
+import type { ActionDefinition, ArenaDefinition, CombatEvent, FighterAction, FighterState, MatchConfig, MatchState } from '../core/types.js';
 import { backgrounds, harborProps, harborGantry, motionArt, sprites, stageKits } from './art.js';
 import { drawHarborScenery, drawHarborLift, drawQuay } from './harbor-art.js';
 import { drawStageBackdrop, drawStageMechanism, drawStageScenery } from './stage-art.js';
@@ -23,7 +23,7 @@ const poses = {
   sweep: 6, finish: 7, rise: 8, air: 9, recover: 10, hurt: 11
 };
 
-function poseFor(fighter: FighterState, action: ActionDefinition | undefined, frame: number) {
+function poseFor(fighter: FighterState, action: FighterAction | undefined, frame: number) {
   if (!fighter.hp || fighter.hitstun || fighter.guardBreak) return poses.hurt;
   if (fighter.recovery) return fighter.recovery.phase === 'rise' ? poses.recover : poses.hurt;
   if (fighter.guarding) return poses.guard;
@@ -36,7 +36,7 @@ function poseFor(fighter: FighterState, action: ActionDefinition | undefined, fr
       }
     }
     if (phase < action.startup) return fighter.ground ? poses.windup : poses.jump;
-    if (phase < action.startup + action.active) return poses[action.pose];
+    if (isActiveFrame(action, phase)) return 'counterTo' in action ? poses.guard : poses[action.pose];
     return fighter.ground ? poses.recover : poses.jump;
   }
   if (fighter.dash) return poses.run;
@@ -261,7 +261,7 @@ export class Renderer {
 
   add(events: CombatEvent[]) {
     for (const event of events) {
-      if (['hit', 'block', 'break', 'dash', 'land', 'drop', 'air-jump', 'knockdown'].includes(event.kind)) {
+      if (['hit', 'block', 'parry', 'break', 'dash', 'land', 'drop', 'air-jump', 'knockdown'].includes(event.kind)) {
         const brief = event.kind !== 'hit' && event.kind !== 'break';
         this.effects.push({ event, life: brief ? 12 : event.heavy ? 15 : 11, age: 0 });
       }
@@ -317,7 +317,9 @@ export class Renderer {
       const color = seatColors[seat];
       const action = actionFor(config, state, seat);
       const phase = f.attack?.frame ?? 0;
-      const active = action && phase >= action.startup && phase < action.startup + action.active;
+      const active = action && isActiveFrame(action, phase) ? action : undefined;
+      const strike = active && !('counterTo' in active) ? active : undefined;
+      const stance = active && 'counterTo' in active && f.ground;
       const pose = poseFor(f, action, state.frame);
       const ground = decks.reduce((y, platform) =>
         f.x >= platform.left && f.x <= platform.right && platform.y >= f.y && platform.id !== f.ignorePlatform
@@ -353,7 +355,7 @@ export class Renderer {
       ctx.shadowBlur = 9;
       if (f.hitstun && state.freeze > 0) ctx.filter = 'brightness(1.36)';
       if (sheet?.naturalWidth && pose !== undefined) {
-        drawPose(ctx, sheet, pose, height, active && !action.animation?.length ? 8 : 0);
+        drawPose(ctx, sheet, pose, height, strike && !strike.animation?.length ? 8 : 0);
       } else if (sprite?.naturalWidth) {
         const spriteWidth = height * sprite.naturalWidth / sprite.naturalHeight;
         const breathe = pose === undefined ? Math.sin(state.frame * .10) * 1.4 : 0;
@@ -362,8 +364,8 @@ export class Renderer {
       ctx.filter = 'none';
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
-      if (f.guarding) {
-        ctx.strokeStyle = f.blockstun ? '#81e7ff' : '#afdfff93';
+      if (f.guarding || stance) {
+        ctx.strokeStyle = stance ? '#ffde85' : f.blockstun ? '#81e7ff' : '#afdfff93';
         ctx.lineWidth = f.blockstun ? 5 : 3;
         ctx.beginPath();
         ctx.ellipse(15, -60, 48, 56, 0, -1.33, 1.32);
@@ -371,8 +373,8 @@ export class Renderer {
       }
       ctx.restore();
 
-      if (active && action) {
-        drawSwing(ctx, f, action, (phase - action.startup) / action.active, color);
+      if (strike) {
+        drawSwing(ctx, f, strike, (phase - strike.startup) / strike.active, color);
       }
 
       if (debug) {
@@ -384,8 +386,8 @@ export class Renderer {
         ctx.strokeRect(hurt.x, hurt.y, hurt.w, hurt.h);
         ctx.strokeStyle = '#ffc263';
         ctx.strokeRect(f.x - def.bodyWidth / 2, f.y - 82, def.bodyWidth, 82);
-        if (active && action) {
-          const hit = worldBox(action.hitbox, f.x, f.y, f.facing);
+        if (strike) {
+          const hit = worldBox(strike.hitbox, f.x, f.y, f.facing);
           ctx.fillStyle = '#ff536844';
           ctx.strokeStyle = '#ff5a6e';
           ctx.fillRect(hit.x, hit.y, hit.w, hit.h);
@@ -468,6 +470,17 @@ export class Renderer {
         ctx.ellipse(0, event.kind === 'drop' || air ? age * 1.8 : -1,
           (event.kind === 'knockdown' ? 22 : 9) + age * 2.7, 3 + age * .25, 0, 0, 2 * Math.PI);
         ctx.stroke();
+      } else if (event.kind === 'parry') {
+        ctx.textAlign = 'center';
+        ctx.font = '900 22px system-ui';
+        ctx.strokeStyle = '#242039';
+        ctx.lineWidth = 4;
+        ctx.strokeText('防反', 0, -47 - age);
+        ctx.fillStyle = '#ffe399';
+        ctx.fillText('防反', 0, -47 - age);
+        const radius = 12 + age * 1.8;
+        polygon(ctx, '#ffe399', [[0, -radius], [4, -4], [radius, 0], [4, 4],
+          [0, radius], [-4, 4], [-radius, 0], [-4, -4]]);
       } else if (event.kind === 'block') {
         ctx.scale(event.direction ?? 1, 1);
         const radius = 15 + age * 1.6;

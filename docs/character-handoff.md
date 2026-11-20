@@ -63,10 +63,47 @@ signatureMoves: [
 | `hitbox`、`stats.hurtbox`、`stats.bodyWidth` | 攻击框与受击框均为 `{ x, y, w, h }`。原点在脚底，按朝右填写，右方为正 X，上方为负 Y。引擎负责换边镜像。身体宽度另行决定双方接近时的推挤距离。 |
 | `damage`、`hitstun`、`blockstun`、`guardCost` | 分别为基础伤害、命中硬直帧、防御硬直帧、防御耐力消耗。连击伤害按公共规则衰减。 |
 | `advance`、`push`、`lift`、`stop` | 起手每帧向前的位移、命中时的水平推速、向上击飞的初速度、命中停顿帧。可选 `knockdown` 开启倒地，`airControl` 配置空中出招时的水平控制比例。 |
-| `cancelOnHit`、`linkOnly` | 命中后可转入列出的动作 ID 或槽位。`'jump'` 允许地面命中后跳追。设置 `linkOnly: true` 的动作只能从允许的命中取消进入。要让公共直拳接到本角色的动作，在角色包顶层加 `extraCancels: { 'common-jab': ['你的动作ID'] }`。防住和打空会照常收招。 |
+| `cancelOnHit`、`linkOnly` | 命中后可转入列出的动作 ID 或槽位。`'jump'` 允许地面命中后跳追。`linkOnly: true` 的动作可以作为连招或防反的后续动作。要让公共直拳接到本角色的动作，在角色包顶层加 `extraCancels: { 'common-jab': ['你的动作ID'] }`。防住和打空会照常收招。 |
 | `pose`、`animation` | `pose` 选择公共表现类型 `'strike'`、`'sweep'`、`'finish'`、`'rise'` 或 `'air'`。可选 `animation` 按动作帧指定图集画格，每个画格保持到下一个关键帧。命中时机由上面的有效帧与攻击框决定。 |
 
 现有动作判定支持随角色移动的矩形攻击框，每次出招可以命中一次。需要独立飞行的弹体、召唤物、多次命中或角色专属资源时，把期望的输入、生成/命中时机、消失或重置条件交给框架维护者，一起补对应接口。人机陪练目前主要演练公共动作，专属技能的主动使用优先用自由训练和本地双人核对。[完整动作类型](../src/core/types.ts) · [输入与命中实现](../src/core/match.ts)
+
+## 防反接口
+
+角色可以选「按下防御」或「按 B/C 摆架势」，也可以两种都接，分别指向不同反击。下面用公共直拳跑通流程。4 个逻辑帧约 67 毫秒，正式时机、伤害和动画由角色设计师填写。
+
+想先比较手感，可以下载联调样例，用桌面浏览器打开 HTML。开场已靠近陪练，半速重复出拳。默认按 **S** 试精准防御，按 **U** 试架势，按 **R** 复位。从源码运行 `npm run build` 也会生成同一份 `dist/guard-counter-demo.html`。[下载独立防反训练场](https://github.com/haoabcde/meme-rumble/releases/download/guard-counter-v1/guard-counter-demo.html) · [本机直接试玩](http://127.0.0.1:4182/guard-counter-demo.html) · [样例配置](../src/web/counter-demo.ts)
+
+### 按下防御
+
+在这个角色的 `defineFighter({ ... })` 顶层添加一行。
+
+```ts
+guardCounter: { windowFrames: 4, actionId: 'common-jab' },
+```
+
+在地面可操作时按下防御（默认 P1 按 **S**，P2 按 **↓**）。从按下的当帧算起，第 1 至第 4 帧内接到正面攻击会出现「防反」。从第 5 帧起，继续按住是常规格挡，照常消耗耐力。松开并重新按下可再次开窗。在空中或受击硬直期间提前长按防御，也要松开重按才会开窗。
+
+### 按 B/C 摆架势
+
+在自己角色的 `signatureMoves` 数组中加入下面的动作。B 默认是 P1 的 **U**、P2 的**句号**，换成 C 就是 P1 的 **I**、P2 的**斜杠**。也可以用已有的 `direction` 配方向键，或用 `animation` 指定架势画格。
+
+```ts
+{
+  id: 'parry-stance', name: '防反架势', slot: 'B', posture: 'ground',
+  startup: 2, active: 4, recovery: 12, counterTo: 'common-jab'
+}
+```
+
+这个例子从动作帧 0 起算。第 0–1 帧起手，第 2–5 帧能接招。没人打进来时，第 6–17 帧收招。起手和收招都能被打断。架势本身没有攻击框，双方同时摆架势可以一起落空。
+
+### 反击与训练
+
+两种入口都要求在地面接到正面攻击，背后攻击照常命中。成功时这一下保住生命和防御耐力。停顿结束后的第一帧，角色自动从第 0 帧执行反击。反击使用自己的动画、攻击框和伤害，对手仍可能躲开或防住。`parry` 事件的 `source` 是完成防反的一方，坐标是拦下攻击的位置。
+
+换成专属反击时，在 `signatureMoves` 注册自己的地面或通用攻击，把它的 ID 填进 `guardCounter.actionId` 或架势的 `counterTo`。希望只能防反触发时，给反击动作加 `linkOnly: true`，并让其他动作的 `cancelOnHit` 避开它的 ID 和槽位。
+
+**一个人试招**。重新构建并刷新自由训练，靠近对手，把陪练切到「重复直拳」，打开 **H** 面板和 **0.5×** 速度。观察陪练起手，按防御或架势键。面板依次显示「防反窗口」「防反成立」和反击动作名。再提前长按防御一次，或提早摆架势一次，分别核对普通格挡的耐力消耗和架势落空后的收招。
 
 ## 交付美术
 

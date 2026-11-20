@@ -1,5 +1,5 @@
 import type {
-  ActionDefinition, ArenaDefinition, Box, CombatEvent, Direction, Duo, FighterState,
+  ActionDefinition, ArenaDefinition, Box, CombatEvent, Direction, Duo, FighterAction, FighterState,
   InputFrame, MatchConfig, MatchState, RoundResult, Side
 } from './types.js';
 import { platformAt, platformOffset } from './terrain.js';
@@ -34,6 +34,10 @@ export function createMatch(config: MatchConfig): MatchState {
 export function actionFor(config: MatchConfig, state: MatchState, seat: 0 | 1) {
   const id = state.fighters[seat].attack?.id;
   return config.fighters[seat].actions.find(action => action.id === id);
+}
+
+export function isActiveFrame(action: FighterAction, frame: number) {
+  return frame >= action.startup && frame < action.startup + action.active;
 }
 
 export function worldBox(box: Box, x: number, y: number, facing: Side): Box {
@@ -90,6 +94,24 @@ function advanceRecovery(fighter: FighterState, seat: 0 | 1, events: CombatEvent
   return false;
 }
 
+function startAction(fighter: FighterState, id: string, seat: 0 | 1, events: CombatEvent[]) {
+  fighter.attack = { id, frame: 0, connected: false, landed: false };
+  fighter.guarding = false;
+  fighter.dash = 0;
+  events.push({ kind: 'swing', source: seat, x: fighter.x, y: fighter.y });
+}
+
+function updateGuardWindow(fighter: FighterState, input: InputFrame, windowFrames: number) {
+  if (input.y !== 1) {
+    delete fighter.guardCounterLeft;
+  } else if (!fighter.guarding || fighter.blockstun > 0) {
+    fighter.guardCounterLeft = 0;
+  } else {
+    fighter.guardCounterLeft = fighter.guardCounterLeft === undefined
+      ? windowFrames : Math.max(0, fighter.guardCounterLeft - 1);
+  }
+}
+
 function updateControl(
   state: MatchState, config: MatchConfig, seat: 0 | 1, input: InputFrame, events: CombatEvent[]
 ) {
@@ -115,6 +137,11 @@ function updateControl(
   if (!locked) {
     f.combo = 0;
     f.controlled = 0;
+  }
+  if (f.pendingCounter) {
+    startAction(f, f.pendingCounter, seat, events);
+    delete f.pendingCounter;
+    return;
   }
 
   let previousAction = actionFor(config, state, seat);
@@ -154,10 +181,7 @@ function updateControl(
       const command = f.buffer.find(item => item.key === slot &&
         (!action.direction || item.directions.includes(action.direction)))!;
       f.buffer = f.buffer.filter(item => item.sampledAt !== command.sampledAt);
-      f.attack = { id: action.id, frame: 0, connected: false, landed: false };
-      f.guarding = false;
-      f.dash = 0;
-      events.push({ kind: 'swing', source: seat, x: f.x, y: f.y });
+      startAction(f, action.id, seat, events);
       return;
     }
   }
@@ -253,8 +277,10 @@ function motion(
     move = definition.dash * f.facing;
     f.dash--;
   } else if (f.attack && action) {
-    move = f.attack.frame < action.startup ? f.facing * action.advance : 0;
-    if (!f.ground) move += Math.round(definition.airSpeed * (action.airControl ?? 0)) * input.x;
+    if (!('counterTo' in action)) {
+      move = f.attack.frame < action.startup ? f.facing * action.advance : 0;
+      if (!f.ground) move += Math.round(definition.airSpeed * (action.airControl ?? 0)) * input.x;
+    }
   } else if (!f.hitstun && !f.blockstun && !f.guardBreak && !f.guarding && !f.recovery) {
     move = input.x * (f.ground ? definition.run : definition.airSpeed);
   }
@@ -297,9 +323,20 @@ interface Contact {
   target: 0 | 1;
   action: ActionDefinition;
   blocked: boolean;
+  counterAction?: string;
   facing: Side;
   x: number;
   y: number;
+}
+
+function counterForContact(state: MatchState, config: MatchConfig, seat: 0 | 1) {
+  const defender = state.fighters[seat];
+  if (!defender.ground) return;
+  if (defender.guarding && defender.guardCounterLeft) return config.fighters[seat].guardCounter?.actionId;
+  const stance = actionFor(config, state, seat);
+  if (stance && 'counterTo' in stance && defender.attack && isActiveFrame(stance, defender.attack.frame)) {
+    return stance.counterTo;
+  }
 }
 
 function collectContacts(state: MatchState, config: MatchConfig): Contact[] {
@@ -309,14 +346,15 @@ function collectContacts(state: MatchState, config: MatchConfig): Contact[] {
     const defender = state.fighters[target];
     const action = actionFor(config, state, source);
     const attack = f.attack;
-    if (!action || !attack || attack.connected || attack.frame < action.startup ||
-      attack.frame >= action.startup + action.active || defender.recovery) return [];
+    if (!action || 'counterTo' in action || !attack || attack.connected ||
+        !isActiveFrame(action, attack.frame) || defender.recovery) return [];
     const hitbox = worldBox(action.hitbox, f.x, f.y, f.facing);
     const hurtbox = worldBox(config.fighters[target].hurtbox, defender.x, defender.y, defender.facing);
     if (!overlap(hitbox, hurtbox)) return [];
+    const frontal = (f.x - defender.x) * defender.facing > 0;
+    const counterAction = frontal ? counterForContact(state, config, target) : undefined;
     return [{
-      source, target, action, facing: f.facing, blocked: defender.guarding &&
-        (f.x - defender.x) * defender.facing > 0,
+      source, target, action, facing: f.facing, counterAction, blocked: frontal && defender.guarding,
       x: (Math.max(hitbox.x, hurtbox.x) + Math.min(hitbox.x + hitbox.w, hurtbox.x + hurtbox.w)) / 2,
       y: (Math.max(hitbox.y, hurtbox.y) + Math.min(hitbox.y + hitbox.h, hurtbox.y + hurtbox.h)) / 2
     }];
@@ -327,13 +365,20 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
   for (const contact of contacts) {
     const attack = state.fighters[contact.source].attack!;
     attack.connected = true;
-    attack.landed = !contact.blocked;
+    attack.landed = !contact.blocked && !contact.counterAction;
   }
   let maxStop = 0;
-  for (const { source, target, action, blocked, facing, x, y } of contacts) {
+  for (const { source, target, action, blocked, counterAction, facing, x, y } of contacts) {
     const defender = state.fighters[target];
-    defender.attack = null;
     defender.dash = 0;
+    if (defender.guardCounterLeft !== undefined) defender.guardCounterLeft = 0;
+    maxStop = Math.max(maxStop, Math.min(blocked || counterAction ? 3 : 6, action.stop));
+    if (counterAction) {
+      defender.pendingCounter = counterAction;
+      events.push({ kind: 'parry', source: target, x, y, direction: defender.facing });
+      continue;
+    }
+    defender.attack = null;
     if (blocked) {
       defender.guard = Math.max(0, defender.guard - action.guardCost);
       defender.guardWait = config.rules.guardDelay;
@@ -345,7 +390,6 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
         defender.guarding = false;
         events.push({ kind: 'break', source, x, y, direction: facing });
       }
-      maxStop = Math.max(maxStop, Math.min(3, action.stop));
       continue;
     }
     const amount = Math.min(defender.hp, Math.floor(action.damage * Math.max(35, 100 - 8 * defender.combo) / 100));
@@ -365,7 +409,6 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
       kind: 'hit', source, x, y, amount, chain, direction: facing,
       heavy: action.pose === 'rise' || action.pose === 'finish'
     });
-    maxStop = Math.max(maxStop, Math.min(6, action.stop));
   }
   state.freeze = Math.min(maxStop, 60 - state.comboFreeze);
   state.comboFreeze += state.freeze;
@@ -430,6 +473,8 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   for (const seat of seats) {
     updateControl(state, config, seat, inputs[seat], events);
     const fighter = state.fighters[seat];
+    const guardCounter = config.fighters[seat].guardCounter;
+    if (guardCounter) updateGuardWindow(fighter, inputs[seat], guardCounter.windowFrames);
     // A queued command gets its full lifetime in playable frames, through hitstop.
     fighter.buffer = fighter.buffer.filter(command => --command.remaining > 0);
   }
