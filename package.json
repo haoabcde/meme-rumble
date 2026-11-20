@@ -1,0 +1,14 @@
+{
+  "name": "meme-rumble",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc && node scripts/build-web.mjs",
+    "test": "npm run build && node --test tests/match.test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "typescript": "5.9.3"
+  }
+}
