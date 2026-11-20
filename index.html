@@ -44,7 +44,7 @@
           <div class="mode-list" id="mode-list">
             <button class="mode" type="button" data-mode="local"><span>本地双人</span><small>同一台电脑，两人对战</small></button>
             <button class="mode" type="button" data-mode="cpu"><span>人机对战</span><small>单人挑战电脑</small></button>
-            <button class="mode" type="button" data-mode="training"><span>自由训练</span><small>练登台、防御和基础攻击</small></button>
+            <button class="mode" type="button" data-mode="training"><span>自由训练</span><small>练连段、反打与登台</small></button>
           </div>
           <button class="subtle" data-go="title" type="button">返回标题</button>
         </div>
@@ -94,7 +94,10 @@
             <div class="map-caption">
               <div class="map-caption-top"><h3 id="map-name"></h3><span id="map-count"></span></div>
               <p id="map-description"></p>
-              <p id="map-route" class="map-route"></p>
+              <div id="map-route" class="map-route">
+                <p><b class="route-west">西侧</b> <span id="map-route-one"></span></p>
+                <p><b class="route-east">东侧</b> <span id="map-route-two"></span></p>
+              </div>
             </div>
           </div>
           <div id="arena-choices" class="map-grid" role="group" aria-label="地图名单"></div>
@@ -142,6 +145,11 @@
             </div>
           </div>
         </div>
+        <aside id="training-readout" class="training-readout" aria-label="训练动作与按键" hidden>
+          <div><b>P1</b><span id="training-state-one"></span></div>
+          <div><b>陪练</b><span id="training-state-two"></span></div>
+          <div><b>按键</b><span id="training-pending"></span></div>
+        </aside>
         <div id="announcement" class="announcement" aria-live="polite" hidden></div>
         <div class="fight-deck">
           <div id="training-tools" class="training-tools" hidden>
@@ -198,7 +206,8 @@
           <article><h3 class="p1">P1 玩家一</h3><dl id="guide-one"></dl></article>
           <article><h3 class="p2">P2 玩家二</h3><dl id="guide-two"></dl></article>
         </div>
-        <p>从台面下方跳起，角色下降经过彩色台面时落脚。站在平台上时，下方向＋跳跃可以逐层下穿。按 <kbd>Esc</kbd> 暂停，<kbd>H</kbd> 显示判定框。</p>
+        <p>普攻命中后再按攻击，可接到第三段并击倒对手。挑空后可以起跳追打。倒地和起身期间有保护，站稳即可恢复攻防。</p>
+        <p>每次离地可选一次二段跳或空中冲刺，角色标记旁的亮菱形表示还有机会。站在平台上时用下方向＋跳跃逐层下穿。<kbd>Esc</kbd> 暂停，<kbd>H</kbd> 显示判定框与训练动作数据。</p>
       </dialog>
 
       <dialog id="settings" class="guide settings" aria-labelledby="settings-title">

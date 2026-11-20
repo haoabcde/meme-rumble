@@ -7,7 +7,7 @@ export const rules: Ruleset = {
   guardMax: 100,
   guardDelay: 60,
   guardBreak: 45,
-  inputBuffer: 4,
+  inputBuffer: 6,
   comboControlLimit: 180
 };
 

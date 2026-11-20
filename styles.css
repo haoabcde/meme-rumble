@@ -123,7 +123,10 @@ img { display: block; }
 .map-caption h3 { font-size: clamp(12px,2cqw,29px); line-height: 1.15; font-weight: 920; }
 .map-caption span { color: #ffdfa0; font-size: clamp(9px,1.08cqw,16px); font-weight: 800; }
 .map-caption p { margin-top: .26em; color: #e0e3ff; font-size: clamp(8px,1.05cqw,15px); }
-.map-caption .map-route { color: #9ce5f7; font-weight: 800; }
+.map-route p { display: flex; align-items: baseline; gap: .52em; }
+.map-route span { color: inherit; font-size: inherit; }
+.route-west { color: var(--blue); white-space: nowrap; }
+.route-east { color: var(--pink); white-space: nowrap; }
 .map-grid { min-height: 0; display: grid; grid-template-rows: repeat(4,minmax(0,1fr)); gap: .58cqw; }
 .map-choice { display: grid; grid-template-columns: 43% minmax(0,1fr); align-items: center; text-align: left; overflow: hidden; padding: 0; min-width: 0; min-height: 0; border: 1px solid #7881be; background: #141941; border-radius: 3px; }
 .map-choice canvas { display: block; width: 100%; height: 100%; min-height: 0; object-fit: cover; }
@@ -183,6 +186,11 @@ img { display: block; }
 .feet-status small { margin-left: .45em; font-size: .77em; }
 .training-tools label { display: flex; gap: .28em; align-items: center; font-size: clamp(8px,.97cqw,14px); padding: .29em .37em; color: #e5e5ff; background: #141537ec; border: 1px solid #7381b686; white-space: nowrap; }
 .training-tools select { font: inherit; color: #fff4ad; border: 0; background: #222952; padding: .15em .15em; border-radius: 2px; }
+.training-readout { position: absolute; top: 22%; left: 3.35%; min-width: 17.5cqw; max-width: 45%; padding: .55em .7em; border: 1px solid #7983b6b0; background: #111631eb; color: #eef0ff; font-size: clamp(9px, 1.08cqw, 15px); line-height: 1.4; pointer-events: none; }
+.training-readout div { display: grid; grid-template-columns: 2.6em minmax(0, 1fr); align-items: baseline; gap: .4em; }
+.training-readout b { color: #bad0f6; }
+.training-readout span { font-variant-numeric: tabular-nums; }
+#training-pending { white-space: pre-wrap; overflow-wrap: anywhere; }
 .announcement { position: absolute; top: 32%; inset-inline: 0; padding: 0 4%; color: var(--ivory); font-size: clamp(25px, 7.3cqw, 104px); line-height: 1; text-align: center; font-weight: 1000; font-style: italic; text-shadow: .04em .04em #454cbd, .08em .08em #131333; pointer-events: none; }
 .announcement small { display: block; margin-top: .7em; font-size: clamp(10px, 1.58cqw, 22px); text-shadow: 1px 2px #0d1232; font-style: normal; }
 .overlay { background: #090f32ce; display: grid; place-items: center; }

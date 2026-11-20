@@ -1,13 +1,13 @@
 import { rules } from '../content/demo.js';
 import { arenas } from '../content/arenas.js';
 import { roster } from '../content/roster.js';
-import { createMatch, step } from '../core/match.js';
+import { actionFor, createMatch, step } from '../core/match.js';
 import { NEUTRAL, type ActionKey, type Axis, type Duo, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
 import { arcadeArt, arenaArt, fighterArt } from './art.js';
 import { FightAudio } from './audio.js';
 import { cpuInput } from './cpu.js';
-import { previewArena, Renderer } from './renderer.js';
-import { bindingMap, installSettings, keyHint, loadPreferences, renderGuide, type Seat } from './settings.js';
+import { previewArena, recoveryLabels, Renderer } from './renderer.js';
+import { bindingMap, installSettings, keyHint, loadPreferences, renderGuide, type Control, type Seat } from './settings.js';
 
 function element<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
@@ -51,6 +51,9 @@ const roundLimit = element<HTMLSelectElement>('round-limit');
 const roundWins = element<HTMLSelectElement>('round-wins');
 const trainingGround = element('training-ground');
 const trainingBest = element('training-best');
+const trainingReadout = element('training-readout');
+const trainingStates = namesSuffix.map(id => element('training-state-' + id));
+const trainingInputLine = element('training-pending');
 const announcement = element('announcement');
 const readyText = document.createElement('span');
 const readyMap = document.createElement('small');
@@ -84,10 +87,12 @@ const preferences = loadPreferences();
 let bindings = bindingMap(preferences);
 let state = createMatch(config);
 let roundHistory: Array<RoundResult & { round: number }> = [];
+let lastChains: Duo<{ hits: number; until: number } | null> = [null, null];
+const trainingInputs: string[] = [];
 let mode: Mode = 'local';
 let screen: Screen = 'title';
 let activeSeat: Seat = 0;
-let arenaIndex = 0;
+let arenaIndex = Math.max(0, arenas.findIndex(arena => arena.id === 'harbor'));
 let routeVisible = true;
 let debug = false;
 let bestTier = 0;
@@ -168,18 +173,24 @@ function seatName(seat: Seat) {
 
 function footer() {
   const fighting = screen === 'match' || screen === 'pause';
+  const confirmKey = keyHint(preferences, 0, ['A']);
+  const backKey = keyHint(preferences, 0, ['jump']);
+  const upDown = keyHint(preferences, 0, ['up', 'down']);
   text(element('footer-main'), fighting ? modeNames[mode] + ' · ' + config.arena.name : 'Meme 乱斗 · 抽象之王');
   const hints = screen === 'roster'
     ? 'P1 ' + keyHint(preferences, 0, ['left', 'right', 'up', 'down'], ' ') + ' 移动 · ' +
       keyHint(preferences, 0, ['A']) + ' 确认' + (mode === 'local'
         ? '　　P2 ' + keyHint(preferences, 1, ['left', 'right', 'up', 'down'], ' ') + ' 移动 · ' +
           keyHint(preferences, 1, ['A']) + ' 确认' : '')
-    : screen === 'maps' ? '方向键换图 · Enter 进场 · Esc 返回'
-    : screen === 'menu' ? '↑ / ↓ 选模式 · Enter 确认'
-    : fighting ? 'P1 ' + keyHint(preferences, 0, ['jump']) + ' 跳 · ' +
-        keyHint(preferences, 0, ['down', 'jump'], ' + ') + ' 下穿' +
-        (mode === 'local' ? '　　P2 ' + keyHint(preferences, 1, ['down', 'jump'], ' + ') + ' 下穿' : '')
-    : screen === 'title' ? '桌面浏览器 · 键盘操作' : 'Esc 返回';
+    : screen === 'maps' ? upDown + ' 换图 · ' + confirmKey + ' 进场 · ' + backKey + ' 返回'
+    : screen === 'menu' ? upDown + ' 选模式 · ' + confirmKey + ' 确认'
+    : screen === 'title' ? confirmKey + ' 进入游戏'
+    : screen === 'result' || screen === 'pause' ? upDown + ' 选择 · ' + confirmKey + ' 确认 · Esc 返回'
+    : fighting ? 'P1 ' + keyHint(preferences, 0, ['A']) + ' 普攻 · ' +
+        keyHint(preferences, 0, ['up', 'A'], ' + ') + ' 挑空' +
+        (mode === 'local' ? '　　P2 ' + keyHint(preferences, 1, ['up', 'A'], ' + ') + ' 挑空'
+          : ' · ' + keyHint(preferences, 0, ['dash']) + ' 空中冲刺')
+    : 'Esc 返回';
   text(element('footer-detail'), hints);
 }
 
@@ -279,7 +290,7 @@ function renderRoster() {
   }
   const ready = confirmed.every(Boolean);
   pickArena.disabled = !ready;
-  text(element('roster-help'), ready ? '双方已确认，继续选图' : '正在为 ' + seatName(activeSeat) + ' 选角');
+  text(element('roster-help'), ready ? '双方已确认，按 ' + keyHint(preferences, 0, ['A']) + ' 选图' : '正在为 ' + seatName(activeSeat) + ' 选角');
   renderPreparationNav();
 }
 
@@ -310,9 +321,11 @@ function selectArena(index: number) {
   const tiers = new Set(arena.platforms.map(platform => platform.tier)).size;
   text(element('map-count'), screens + ' 屏宽 · ' + tiers + ' 层 · ' + arena.platforms.length + ' 处平台');
   text(element('map-description'), arena.description);
-  const routeNames = arena.route.map(id => arena.platforms.find(platform => platform.id === id)!.name);
   const routeLine = element('map-route');
-  text(routeLine, ['地面', ...routeNames].join('  →  '));
+  for (const [side, suffix] of namesSuffix.entries()) {
+    const routeNames = arena.routes[side].map(id => arena.platforms.find(platform => platform.id === id)!.name);
+    text(element('map-route-' + suffix), routeNames.join(' → '));
+  }
   routeLine.hidden = !routeVisible;
   routeToggle.setAttribute('aria-pressed', String(routeVisible));
   previewArena(mapCanvas, arena, routeVisible);
@@ -329,6 +342,8 @@ function configureMatch(immediate: boolean) {
   };
   state = createMatch(config);
   roundHistory = [];
+  lastChains = [null, null];
+  trainingInputs.length = 0;
   bestTier = 0;
   fightCueUntil = 0;
   if (immediate) state.phase = 'fight';
@@ -414,6 +429,7 @@ function toggleDebug() {
   debug = !debug;
   debugButton.setAttribute('aria-pressed', String(debug));
   if (screen === 'match') {
+    renderHUD();
     draw(0);
     canvas.focus();
   }
@@ -498,9 +514,16 @@ refreshDisplayButton();
 function rosterKey(event: KeyboardEvent) {
   const binding = bindings.get(event.code);
   if (!binding || (binding.seat === 1 && mode !== 'local')) return false;
-  const { seat, control } = binding;
-  if (control === 'A') confirmSeat(seat);
-  else if (control === 'left' || control === 'right') selectFighter(seat, selected[seat] ^ 1);
+  const seat = mode === 'local' ? binding.seat : activeSeat;
+  const { control } = binding;
+  if (control === 'A') {
+    if (confirmed.every(Boolean) && document.activeElement === pickArena) go('maps');
+    else confirmSeat(seat);
+  } else if (control === 'jump') {
+    if (confirmed[seat]) confirmSeat(seat);
+    else if (mode !== 'local' && confirmed[0]) confirmSeat(0);
+    else if (binding.seat === 0) go('menu');
+  } else if (control === 'left' || control === 'right') selectFighter(seat, selected[seat] ^ 1);
   else if (control === 'up' || control === 'down') selectFighter(seat, selected[seat] ^ 2);
   else return false;
   event.preventDefault();
@@ -508,17 +531,29 @@ function rosterKey(event: KeyboardEvent) {
 }
 
 function navigationKey(event: KeyboardEvent) {
-  if (event.target instanceof HTMLSelectElement) return false;
-  const direction = event.code === 'ArrowDown' || event.code === 'ArrowRight' ? 1 :
-    event.code === 'ArrowUp' || event.code === 'ArrowLeft' ? -1 : 0;
-  if (screen === 'menu' && direction) {
-    const current = modeButtons.indexOf(document.activeElement as HTMLButtonElement);
-    modeButtons[(current + direction + modeButtons.length) % modeButtons.length].focus();
-  } else if (screen === 'maps' && direction) {
+  if (screen === 'match' || screen === 'roster' || event.target instanceof HTMLSelectElement) return false;
+  const binding = bindings.get(event.code);
+  const control = binding?.seat === 0 ? binding.control : undefined;
+  const decrease = control === 'up' || control === 'left' || event.code === 'ArrowUp' || event.code === 'ArrowLeft';
+  const increase = control === 'down' || control === 'right' || event.code === 'ArrowDown' || event.code === 'ArrowRight';
+  const direction = increase ? 1 : decrease ? -1 : 0;
+  const focused = document.activeElement;
+  if (direction && (screen === 'menu' || screen === 'pause' || screen === 'result')) {
+    const choices = screen === 'menu' ? modeButtons :
+      Array.from(screens[screen].querySelectorAll<HTMLButtonElement>('button:not([disabled]):not([hidden])'));
+    const current = choices.indexOf(focused as HTMLButtonElement);
+    choices[(current + direction + choices.length) % choices.length].focus();
+  } else if (direction && screen === 'maps') {
     selectArena((arenaIndex + direction + arenas.length) % arenas.length);
     mapButtons[arenaIndex].focus();
-  } else if (screen === 'maps' && event.code === 'Enter' && mapButtons.includes(document.activeElement as HTMLButtonElement)) {
+  } else if ((control === 'A' || event.code === 'Enter') && screen === 'maps' && mapButtons.includes(focused as HTMLButtonElement)) {
     startMatch();
+  } else if (control === 'A' && focused instanceof HTMLButtonElement && screens[screen].contains(focused)) {
+    focused.click();
+  } else if (control === 'jump' && screen === 'pause') {
+    enterMatch();
+  } else if (control === 'jump' && previousScreen[screen]) {
+    go(previousScreen[screen]!);
   } else return false;
   event.preventDefault();
   return true;
@@ -589,6 +624,30 @@ function setMeter(node: HTMLElement, value: number, maximum: number) {
   }
 }
 
+function trainingState(seat: Seat) {
+  const fighter = state.fighters[seat];
+  const { recovery, attack } = fighter;
+  if (recovery) {
+    return recoveryLabels[recovery.phase] + (recovery.phase === 'fall' ? '' : ' · ' + recovery.remaining + ' 帧');
+  }
+  if (fighter.guardBreak) return '破防 · ' + fighter.guardBreak + ' 帧';
+  if (fighter.hitstun) return '受击 · ' + fighter.hitstun + ' 帧';
+  if (fighter.blockstun) return '格挡 · ' + fighter.blockstun + ' 帧';
+  const action = actionFor(config, state, seat);
+  if (attack && action) {
+    const { frame } = attack;
+    const activeEnd = action.startup + action.active;
+    const phase = frame < action.startup ? '起手 ' + (frame + 1) + '/' + action.startup
+      : frame < activeEnd ? '有效 ' + (frame - action.startup + 1) + '/' + action.active
+        : '收招 ' + (frame - activeEnd + 1) + '/' + action.recovery;
+    return (action.name ?? action.id) + ' · ' + phase;
+  }
+  if (fighter.dash) return '冲刺';
+  if (fighter.guarding) return '防御';
+  if (fighter.ground) return '地面可操作';
+  return fighter.airActionUsed ? '空中机动已用' : '空中机动可用';
+}
+
 function renderHUD() {
   if (stage.dataset.phase !== state.phase) stage.dataset.phase = state.phase;
   text(roundLabel, config.training ? '自由训练' : '第 ' + state.round + ' 回合');
@@ -599,9 +658,16 @@ function renderHUD() {
     text(scores[seat], String(state.wins[seat]));
     setMeter(healthBars[seat], fighter.hp, config.fighters[seat].maxHp);
     setMeter(guardBars[seat], fighter.guard, rules.guardMax);
-    const hits = state.fighters[seat === 0 ? 1 : 0].combo;
+    const recent = lastChains[seat];
+    const hits = state.fighters[seat === 0 ? 1 : 0].combo ||
+      (recent && state.frame < recent.until ? recent.hits : 0);
     combos[seat].hidden = hits < 2;
     if (hits >= 2) text(combos[seat], hits + ' 连击');
+  }
+  trainingReadout.hidden = !config.training || !debug;
+  if (!trainingReadout.hidden) {
+    for (const seat of seats) text(trainingStates[seat], trainingState(seat));
+    text(trainingInputLine, trainingInputs.join('   ') || '—');
   }
   if (config.training) {
     const support = state.fighters[0].ground;
@@ -609,7 +675,7 @@ function renderHUD() {
     if (platform) bestTier = Math.max(bestTier, platform.tier);
     if (trainingGround.dataset.platform !== (support ?? 'air')) trainingGround.dataset.platform = support ?? 'air';
     text(trainingGround, platform ? platform.name : support ? '地面' : '空中');
-    text(trainingBest, bestTier ? '已登第 ' + bestTier + ' 层' : '找一处低层平台起跳');
+    text(trainingBest, bestTier ? '已登第 ' + bestTier + ' 层' : '');
   }
 
   const result = state.result;
@@ -634,6 +700,23 @@ function renderHUD() {
 function tick(player: InputFrame) {
   const previous = state.phase;
   const events = step(state, [player, opponentInput()], config);
+  if (state.phase === 'ready' && previous !== 'ready') lastChains = [null, null];
+  for (const event of events) {
+    if (event.kind === 'hit' && event.chain !== undefined) {
+      lastChains[event.source] = event.chain > 1 ? { hits: event.chain, until: state.frame + 33 } : null;
+    }
+  }
+  if (config.training && previous === 'fight') {
+    for (const key of player.pressed) {
+      const { x, y } = player.sampled?.[key] ?? player;
+      const controls: Control[] = [];
+      if (y) controls.push(y < 0 ? 'up' : 'down');
+      if (x) controls.push(x < 0 ? 'left' : 'right');
+      controls.push(key);
+      trainingInputs.push(keyHint(preferences, 0, controls, '+'));
+    }
+    if (trainingInputs.length > 4) trainingInputs.splice(0, trainingInputs.length - 4);
+  }
   if (previous === 'ready' && state.phase === 'fight') fightCueUntil = state.frame + 30;
   if (previous === 'fight' && state.phase === 'round-over' && state.result) {
     roundHistory.push({ ...state.result, round: state.round });
@@ -643,8 +726,10 @@ function tick(player: InputFrame) {
 }
 
 function draw(elapsed: number) {
+  const opening = state.phase === 'ready' && !config.training && !reducedMotion.matches
+    ? Math.max(0, Math.min(1, (state.phaseTicks - 18) / 74)) : 0;
   renderer.draw(config, state, debug, elapsed, preferences.shake && !reducedMotion.matches,
-    preferences.camera === 'focus' && !reducedMotion.matches);
+    preferences.camera === 'focus' && !reducedMotion.matches, opening);
 }
 
 function frame(now: number) {

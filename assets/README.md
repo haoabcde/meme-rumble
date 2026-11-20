@@ -4,6 +4,30 @@
 
 ## 最终资产与生成提示
 
+### 余晖货港的分层场景
+
+货港使用三张原创手绘风场景图。远处海景随镜头缓慢移动，前景的每件可站景物按实测台沿摆放。两端的船顶、塔楼、中央转运桥以及吊盘在选图和实战中共用同一套素材。
+
+| 资产 | 在游戏中的用途 |
+|---|---|
+| [港湾远景与码头地面](arenas/harbor-quay.webp) | 2172×724 全景，海港天际线与岸沿分开绘制。 |
+| [港区景物图集](arenas/harbor-props.webp) | 1536×1024 透明图，含货柜、拖车、装卸栈桥、渡船、值班室和吊盘。 |
+| [龙门吊与转运桥图集](arenas/harbor-gantry.webp) | 2172×724 透明图，上方为龙门吊架，下方为中央青色拱桥。 |
+
+各景物的源像素范围和脚底对齐点记录在 [货港绘制代码](../src/web/harbor-art.ts)。移动台面的画面与碰撞使用同一帧的轨迹。
+
+### 公共动作图集
+
+内置 ImageGen 以四位现有立绘为角色参考，分别生成 [鲸鱼娘](fighters/whale-motion.webp)、[奶蛙](fighters/frog-motion.webp)、[香蕉猫](fighters/banana-motion.webp) 和 [姑姑嘎嘎](fighters/gaga-motion.webp) 的透明动作图。生成提示要求保持略带像素边缘的手绘 cel 风格、角色原有剪影与配色，使用统一的朝右视角。奶蛙追加一张朝右伸掌的扫击姿势，确保画面和判定方向一致。
+
+每张 WebP 为 864×648 像素，四列三行，每格 216×216 像素，脚底锚点为 `(108, 184)`。参考角色高度为 144，实际显示按阵容数据缩放。每行从左至右如下。
+
+| 行 | 姿势 |
+|---|---|
+| 一 | 跑步一、跑步二、跳起、防御 |
+| 二 | 起手、直拳、扫击、重推 |
+| 三 | 挑空、空中踢、收招、受击 |
+
 ### 首版四人角色图集 · `fighters/*.webp`
 
 > Use case: stylized-concept. Create ONE game-ready sprite atlas on genuine transparent background, landscape 3:2, strict 2 by 2 grid. The input image is a design and roster reference ONLY: make four original chibi arcade fighters in the same broad meme identities and colors, use a fresh pose, crisp dark contours, clean pixel-art-inspired cel shading, no logos or lettering. Top left: DeepSeek whale-girl, cute determined blue-haired chibi with a frilled white headband and deep blue outfit with white bib, distinct blue whale tail and fin accents. Top right: Chinese internet 奶蛙, a round vivid buttery yellow frog creature, pale cream belly, one big circular green visible eye and small second eye, cheeky calm expression, tiny brown fighting gloves and squat frog limbs. Bottom left: Banana Cat, panicked cream-and-orange kitten in a clearly curved upright golden banana costume with brown stem and blue tears, little paws raised, original expressive design. Bottom right: 姑姑嘎嘎, mischievous purple-haired chibi girl in a black-and-white penguin kigurumi with beak-shaped hood and warm yellow collar, penguin flippers, trim pose. Each is full body including head, shoes and tail. Three-quarter view facing visually right, compact ready-to-fight action pose, expressive bold silhouettes, ample transparent padding 7% inside the boundaries of each quadrant, each illustration stays completely within its quadrant, equally sized, sharp selective outlines, polished indie arcade art. Transparent background only. Absolutely no ground planes, glow surrounding the figures, shadows outside the silhouette, borders, UI, letters, words or watermark. Preserve readability at 96px tall.

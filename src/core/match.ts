@@ -2,9 +2,12 @@ import type {
   ActionDefinition, ArenaDefinition, Box, CombatEvent, Direction, Duo, FighterState,
   InputFrame, MatchConfig, MatchState, RoundResult, Side
 } from './types.js';
+import { platformOffset } from './terrain.js';
 
 const seats = [0, 1] as const;
 const slotPriority = ['C', 'B', 'A'] as const;
+const downFrames = 18;
+const riseFrames = 12;
 const other = (seat: 0 | 1) => seat === 0 ? 1 : 0;
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -14,14 +17,14 @@ function spawn(config: MatchConfig, seat: 0 | 1, round: number): FighterState {
     x: config.arena.spawn[side], y: config.arena.floor, vy: 0, facing: side === 0 ? 1 : -1,
     ground: 'floor', ignorePlatform: null, hp: config.fighters[seat].maxHp,
     guard: config.rules.guardMax, guardWait: 0, guardBreak: 0, hitstun: 0, blockstun: 0,
-    push: 0, dash: 0, guarding: false, attack: null, buffer: [], combo: 0, controlled: 0,
-    protection: 0, moving: false
+    push: 0, dash: 0, airActionUsed: false, guarding: false, attack: null, buffer: [], combo: 0, controlled: 0,
+    recovery: null, moving: false
   };
 }
 
 export function createMatch(config: MatchConfig): MatchState {
   return {
-    frame: 0, remaining: config.rules.roundSeconds * config.rules.ticksPerSecond,
+    frame: 0, arenaFrame: 0, remaining: config.rules.roundSeconds * config.rules.ticksPerSecond,
     freeze: 0, comboFreeze: 0, phase: 'ready', phaseTicks: 120, round: 1,
     wins: [0, 0], draws: 0, fighters: [spawn(config, 0, 1), spawn(config, 1, 1)],
     result: null, winner: null
@@ -49,17 +52,42 @@ function queueInputs(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   for (const seat of seats) {
     const fighter = state.fighters[seat];
     const input = inputs[seat];
-    fighter.buffer = fighter.buffer.filter(command => command.expires > state.frame);
     for (const key of input.pressed) {
       const { x, y } = input.sampled?.[key] ?? input;
       const directions: Direction[] = [];
       if (y) directions.push(y === -1 ? 'up' : 'down');
       if (x) directions.push(x === fighter.facing ? 'forward' : 'back');
       fighter.buffer.push({
-        key, x, directions, down: y === 1, expires: state.frame + config.rules.inputBuffer
+        key, x, directions, down: y === 1, sampledAt: state.frame, remaining: config.rules.inputBuffer
       });
     }
   }
+}
+
+function startKnockdown(fighter: FighterState) {
+  fighter.recovery = { phase: 'fall' };
+  fighter.hitstun = 0;
+  fighter.blockstun = 0;
+  fighter.attack = null;
+  fighter.dash = 0;
+  fighter.guarding = false;
+  fighter.moving = false;
+  fighter.buffer = [];
+  fighter.combo = 0;
+  fighter.controlled = 0;
+}
+
+function advanceRecovery(fighter: FighterState, seat: 0 | 1, events: CombatEvent[]) {
+  const recovery = fighter.recovery;
+  if (!recovery) return false;
+  if (recovery.phase === 'fall' || --recovery.remaining > 0) return true;
+  if (recovery.phase === 'down') {
+    fighter.recovery = { phase: 'rise', remaining: riseFrames };
+    events.push({ kind: 'rise', source: seat, x: fighter.x, y: fighter.y });
+    return true;
+  }
+  fighter.recovery = null;
+  return false;
 }
 
 function updateControl(
@@ -69,21 +97,22 @@ function updateControl(
   const opponent = state.fighters[other(seat)];
   const definition = config.fighters[seat];
   f.moving = false;
-  for (const counter of ['hitstun', 'blockstun', 'protection', 'guardWait'] as const) {
+  for (const counter of ['hitstun', 'blockstun', 'guardWait'] as const) {
     if (f[counter] > 0) f[counter]--;
   }
   if (f.guardBreak > 0 && --f.guardBreak === 0) {
     f.guard = Math.ceil(config.rules.guardMax / 2);
     f.guardWait = config.rules.guardDelay;
   }
+  if (advanceRecovery(f, seat, events)) return;
 
   const locked = f.hitstun > 0 || f.blockstun > 0 || f.guardBreak > 0;
   if (locked && f.combo > 0 && ++f.controlled >= config.rules.comboControlLimit) {
-    f.hitstun = 0;
-    f.protection = 32;
-    f.attack = null;
+    startKnockdown(f);
+    f.vy = Math.max(0, f.vy);
+    return;
   }
-  if (!locked || f.protection) {
+  if (!locked) {
     f.combo = 0;
     f.controlled = 0;
   }
@@ -104,14 +133,15 @@ function updateControl(
   if (!locked && !f.attack && !f.dash && !f.guarding && f.x !== opponent.x) {
     f.facing = f.x < opponent.x ? 1 : -1;
   }
-  if (locked || f.protection) {
+  if (locked) {
     f.guarding = f.blockstun > 0 && f.guardBreak === 0 && f.hitstun === 0;
     return;
   }
 
+  const cancels = f.attack?.landed ? previousAction?.cancelOnHit : undefined;
   const candidates = definition.actions.filter(action =>
     (action.posture === 'any' || (action.posture === 'ground') === Boolean(f.ground)) &&
-    (!f.attack || (f.attack.landed && previousAction?.cancelOnHit?.includes(action.slot)))
+    (f.attack ? cancels?.includes(action.id) || cancels?.includes(action.slot) : !action.linkOnly)
   );
   for (const useDirection of [true, false]) {
     for (const slot of slotPriority) {
@@ -123,7 +153,7 @@ function updateControl(
       // A single accepted command consumes competing actions from the same sampled frame.
       const command = f.buffer.find(item => item.key === slot &&
         (!action.direction || item.directions.includes(action.direction)))!;
-      f.buffer = f.buffer.filter(item => item.expires !== command.expires);
+      f.buffer = f.buffer.filter(item => item.sampledAt !== command.sampledAt);
       f.attack = { id: action.id, frame: 0, connected: false, landed: false };
       f.guarding = false;
       f.dash = 0;
@@ -131,13 +161,12 @@ function updateControl(
       return;
     }
   }
-  if (f.attack) return;
-
   const jump = f.buffer.find(command => command.key === 'jump');
-  if (f.ground && jump) {
-    f.buffer = f.buffer.filter(item => item.expires !== jump.expires);
+  if (f.ground && jump && (!f.attack || (!jump.down && cancels?.includes('jump')))) {
+    f.buffer = f.buffer.filter(item => item.sampledAt !== jump.sampledAt);
     const dropping = jump.down && f.ground !== 'floor';
     if (!jump.down || dropping) {
+      f.attack = null;
       f.ignorePlatform = dropping ? f.ground : null;
       f.vy = dropping ? 2 : -definition.jump;
       events.push({ kind: dropping ? 'drop' : 'jump', source: seat, x: f.x, y: f.y });
@@ -147,13 +176,24 @@ function updateControl(
       return;
     }
   }
+  if (f.attack) return;
+
+  const airborne = !f.ground;
+  if (jump && airborne && !jump.down && !f.dash && !f.airActionUsed && definition.airJump) {
+    f.buffer = f.buffer.filter(item => item.sampledAt !== jump.sampledAt);
+    f.airActionUsed = true;
+    f.vy = -definition.airJump;
+    events.push({ kind: 'air-jump', source: seat, x: f.x, y: f.y });
+    return;
+  }
   const dash = f.buffer.find(command => command.key === 'dash');
-  if (dash && f.ground && !f.dash) {
-    f.buffer = f.buffer.filter(item => item.expires !== dash.expires);
+  if (dash && !f.dash && (!airborne || (definition.airDash && !f.airActionUsed))) {
+    f.buffer = f.buffer.filter(item => item.sampledAt !== dash.sampledAt);
     f.facing = dash.x || f.facing;
-    f.dash = 8;
+    f.dash = airborne ? 6 : 8;
+    if (airborne) f.airActionUsed = true;
     f.guarding = false;
-    events.push({ kind: 'dash', source: seat, x: f.x, y: f.y });
+    events.push({ kind: 'dash', source: seat, x: f.x, y: f.y, direction: f.facing });
     return;
   }
   f.guarding = Boolean(f.ground && input.y === 1 && !f.dash);
@@ -163,23 +203,29 @@ function updateControl(
   f.moving = !f.guarding && Boolean(input.x || f.dash);
 }
 
-function releaseUnsupportedGround(fighter: FighterState, arena: ArenaDefinition) {
+function releaseUnsupportedGround(fighter: FighterState, arena: ArenaDefinition, frame: number) {
   if (!fighter.ground || fighter.ground === 'floor') return;
   const support = arena.platforms.find(platform => platform.id === fighter.ground);
-  if (support && fighter.x >= support.left && fighter.x <= support.right) return;
+  if (support) {
+    const x = fighter.x - platformOffset(support, frame);
+    if (x >= support.left && x <= support.right) return;
+  }
   fighter.ground = null;
   fighter.guarding = false;
   fighter.vy = 0;
 }
 
-function landingPlatform(arena: ArenaDefinition, fighter: FighterState, previousX: number, previousY: number) {
+function landingPlatform(arena: ArenaDefinition, fighter: FighterState, previousX: number, previousY: number, frame: number) {
   const distanceY = fighter.y - previousY;
   if (distanceY <= 0) return;
   let next: ArenaDefinition['platforms'][number] | undefined;
   for (const platform of arena.platforms) {
     if (platform.id === fighter.ignorePlatform || platform.y < previousY || platform.y > fighter.y ||
-      fighter.x < platform.left || fighter.x > platform.right || (next && next.y <= platform.y)) continue;
-    const atX = previousX + (fighter.x - previousX) * ((platform.y - previousY) / distanceY);
+      (next && next.y <= platform.y)) continue;
+    const endX = fighter.x - platformOffset(platform, frame);
+    if (endX < platform.left || endX > platform.right) continue;
+    const startX = previousX - platformOffset(platform, frame - 1);
+    const atX = startX + (endX - startX) * ((platform.y - previousY) / distanceY);
     if (atX >= platform.left && atX <= platform.right) next = platform;
   }
   return next;
@@ -201,24 +247,26 @@ function motion(
     f.dash--;
   } else if (f.attack && action) {
     move = f.attack.frame < action.startup ? f.facing * action.advance : 0;
-  } else if (!f.hitstun && !f.blockstun && !f.guardBreak && !f.guarding && !f.protection) {
+    if (!f.ground) move += Math.round(definition.airSpeed * (action.airControl ?? 0)) * input.x;
+  } else if (!f.hitstun && !f.blockstun && !f.guardBreak && !f.guarding && !f.recovery) {
     move = input.x * (f.ground ? definition.run : definition.airSpeed);
   }
   const previousX = f.x;
   f.x = clamp(f.x + move, arena.left, arena.right);
-  releaseUnsupportedGround(f, arena);
+  releaseUnsupportedGround(f, arena, state.arenaFrame);
   if (f.ground) return;
   const previousY = f.y;
   f.vy += 1;
   f.y += f.vy;
   if (f.vy <= 0) return;
-  const platform = landingPlatform(arena, f, previousX, previousY);
+  const platform = landingPlatform(arena, f, previousX, previousY, state.arenaFrame);
   if (platform || f.y >= arena.floor) {
-    if (f.vy >= 5) events.push({ kind: 'land', source: seat, x: f.x, y: platform?.y ?? arena.floor });
+    if (f.vy >= 5 && !f.recovery) events.push({ kind: 'land', source: seat, x: f.x, y: platform?.y ?? arena.floor });
     f.ground = platform?.id ?? 'floor';
     f.y = platform?.y ?? arena.floor;
     f.vy = 0;
     f.ignorePlatform = null;
+    f.airActionUsed = false;
   }
 }
 
@@ -226,7 +274,7 @@ function separate(state: MatchState, config: MatchConfig, previous: Duo<number>)
   const [a, b] = state.fighters;
   const arena = config.arena;
   const width = (config.fighters[0].bodyWidth + config.fighters[1].bodyWidth) / 2;
-  if (Math.abs(a.y - b.y) >= 82) return;
+  if (Math.abs(a.y - b.y) >= 82 || a.recovery?.phase === 'down' || b.recovery?.phase === 'down') return;
   const leftSeat = previous[0] < previous[1] ? 0 : previous[0] > previous[1] ? 1 : a.facing === 1 ? 0 : 1;
   const left = state.fighters[leftSeat];
   const right = state.fighters[other(leftSeat)];
@@ -256,7 +304,7 @@ function collectContacts(state: MatchState, config: MatchConfig): Contact[] {
     const action = actionFor(config, state, source);
     const attack = f.attack;
     if (!action || !attack || attack.connected || attack.frame < action.startup ||
-      attack.frame >= action.startup + action.active || defender.protection) return [];
+      attack.frame >= action.startup + action.active || defender.recovery) return [];
     const hitbox = worldBox(action.hitbox, f.x, f.y, f.facing);
     const hurtbox = worldBox(config.fighters[target].hurtbox, defender.x, defender.y, defender.facing);
     if (!overlap(hitbox, hurtbox)) return [];
@@ -285,11 +333,11 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
       defender.guardWait = config.rules.guardDelay;
       defender.push = Math.sign(facing) * Math.ceil(action.push / 2);
       defender.blockstun = action.blockstun;
-      events.push({ kind: 'block', source, x, y });
+      events.push({ kind: 'block', source, x, y, direction: facing });
       if (defender.guard === 0) {
         defender.guardBreak = config.rules.guardBreak;
         defender.guarding = false;
-        events.push({ kind: 'break', source, x, y });
+        events.push({ kind: 'break', source, x, y, direction: facing });
       }
       maxStop = Math.max(maxStop, Math.min(3, action.stop));
       continue;
@@ -297,7 +345,7 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
     const amount = Math.min(defender.hp, Math.floor(action.damage * Math.max(35, 100 - 8 * defender.combo) / 100));
     defender.hp -= amount;
     if (config.training && defender.hp === 0) defender.hp = config.fighters[target].maxHp;
-    defender.combo++;
+    const chain = ++defender.combo;
     defender.hitstun = action.hitstun;
     defender.blockstun = 0;
     defender.guarding = false;
@@ -306,7 +354,11 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
       defender.ground = null;
       defender.vy = -action.lift;
     }
-    events.push({ kind: 'hit', source, x, y, amount });
+    if (action.knockdown) startKnockdown(defender);
+    events.push({
+      kind: 'hit', source, x, y, amount, chain, direction: facing,
+      heavy: action.pose === 'rise' || action.pose === 'finish'
+    });
     maxStop = Math.max(maxStop, Math.min(6, action.stop));
   }
   state.freeze = Math.min(maxStop, 60 - state.comboFreeze);
@@ -315,6 +367,7 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
 
 function rampToNextRound(state: MatchState, config: MatchConfig) {
   state.round++;
+  state.arenaFrame = 0;
   state.remaining = config.rules.roundSeconds * config.rules.ticksPerSecond;
   state.fighters = [spawn(config, 0, state.round), spawn(config, 1, state.round)];
   state.freeze = 0;
@@ -358,15 +411,38 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   }
 
   const previous: Duo<number> = [state.fighters[0].x, state.fighters[1].x];
-  for (const seat of seats) updateControl(state, config, seat, inputs[seat], events);
+  state.arenaFrame = (state.arenaFrame ?? 0) + 1;
+  for (const seat of seats) {
+    const fighter = state.fighters[seat];
+    const ride = config.arena.platforms.find(platform => platform.travel && platform.id === fighter.ground);
+    if (ride) fighter.x = clamp(fighter.x + platformOffset(ride, state.arenaFrame) -
+      platformOffset(ride, state.arenaFrame - 1), config.arena.left, config.arena.right);
+  }
+  for (const seat of seats) {
+    updateControl(state, config, seat, inputs[seat], events);
+    const fighter = state.fighters[seat];
+    // A queued command gets its full lifetime in playable frames, through hitstop.
+    fighter.buffer = fighter.buffer.filter(command => --command.remaining > 0);
+  }
   if (state.fighters.every(fighter => fighter.combo === 0 && fighter.blockstun === 0)) {
     state.comboFreeze = 0;
   }
   for (const seat of seats) motion(state, config, seat, inputs[seat], events);
   separate(state, config, previous);
-  for (const fighter of state.fighters) releaseUnsupportedGround(fighter, config.arena);
+  for (const fighter of state.fighters) releaseUnsupportedGround(fighter, config.arena, state.arenaFrame);
   const contacts = collectContacts(state, config);
   settle(state, config, contacts, events);
+  for (const seat of seats) {
+    const fighter = state.fighters[seat];
+    if (!fighter.recovery) continue;
+    if (!fighter.ground) {
+      if (fighter.recovery.phase !== 'fall') fighter.recovery = { phase: 'fall' };
+    } else if (fighter.recovery.phase === 'fall') {
+      fighter.recovery = { phase: 'down', remaining: downFrames };
+      fighter.push = 0;
+      events.push({ kind: 'knockdown', source: seat, x: fighter.x, y: fighter.y });
+    }
+  }
 
   if (config.training) return events;
   state.remaining--;

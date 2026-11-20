@@ -1,14 +1,46 @@
 import { roster } from '../content/roster.js';
 import { actionFor, worldBox } from '../core/match.js';
-import type { ArenaDefinition, CombatEvent, MatchConfig, MatchState } from '../core/types.js';
-import { backgrounds, sprites } from './art.js';
+import type { ActionDefinition, ArenaDefinition, CombatEvent, FighterState, MatchConfig, MatchState } from '../core/types.js';
+import { backgrounds, harborProps, harborGantry, motionArt, sprites } from './art.js';
+import { drawHarborScenery, drawHarborLift, drawQuay } from './harbor-art.js';
+import { platformAt } from '../core/terrain.js';
 import { frameCamera, type CameraView } from './camera.js';
 
 export const seatColors = ['#61d8ff', '#ff849e'];
+export const recoveryLabels = { fall: '击倒', down: '倒地', rise: '起身' };
 const arenaColors = { dorm: '#ffc08c', court: '#8faaff', harbor: '#8de9cd', station: '#bc9bff' };
-const tierColors = ['#6adfff', '#ffdd87', '#edacff'];
+const tierColors = ['#6adfff', '#ffdd87', '#edacff', '#c1ebad'];
 const artSizes = new Map(roster.map(entry => [entry.fighter.id, entry.height]));
 type Point = [number, number];
+const poses = {
+  run: 0, stride: 1, jump: 2, guard: 3, windup: 4, strike: 5,
+  sweep: 6, finish: 7, rise: 8, air: 9, recover: 10, hurt: 11
+};
+const spriteCell = 216;
+const spriteBaseHeight = 144;
+const footAnchor = 184;
+
+function poseFor(fighter: FighterState, action: ActionDefinition | undefined, frame: number) {
+  if (!fighter.hp || fighter.hitstun || fighter.guardBreak) return poses.hurt;
+  if (fighter.recovery) return fighter.recovery.phase === 'rise' ? poses.recover : poses.hurt;
+  if (fighter.guarding) return poses.guard;
+  if (action && fighter.attack) {
+    const phase = fighter.attack.frame;
+    if (phase < action.startup) return fighter.ground ? poses.windup : poses.jump;
+    if (phase < action.startup + action.active) return poses[action.pose];
+    return fighter.ground ? poses.recover : poses.jump;
+  }
+  if (fighter.dash) return poses.run;
+  if (!fighter.ground) return poses.jump;
+  if (fighter.moving) return Math.floor(frame / 5) % 2 ? poses.run : poses.stride;
+  return undefined;
+}
+
+function drawPose(ctx: CanvasRenderingContext2D, sheet: HTMLImageElement, pose: number, height: number, offset = 0) {
+  const scale = height / spriteBaseHeight;
+  ctx.drawImage(sheet, pose % 4 * spriteCell, Math.floor(pose / 4) * spriteCell, spriteCell, spriteCell,
+    offset - spriteCell * scale / 2, -footAnchor * scale, spriteCell * scale, spriteCell * scale);
+}
 
 function polygon(ctx: CanvasRenderingContext2D, color: string, points: Point[]) {
   ctx.fillStyle = color;
@@ -17,6 +49,40 @@ function polygon(ctx: CanvasRenderingContext2D, color: string, points: Point[]) 
   for (const point of points.slice(1)) ctx.lineTo(...point);
   ctx.closePath();
   ctx.fill();
+}
+
+function drawSwing(ctx: CanvasRenderingContext2D, fighter: FighterState, action: ActionDefinition, progress: number, color: string) {
+  const { hitbox } = action;
+  const tip = hitbox.x + hitbox.w - 6;
+  const y = hitbox.y + hitbox.h * .58;
+  ctx.save();
+  ctx.translate(fighter.x, fighter.y);
+  ctx.scale(fighter.facing, 1);
+  ctx.globalAlpha = .91 - progress * .45;
+  if (action.pose === 'strike') {
+    polygon(ctx, color, [[tip - 91, y - 4], [tip - 4, y - 12], [tip, y - 6], [tip - 37, y]]);
+    polygon(ctx, '#fff7da', [[tip - 55, y + 1], [tip, y - 5], [tip - 7, y + 3]]);
+  } else {
+    ctx.lineWidth = action.pose === 'finish' ? 9 : 6;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    if (action.pose === 'rise') {
+      ctx.moveTo(tip - 64, hitbox.y + hitbox.h);
+      ctx.quadraticCurveTo(tip + 24, hitbox.y + 62, tip - 32, hitbox.y + 6);
+    } else if (action.pose === 'air') {
+      ctx.moveTo(tip - 65, y - 20);
+      ctx.quadraticCurveTo(tip - 8, y - 12, tip, y + 22);
+    } else {
+      ctx.moveTo(tip - 58, y - 27);
+      ctx.quadraticCurveTo(tip + 32, y - 6, tip - 34, y + 26);
+    }
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#fff6d6';
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawStageArt(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, image: HTMLImageElement) {
@@ -34,7 +100,11 @@ export function paintArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition
   const image = backgrounds[arena.theme];
   ctx.fillStyle = '#211f4b';
   ctx.fillRect(0, 0, width, height);
-  if (image.naturalWidth) drawStageArt(ctx, arena, image);
+  if (arena.theme === 'harbor') {
+    drawQuay(ctx, arena);
+    drawHarborScenery(ctx, arena);
+  }
+  else if (image.naturalWidth) drawStageArt(ctx, arena, image);
 
   const shade = ctx.createLinearGradient(0, 0, 0, 190);
   shade.addColorStop(0, '#0c0d33ac');
@@ -53,6 +123,7 @@ export function paintArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition
   }
 
   for (const p of arena.platforms) {
+    if (p.prop) continue;
     const ledgeWidth = p.right - p.left;
     const tier = tierColors[p.tier - 1];
     ctx.fillStyle = tier + (image.naturalWidth ? '75' : 'ff');
@@ -63,27 +134,44 @@ export function paintArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition
   }
 }
 
-function paintRoute(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {
-  const route = arena.route.flatMap(id => arena.platforms.filter(platform => platform.id === id));
+function paintRoute(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, side: 0 | 1) {
+  const route = arena.routes[side].map(id => arena.platforms.find(platform => platform.id === id)!);
   let support = { left: arena.left, right: arena.right, y: arena.floor };
-  let from: Point = [arena.spawn[0], arena.floor];
+  let from: Point = [arena.spawn[side], arena.floor];
+  const color = seatColors[side];
+  const outline = '#10152b';
   ctx.save();
-  ctx.strokeStyle = '#fff4cb';
-  ctx.lineWidth = 9;
-  ctx.shadowColor = '#0e0b2d';
-  ctx.shadowBlur = 7;
-  for (const platform of route) {
-    const x = (Math.max(support.left, platform.left) + Math.min(support.right, platform.right)) / 2;
-    ctx.setLineDash([24, 16]);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.arc(...from, 27, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = 10;
+  ctx.stroke();
+  for (const [index, platform] of route.entries()) {
+    const left = Math.max(support.left, platform.left);
+    const right = Math.min(support.right, platform.right);
+    const margin = Math.min(22, (right - left) / 2);
+    const x = Math.min(right - margin, Math.max(left + margin, from[0]));
+    const takeoff = index === 0 ? from[0] : x;
     ctx.beginPath();
     ctx.moveTo(...from);
-    ctx.lineTo(x, support.y);
-    ctx.quadraticCurveTo(x + 75, platform.y - 60, x, platform.y);
+    ctx.lineTo(takeoff, support.y);
+    ctx.quadraticCurveTo((takeoff + x) / 2 + (side === 0 ? -72 : 72), platform.y - 56, x, platform.y);
+    ctx.lineWidth = 24;
+    ctx.strokeStyle = outline;
     ctx.stroke();
-    ctx.fillStyle = tierColors[platform.tier - 1];
+    ctx.lineWidth = 13;
+    ctx.strokeStyle = color;
+    ctx.stroke();
     ctx.beginPath();
-    ctx.arc(x, platform.y, 17, 0, Math.PI * 2);
+    ctx.arc(x, platform.y, 21, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = 8;
+    ctx.stroke();
     support = platform;
     from = [x, platform.y];
   }
@@ -98,12 +186,22 @@ export function previewArena(canvas: HTMLCanvasElement, arena: ArenaDefinition, 
     if (canvas.dataset.variant !== variant) return;
     ctx.setTransform(canvas.width / arena.width, 0, 0, canvas.height / arena.height, 0, 0);
     paintArena(ctx, arena);
-    if (route) paintRoute(ctx, arena);
+    if (arena.theme === 'harbor') drawHarborLift(ctx, arena, 0);
+    if (route) {
+      ctx.fillStyle = '#10152b2b';
+      ctx.fillRect(0, 0, arena.width, arena.height);
+      for (const side of [0, 1] as const) paintRoute(ctx, arena, side);
+    }
     ctx.resetTransform();
   };
   draw();
   const image = backgrounds[arena.theme];
   if (!image.complete) image.addEventListener('load', draw, { once: true });
+  if (arena.theme === 'harbor') {
+    for (const prop of [harborProps, harborGantry]) {
+      if (!prop.complete) prop.addEventListener('load', draw, { once: true });
+    }
+  }
 }
 
 interface Effect {
@@ -115,6 +213,7 @@ interface Effect {
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
   private background = document.createElement('canvas');
+  private sceneryTop = 0;
   private effects: Effect[] = [];
   private shake = 0;
   private camera: CameraView | null = null;
@@ -125,10 +224,30 @@ export class Renderer {
   }
 
   load(arena: ArenaDefinition) {
-    const cacheWidth = Math.min(2560, arena.width);
-    this.background.width = cacheWidth;
-    this.background.height = Math.round(cacheWidth * arena.height / arena.width);
-    previewArena(this.background, arena);
+    const layer = this.background;
+    if (arena.theme === 'harbor') {
+      // A full-resolution transparent strip holds the static props. The sea and the trolley move independently.
+      layer.width = arena.width;
+      layer.height = 1024;
+      this.sceneryTop = arena.floor - 950;
+      layer.dataset.variant = 'port-scene';
+      const draw = () => {
+        if (layer.dataset.variant !== 'port-scene') return;
+        const ctx = layer.getContext('2d')!;
+        ctx.resetTransform();
+        ctx.clearRect(0, 0, layer.width, layer.height);
+        ctx.translate(0, -this.sceneryTop);
+        drawHarborScenery(ctx, arena);
+      };
+      draw();
+      for (const prop of [harborProps, harborGantry]) {
+        if (!prop.complete) prop.addEventListener('load', draw, { once: true });
+      }
+    } else {
+      layer.width = Math.min(2560, arena.width);
+      layer.height = Math.round(layer.width * arena.height / arena.width);
+      previewArena(layer, arena);
+    }
     this.effects = [];
     this.shake = 0;
     this.camera = null;
@@ -136,34 +255,44 @@ export class Renderer {
 
   add(events: CombatEvent[]) {
     for (const event of events) {
-      if (['hit', 'block', 'break', 'dash', 'land', 'drop'].includes(event.kind)) {
-        const brief = event.kind === 'dash' || event.kind === 'land' || event.kind === 'drop';
-        this.effects.push({ event, life: brief ? 12 : 23, age: 0 });
+      if (['hit', 'block', 'break', 'dash', 'land', 'drop', 'air-jump', 'knockdown'].includes(event.kind)) {
+        const brief = event.kind !== 'hit' && event.kind !== 'break';
+        this.effects.push({ event, life: brief ? 12 : event.heavy ? 15 : 11, age: 0 });
       }
-      if (event.kind === 'hit' || event.kind === 'break') this.shake = Math.max(this.shake, 4);
+      if (event.kind === 'hit' || event.kind === 'break') this.shake = Math.max(this.shake, event.heavy ? 7 : 4);
     }
   }
 
-  draw(config: MatchConfig, state: MatchState, debug: boolean, elapsed: number, shakeEnabled: boolean, focus = false) {
+  draw(config: MatchConfig, state: MatchState, debug: boolean, elapsed: number, shakeEnabled: boolean, focus = false, opening = 0) {
     const ctx = this.ctx;
     const { width, height } = ctx.canvas;
     const [a, b] = state.fighters;
     const heights = [artSizes.get(config.fighters[0].id) ?? 137, artSizes.get(config.fighters[1].id) ?? 137];
     const camera = frameCamera(config.arena, { width, height },
       [{ x: a.x, y: a.y, height: heights[0] }, { x: b.x, y: b.y, height: heights[1] }],
-      this.camera, elapsed, focus);
+      this.camera, elapsed, focus, opening);
     this.camera = camera;
     const { x, y, zoom } = camera;
     const shake = shakeEnabled ? Math.sin(this.shake * 3) * this.shake : 0;
     const dx = Math.min(x * zoom, Math.max(width - (config.arena.width - x) * zoom, shake));
     ctx.setTransform(zoom, 0, 0, zoom, -x * zoom + dx, -y * zoom);
-    ctx.drawImage(this.background, 0, 0, config.arena.width, config.arena.height);
+    const inHarbor = config.arena.theme === 'harbor';
+    if (inHarbor) {
+      drawQuay(ctx, config.arena, x + width / (2 * zoom));
+      ctx.drawImage(this.background, 0, this.sceneryTop);
+      drawHarborLift(ctx, config.arena, state.arenaFrame);
+    } else {
+      ctx.drawImage(this.background, 0, 0, config.arena.width, config.arena.height);
+    }
+    ctx.fillStyle = inHarbor ? '#10153312' : '#10153324';
+    ctx.fillRect(x - dx / zoom, y, width / zoom, height / zoom);
 
+    const decks = config.arena.platforms.map(p => platformAt(p, state.arenaFrame));
     if (debug) {
       ctx.strokeStyle = '#fff4d9';
       ctx.lineWidth = 2;
       ctx.setLineDash([5, 4]);
-      for (const p of config.arena.platforms) {
+      for (const p of decks) {
         ctx.beginPath();
         ctx.moveTo(p.left, p.y);
         ctx.lineTo(p.right, p.y);
@@ -172,15 +301,18 @@ export class Renderer {
       ctx.setLineDash([]);
     }
 
-    for (const seat of [0, 1] as const) {
+    const front = a.attack && b.hitstun ? [1, 0] as const : [0, 1] as const;
+    for (const seat of front) {
       const f = state.fighters[seat];
       const def = config.fighters[seat];
       const sprite = sprites[def.id];
+      const sheet = motionArt[def.id];
       const color = seatColors[seat];
       const action = actionFor(config, state, seat);
       const phase = f.attack?.frame ?? 0;
       const active = action && phase >= action.startup && phase < action.startup + action.active;
-      const ground = config.arena.platforms.reduce((y, platform) =>
+      const pose = poseFor(f, action, state.frame);
+      const ground = decks.reduce((y, platform) =>
         f.x >= platform.left && f.x <= platform.right && platform.y >= f.y && platform.id !== f.ignorePlatform
           ? Math.min(y, platform.y) : y,
         config.arena.floor);
@@ -192,47 +324,48 @@ export class Renderer {
       ctx.save();
       ctx.translate(f.x, f.y);
       ctx.scale(f.facing, 1);
-      const stride = f.moving ? Math.sin(state.frame * .68) : Math.sin(state.frame * .16) * .24;
       const height = heights[seat];
-      const width = sprite?.naturalHeight ? height * sprite.naturalWidth / sprite.naturalHeight : 100;
-      let yScale = 1 + stride * .035;
-      if (f.hp === 0) ctx.rotate(-Math.PI / 2.6);
-      else if (f.hitstun) { ctx.rotate(-.20); yScale = .94; }
-      else if (f.dash) { ctx.rotate(.20); yScale = .87; }
-      else if (f.guarding) yScale = .83;
-      else if (active) ctx.rotate(action.pose === 'rise' ? -.14 : .12);
-      else if (!f.ground) ctx.rotate(f.vy < 0 ? -.085 : .085);
-      ctx.scale(2 - yScale, yScale);
-      if (f.protection && state.frame % 6 < 3) ctx.globalAlpha = .64;
-      if (sprite?.naturalWidth) {
-        ctx.shadowColor = color + 'ca';
-        ctx.shadowBlur = 8;
-        if (f.hitstun && state.freeze > 0) ctx.filter = 'brightness(1.48)';
-        ctx.drawImage(sprite, -width * .51 + (active ? 9 : 0), -height, width, height);
-        ctx.filter = 'none';
-        ctx.shadowBlur = 0;
+      if (!f.hp) ctx.rotate(-Math.PI / 2.6);
+      else if (f.recovery?.phase === 'down') {
+        ctx.translate(height * .40, -height * .32);
+        ctx.rotate(-1.24);
+      } else if (f.recovery?.phase === 'fall') {
+        ctx.rotate(-.25);
+      } else if (f.recovery?.phase === 'rise') {
+        ctx.scale(1, 1 - f.recovery.remaining * .017);
       }
+      if (f.dash && sheet?.naturalWidth && pose !== undefined) {
+        ctx.globalAlpha = .18;
+        drawPose(ctx, sheet, pose, height, -48);
+        ctx.globalAlpha = .34;
+        drawPose(ctx, sheet, pose, height, -23);
+        ctx.globalAlpha = 1;
+      }
+      if (f.recovery?.phase === 'rise') ctx.globalAlpha = .83;
+      ctx.shadowColor = color + 'ae';
+      ctx.shadowBlur = 9;
+      if (f.hitstun && state.freeze > 0) ctx.filter = 'brightness(1.36)';
+      if (sheet?.naturalWidth && pose !== undefined) {
+        drawPose(ctx, sheet, pose, height, active ? 8 : 0);
+      } else if (sprite?.naturalWidth) {
+        const spriteWidth = height * sprite.naturalWidth / sprite.naturalHeight;
+        const breathe = pose === undefined ? Math.sin(state.frame * .10) * 1.4 : 0;
+        ctx.drawImage(sprite, -spriteWidth * .51, -height - breathe, spriteWidth, height + breathe);
+      }
+      ctx.filter = 'none';
+      ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
       if (f.guarding) {
-        ctx.strokeStyle = '#fff2ab';
-        ctx.lineWidth = 5;
+        ctx.strokeStyle = f.blockstun ? '#81e7ff' : '#afdfff93';
+        ctx.lineWidth = f.blockstun ? 5 : 3;
         ctx.beginPath();
-        ctx.ellipse(19, -65, 46, 61, 0, -1.40, 1.38);
+        ctx.ellipse(15, -60, 48, 56, 0, -1.33, 1.32);
         ctx.stroke();
       }
       ctx.restore();
 
       if (active && action) {
-        const hit = worldBox(action.hitbox, f.x, f.y, f.facing);
-        const tip = f.facing === 1 ? hit.x + hit.w - 6 : hit.x + 6;
-        ctx.save();
-        ctx.strokeStyle = color + 'c2';
-        ctx.lineWidth = action.slot === 'C' ? 7 : 4;
-        ctx.beginPath();
-        ctx.moveTo(tip - 42 * f.facing, hit.y + 3);
-        ctx.quadraticCurveTo(tip + 19 * f.facing, hit.y + hit.h * .52, tip - 34 * f.facing, hit.y + hit.h - 4);
-        ctx.stroke();
-        ctx.restore();
+        drawSwing(ctx, f, action, (phase - action.startup) / action.active, color);
       }
 
       if (debug) {
@@ -258,15 +391,24 @@ export class Renderer {
     ctx.resetTransform();
     for (const seat of [0, 1] as const) {
       const f = state.fighters[seat];
+      const def = config.fighters[seat];
       if (!f.hp) continue;
       const center = (f.x - x) * zoom + dx;
-      const markerY = (f.y - heights[seat] - y) * zoom - 25;
+      const poseHeight = f.recovery?.phase === 'down' ? heights[seat] * .60 : heights[seat];
+      const markerY = (f.y - poseHeight - y) * zoom - 25;
+      const label = 'P' + (seat + 1) + (f.recovery ? ' ' + recoveryLabels[f.recovery.phase] : '');
+      const labelWidth = f.recovery ? 70 : 34;
       ctx.fillStyle = '#111333e8';
-      ctx.fillRect(center - 17, markerY, 34, 21);
+      ctx.fillRect(center - labelWidth / 2, markerY, labelWidth, 21);
       ctx.textAlign = 'center';
       ctx.font = '900 15px system-ui';
       ctx.fillStyle = seatColors[seat];
-      ctx.fillText('P' + (seat + 1), center, markerY + 15);
+      ctx.fillText(label, center, markerY + 15);
+      if (!f.ground && !f.recovery && (def.airJump || def.airDash)) {
+        const dot = center + 26;
+        polygon(ctx, f.airActionUsed ? '#535c83' : seatColors[seat],
+          [[dot, markerY + 4], [dot + 6, markerY + 10], [dot, markerY + 16], [dot - 6, markerY + 10]]);
+      }
     }
     this.drawPositionStrip(config.arena, [a.x, b.x], camera);
     this.shake = Math.max(0, this.shake - elapsed);
@@ -295,38 +437,63 @@ export class Renderer {
 
   private drawEffects(elapsed: number, training: boolean) {
     const ctx = this.ctx;
+    const latestHit: [Effect | undefined, Effect | undefined] = [undefined, undefined];
+    if (training) {
+      for (const effect of this.effects) {
+        if (effect.event.kind === 'hit') latestHit[effect.event.source] = effect;
+      }
+    }
     for (const effect of this.effects) {
       const { event, age, life } = effect;
       const color = event.kind === 'block' ? '#84e8ff' : event.kind === 'break' ? '#ff8c88' : '#ffdfa0';
       ctx.save();
-      ctx.globalAlpha = Math.min(1, (life - age) / 10);
+      ctx.globalAlpha = Math.min(1, (life - age) / 6);
       ctx.translate(event.x, event.y);
       if (event.kind === 'dash') {
         ctx.fillStyle = seatColors[event.source];
-        for (let i = 0; i < 4; i++) ctx.fillRect(-21 + i * 15, -10 - i * 3, i + 5, 2);
-      } else if (event.kind === 'land' || event.kind === 'drop') {
-        ctx.strokeStyle = '#fbdfb7cf';
+        ctx.scale(event.direction ?? 1, 1);
+        for (let i = 0; i < 4; i++) ctx.fillRect(-37 - age * 2 + i * 5, -15 - i * 15, 10 + age, 2);
+      } else if (event.kind === 'land' || event.kind === 'drop' || event.kind === 'air-jump' || event.kind === 'knockdown') {
+        const air = event.kind === 'air-jump';
+        ctx.strokeStyle = air ? seatColors[event.source] : '#fbdfb7cf';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.ellipse(0, event.kind === 'drop' ? age * 1.8 : -1, 9 + age * 2.7, 3 + age * .25, 0, 0, 2 * Math.PI);
+        ctx.ellipse(0, event.kind === 'drop' || air ? age * 1.8 : -1,
+          (event.kind === 'knockdown' ? 22 : 9) + age * 2.7, 3 + age * .25, 0, 0, 2 * Math.PI);
+        ctx.stroke();
+      } else if (event.kind === 'block') {
+        ctx.scale(event.direction ?? 1, 1);
+        const radius = 15 + age * 1.6;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(-6, 0, radius, -1.29, 1.29);
+        ctx.stroke();
+        ctx.strokeStyle = '#e8f9ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(-8, 0, radius * .73, -.97, .97);
         ctx.stroke();
       } else {
         ctx.save();
-        ctx.rotate(age * .035);
-        const scale = 1 + age * .012;
-        ctx.scale(scale, scale);
+        const scale = (event.heavy ? .93 : .64) * (1 - age * .032);
+        ctx.scale(scale * (event.direction ?? 1), scale);
+        ctx.rotate(-.14 + age * .014);
         polygon(ctx, color, [[0, -39], [7, -11], [34, -18], [15, 0], [34, 18],
           [7, 10], [0, 36], [-8, 10], [-29, 16], [-14, 0], [-30, -19], [-7, -10]]);
         polygon(ctx, '#fff8e2', [[0, -17], [5, -5], [17, 0], [5, 4], [0, 17], [-6, 5], [-17, 0], [-5, -5]]);
+        ctx.fillStyle = color;
+        for (let i = 0; i < 5; i++) ctx.fillRect(19 + age * (1.3 + i * .12), (i - 2) * (12 + age * .42), 7, 2);
         ctx.restore();
-        if (training && event.amount) {
-          ctx.font = '950 23px system-ui';
+        if (event.amount && latestHit[event.source] === effect) {
+          const offset = 42 * (event.direction ?? 1);
+          ctx.font = '950 20px system-ui';
           ctx.textAlign = 'center';
           ctx.strokeStyle = '#181934';
           ctx.lineWidth = 5;
-          ctx.strokeText(String(event.amount), 0, -35 - age);
+          ctx.strokeText(String(event.amount), offset, -53 - age);
           ctx.fillStyle = '#fff4b9';
-          ctx.fillText(String(event.amount), 0, -35 - age);
+          ctx.fillText(String(event.amount), offset, -53 - age);
         }
       }
       ctx.restore();

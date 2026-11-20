@@ -24,6 +24,7 @@ export interface Box {
 
 export interface ActionDefinition {
   id: string;
+  name?: string;
   slot: Slot;
   direction?: Direction;
   posture: 'ground' | 'air' | 'any';
@@ -37,10 +38,14 @@ export interface ActionDefinition {
   guardCost: number;
   push: number;
   lift: number;
+  knockdown?: boolean;
   stop: number;
   advance: number;
-  cancelOnHit?: Slot[];
-  pose: 'strike' | 'sweep' | 'rise';
+  // Action IDs or slot names, plus 'jump' for a grounded chase after a hit.
+  cancelOnHit?: string[];
+  linkOnly?: boolean;
+  airControl?: number;
+  pose: 'strike' | 'sweep' | 'finish' | 'rise' | 'air';
 }
 
 export interface FighterDefinition {
@@ -51,6 +56,8 @@ export interface FighterDefinition {
   airSpeed: number;
   jump: number;
   dash: number;
+  airDash?: boolean;
+  airJump?: number;
   // Boxes use the character's feet as origin, expressed in facing-right coordinates.
   hurtbox: Box;
   bodyWidth: number;
@@ -60,10 +67,12 @@ export interface FighterDefinition {
 export interface Platform {
   id: string;
   name: string;
-  tier: 1 | 2 | 3;
+  tier: 1 | 2 | 3 | 4;
   left: number;
   right: number;
   y: number;
+  prop?: 'container' | 'trailer' | 'catwalk' | 'ferry' | 'pallet' | 'office' | 'bridge' | 'gallery';
+  travel?: { distance: number; period: number; dwell: number; phase: number };
 }
 
 export interface ArenaDefinition {
@@ -71,7 +80,8 @@ export interface ArenaDefinition {
   name: string;
   description: string;
   terrain: string;
-  route: string[];
+  // A ground-to-top route from each side of the opening.
+  routes: Duo<string[]>;
   theme: 'dorm' | 'court' | 'harbor' | 'station';
   artFrame: { sourceY: number; worldY: number }[];
   width: number;
@@ -106,7 +116,8 @@ export interface Command {
   x: Axis;
   directions: Direction[];
   down: boolean;
-  expires: number;
+  sampledAt: number;
+  remaining: number;
 }
 
 export interface Attack {
@@ -115,6 +126,8 @@ export interface Attack {
   connected: boolean;
   landed: boolean;
 }
+
+export type Recovery = { phase: 'fall' } | { phase: 'down' | 'rise'; remaining: number };
 
 export interface FighterState {
   x: number;
@@ -131,22 +144,27 @@ export interface FighterState {
   blockstun: number;
   push: number;
   dash: number;
+  airActionUsed: boolean;
   guarding: boolean;
   attack: Attack | null;
   buffer: Command[];
   combo: number;
   controlled: number;
-  protection: number;
+  recovery: Recovery | null;
   moving: boolean;
 }
 
-export type EventKind = 'swing' | 'hit' | 'block' | 'break' | 'whiff' | 'dash' | 'jump' | 'drop' | 'land' | 'ko';
+export type EventKind = 'swing' | 'hit' | 'block' | 'break' | 'whiff' | 'dash' | 'jump' | 'air-jump' |
+  'drop' | 'land' | 'knockdown' | 'rise' | 'ko';
 export interface CombatEvent {
   kind: EventKind;
   source: 0 | 1;
   x: number;
   y: number;
   amount?: number;
+  chain?: number;
+  direction?: Side;
+  heavy?: boolean;
 }
 
 export interface RoundResult {
@@ -156,6 +174,7 @@ export interface RoundResult {
 
 export interface MatchState {
   frame: number;
+  arenaFrame: number;
   remaining: number;
   freeze: number;
   comboFreeze: number;

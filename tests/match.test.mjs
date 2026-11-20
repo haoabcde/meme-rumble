@@ -7,6 +7,7 @@ import { arenas } from '../dist/content/arenas.js';
 import { roster } from '../dist/content/roster.js';
 import { frameCamera } from '../dist/web/camera.js';
 import { cpuInput } from '../dist/web/cpu.js';
+import { platformAt, platformOffset } from '../dist/core/terrain.js';
 
 const config = { rules, arena: arenas[0], fighters: [testFighter, testFighter] };
 const input = (pressed = [], x = 0, y = 0) => ({ pressed, x, y });
@@ -129,10 +130,11 @@ test('training restores the practice target on a lethal hit and never times out'
   assert.equal(state.phase, 'fight');
 });
 
-test('shipped roster shares the same basic move and leaves all character skills empty', () => {
+test('the shipped roster shares public actions and leaves all character skills empty', () => {
   assert.equal(roster.length, 4);
   const kit = roster[0].fighter;
-  assert.deepEqual(kit.actions.map(move => move.slot), ['A']);
+  assert.equal(kit.actions.length, 5);
+  assert.ok(kit.actions.every(move => move.slot === 'A'));
   for (const { fighter } of roster) {
     assert.deepEqual(fighter.actions, kit.actions);
     assert.equal(fighter.jump, kit.jump);
@@ -146,6 +148,189 @@ test('shipped roster shares the same basic move and leaves all character skills 
     assert.equal(state.fighters[0].attack, null);
     assert.equal(state.fighters[1].hp, fighter.maxHp);
   }
+});
+
+function waitForEvent(state, settings, kind, source = 0, inputs = [NEUTRAL, NEUTRAL]) {
+  for (let frame = 0; frame < 50; frame++) {
+    const event = step(state, inputs, settings).find(event => event.kind === kind && event.source === source);
+    if (event) return event;
+  }
+  assert.fail('Expected P' + (source + 1) + ' ' + kind);
+}
+
+test('a first-hitstop-frame input can confirm all three ground attacks, then the finisher recovers', () => {
+  const settings = { ...trainingOn(arenas[0]), rules: { ...rules, inputBuffer: 4 } };
+  const state = begin(settings);
+  closeDistance(state);
+  const [attacker, defender] = state.fighters;
+  step(state, [input(['A']), NEUTRAL], settings);
+  for (const [index, id] of ['common-jab', 'common-sweep', 'common-finish'].entries()) {
+    const hit = waitForEvent(state, settings, 'hit');
+    assert.equal(hit.chain, index + 1);
+    assert.equal(attacker.attack.id, id);
+    const before = defender.hp;
+    assert.ok(state.freeze >= settings.rules.inputBuffer);
+    // Every repeat is pressed while the current strike is still frozen.
+    step(state, [input(['A']), NEUTRAL], settings);
+    if (id === 'common-finish') {
+      const events = stepFor(state, 40, [NEUTRAL, NEUTRAL], settings);
+      assert.ok(!events.some(event => event.kind === 'swing'));
+      assert.equal(defender.hp, before);
+      assert.equal(attacker.attack, null);
+    }
+  }
+});
+
+test('a whiff cannot start a chain and a guarded jab leaves time for a counterattack', () => {
+  const settings = trainingOn(arenas[0]);
+  const state = begin(settings);
+  step(state, [input(['A']), NEUTRAL], settings);
+  waitForEvent(state, settings, 'whiff');
+  step(state, [input(['A']), NEUTRAL], settings);
+  assert.equal(state.fighters[0].attack.id, 'common-jab');
+  assert.ok(!stepFor(state, 23, [NEUTRAL, NEUTRAL], settings).some(event => event.kind === 'swing'));
+  assert.equal(state.fighters[1].hp, 1000);
+
+  closeDistance(state);
+  const guard = input([], 0, 1);
+  step(state, [input(['A']), guard], settings);
+  waitForEvent(state, settings, 'block', 0, [NEUTRAL, guard]);
+  assert.equal(state.fighters[1].hp, 1000);
+  assert.equal(state.fighters[1].guard, 87);
+  step(state, [input(['A']), guard], settings);
+  stepFor(state, state.freeze + 3, [NEUTRAL, guard], settings);
+  assert.equal(state.fighters[0].attack.id, 'common-jab');
+  step(state, [NEUTRAL, input(['A'])], settings);
+  waitForEvent(state, settings, 'hit', 1);
+  assert.equal(state.fighters[0].hp, 910);
+  assert.equal(state.fighters[0].attack, null);
+});
+
+test('either player can branch from a jab into a launcher and jump-cancel into a distinct aerial hit', () => {
+  const settings = trainingOn(arenas[2]);
+  for (const seat of [0, 1]) {
+    const state = begin(settings);
+    closeDistance(state);
+    const [attacker, defender] = [state.fighters[seat], state.fighters[1 - seat]];
+    const tap = (pressed, x = 0, y = 0) => step(state, inputForSeat(seat, input(pressed, x, y)), settings);
+    tap(['A']);
+    waitForEvent(state, settings, 'hit', seat);
+    tap(['A'], 0, -1);
+    waitForEvent(state, settings, 'hit', seat);
+    assert.equal(attacker.attack.id, 'common-launch');
+    assert.equal(defender.ground, null);
+    assert.ok(defender.vy < 0);
+    tap(['jump']);
+    waitForEvent(state, settings, 'jump', seat);
+    assert.ok(attacker.y < settings.arena.floor);
+    tap(['A'], attacker.facing);
+    assert.equal(attacker.attack.id, 'common-air');
+    waitForEvent(state, settings, 'hit', seat);
+    assert.equal(defender.combo, 3);
+    assert.ok(defender.y < settings.arena.floor);
+  }
+});
+
+test('the shared air dash adds horizontal reach once per takeoff and replenishes on landing', () => {
+  const settings = trainingOn(arenas[3]);
+  const state = begin(settings);
+  const fighter = state.fighters[0];
+  const start = fighter.x;
+  step(state, [input(['jump']), NEUTRAL], settings);
+  const jumpVy = fighter.vy;
+  const events = step(state, [input(['dash'], -1), NEUTRAL], settings);
+  assert.deepEqual(events.map(event => event.kind), ['dash']);
+  assert.equal(fighter.vy, jumpVy + 1);
+  stepFor(state, 5, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(fighter.x, start - settings.fighters[0].dash * 6);
+  assert.equal(fighter.airActionUsed, true);
+  assert.deepEqual(step(state, [input(['dash', 'jump'], 1), NEUTRAL], settings), []);
+  waitForEvent(state, settings, 'land');
+  assert.equal(fighter.airActionUsed, false);
+  step(state, [input(['jump']), NEUTRAL], settings);
+  assert.ok(step(state, [input(['dash'], 1), NEUTRAL], settings).some(event => event.kind === 'dash'));
+});
+
+test('a second jump trades the air dash for extra height without skipping the middle tier', () => {
+  const settings = trainingOn(arenas[1]);
+  const state = begin(settings);
+  const fighter = state.fighters[0];
+  step(state, [input(['jump']), NEUTRAL], settings);
+  stepFor(state, 16, [NEUTRAL, NEUTRAL], settings);
+  assert.deepEqual(step(state, [input(['jump']), NEUTRAL], settings).map(event => event.kind), ['air-jump']);
+  assert.equal(fighter.airActionUsed, true);
+  assert.deepEqual(step(state, [input(['dash', 'jump'], 1), NEUTRAL], settings), []);
+  let peak = fighter.y;
+  for (let frame = 0; frame < 42 && !fighter.ground; frame++) {
+    step(state, [NEUTRAL, NEUTRAL], settings);
+    peak = Math.min(peak, fighter.y);
+  }
+  assert.equal(settings.arena.floor - peak, 231);
+  assert.equal(fighter.ground, 'bench');
+  assert.equal(fighter.airActionUsed, false);
+});
+
+test('the finisher ends the chain, protects the downed fighter, and releases control on wakeup', () => {
+  const settings = trainingOn(arenas[0]);
+  const state = begin(settings);
+  closeDistance(state);
+  const [attacker, defender] = state.fighters;
+  for (let hit = 1; hit <= 3; hit++) {
+    step(state, [input(['A']), NEUTRAL], settings);
+    assert.equal(waitForEvent(state, settings, 'hit').chain, hit);
+  }
+  assert.equal(defender.recovery.phase, 'fall');
+  assert.equal(defender.combo, 0);
+  waitForEvent(state, settings, 'knockdown', 1);
+  assert.equal(defender.ground, 'floor');
+  assert.equal(defender.recovery.phase, 'down');
+  const hp = defender.hp;
+  while (attacker.attack) step(state, [NEUTRAL, NEUTRAL], settings);
+  attacker.x = defender.x - 85;
+  step(state, [input(['A']), input(['A'])], settings);
+  stepFor(state, 6, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(defender.hp, hp);
+  assert.equal(defender.attack, null);
+  waitForEvent(state, settings, 'rise', 1);
+  assert.equal(defender.recovery.phase, 'rise');
+  stepFor(state, defender.recovery.remaining - 2, [NEUTRAL, NEUTRAL], settings);
+  step(state, [NEUTRAL, input(['A'])], settings);
+  assert.equal(defender.attack, null);
+  step(state, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(defender.recovery, null);
+  assert.equal(defender.attack.id, 'common-jab');
+});
+
+test('the combo cap stays protective through a high fall until actual ground contact', () => {
+  const settings = { ...trainingOn(arenas[2]), rules: { ...rules, comboControlLimit: 5 } };
+  const state = begin(settings);
+  const defender = state.fighters[1];
+  Object.assign(defender, {
+    x: settings.arena.left + 30, y: settings.arena.floor - 1050,
+    ground: null, vy: -20, hitstun: 50, combo: 3, controlled: 4
+  });
+  step(state, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(defender.recovery.phase, 'fall');
+  assert.ok(defender.vy > 0);
+  stepFor(state, 34, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(defender.recovery.phase, 'fall');
+  assert.equal(defender.ground, null);
+  waitForEvent(state, settings, 'knockdown', 1);
+  assert.equal(defender.ground, 'floor');
+  waitForEvent(state, settings, 'rise', 1);
+  stepFor(state, defender.recovery.remaining, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(defender.recovery, null);
+});
+
+test('the computer approaches and confirms more than one hit using the shipped actions', () => {
+  const settings = trainingOn(arenas[0]);
+  const state = begin(settings);
+  let bestChain = 0;
+  for (let frame = 0; frame < 360; frame++) {
+    step(state, [NEUTRAL, cpuInput(state, settings)], settings);
+    bestChain = Math.max(bestChain, state.fighters[0].combo);
+  }
+  assert.ok(bestChain >= 2);
 });
 
 function trainingOn(arena) {
@@ -183,15 +368,16 @@ function landAfter(state, command, settings, seat = 0) {
 }
 
 for (const arena of arenas) {
-  test(arena.name + ' · public jumps reach all three levels and descend one surface per command', () => {
+  test(arena.name + ' · public jumps reach every tier and descend one surface per command', () => {
     const settings = trainingOn(arena);
     const state = begin(settings);
     const map = new Map(arena.platforms.map(platform => [platform.id, platform]));
     const floor = { ...arena, id: 'floor', y: arena.floor };
-    const path = [floor, ...arena.route.map(id => map.get(id))];
+    const path = [floor, ...arena.routes[0].map(id => map.get(id))];
     const peak = settings.fighters[0].jump * (settings.fighters[0].jump - 1) / 2;
-    assert.equal(path.length, 4);
-    assert.ok(floor.y - path[3].y >= 390, 'the upper route needs usable vertical separation from the floor');
+    assert.equal(path.length, arena.id === 'harbor' ? 5 : 4);
+    assert.ok(floor.y - path.at(-1).y >= (arena.id === 'harbor' ? 520 : 390),
+      'the upper route needs usable vertical separation from the floor');
     assert.ok(path[0].y - path[2].y > peak, 'the middle layer cannot be skipped to directly from the floor');
     for (let i = 1; i < path.length; i++) {
       assert.ok(path[i - 1].y - path[i].y <= peak - 15, 'a shared jump has clearance above the next tier');
@@ -266,19 +452,12 @@ test('walking off a ledge clears its support and lands on the next reachable tie
   assert.equal(fighter.ground, 'west-stand');
 });
 
-const rightRoutes = [
-  ['east', 'bridge', 'terrace'],
-  ['bench', 'east-stand', 'score-deck'],
-  ['east-loading', 'overpass', 'crane'],
-  ['dock-right', 'relay-right', 'upper-right']
-];
-
-for (const [index, arena] of arenas.entries()) {
+for (const arena of arenas) {
   test(arena.name + ' · P2 can also reach the upper platform from the right side', () => {
     const settings = trainingOn(arena);
     const state = begin(settings);
     const floor = { ...arena, id: 'floor', y: arena.floor };
-    const path = [floor, ...rightRoutes[index].map(id => arena.platforms.find(platform => platform.id === id))];
+    const path = [floor, ...arena.routes[1].map(id => arena.platforms.find(platform => platform.id === id))];
     for (let i = 1; i < path.length; i++) {
       alignOverlapping(state, path[i - 1], path[i], settings, 1);
       landAfter(state, input(['jump']), settings, 1);
@@ -286,6 +465,27 @@ for (const [index, arena] of arenas.entries()) {
     }
   });
 }
+
+test('both opening positions can reach their advertised first platform in one ordinary jump', () => {
+  for (const arena of arenas) {
+    const settings = trainingOn(arena);
+    const state = begin(settings);
+    for (const seat of [0, 1]) {
+      const next = arena.platforms.find(platform => platform.id === arena.routes[seat][0]);
+      const fighter = state.fighters[seat];
+      const destination = Math.max(next.left + 20, Math.min(next.right - 20, arena.spawn[seat]));
+      const oldX = fighter.x;
+      for (let frame = 0; frame < 41; frame++) {
+        const x = Math.abs(fighter.x - destination) > settings.fighters[seat].airSpeed
+          ? Math.sign(destination - fighter.x) : 0;
+        step(state, inputForSeat(seat, input(frame === 0 ? ['jump'] : [], x)), settings);
+        if (fighter.ground) break;
+      }
+      assert.equal(fighter.ground, next.id, arena.name + ' P' + (seat + 1) + ' from ' + oldX);
+      assert.equal(fighter.airActionUsed, false);
+    }
+  }
+});
 
 test('body separation at the platform edge never leaves a fighter grounded in midair', () => {
   const settings = trainingOn(arenas[0]);
@@ -333,7 +533,7 @@ test('every expanded floor is traversable and both players can reach their own e
     const state = begin(settings);
     const [a, b] = state.fighters;
     assert.ok(arena.right - arena.left >= 1280 * 2.8);
-    assert.equal(b.x - a.x, 346);
+    assert.ok(b.x - a.x >= 346 && b.x - a.x <= 600);
     const frames = Math.ceil((arena.right - arena.left) / settings.fighters[0].run) + 3;
     stepFor(state, frames, [input([], -1), input([], 1)], settings);
     assert.deepEqual(state.fighters.map(fighter => [fighter.x, fighter.ground]),
@@ -375,6 +575,33 @@ test('the camera follows the fight across viewports and fits players at opposite
   }
 });
 
+test('each round opens on its approach routes and the combat camera holds still through small hops', () => {
+  const viewport = { width: 1280, height: 720 };
+  for (const arena of arenas) {
+    const players = arena.spawn.map(x => ({ x, y: arena.floor, height: 142 }));
+    const opening = frameCamera(arena, viewport, players, null, 1, false, 1);
+    const close = frameCamera(arena, viewport, players, null, 1, false);
+    assert.ok(opening.zoom < close.zoom * .62);
+    for (const route of arena.routes) {
+      for (const id of route) {
+        const p = arena.platforms.find(p => p.id === id);
+        assert.ok(p.right > opening.x && p.left < opening.x + viewport.width / opening.zoom);
+        const height = (p.y - opening.y) * opening.zoom;
+        assert.ok(height > viewport.height * .19 && height < viewport.height * .9);
+      }
+    }
+    const rising = [{ ...players[0], y: arena.floor - 60 }, players[1]];
+    const steady = frameCamera(arena, viewport, rising, close, 1, false);
+    assert.equal(steady.y, close.y);
+    let prior = opening;
+    for (let i = 23; i >= 0; i--) {
+      const next = frameCamera(arena, viewport, players, prior, 1, false, i / 24);
+      assert.ok(next.zoom >= prior.zoom && Math.abs(next.zoom - prior.zoom) < .065);
+      prior = next;
+    }
+  }
+});
+
 test('the opponent AI can follow across the new station bridge gap', () => {
   const settings = trainingOn(arenas[3]);
   const state = begin(settings);
@@ -412,5 +639,128 @@ test('the side entrances link into the main routes with the same shared jump', (
       if (fighter.ground) break;
     }
     assert.equal(fighter.ground, to.id, from.name + ' → ' + to.name);
+  }
+});
+
+test('a harbor player crosses both gaps, takes the moving lift, and returns along a different route', () => {
+  const settings = trainingOn(arenas.find(a => a.id === 'harbor'));
+  const state = begin(settings);
+  const [player] = state.fighters;
+  const run = (x, ticks) => stepFor(state, ticks, [input([], x), NEUTRAL], settings);
+  const jump = (ground, x = 0, y = 0) => {
+    step(state, [input(['jump'], x, y), NEUTRAL], settings);
+    assert.equal(player.ground, null);
+    for (let n = 0; !player.ground && n < 55; n++) run(x, 1);
+    assert.equal(player.ground, ground);
+  };
+  jump('loading', -1);
+  run(-1, 5);
+  jump('gangway');
+  jump('middle', 1);
+  run(1, 28);
+  jump('overpass', 1);
+  jump('crane');
+  const boarded = player.x;
+  run(0, 405 - state.arenaFrame);
+  assert.equal(player.ground, 'crane');
+  assert.ok(boarded - player.x > 900);
+  jump('gangway', 0, 1);
+  run(-1, 37);
+  jump('west-cabin');
+  jump('gangway', 0, 1);
+  jump('floor', 0, 1);
+});
+
+test('both riders keep their offset through lift turnaround, hitstop, snapshot restore and dismount', () => {
+  const settings = trainingOn(arenas.find(a => a.id === 'harbor'));
+  const state = begin(settings);
+  const lift = settings.arena.platforms.find(p => p.travel);
+  const span = lift.travel.distance;
+  assert.equal(platformOffset(lift, 405), 0);
+  assert.equal(platformOffset(lift, 405 - 16), 0);
+  assert.equal(platformOffset(lift, 135), span);
+  assert.equal(platformOffset(lift, 135 + 16), span);
+  const seats = [62, 238];
+  for (const [seat, f] of state.fighters.entries()) {
+    Object.assign(f, { x: platformAt(lift, 0).left + seats[seat], y: lift.y, ground: lift.id });
+  }
+  const snapshot = structuredClone(state);
+  const ride = s => {
+    for (let n = 0; n < lift.travel.period; n++) {
+      if (n === 204) {
+        s.freeze = 5;
+        const x = s.fighters.map(f => f.x);
+        stepFor(s, 5, [NEUTRAL, NEUTRAL], settings);
+        assert.equal(s.arenaFrame, n);
+        assert.deepEqual(s.fighters.map(f => f.x), x);
+      }
+      step(s, [NEUTRAL, NEUTRAL], settings);
+      for (const [seat, f] of s.fighters.entries()) {
+        assert.equal(f.ground, lift.id);
+        assert.equal(f.x - platformAt(lift, s.arenaFrame).left, seats[seat]);
+      }
+    }
+  };
+  ride(state);
+  ride(snapshot);
+  assert.deepEqual(state, snapshot);
+  step(state, [input(['jump'], 0, 1), NEUTRAL], settings);
+  const out = state.fighters[0].x;
+  stepFor(state, 28, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(state.fighters[0].ground, 'middle');
+  assert.equal(state.fighters[0].x, out);
+  assert.equal(state.fighters[1].ground, lift.id);
+  state.phase = 'round-over';
+  state.phaseTicks = 1;
+  step(state, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(state.arenaFrame, 0);
+});
+
+test('the lift catches a descending fighter only if its moving lip was underneath at crossing time', () => {
+  const settings = trainingOn(arenas.find(a => a.id === 'harbor'));
+  const lift = settings.arena.platforms.find(p => p.travel);
+  for (const [offset, catches] of [[.6, false], [5, true]]) {
+    const state = begin(settings);
+    const p = platformAt(lift, 0);
+    const rightNext = platformAt(lift, 1).right;
+    const [player] = state.fighters;
+    Object.assign(player, { x: rightNext - offset, y: p.y - 1, vy: 9, ground: null });
+    step(state, [NEUTRAL, NEUTRAL], settings);
+    assert.equal(player.ground, catches ? lift.id : null);
+  }
+});
+
+test('at either dock the fourth-tier gallery and the trolley allow a round trip using ordinary jumps', () => {
+  const settings = trainingOn(arenas.find(a => a.id === 'harbor'));
+  for (const [id, frame, x] of [['west-gallery', 405, 1530], ['east-gallery', 135, 2860]]) {
+    const state = begin(settings);
+    const deck = settings.arena.platforms.find(p => p.id === id);
+    state.arenaFrame = frame;
+    Object.assign(state.fighters[0], { ground: id, y: deck.y, x });
+    landAfter(state, input(['jump'], 0, 1), settings);
+    assert.equal(state.fighters[0].ground, 'crane');
+    landAfter(state, input(['jump']), settings);
+    assert.equal(state.fighters[0].ground, id);
+  }
+});
+
+test('the computer can approach an opponent occupying either upper route from the opening floor on every map', () => {
+  for (const arena of arenas) {
+    const settings = trainingOn(arena);
+    const goals = new Set(arena.routes.map(route => route.at(-1)));
+    if (arena.id === 'harbor') goals.add('crane');
+    for (const id of goals) {
+      const s = begin(settings);
+      const roof = platformAt(arena.platforms.find(p => p.id === id), 0);
+      Object.assign(s.fighters[0], { x: (roof.left + roof.right) / 2, y: roof.y, ground: id });
+      const visited = new Set([s.fighters[1].ground]);
+      let met = false;
+      for (let n = 0; n < 240 && !met; n++) {
+        const events = step(s, [NEUTRAL, cpuInput(s, settings)], settings);
+        if (s.fighters[1].ground) visited.add(s.fighters[1].ground);
+        met = events.some(e => e.kind === 'hit' && e.source === 1);
+      }
+      assert.ok(visited.size >= 3 && met, arena.name + ' / ' + roof.name);
+    }
   }
 });

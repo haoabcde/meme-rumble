@@ -94,10 +94,12 @@ function element<T extends HTMLElement>(id: string): T {
 export function renderGuide(preferences: Preferences) {
   const guideRows = [
     { title: '左右移动', controls: ['left', 'right'] },
-    { title: '跳跃 / 冲刺', controls: ['jump', 'dash'] },
+    { title: '跳跃 / 二段跳', controls: ['jump'] },
+    { title: '地面 / 空中冲刺', controls: ['dash'] },
     { title: '下穿平台', controls: ['down', 'jump'], join: ' + ' },
     { title: '防御', controls: ['down'] },
-    { title: '基础攻击', controls: ['A'] },
+    { title: '普攻 / 空中攻击', controls: ['A'] },
+    { title: '地面挑空', controls: ['up', 'A'], join: ' + ' },
     { title: '预留专属槽', controls: ['B', 'C'] }
   ] as const;
   for (const seat of seats) {
