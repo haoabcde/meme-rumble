@@ -4,6 +4,27 @@
 
 ## 最终资产与生成提示
 
+### 科幻设施与帝江号武器 · `props/*-v2.png`
+
+使用内置 ImageGen 生成。以用户参考图的比例和轮廓为依据，按星电站场景采用灰白装甲、深灰骨架、像素阶梯边缘和透明底。四件生成提示分别强调以下识别点。
+
+- [榴弹炮](props/grenade-turret-v2.png)　单个粗炮口及细橙环、厚重镂空支架、圆底座。
+- [铳械塔](props/dual-bolt-tower-v2.png)　两个并排蓝色铳口、笔直双柱、圆底座。
+- [电线杆](props/power-pole-v2.png)　细直方杆、小顶盖、左右斜拉黄线、三脚底座。
+- [帝江号武器](props/dijiang-weapon-v2.png)　向左尖端、外露双长轨、深灰主轴和尾部蓝窗舱段。横版战斗前景素材。
+
+咕咕嘎嘎的第三、四段普攻搭配 [横扫和反扫关键帧](fighters/gaga-pole-attacks.webp)。第五段使用单独的 [抡杆上挑图集](fighters/gaga-pole-launch.webp)，通过内置 ImageGen 参考原动作图集绘制咬牙低蹲、蹬地前跨、发力斜挥、抡过头顶四个姿势。保留企鹅连帽服和角色比例，透明底，武器和挥击轨迹由游戏绘制。武器从 [电线杆的 WebP 图](fighters/gaga-pole.webp) 取小顶盖、分段方杆和三脚底座。握点在底座上方，斜拉线从武器画面中去除。
+
+横扫和上挑的扬尘参考 Pixelfx 的贴地碎屑和起手烟团，使用 Canvas 按本游戏的像素网格绘制。挥杆风声由 Web Audio 合成。[Spear Sweep](https://github.com/patch-gg/pixelfx/blob/main/src/fx/melee/spear-sweep.js) · [Uppercut](https://github.com/patch-gg/pixelfx/blob/main/src/fx/melee/uppercut.js) · [MIT 许可](https://github.com/patch-gg/pixelfx/blob/main/LICENSE)
+
+[空中掷杆图集](fighters/gaga-air-pole.webp) 用内置 ImageGen 参考同一角色绘制，包含举杆蓄力、转肩、斜下甩手和准备落地四帧。飞杆复用电线杆画稿，尘土、碎块和台面裂纹由 Canvas 绘制。
+
+[铳械塔展开图集](props/gaga-turret-deploy.webp) 用内置 ImageGen 按原铳械塔的双发射口、银灰立柱和三脚圆座绘制。蓝色工程箱落地后的第 0、3、7、11、16、20 帧分别表现闭箱触地、支脚打开、侧盖翻开、双柱抬升、铳口就位和建成。空中的箱体复用第一帧。
+
+[咕咕嘎嘎的终端动作图集](fighters/gaga-turret-terminal.webp) 用内置 ImageGen 参考原角色制作。六帧按顺序画摸口袋、掏终端、按下确认、后摆托箱、松手上抛和收势。手中的箱体由游戏叠画，离手后接续自己的抛物线。
+
+[榴弹炮展开图集](props/gaga-howitzer-deploy.webp) 用内置 ImageGen 参考原榴弹炮的单圆炮口、橙色炮口环和厚装甲，制作六帧橙色工程箱展开动作。空中投箱沿用咕咕嘎嘎的空中投掷动作，按手部握点叠画橙箱。圆形榴弹、气浪和爆炸由游戏绘制。
+
 ### 首版四人角色图集 · `fighters/*.webp`
 
 > Use case: stylized-concept. Create ONE game-ready sprite atlas on genuine transparent background, landscape 3:2, strict 2 by 2 grid. The input image is a design and roster reference ONLY: make four original chibi arcade fighters in the same broad meme identities and colors, use a fresh pose, crisp dark contours, clean pixel-art-inspired cel shading, no logos or lettering. Top left: DeepSeek whale-girl, cute determined blue-haired chibi with a frilled white headband and deep blue outfit with white bib, distinct blue whale tail and fin accents. Top right: Chinese internet 奶蛙, a round vivid buttery yellow frog creature, pale cream belly, one big circular green visible eye and small second eye, cheeky calm expression, tiny brown fighting gloves and squat frog limbs. Bottom left: Banana Cat, panicked cream-and-orange kitten in a clearly curved upright golden banana costume with brown stem and blue tears, little paws raised, original expressive design. Bottom right: 姑姑嘎嘎, mischievous purple-haired chibi girl in a black-and-white penguin kigurumi with beak-shaped hood and warm yellow collar, penguin flippers, trim pose. Each is full body including head, shoes and tail. Three-quarter view facing visually right, compact ready-to-fight action pose, expressive bold silhouettes, ample transparent padding 7% inside the boundaries of each quadrant, each illustration stays completely within its quadrant, equally sized, sharp selective outlines, polished indie arcade art. Transparent background only. Absolutely no ground planes, glow surrounding the figures, shadows outside the silhouette, borders, UI, letters, words or watermark. Preserve readability at 96px tall.

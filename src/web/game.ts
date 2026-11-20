@@ -2,7 +2,7 @@ import { rules } from '../content/demo.js';
 import { arenas } from '../content/arenas.js';
 import { roster } from '../content/roster.js';
 import { createMatch, step } from '../core/match.js';
-import { NEUTRAL, type ActionKey, type Axis, type Duo, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
+import { ENERGY_PER_BAR, NEUTRAL, type ActionKey, type Axis, type Duo, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
 import { arcadeArt, arenaArt, fighterArt } from './art.js';
 import { FightAudio } from './audio.js';
 import { cpuInput } from './cpu.js';
@@ -61,6 +61,8 @@ const names = namesSuffix.map(id => element('name-' + id));
 const scores = namesSuffix.map(id => element('score-' + id));
 const healthBars = namesSuffix.map(id => element('hp-' + id));
 const guardBars = namesSuffix.map(id => element('guard-' + id));
+const energyMeters = namesSuffix.map(id => element('energy-' + id));
+const energyFills = energyMeters.map(meter => [...meter.querySelectorAll('i')]);
 const combos = namesSuffix.map(id => element('combo-' + id));
 const portraits = namesSuffix.map(id => element<HTMLImageElement>('portrait-' + id));
 const panels = namesSuffix.map(id => element('fighter-panel-' + id));
@@ -74,7 +76,7 @@ const screens = Object.fromEntries(screenIds.map(id => [id, element(id + '-scree
 const config: MatchConfig = { rules, arena: arenas[0], fighters: [roster[0].fighter, roster[3].fighter] };
 const selected: Duo<number> = [0, 3];
 const confirmed: Duo<boolean> = [false, false];
-const pending: Duo<Map<ActionKey, Stick>> = [new Map(), new Map()];
+const pending: Duo<[ActionKey, Stick][]> = [[], []];
 const held = new Set<string>();
 const audio = new FightAudio();
 const renderer = new Renderer(canvas, config.arena);
@@ -176,6 +178,11 @@ function footer() {
           keyHint(preferences, 1, ['A']) + ' 确认' : '')
     : screen === 'maps' ? '方向键换图 · Enter 进场 · Esc 返回'
     : screen === 'menu' ? '↑ / ↓ 选模式 · Enter 确认'
+    : fighting && mode === 'training' && config.fighters[0].id === 'gaga'
+      ? 'P1 ' + keyHint(preferences, 0, ['A']) + ' × 5 连击 · ' +
+        keyHint(preferences, 0, ['up', 'A'], ' + ') + ' 挑飞 · ' + keyHint(preferences, 0, ['down', 'A'], ' + ') + ' 滑行 · ' +
+        keyHint(preferences, 0, ['jump', 'A'], ' → ') + ' 空中掷杆 · ' +
+        keyHint(preferences, 0, ['C']) + ' 铳械塔 / 空中榴弹炮'
     : fighting ? 'P1 ' + keyHint(preferences, 0, ['jump']) + ' 跳 · ' +
         keyHint(preferences, 0, ['down', 'jump'], ' + ') + ' 下穿' +
         (mode === 'local' ? '　　P2 ' + keyHint(preferences, 1, ['down', 'jump'], ' + ') + ' 下穿' : '')
@@ -194,7 +201,7 @@ function notify(message: string) {
 function clearInputs() {
   held.clear();
   for (const seat of seats) {
-    pending[seat].clear();
+    pending[seat].length = 0;
     state.fighters[seat].buffer = [];
   }
 }
@@ -261,9 +268,7 @@ function renderRoster() {
     const src = fighterArt[entry.fighter.id];
     if (art.getAttribute('src') !== src) art.src = src;
     text(panels[seat].querySelector('h3')!, entry.fighter.name);
-    const enabledSlots = new Set(entry.fighter.actions.filter(action => action.slot !== 'A').map(action => action.slot));
-    text(panels[seat].querySelector('p')!,
-      enabledSlots.size ? '已接入专属动作槽 ' + enabledSlots.size + ' / 2' : '专属槽 1 / 2 待接入');
+    text(panels[seat].querySelector('p')!, entry.moveSummary ?? '专属槽 1 / 2 待接入');
     lockButtons[seat].setAttribute('aria-pressed', String(confirmed[seat]));
     text(lockButtons[seat], confirmed[seat] ? who + ' 已确认' : '确认 ' + who);
   }
@@ -551,12 +556,13 @@ window.addEventListener('keydown', event => {
   if (held.has(event.code) || event.repeat || (binding.seat === 1 && mode !== 'local')) return;
   held.add(event.code);
   const { seat, control } = binding;
-  if ((control === 'B' || control === 'C') && !config.fighters[seat].actions.some(action => action.slot === control)) {
+  if ((control === 'B' || control === 'C') &&
+    !config.fighters[seat].actions.some(action => action.slot === control)) {
     notify(seatName(seat) + ' 的专属槽 ' + (control === 'B' ? '1' : '2') + ' 待接入');
     return;
   }
   if (control === 'A' || control === 'B' || control === 'C' || control === 'jump' || control === 'dash') {
-    pending[seat].set(control, stickFor(seat));
+    pending[seat].push([control, stickFor(seat)]);
   }
 });
 window.addEventListener('keyup', event => held.delete(event.code));
@@ -570,8 +576,8 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) pause
 
 function readInput(seat: Seat): InputFrame {
   const commands = pending[seat];
-  const input = { ...stickFor(seat), pressed: [...commands.keys()], sampled: Object.fromEntries(commands) };
-  commands.clear();
+  const input = { ...stickFor(seat), pressed: commands.map(([key]) => key), sampled: commands.map(([, stick]) => stick) };
+  commands.length = 0;
   return input;
 }
 
@@ -589,6 +595,18 @@ function setMeter(node: HTMLElement, value: number, maximum: number) {
   }
 }
 
+function setEnergyMeter(seat: Seat, energy: number) {
+  const meter = energyMeters[seat];
+  const bars = String(energy / ENERGY_PER_BAR);
+  if (meter.getAttribute('aria-valuenow') === bars) return;
+  meter.setAttribute('aria-valuenow', bars);
+  for (const [index, fill] of energyFills[seat].entries()) {
+    const ratio = Math.max(0, Math.min(1, energy / ENERGY_PER_BAR - index));
+    fill.style.transform = 'scaleX(' + ratio + ')';
+    fill.parentElement!.toggleAttribute('data-full', ratio === 1);
+  }
+}
+
 function renderHUD() {
   if (stage.dataset.phase !== state.phase) stage.dataset.phase = state.phase;
   text(roundLabel, config.training ? '自由训练' : '第 ' + state.round + ' 回合');
@@ -599,6 +617,7 @@ function renderHUD() {
     text(scores[seat], String(state.wins[seat]));
     setMeter(healthBars[seat], fighter.hp, config.fighters[seat].maxHp);
     setMeter(guardBars[seat], fighter.guard, rules.guardMax);
+    setEnergyMeter(seat, fighter.energy);
     const hits = state.fighters[seat === 0 ? 1 : 0].combo;
     combos[seat].hidden = hits < 2;
     if (hits >= 2) text(combos[seat], hits + ' 连击');
@@ -634,12 +653,14 @@ function renderHUD() {
 function tick(player: InputFrame) {
   const previous = state.phase;
   const events = step(state, [player, opponentInput()], config);
+  const shortage = events.find(event => event.kind === 'energy-short' && (event.source === 0 || mode === 'local'));
+  if (shortage?.amount) notify(seatName(shortage.source) + ' 需要 ' + shortage.amount / ENERGY_PER_BAR + ' 格气');
   if (previous === 'ready' && state.phase === 'fight') fightCueUntil = state.frame + 30;
   if (previous === 'fight' && state.phase === 'round-over' && state.result) {
     roundHistory.push({ ...state.result, round: state.round });
   }
-  renderer.add(events);
-  audio.play(events);
+  renderer.add(events, config.fighters);
+  audio.play(events, config.fighters);
 }
 
 function draw(elapsed: number) {

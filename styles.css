@@ -167,6 +167,15 @@ img { display: block; }
 .guard > div { background: repeating-linear-gradient(90deg,#ffde75 0 16%,#e6ad45 16% 16.8%); }
 .p2 .hp > div, .p2 .guard > div { transform-origin: right; }
 .p2 .guard { margin-left: auto; }
+.energy-row { display: flex; align-items: center; gap: .35cqw; width: 66%; margin-top: .28cqw; }
+.energy-row > span { color: #e1dcff; font-size: clamp(8px, .95cqw, 14px); font-weight: 900; line-height: 1; text-shadow: 0 1px 2px #100c2f; }
+.energy { flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .27cqw; height: clamp(5px, .88cqw, 13px); }
+.energy > span { overflow: hidden; background: #221d48; border: 1px solid #bab0ee93; }
+.energy > span[data-full] { border-color: #fff1ff; }
+.energy i { display: block; height: 100%; transform: scaleX(0); transform-origin: left; background: linear-gradient(#f0dbff, #a274f5 58%, #6b39c4); }
+.p2 .energy-row { flex-direction: row-reverse; margin-left: auto; }
+.p2 .energy { direction: rtl; }
+.p2 .energy i { transform-origin: right; }
 .timer { text-align: center; font-variant-numeric: tabular-nums; font-weight: 950; color: var(--ivory); text-shadow: 0 .09em #17172c, 0 .15em #3f4388; }
 .timer output { display: block; font-size: clamp(22px, 5.2cqw, 74px); line-height: .95; font-style: italic; }
 .timer small { font-size: clamp(8px, 1.08cqw, 15px); white-space: nowrap; }

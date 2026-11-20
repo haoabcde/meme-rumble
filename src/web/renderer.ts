@@ -1,14 +1,31 @@
 import { roster } from '../content/roster.js';
+import { gagaActionIds } from '../content/gaga.js';
 import { actionFor, worldBox } from '../core/match.js';
-import type { ArenaDefinition, CombatEvent, MatchConfig, MatchState } from '../core/types.js';
-import { backgrounds, sprites } from './art.js';
+import { turretBuildTicks } from '../core/turret.js';
+import type { ActionDefinition, ArenaDefinition, CombatEvent, MatchConfig, MatchState } from '../core/types.js';
+import { backgrounds, drawEngineeringCrate, drawGagaLaunchTrail, drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose, gagaReactionPose, sprites, type PolePose } from './art.js';
 import { frameCamera, type CameraView } from './camera.js';
+import { drawGagaWalk, GagaWalk } from './gaga-walk.js';
+import { drawGagaContact, drawGagaReceive, gagaContact, type GagaContact } from './gaga-contact.js';
+import { drawPoleDust, drawPoleEarthBurst, drawPoleGroundMark, poleDustLife, poleImpactLife, poleSwingFor, type PoleSwing } from './gaga-pole-fx.js';
+import { drawTurretEffect, isTurretEffect, turretEffectLife } from './gaga-turret-fx.js';
 
 export const seatColors = ['#61d8ff', '#ff849e'];
 const arenaColors = { dorm: '#ffc08c', court: '#8faaff', harbor: '#8de9cd', station: '#bc9bff' };
 const tierColors = ['#6adfff', '#ffdd87', '#edacff'];
 const artSizes = new Map(roster.map(entry => [entry.fighter.id, entry.height]));
 type Point = [number, number];
+type Trail = [Point, Point, Point];
+
+const attackTrails: Partial<Record<string, Trail[]>> = {
+  [gagaActionIds.jab]: [[[34, -49], [67, -57], [111, -61]]],
+  [gagaActionIds.backhand]: [[[-43, -96], [32, -125], [98, -55]]],
+  [gagaActionIds.poleSweep]: [[[24, -50], [147, -19], [266, -84]]],
+  [gagaActionIds.poleBacksweep]: [[[25, -72], [162, -91], [265, -24]]],
+  [gagaActionIds.lift]: [[[24, -48], [48, -73], [78, -127]]],
+  [gagaActionIds.slide]: [[[-91, -12], [-46, -5], [28, -10]], [[-68, -21], [-38, -18], [-12, -18]]]
+};
+const rushTrails: Trail[] = [[[-89, -22], [-64, -28], [-37, -31]], [[-101, -10], [-72, -10], [-48, -13]]];
 
 function polygon(ctx: CanvasRenderingContext2D, color: string, points: Point[]) {
   ctx.fillStyle = color;
@@ -110,6 +127,9 @@ interface Effect {
   event: CombatEvent;
   age: number;
   life: number;
+  cue?: GagaContact;
+  poleSwing?: PoleSwing;
+  gagaReceives: boolean;
 }
 
 export class Renderer {
@@ -118,6 +138,7 @@ export class Renderer {
   private effects: Effect[] = [];
   private shake = 0;
   private camera: CameraView | null = null;
+  private gagaWalks = [new GagaWalk(), new GagaWalk()];
 
   constructor(canvas: HTMLCanvasElement, arena: ArenaDefinition) {
     this.ctx = canvas.getContext('2d', { alpha: false })!;
@@ -132,15 +153,33 @@ export class Renderer {
     this.effects = [];
     this.shake = 0;
     this.camera = null;
+    this.gagaWalks.forEach(walk => walk.reset());
   }
 
-  add(events: CombatEvent[]) {
+  add(events: CombatEvent[], fighters: MatchConfig['fighters']) {
     for (const event of events) {
+      if (isTurretEffect(event)) {
+        this.effects.push({ event, life: turretEffectLife[event.kind], age: 0, gagaReceives: false });
+        if (event.kind === 'grenade-impact') this.shake = Math.max(this.shake, 9);
+        if (event.kind === 'turret-burst' || event.kind === 'turret-ready') this.shake = Math.max(this.shake, 6);
+      }
+      const poleSwing = poleSwingFor(event);
+      if (poleSwing) this.effects.push({ event, life: poleDustLife, age: 0, poleSwing, gagaReceives: false });
+      if (event.kind === 'pole-impact') {
+        this.effects.push({ event, life: poleImpactLife, age: 0, gagaReceives: false });
+        this.shake = Math.max(this.shake, 8.5);
+      }
       if (['hit', 'block', 'break', 'dash', 'land', 'drop'].includes(event.kind)) {
         const brief = event.kind === 'dash' || event.kind === 'land' || event.kind === 'drop';
-        this.effects.push({ event, life: brief ? 12 : 23, age: 0 });
+        const cue = gagaContact(event, fighters);
+        const life = cue === 'light' || brief || event.impact === 'light' ? 14 : event.impact === 'heavy' ? 22 : 23;
+        const gagaReceives = event.kind === 'hit' && fighters[1 - event.source].id === 'gaga';
+        this.effects.push({ event, life, age: 0, cue, gagaReceives });
       }
-      if (event.kind === 'hit' || event.kind === 'break') this.shake = Math.max(this.shake, 4);
+      if (event.kind === 'hit' || event.kind === 'break') {
+        const strength = event.impact === 'heavy' ? 10 : event.impact === 'light' ? 2.5 : 4;
+        this.shake = Math.max(this.shake, strength);
+      }
     }
   }
 
@@ -158,6 +197,13 @@ export class Renderer {
     const dx = Math.min(x * zoom, Math.max(width - (config.arena.width - x) * zoom, shake));
     ctx.setTransform(zoom, 0, 0, zoom, -x * zoom + dx, -y * zoom);
     ctx.drawImage(this.background, 0, 0, config.arena.width, config.arena.height);
+    for (const { event, age } of this.effects) {
+      if (event.kind !== 'pole-impact' || !event.surface) continue;
+      ctx.save();
+      ctx.translate(event.x, event.y);
+      drawPoleGroundMark(ctx, age, event.surface.left - event.x, event.surface.right - event.x);
+      ctx.restore();
+    }
 
     if (debug) {
       ctx.strokeStyle = '#fff4d9';
@@ -172,6 +218,23 @@ export class Renderer {
       ctx.setLineDash([]);
     }
 
+    const swingTrails: { paths: Trail[]; x: number; y: number; facing: number; alpha: number; wide: boolean }[] = [];
+    const poles: { pose: PolePose; x: number; y: number; facing: number; action: ActionDefinition; frame: number }[] = [];
+    for (const turret of Object.values(state.turrets)) {
+      if (!turret) continue;
+      drawTurret(ctx, turret);
+      if (turret.age >= turretBuildTicks) {
+        const y = turret.y - (turret.kind === 'bolt' ? 142 : 136);
+        for (let i = 0; i < 2; i++) {
+          ctx.fillStyle = '#111533';
+          ctx.fillRect(turret.x - 15 + i * 16, y, 13, 5);
+          if (i < turret.hp) {
+            ctx.fillStyle = seatColors[turret.owner];
+            ctx.fillRect(turret.x - 14 + i * 16, y + 1, 11, 3);
+          }
+        }
+      }
+    }
     for (const seat of [0, 1] as const) {
       const f = state.fighters[seat];
       const def = config.fighters[seat];
@@ -180,6 +243,15 @@ export class Renderer {
       const action = actionFor(config, state, seat);
       const phase = f.attack?.frame ?? 0;
       const active = action && phase >= action.startup && phase < action.startup + action.active;
+      const pose = def.id === 'gaga' && action ? gagaActionPose(action, phase, Boolean(f.ground)) : undefined;
+      const reaction = def.id === 'gaga' && f.hp && !action && !f.walk && !f.dash && !f.guarding ? f.reaction : undefined;
+      const hurtPose = reaction ? gagaReactionPose(reaction, f.vy) : undefined;
+      const drawnPose = hurtPose ?? pose;
+      const allowedToWalk = def.id === 'gaga' && f.ground && f.hp && !action &&
+        !f.guarding && !f.dash && !f.hitstun && !f.blockstun && !f.guardBreak;
+      const walk = this.gagaWalks[seat];
+      if (!allowedToWalk) walk.reset();
+      const walkPose = allowedToWalk && !hurtPose ? walk.sample(f.walk, elapsed) : undefined;
       const ground = config.arena.platforms.reduce((y, platform) =>
         f.x >= platform.left && f.x <= platform.right && platform.y >= f.y && platform.id !== f.ignorePlatform
           ? Math.min(y, platform.y) : y,
@@ -191,26 +263,50 @@ export class Renderer {
 
       ctx.save();
       ctx.translate(f.x, f.y);
-      ctx.scale(f.facing, 1);
-      const stride = f.moving ? Math.sin(state.frame * .68) : Math.sin(state.frame * .16) * .24;
+      ctx.scale(hurtPose && reaction ? reaction.facing : f.facing, 1);
+      const sways = f.moving && (def.id !== 'gaga' || !f.ground);
+      const stride = sways ? Math.sin(state.frame * .68) : Math.sin(state.frame * .16) * .24;
       const height = heights[seat];
       const width = sprite?.naturalHeight ? height * sprite.naturalWidth / sprite.naturalHeight : 100;
-      let yScale = 1 + stride * .035;
+      let yScale = drawnPose || walkPose ? 1 : 1 + stride * .035;
       if (f.hp === 0) ctx.rotate(-Math.PI / 2.6);
-      else if (f.hitstun) { ctx.rotate(-.20); yScale = .94; }
+      else if (f.hitstun && !hurtPose) {
+        const reeling = Math.abs(f.push) >= 15;
+        ctx.rotate(reeling ? -.38 : -.20);
+        yScale = reeling ? .88 : .94;
+      }
       else if (f.dash) { ctx.rotate(.20); yScale = .87; }
       else if (f.guarding) yScale = .83;
-      else if (active) ctx.rotate(action.pose === 'rise' ? -.14 : .12);
-      else if (!f.ground) ctx.rotate(f.vy < 0 ? -.085 : .085);
+      else if (active && !pose) ctx.rotate(action.pose === 'rise' ? -.14 : .12);
+      else if (!f.ground && !drawnPose) ctx.rotate(f.vy < 0 ? -.085 : .085);
       ctx.scale(2 - yScale, yScale);
+      if (pose?.rotation) ctx.rotate(pose.rotation);
       if (f.protection && state.frame % 6 < 3) ctx.globalAlpha = .64;
-      if (sprite?.naturalWidth) {
+      if (drawnPose?.image || sprite?.naturalWidth) {
         ctx.shadowColor = color + 'ca';
         ctx.shadowBlur = 8;
-        if (f.hitstun && state.freeze > 0) ctx.filter = 'brightness(1.48)';
-        ctx.drawImage(sprite, -width * .51 + (active ? 9 : 0), -height, width, height);
+        if (hurtPose && reaction && reaction.elapsed < 2) ctx.filter = 'brightness(1.45) saturate(.7)';
+        else if (f.hitstun && state.freeze > 0) ctx.filter = 'brightness(1.48)';
+        if (drawnPose?.image) {
+          const { image, region, scaleX, scaleY } = drawnPose;
+          ctx.drawImage(image, region.x, region.y, region.width, region.height,
+            -region.footX * scaleX, -region.footY * scaleY, region.width * scaleX, region.height * scaleY);
+        } else if (walkPose) {
+          drawGagaWalk(ctx, sprite, height, walkPose);
+        } else {
+          ctx.drawImage(sprite, -width * .51 + (active ? 9 : 0), -height, width, height);
+        }
         ctx.filter = 'none';
         ctx.shadowBlur = 0;
+      }
+      if (pose?.heldCrate) drawEngineeringCrate(ctx, pose.heldCrate.kind, pose.heldCrate.x, pose.heldCrate.y, -.16);
+      if (pose?.pole && action) poles.push({ pose: pose.pole, x: f.x, y: f.y, facing: f.facing, action, frame: phase });
+      const trails = pose?.rushing ? rushTrails : active && pose && attackTrails[action.id];
+      if (trails && action) {
+        const sustained = pose?.rushing || action.id === gagaActionIds.slide;
+        const alpha = sustained ? .54 : .76 * (1 - (phase - action.startup) / action.active);
+        swingTrails.push({ paths: trails, x: f.x, y: f.y, facing: f.facing,
+          alpha, wide: Boolean(pose?.pole) || action.impact === 'heavy' });
       }
       ctx.globalAlpha = 1;
       if (f.guarding) {
@@ -222,7 +318,7 @@ export class Renderer {
       }
       ctx.restore();
 
-      if (active && action) {
+      if (active && action && !pose) {
         const hit = worldBox(action.hitbox, f.x, f.y, f.facing);
         const tip = f.facing === 1 ? hit.x + hit.w - 6 : hit.x + 6;
         ctx.save();
@@ -244,7 +340,7 @@ export class Renderer {
         ctx.strokeRect(hurt.x, hurt.y, hurt.w, hurt.h);
         ctx.strokeStyle = '#ffc263';
         ctx.strokeRect(f.x - def.bodyWidth / 2, f.y - 82, def.bodyWidth, 82);
-        if (active && action) {
+        if (active && action && !action.projectile) {
           const hit = worldBox(action.hitbox, f.x, f.y, f.facing);
           ctx.fillStyle = '#ff536844';
           ctx.strokeStyle = '#ff5a6e';
@@ -254,6 +350,50 @@ export class Renderer {
       }
     }
 
+    for (const pole of poles) {
+      ctx.save();
+      ctx.translate(pole.x, pole.y);
+      ctx.scale(pole.facing, 1);
+      if (pole.action.id === gagaActionIds.poleLaunch) drawGagaLaunchTrail(ctx, pole.action, pole.frame);
+      drawGagaPole(ctx, pole.pose);
+      ctx.restore();
+    }
+    for (const projectile of state.projectiles) {
+      const data = config.fighters[projectile.source].actions.find(move => move.id === projectile.actionId)?.projectile;
+      if (!data) continue;
+      if (data.kind === 'crate' && data.turret) {
+        const pitch = Math.atan2(projectile.vy, Math.abs(projectile.vx)) * .20 * projectile.facing;
+        drawEngineeringCrate(ctx, data.turret, projectile.x, projectile.y, pitch);
+      } else if (data.kind === 'bolt') {
+        drawTurretBolt(ctx, projectile);
+      } else if (data.kind === 'grenade') {
+        drawGrenade(ctx, projectile);
+      } else {
+        drawThrownPole(ctx, projectile, data);
+      }
+      if (debug) {
+        const halfWidth = data.halfWidth ?? data.radius;
+        ctx.strokeStyle = '#ff5a6e';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(projectile.x - halfWidth, projectile.y - data.radius, halfWidth * 2, data.radius * 2);
+      }
+    }
+    for (const trail of swingTrails) {
+      ctx.save();
+      ctx.translate(trail.x, trail.y);
+      ctx.scale(trail.facing, 1);
+      ctx.globalAlpha = trail.alpha;
+      ctx.strokeStyle = '#fff1c0';
+      ctx.lineWidth = trail.wide ? 7 : 4;
+      ctx.lineCap = 'round';
+      for (const [from, control, to] of trail.paths) {
+        ctx.beginPath();
+        ctx.moveTo(...from);
+        ctx.quadraticCurveTo(...control, ...to);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
     this.drawEffects(elapsed, Boolean(config.training));
     ctx.resetTransform();
     for (const seat of [0, 1] as const) {
@@ -296,12 +436,18 @@ export class Renderer {
   private drawEffects(elapsed: number, training: boolean) {
     const ctx = this.ctx;
     for (const effect of this.effects) {
-      const { event, age, life } = effect;
+      const { event, age, life, cue } = effect;
       const color = event.kind === 'block' ? '#84e8ff' : event.kind === 'break' ? '#ff8c88' : '#ffdfa0';
       ctx.save();
       ctx.globalAlpha = Math.min(1, (life - age) / 10);
       ctx.translate(event.x, event.y);
-      if (event.kind === 'dash') {
+      if (effect.poleSwing) {
+        drawPoleDust(ctx, effect.poleSwing, age, event.facing);
+      } else if (event.kind === 'pole-impact') {
+        drawPoleEarthBurst(ctx, age, event.facing);
+      } else if (isTurretEffect(event)) {
+        drawTurretEffect(ctx, event, age);
+      } else if (event.kind === 'dash') {
         ctx.fillStyle = seatColors[event.source];
         for (let i = 0; i < 4; i++) ctx.fillRect(-21 + i * 15, -10 - i * 3, i + 5, 2);
       } else if (event.kind === 'land' || event.kind === 'drop') {
@@ -311,14 +457,19 @@ export class Renderer {
         ctx.ellipse(0, event.kind === 'drop' ? age * 1.8 : -1, 9 + age * 2.7, 3 + age * .25, 0, 0, 2 * Math.PI);
         ctx.stroke();
       } else {
-        ctx.save();
-        ctx.rotate(age * .035);
-        const scale = 1 + age * .012;
-        ctx.scale(scale, scale);
-        polygon(ctx, color, [[0, -39], [7, -11], [34, -18], [15, 0], [34, 18],
-          [7, 10], [0, 36], [-8, 10], [-29, 16], [-14, 0], [-30, -19], [-7, -10]]);
-        polygon(ctx, '#fff8e2', [[0, -17], [5, -5], [17, 0], [5, 4], [0, 17], [-6, 5], [-17, 0], [-5, -5]]);
-        ctx.restore();
+        if (cue) {
+          drawGagaContact(ctx, cue, age, event.facing);
+        } else {
+          ctx.save();
+          ctx.rotate(age * .035);
+          const scale = 1 + age * .012;
+          ctx.scale(scale, scale);
+          polygon(ctx, color, [[0, -39], [7, -11], [34, -18], [15, 0], [34, 18],
+            [7, 10], [0, 36], [-8, 10], [-29, 16], [-14, 0], [-30, -19], [-7, -10]]);
+          polygon(ctx, '#fff8e2', [[0, -17], [5, -5], [17, 0], [5, 4], [0, 17], [-6, 5], [-17, 0], [-5, -5]]);
+          ctx.restore();
+        }
+        if (effect.gagaReceives) drawGagaReceive(ctx, age, event.facing);
         if (training && event.amount) {
           ctx.font = '950 23px system-ui';
           ctx.textAlign = 'center';

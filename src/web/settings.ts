@@ -98,7 +98,10 @@ export function renderGuide(preferences: Preferences) {
     { title: '下穿平台', controls: ['down', 'jump'], join: ' + ' },
     { title: '防御', controls: ['down'] },
     { title: '基础攻击', controls: ['A'] },
-    { title: '预留专属槽', controls: ['B', 'C'] }
+    { title: '姑姑嘎嘎 · 突进挑飞', controls: ['up', 'A'], join: ' + ' },
+    { title: '姑姑嘎嘎 · 肚皮滑行', controls: ['down', 'A'], join: ' + ' },
+    { title: '技能槽 1（预留）', controls: ['B'] },
+    { title: '姑姑嘎嘎 · 地面铳械塔 / 空中榴弹炮（1 格气）', controls: ['C'] }
   ] as const;
   for (const seat of seats) {
     const list = element(seat === 0 ? 'guide-one' : 'guide-two');
