@@ -73,7 +73,7 @@ export interface ArenaDefinition {
   terrain: string;
   route: string[];
   theme: 'dorm' | 'court' | 'harbor' | 'station';
-  artFrame: { sourceTop: number; sourceFloor: number; worldTop: number };
+  artFrame: { sourceY: number; worldY: number }[];
   width: number;
   height: number;
   left: number;

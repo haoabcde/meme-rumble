@@ -306,8 +306,9 @@ function selectArena(index: number) {
   stage.dataset.arena = arena.id;
   for (const [id, button] of mapButtons.entries()) button.setAttribute('aria-pressed', String(index === id));
   text(element('map-name'), arena.name);
-  text(element('map-count'), new Set(arena.platforms.map(platform => platform.tier)).size +
-    ' 层 · ' + arena.platforms.length + ' 处平台');
+  const screens = ((arena.right - arena.left) / canvas.width).toFixed(1);
+  const tiers = new Set(arena.platforms.map(platform => platform.tier)).size;
+  text(element('map-count'), screens + ' 屏宽 · ' + tiers + ' 层 · ' + arena.platforms.length + ' 处平台');
   text(element('map-description'), arena.description);
   const routeNames = arena.route.map(id => arena.platforms.find(platform => platform.id === id)!.name);
   const routeLine = element('map-route');

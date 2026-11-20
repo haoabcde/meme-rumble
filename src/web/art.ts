@@ -3,10 +3,10 @@ import whale from '../../assets/fighters/whale.webp';
 import frog from '../../assets/fighters/frog-v2.webp';
 import banana from '../../assets/fighters/banana.webp';
 import gaga from '../../assets/fighters/gaga.webp';
-import dorm from '../../assets/arenas/dorm-decks.webp';
-import court from '../../assets/arenas/court-decks.webp';
-import harbor from '../../assets/arenas/harbor-decks.webp';
-import station from '../../assets/arenas/station-decks.webp';
+import dorm from '../../assets/arenas/dorm-wide.webp';
+import court from '../../assets/arenas/court-wide.webp';
+import harbor from '../../assets/arenas/harbor-wide.webp';
+import station from '../../assets/arenas/station-wide.webp';
 import type { ArenaDefinition } from '../core/types.js';
 
 export const arcadeArt = arcade;

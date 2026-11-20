@@ -2,6 +2,7 @@ import { roster } from '../content/roster.js';
 import { actionFor, worldBox } from '../core/match.js';
 import type { ArenaDefinition, CombatEvent, MatchConfig, MatchState } from '../core/types.js';
 import { backgrounds, sprites } from './art.js';
+import { frameCamera, type CameraView } from './camera.js';
 
 export const seatColors = ['#61d8ff', '#ff849e'];
 const arenaColors = { dorm: '#ffc08c', court: '#8faaff', harbor: '#8de9cd', station: '#bc9bff' };
@@ -19,12 +20,11 @@ function polygon(ctx: CanvasRenderingContext2D, color: string, points: Point[]) 
 }
 
 function drawStageArt(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, image: HTMLImageElement) {
-  const source = [0, image.naturalHeight * arena.artFrame.sourceTop,
-    image.naturalHeight * arena.artFrame.sourceFloor, image.naturalHeight];
-  const world = [0, arena.artFrame.worldTop, arena.floor, arena.height];
-  for (let band = 0; band < 3; band++) {
-    ctx.drawImage(image, 0, source[band], image.naturalWidth, source[band + 1] - source[band],
-      0, world[band], arena.width, world[band + 1] - world[band]);
+  for (let band = 1; band < arena.artFrame.length; band++) {
+    const start = arena.artFrame[band - 1];
+    const end = arena.artFrame[band];
+    ctx.drawImage(image, 0, start.sourceY * image.naturalHeight, image.naturalWidth,
+      (end.sourceY - start.sourceY) * image.naturalHeight, 0, start.worldY, arena.width, end.worldY - start.worldY);
   }
 }
 
@@ -65,31 +65,29 @@ export function paintArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition
 
 function paintRoute(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {
   const route = arena.route.flatMap(id => arena.platforms.filter(platform => platform.id === id));
+  let support = { left: arena.left, right: arena.right, y: arena.floor };
   let from: Point = [arena.spawn[0], arena.floor];
-  for (const [i, platform] of route.entries()) {
-    const follow = route[i + 1];
-    const x = follow
-      ? (Math.max(platform.left, follow.left) + Math.min(platform.right, follow.right)) / 2
-      : (platform.left + platform.right) / 2;
-    const to: Point = [x, platform.y];
-    ctx.save();
-    ctx.strokeStyle = '#fff4cb';
-    ctx.lineWidth = 4;
-    ctx.shadowColor = '#0e0b2d';
-    ctx.shadowBlur = 7;
-    ctx.setLineDash([8, 6]);
+  ctx.save();
+  ctx.strokeStyle = '#fff4cb';
+  ctx.lineWidth = 9;
+  ctx.shadowColor = '#0e0b2d';
+  ctx.shadowBlur = 7;
+  for (const platform of route) {
+    const x = (Math.max(support.left, platform.left) + Math.min(support.right, platform.right)) / 2;
+    ctx.setLineDash([24, 16]);
     ctx.beginPath();
     ctx.moveTo(...from);
-    ctx.quadraticCurveTo((from[0] + x) / 2 - 40, platform.y - 50, ...to);
+    ctx.lineTo(x, support.y);
+    ctx.quadraticCurveTo(x + 75, platform.y - 60, x, platform.y);
     ctx.stroke();
-    ctx.setLineDash([]);
     ctx.fillStyle = tierColors[platform.tier - 1];
     ctx.beginPath();
-    ctx.arc(x, platform.y, 8, 0, Math.PI * 2);
+    ctx.arc(x, platform.y, 17, 0, Math.PI * 2);
     ctx.fill();
-    ctx.restore();
-    from = to;
+    support = platform;
+    from = [x, platform.y];
   }
+  ctx.restore();
 }
 
 export function previewArena(canvas: HTMLCanvasElement, arena: ArenaDefinition, route = false) {
@@ -119,22 +117,21 @@ export class Renderer {
   private background = document.createElement('canvas');
   private effects: Effect[] = [];
   private shake = 0;
-  private zoom = 1;
-  private centerX = 0;
+  private camera: CameraView | null = null;
 
   constructor(canvas: HTMLCanvasElement, arena: ArenaDefinition) {
     this.ctx = canvas.getContext('2d', { alpha: false })!;
-    this.background.width = arena.width;
-    this.background.height = arena.height;
     this.load(arena);
   }
 
   load(arena: ArenaDefinition) {
+    const cacheWidth = Math.min(2560, arena.width);
+    this.background.width = cacheWidth;
+    this.background.height = Math.round(cacheWidth * arena.height / arena.width);
     previewArena(this.background, arena);
     this.effects = [];
     this.shake = 0;
-    this.zoom = 1;
-    this.centerX = arena.width / 2;
+    this.camera = null;
   }
 
   add(events: CombatEvent[]) {
@@ -149,26 +146,18 @@ export class Renderer {
 
   draw(config: MatchConfig, state: MatchState, debug: boolean, elapsed: number, shakeEnabled: boolean, focus = false) {
     const ctx = this.ctx;
-    const { width, height } = config.arena;
+    const { width, height } = ctx.canvas;
     const [a, b] = state.fighters;
-    const distance = Math.abs(a.x - b.x);
-    const closestToHud = Math.min(a.y, b.y);
-    const sensitivity = Math.min(1, elapsed * .16);
-    const target = focus && closestToHud > 295
-      ? 1 + .23 * Math.max(0, 1 - distance / 700) * Math.min(1, (closestToHud - 295) / 115)
-      : 1;
-    const neededWidth = distance + 236;
-    this.zoom = Math.max(1, Math.min(width / neededWidth, this.zoom + (target - this.zoom) * sensitivity));
-    this.centerX += ((a.x + b.x) / 2 - this.centerX) * sensitivity;
-    const half = width / (2 * this.zoom);
-    const leftBound = Math.max(half, Math.max(a.x, b.x) + 112 - half);
-    const rightBound = Math.min(width - half, Math.min(a.x, b.x) - 112 + half);
-    const center = Math.min(Math.max(this.centerX, leftBound), Math.max(leftBound, rightBound));
-    const dx = shakeEnabled && this.shake > 0 ? Math.sin(this.shake * 3) * this.shake : 0;
-    ctx.resetTransform();
-    ctx.drawImage(this.background, 0, 0);
-    ctx.setTransform(this.zoom, 0, 0, this.zoom, width / 2 - center * this.zoom + dx, height * (1 - this.zoom));
-    if (this.zoom > 1 || dx) ctx.drawImage(this.background, 0, 0);
+    const heights = [artSizes.get(config.fighters[0].id) ?? 137, artSizes.get(config.fighters[1].id) ?? 137];
+    const camera = frameCamera(config.arena, { width, height },
+      [{ x: a.x, y: a.y, height: heights[0] }, { x: b.x, y: b.y, height: heights[1] }],
+      this.camera, elapsed, focus);
+    this.camera = camera;
+    const { x, y, zoom } = camera;
+    const shake = shakeEnabled ? Math.sin(this.shake * 3) * this.shake : 0;
+    const dx = Math.min(x * zoom, Math.max(width - (config.arena.width - x) * zoom, shake));
+    ctx.setTransform(zoom, 0, 0, zoom, -x * zoom + dx, -y * zoom);
+    ctx.drawImage(this.background, 0, 0, config.arena.width, config.arena.height);
 
     if (debug) {
       ctx.strokeStyle = '#fff4d9';
@@ -204,7 +193,7 @@ export class Renderer {
       ctx.translate(f.x, f.y);
       ctx.scale(f.facing, 1);
       const stride = f.moving ? Math.sin(state.frame * .68) : Math.sin(state.frame * .16) * .24;
-      const height = artSizes.get(def.id) ?? 137;
+      const height = heights[seat];
       const width = sprite?.naturalHeight ? height * sprite.naturalWidth / sprite.naturalHeight : 100;
       let yScale = 1 + stride * .035;
       if (f.hp === 0) ctx.rotate(-Math.PI / 2.6);
@@ -246,17 +235,6 @@ export class Renderer {
         ctx.restore();
       }
 
-      if (f.hp > 0) {
-        const above = f.y - height - 32;
-        const markerY = above >= 105 ? above : f.y + 10;
-        ctx.fillStyle = '#111333';
-        ctx.fillRect(f.x - 20, markerY, 40, 23);
-        ctx.textAlign = 'center';
-        ctx.font = '900 15px system-ui';
-        ctx.fillStyle = color;
-        ctx.fillText('P' + (seat + 1), f.x, markerY + 16);
-      }
-
       if (debug) {
         const hurt = worldBox(def.hurtbox, f.x, f.y, f.facing);
         ctx.fillStyle = '#27d7ee24';
@@ -278,7 +256,41 @@ export class Renderer {
 
     this.drawEffects(elapsed, Boolean(config.training));
     ctx.resetTransform();
+    for (const seat of [0, 1] as const) {
+      const f = state.fighters[seat];
+      if (!f.hp) continue;
+      const center = (f.x - x) * zoom + dx;
+      const markerY = (f.y - heights[seat] - y) * zoom - 25;
+      ctx.fillStyle = '#111333e8';
+      ctx.fillRect(center - 17, markerY, 34, 21);
+      ctx.textAlign = 'center';
+      ctx.font = '900 15px system-ui';
+      ctx.fillStyle = seatColors[seat];
+      ctx.fillText('P' + (seat + 1), center, markerY + 15);
+    }
+    this.drawPositionStrip(config.arena, [a.x, b.x], camera);
     this.shake = Math.max(0, this.shake - elapsed);
+  }
+
+  private drawPositionStrip(arena: ArenaDefinition, fighters: [number, number], camera: CameraView) {
+    const ctx = this.ctx;
+    const width = 210;
+    const center = (ctx.canvas.width - width) / 2;
+    const y = 117;
+    const position = (x: number) => center + width *
+      Math.min(1, Math.max(0, (x - arena.left) / (arena.right - arena.left)));
+    const start = position(camera.x);
+    const end = position(camera.x + ctx.canvas.width / camera.zoom);
+    ctx.fillStyle = '#10152ee0';
+    ctx.fillRect(center - 5, y - 7, width + 10, 14);
+    ctx.fillStyle = '#8f9acc96';
+    ctx.fillRect(center, y - 1, width, 2);
+    ctx.fillStyle = '#e7ddffac';
+    ctx.fillRect(start, y - 4, end - start, 8);
+    for (const seat of [0, 1] as const) {
+      ctx.fillStyle = seatColors[seat];
+      ctx.fillRect(position(fighters[seat]) - 3, y - 6 + seat * 6, 6, 6);
+    }
   }
 
   private drawEffects(elapsed: number, training: boolean) {
