@@ -5,12 +5,18 @@ import { NEUTRAL } from '../dist/core/types.js';
 import { rules, testFighter } from '../dist/content/demo.js';
 import { arenas } from '../dist/content/arenas.js';
 import { roster } from '../dist/content/roster.js';
+import { defineFighter } from '../dist/content/fighter-kit.js';
 import { frameCamera } from '../dist/web/camera.js';
 import { cpuInput } from '../dist/web/cpu.js';
 import { platformAt, platformOffset, tierAt } from '../dist/core/terrain.js';
 
 const config = { rules, arena: arenas[0], fighters: [testFighter, testFighter] };
 const input = (pressed = [], x = 0, y = 0) => ({ pressed, x, y });
+// Public movement and combat have their own fixture so character authors can tune individual stats.
+const baseline = defineFighter({
+  id: 'baseline', name: '公共动作测试', height: 144, accent: '#fff',
+  art: { portrait: 'whale.webp', motion: 'whale-motion.webp' }, signatureMoves: []
+}).fighter;
 
 function begin(settings = config) {
   const state = createMatch(settings);
@@ -130,21 +136,22 @@ test('training restores the practice target on a lethal hit and never times out'
   assert.equal(state.phase, 'fight');
 });
 
-test('the shipped roster shares public actions and leaves all character skills empty', () => {
-  assert.equal(roster.length, 4);
-  const kit = roster[0].fighter;
-  assert.equal(kit.actions.length, 5);
-  assert.ok(kit.actions.every(move => move.slot === 'A'));
+test('the four selectable fighters retain the common commands, and empty signature slots are inert', () => {
+  assert.deepEqual(roster.map(entry => entry.fighter.id), ['whale', 'frog', 'banana', 'gaga']);
+  assert.equal(baseline.actions.length, 5);
+  assert.ok(baseline.actions.every(move => move.slot === 'A'));
   for (const { fighter } of roster) {
-    assert.deepEqual(fighter.actions, kit.actions);
-    assert.equal(fighter.jump, kit.jump);
-    assert.equal(fighter.maxHp, kit.maxHp);
+    assert.deepEqual(fighter.actions.filter(m => m.slot === 'A').map(m => m.id), baseline.actions.map(m => m.id));
+  }
+  for (const fighter of [baseline, ...roster.map(entry => entry.fighter)]) {
+    const emptySlots = ['B', 'C'].filter(slot => !fighter.actions.some(move => move.slot === slot));
+    if (!emptySlots.length) continue;
     const settings = { ...config, fighters: [fighter, fighter] };
     const state = begin(settings);
     closeDistance(state);
-    step(state, [input(['B', 'C']), NEUTRAL], settings);
+    assert.equal(step(state, [input(emptySlots), NEUTRAL], settings).some(e => e.kind === 'swing'), false);
     const events = stepFor(state, 12, [NEUTRAL, NEUTRAL], settings);
-    assert.equal(events.some(event => event.kind === 'hit'), false);
+    assert.equal(events.some(e => e.kind === 'hit'), false);
     assert.equal(state.fighters[0].attack, null);
     assert.equal(state.fighters[1].hp, fighter.maxHp);
   }
@@ -336,7 +343,7 @@ test('the computer approaches and confirms more than one hit using the shipped a
 });
 
 function trainingOn(arena) {
-  return { ...config, training: true, arena, fighters: [roster[0].fighter, roster[1].fighter] };
+  return { ...config, training: true, arena, fighters: [baseline, baseline] };
 }
 
 function inputForSeat(seat, command) {

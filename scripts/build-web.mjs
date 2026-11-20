@@ -1,8 +1,11 @@
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
+import { roster } from '../dist/content/roster.js';
+import { embedFighterImages } from './fighter-art.mjs';
 
 const root = new URL('../', import.meta.url);
+const fighterImages = await embedFighterImages(roster, fileURLToPath(new URL('assets/fighters/', root)));
 const [template, css, bundle] = await Promise.all([
   readFile(new URL('index.html', root), 'utf8'),
   readFile(new URL('styles.css', root), 'utf8'),
@@ -13,6 +16,7 @@ const [template, css, bundle] = await Promise.all([
     format: 'iife',
     target: 'es2022',
     loader: { '.webp': 'dataurl' },
+    define: { __FIGHTER_IMAGES__: JSON.stringify(fighterImages) },
     write: false
   })
 ]);

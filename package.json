@@ -6,10 +6,11 @@
   "scripts": {
     "start": "node scripts/serve-web.mjs",
     "build": "tsc && node scripts/build-web.mjs",
-    "test": "npm run build && node --test tests/match.test.mjs"
+    "test": "npm run build && node --test tests/match.test.mjs tests/fighter-kit.test.mjs"
   },
   "devDependencies": {
     "esbuild": "0.25.12",
+    "image-size": "2.1.0",
     "typescript": "5.9.3"
   }
 }

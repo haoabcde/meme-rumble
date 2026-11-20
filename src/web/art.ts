@@ -1,12 +1,6 @@
 import arcade from '../../assets/ui/arcade.webp';
-import whale from '../../assets/fighters/whale.webp';
-import frog from '../../assets/fighters/frog-v2.webp';
-import banana from '../../assets/fighters/banana.webp';
-import gaga from '../../assets/fighters/gaga.webp';
-import whaleMotion from '../../assets/fighters/whale-motion.webp';
-import frogMotion from '../../assets/fighters/frog-motion.webp';
-import bananaMotion from '../../assets/fighters/banana-motion.webp';
-import gagaMotion from '../../assets/fighters/gaga-motion.webp';
+import { roster } from '../content/roster.js';
+import type { FighterArt } from '../content/fighter-kit.js';
 import dorm from '../../assets/arenas/dorm-bg.webp';
 import court from '../../assets/arenas/court-bg.webp';
 import harbor from '../../assets/arenas/harbor-quay.webp';
@@ -19,7 +13,12 @@ import stationKit from '../../assets/arenas/station-kit.webp';
 import type { ArenaDefinition } from '../core/types.js';
 
 export const arcadeArt = arcade;
-export const fighterArt: Record<string, string> = { whale, frog, banana, gaga };
+// The offline build embeds only the files named by the four character packages.
+declare const __FIGHTER_IMAGES__: Record<string, string>;
+function fighterSources(kind: keyof FighterArt): Record<string, string> {
+  return Object.fromEntries(roster.map(({ fighter, art }) => [fighter.id, __FIGHTER_IMAGES__[art[kind]]]));
+}
+export const fighterArt = fighterSources('portrait');
 export const arenaArt: Record<ArenaDefinition['theme'], string> = { dorm, court, harbor, station };
 
 function loadImages(sources: Record<string, string>) {
@@ -31,7 +30,7 @@ function loadImages(sources: Record<string, string>) {
 }
 
 export const sprites = loadImages(fighterArt);
-export const motionArt = loadImages({ whale: whaleMotion, frog: frogMotion, banana: bananaMotion, gaga: gagaMotion });
+export const motionArt = loadImages(fighterSources('motion'));
 export const backgrounds = loadImages(arenaArt);
 export const { dockProps: harborProps, gantry: harborGantry } = loadImages({ dockProps, gantry });
 export const stageKits = loadImages({ dorm: dormKit, court: courtKit, station: stationKit });

@@ -248,7 +248,7 @@ function motion(
   let move = 0;
   if (f.push !== 0) {
     move = f.push;
-    f.push -= Math.sign(f.push);
+    f.push -= Math.sign(f.push) * Math.min(1, Math.abs(f.push));
   } else if (f.dash > 0) {
     move = definition.dash * f.facing;
     f.dash--;

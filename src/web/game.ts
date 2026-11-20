@@ -274,9 +274,9 @@ function renderRoster() {
     const src = fighterArt[entry.fighter.id];
     if (art.getAttribute('src') !== src) art.src = src;
     text(panels[seat].querySelector('h3')!, entry.fighter.name);
-    const enabledSlots = new Set(entry.fighter.actions.filter(action => action.slot !== 'A').map(action => action.slot));
+    const enabledSlots = (['B', 'C'] as const).filter(slot => entry.fighter.actions.some(action => action.slot === slot));
     text(panels[seat].querySelector('p')!,
-      enabledSlots.size ? '已接入专属动作槽 ' + enabledSlots.size + ' / 2' : '专属槽 1 / 2 待接入');
+      enabledSlots.length ? '可用专属槽 · ' + enabledSlots.join(' / ') : '专属技能待接入');
     lockButtons[seat].setAttribute('aria-pressed', String(confirmed[seat]));
     text(lockButtons[seat], confirmed[seat] ? who + ' 已确认' : '确认 ' + who);
   }
@@ -590,7 +590,7 @@ window.addEventListener('keydown', event => {
   held.add(event.code);
   const { seat, control } = binding;
   if ((control === 'B' || control === 'C') && !config.fighters[seat].actions.some(action => action.slot === control)) {
-    notify(seatName(seat) + ' 的专属槽 ' + (control === 'B' ? '1' : '2') + ' 待接入');
+    notify(seatName(seat) + ' 的专属槽 ' + control + ' 待接入');
     return;
   }
   if (control === 'A' || control === 'B' || control === 'C' || control === 'jump' || control === 'dash') {
@@ -621,10 +621,9 @@ function opponentInput(): InputFrame {
 
 function setMeter(node: HTMLElement, value: number, maximum: number) {
   const bar = 'scaleX(' + value / maximum + ')';
-  if (node.style.transform !== bar) {
-    node.style.transform = bar;
-    node.parentElement!.setAttribute('aria-valuenow', String(value));
-  }
+  if (node.style.transform !== bar) node.style.transform = bar;
+  const meter = node.parentElement!;
+  if (meter.getAttribute('aria-valuenow') !== String(value)) meter.setAttribute('aria-valuenow', String(value));
 }
 
 function trainingState(seat: Seat) {
@@ -761,11 +760,17 @@ function frame(now: number) {
   requestAnimationFrame(frame);
 }
 
-const practiceMap = new URLSearchParams(location.search).get('practice');
+const practiceParams = new URLSearchParams(location.search);
+const practiceMap = practiceParams.get('practice');
 const practiceIndex = arenas.findIndex(arena => arena.id === practiceMap);
 if (practiceIndex >= 0) {
   mode = 'training';
   arenaIndex = practiceIndex;
+  for (const seat of seats) {
+    const id = practiceParams.get('p' + (seat + 1));
+    const index = roster.findIndex(entry => entry.fighter.id === id);
+    if (index >= 0) selected[seat] = index;
+  }
   confirmed.fill(true);
   configureMatch(true);
   enterMatch();

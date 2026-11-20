@@ -22,7 +22,7 @@ const seats = [0, 1] as const;
 const controls: Control[] = ['left', 'right', 'up', 'down', 'jump', 'dash', 'A', 'B', 'C'];
 const namedControls: Record<Control, string> = {
   left: '向左', right: '向右', up: '向上', down: '向下 / 防御',
-  jump: '跳跃', dash: '冲刺', A: '基础攻击', B: '专属槽 1', C: '专属槽 2'
+  jump: '跳跃', dash: '冲刺', A: '基础攻击', B: '专属槽 B', C: '专属槽 C'
 };
 const namedKeys: Record<string, string> = {
   ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓',
@@ -100,7 +100,7 @@ export function renderGuide(preferences: Preferences) {
     { title: '防御', controls: ['down'] },
     { title: '普攻 / 空中攻击', controls: ['A'] },
     { title: '地面挑空', controls: ['up', 'A'], join: ' + ' },
-    { title: '预留专属槽', controls: ['B', 'C'] }
+    { title: '角色专属槽 B / C', controls: ['B', 'C'] }
   ] as const;
   for (const seat of seats) {
     const list = element(seat === 0 ? 'guide-one' : 'guide-two');

@@ -1,4 +1,5 @@
 import { roster } from '../content/roster.js';
+import { motionGrid } from '../content/fighter-kit.js';
 import { actionFor, worldBox } from '../core/match.js';
 import type { ActionDefinition, ArenaDefinition, CombatEvent, FighterState, MatchConfig, MatchState } from '../core/types.js';
 import { backgrounds, harborProps, harborGantry, motionArt, sprites, stageKits } from './art.js';
@@ -21,9 +22,6 @@ const poses = {
   run: 0, stride: 1, jump: 2, guard: 3, windup: 4, strike: 5,
   sweep: 6, finish: 7, rise: 8, air: 9, recover: 10, hurt: 11
 };
-const spriteCell = 216;
-const spriteBaseHeight = 144;
-const footAnchor = 184;
 
 function poseFor(fighter: FighterState, action: ActionDefinition | undefined, frame: number) {
   if (!fighter.hp || fighter.hitstun || fighter.guardBreak) return poses.hurt;
@@ -31,6 +29,12 @@ function poseFor(fighter: FighterState, action: ActionDefinition | undefined, fr
   if (fighter.guarding) return poses.guard;
   if (action && fighter.attack) {
     const phase = fighter.attack.frame;
+    const keys = action.animation;
+    if (keys) {
+      for (let i = keys.length - 1; i >= 0; i--) {
+        if (phase >= keys[i].frame) return keys[i].cell;
+      }
+    }
     if (phase < action.startup) return fighter.ground ? poses.windup : poses.jump;
     if (phase < action.startup + action.active) return poses[action.pose];
     return fighter.ground ? poses.recover : poses.jump;
@@ -42,9 +46,10 @@ function poseFor(fighter: FighterState, action: ActionDefinition | undefined, fr
 }
 
 function drawPose(ctx: CanvasRenderingContext2D, sheet: HTMLImageElement, pose: number, height: number, offset = 0) {
-  const scale = height / spriteBaseHeight;
-  ctx.drawImage(sheet, pose % 4 * spriteCell, Math.floor(pose / 4) * spriteCell, spriteCell, spriteCell,
-    offset - spriteCell * scale / 2, -footAnchor * scale, spriteCell * scale, spriteCell * scale);
+  const { cell, columns, footX, footY, referenceHeight } = motionGrid;
+  const scale = height / referenceHeight;
+  ctx.drawImage(sheet, pose % columns * cell, Math.floor(pose / columns) * cell, cell, cell,
+    offset - footX * scale, -footY * scale, cell * scale, cell * scale);
 }
 
 function polygon(ctx: CanvasRenderingContext2D, color: string, points: Point[]) {
@@ -348,7 +353,7 @@ export class Renderer {
       ctx.shadowBlur = 9;
       if (f.hitstun && state.freeze > 0) ctx.filter = 'brightness(1.36)';
       if (sheet?.naturalWidth && pose !== undefined) {
-        drawPose(ctx, sheet, pose, height, active ? 8 : 0);
+        drawPose(ctx, sheet, pose, height, active && !action.animation?.length ? 8 : 0);
       } else if (sprite?.naturalWidth) {
         const spriteWidth = height * sprite.naturalWidth / sprite.naturalHeight;
         const breathe = pose === undefined ? Math.sin(state.frame * .10) * 1.4 : 0;

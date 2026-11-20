@@ -1,0 +1,87 @@
+# 角色制作交接
+
+两位角色制作者可以并行工作。先认领角色，各自在对应的 TypeScript 文件里填写属性、素材路径和动作。四个角色已经接入选角、对局和自由训练，目前都能使用公共动作，B、C 两个专属槽留空。具体人选、角色设定和技能数值由你们决定。
+
+## 找到自己的入口
+
+| 角色 | 配置文件 | 当前立绘 | 当前动作图集 |
+|---|---|---|---|
+| DeepSeek 鲸鱼娘 | [whale.ts](../src/content/fighters/whale.ts) | [whale.webp](../assets/fighters/whale.webp) | [whale-motion.webp](../assets/fighters/whale-motion.webp) |
+| 奶蛙 | [frog.ts](../src/content/fighters/frog.ts) | [frog-v2.webp](../assets/fighters/frog-v2.webp) | [frog-motion.webp](../assets/fighters/frog-motion.webp) |
+| 香蕉猫 | [banana.ts](../src/content/fighters/banana.ts) | [banana.webp](../assets/fighters/banana.webp) | [banana-motion.webp](../assets/fighters/banana-motion.webp) |
+| 姑姑嘎嘎 | [gaga.ts](../src/content/fighters/gaga.ts) | [gaga.webp](../assets/fighters/gaga.webp) | [gaga-motion.webp](../assets/fighters/gaga-motion.webp) |
+
+保留表中四个文件现有的 `id`，它也是训练链接使用的角色标识。`name` 是显示名，`accent` 是界面配色，`height` 控制画面中的角色高度。
+
+`stats` 只需填写想调整的字段。生命用 `maxHp`，地面跑速和空中横移速度用 `run`、`airSpeed`，起跳与二段跳的初速度用 `jump`、`airJump`，冲刺速度与空冲开关用 `dash`、`airDash`。身体宽度与受击框分别填 `bodyWidth` 和 `hurtbox`。位移按每个逻辑帧的世界单位计算。[角色包及默认值](../src/content/fighter-kit.ts)
+
+## 第一次联调
+
+1. 从最新 `main` 开一个自己的角色分支。在仓库目录用 Node.js 20 或更新版本执行下面的命令。
+
+   ```sh
+   npm ci
+   npm run build
+   npm start
+   ```
+
+2. 打开[奶蛙对香蕉猫的货港训练](http://127.0.0.1:4182/?practice=harbor&p1=frog&p2=banana)。`p1` 是键盘控制的角色，`p2` 是陪练，可以填相同 ID。地图可填 `harbor`、`dorm-roof`、`night-court` 或 `star-station`。
+3. 改完角色文件或图片，在第二个终端运行 `npm run build`，然后刷新试玩页。按 **H** 看攻击框、受击框、动作名和当前帧，**R** 复位。需要慢放时选 **0.5×**，也可以在暂停菜单点「前进一帧」。
+
+**想先确认一个按键能从选角通到命中**，可以在自己的本地分支做下面的连通性试验。它复用已有直拳，测试结束后换成自己的数据。
+
+角色文件先导入公共直拳和角色包函数。
+
+```ts
+import { basicAttack, defineFighter } from '../fighter-kit.js';
+```
+
+在同一文件里，用下面的数组暂时替换空的 `signatureMoves`。
+
+```ts
+signatureMoves: [
+  {
+    ...basicAttack,
+    id: 'probe-b',
+    name: '接口测试',
+    slot: 'B',
+    cancelOnHit: [],
+    animation: [{ frame: 0, cell: 4 }, { frame: 5, cell: 5 }, { frame: 8, cell: 10 }]
+  }
+]
+```
+
+重新构建后，选角面板应显示「可用专属槽 · B」。进训练靠近陪练，按 **U**，能在 **H** 面板看到「接口测试」依次经过起手、有效和收招，命中时陪练掉血。默认 P1 的 B/C 是 **U / I**，本地双人中 P2 是 **句号 / 斜杠**，也可以用小键盘 **4 / 5**。改键后以「操作说明」为准。
+
+## 填自己的动作
+
+| 字段 | 填法和效果 |
+|---|---|
+| `id`、`name`、`slot` | 每个动作在本角色内有唯一 ID。训练面板显示名称，专属槽填 `'B'` 或 `'C'`。 |
+| `posture`、`direction` | 可用姿态为 `'ground'`、`'air'` 或 `'any'`。可选方向为 `'up'`、`'down'`、`'forward'` 或 `'back'`。前后按输入瞬间的朝向判断。同槽可有多个变体，有方向的优先，条件相同时先匹配先写的动作。 |
+| `startup`、`active`、`recovery` | 固定 60 Hz，从动作帧 0 计数。例如 5 / 3 / 13 表示第 0–4 帧起手、第 5–7 帧有效、第 8–20 帧收招。 |
+| `hitbox`、`stats.hurtbox`、`stats.bodyWidth` | 攻击框与受击框均为 `{ x, y, w, h }`。原点在脚底，按朝右填写，右方为正 X，上方为负 Y。引擎负责换边镜像。身体宽度另行决定双方接近时的推挤距离。 |
+| `damage`、`hitstun`、`blockstun`、`guardCost` | 分别为基础伤害、命中硬直帧、防御硬直帧、防御耐力消耗。连击伤害按公共规则衰减。 |
+| `advance`、`push`、`lift`、`stop` | 起手每帧向前的位移、命中时的水平推速、向上击飞的初速度、命中停顿帧。可选 `knockdown` 开启倒地，`airControl` 配置空中出招时的水平控制比例。 |
+| `cancelOnHit`、`linkOnly` | 命中后可转入列出的动作 ID 或槽位。`'jump'` 允许地面命中后跳追。设置 `linkOnly: true` 的动作只能从允许的命中取消进入。要让公共直拳接到本角色的动作，在角色包顶层加 `extraCancels: { 'common-jab': ['你的动作ID'] }`。防住和打空会照常收招。 |
+| `pose`、`animation` | `pose` 选择公共表现类型 `'strike'`、`'sweep'`、`'finish'`、`'rise'` 或 `'air'`。可选 `animation` 按动作帧指定图集画格，每个画格保持到下一个关键帧。命中时机由上面的有效帧与攻击框决定。 |
+
+现有动作判定支持随角色移动的矩形攻击框，每次出招可以命中一次。需要独立飞行的弹体、召唤物、多次命中或角色专属资源时，把期望的输入、生成/命中时机、消失或重置条件交给框架维护者，一起补对应接口。人机陪练目前主要演练公共动作，专属技能的主动使用优先用自由训练和本地双人核对。[完整动作类型](../src/core/types.ts) · [输入与命中实现](../src/core/match.ts)
+
+## 交付美术
+
+把文件放在 `assets/fighters/`，也可以在其中建自己的角色目录。在角色文件的 `art.portrait`、`art.motion` 填相对于该目录的路径。构建会自动收集引用的 WebP，打进离线 HTML。
+
+- **立绘**用透明底、朝右的全身图，脚底贴近下边缘。选角、VS、HUD、结算和场上待机共用这张图。
+- **动作图集**固定四列，每格 216×216 像素，格内脚底锚点为 `(108, 184)`，参考身高 144 像素。前三行共 12 格供跑步、跳跃、防御、公共攻击和受击使用。[前十二格排布](../assets/README.md#公共动作图集)
+- **专属动画**往图集底部追加整行，宽度保持 864 像素，高度每次增加 216 像素。格号从 0 开始逐行向右数，第四行是 12–15。只有已画好并打包的格号才能写入 `animation`。
+
+## 提交前验收
+
+运行 `npm test`。构建会指出缺失素材、动作 ID 重复、取消目标不存在、时间轴不合法、图集尺寸不符或画格越界。随后在游戏里核对下面三件事。
+
+1. 从标题走一次选角 → 选图 → VS → 对局，确认名字、双方立绘和 HUD 对得上。两人可以镜像选同一角色。
+2. 在地面、空中各试一次对应输入，再用本地双人换到 P2 验证朝向。分别观察命中、防住和打空，停顿时画面与判定应停在同一动作帧。
+3. 在有平台的图上试上下穿台和换边。可以用星电站的升降机检查角色在移动台面上的脚底与判定。复位或再战后，生命和动作应回到初始状态。
+
+提交自己的角色配置和素材，推送角色分支。PR 里写清角色 ID、试招按键和训练链接，另一位队友就能按同样步骤复测。需要核对动作时机时，可以附短录屏或关键帧截图。[接入回归用例](../tests/fighter-kit.test.mjs)

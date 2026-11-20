@@ -46,6 +46,8 @@ export interface ActionDefinition {
   linkOnly?: boolean;
   airControl?: number;
   pose: 'strike' | 'sweep' | 'finish' | 'rise' | 'air';
+  /** Hold each sprite cell from its zero-based action frame until the next key. */
+  animation?: { frame: number; cell: number }[];
 }
 
 export interface FighterDefinition {
