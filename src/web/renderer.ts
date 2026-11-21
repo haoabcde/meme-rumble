@@ -252,16 +252,20 @@ export function previewArena(canvas: HTMLCanvasElement, arena: ArenaDefinition, 
 
 interface Effect {
   event: CombatEvent;
-  age: number;
+  start: number;
   life: number;
 }
+
+const expiresAfter: Partial<Record<CombatEvent['kind'], number>> = {
+  hit: 12, break: 17, block: 10, parry: 15, ultimate: 13,
+  dash: 12, land: 12, drop: 12, 'air-jump': 12, knockdown: 12
+};
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
   private background = document.createElement('canvas');
   private sceneryTop = 0;
   private effects: Effect[] = [];
-  private shake = 0;
   private camera: CameraView | null = null;
 
   constructor(canvas: HTMLCanvasElement, arena: ArenaDefinition) {
@@ -295,21 +299,13 @@ export class Renderer {
       previewArena(layer, arena);
     }
     this.effects = [];
-    this.shake = 0;
     this.camera = null;
   }
 
-  add(events: CombatEvent[]) {
+  add(events: CombatEvent[], frame: number) {
     for (const event of events) {
-      if (event.kind === 'ultimate') this.effects.push({ event, life: 13, age: 0 });
-      if (['hit', 'block', 'parry', 'break', 'dash', 'land', 'drop', 'air-jump', 'knockdown'].includes(event.kind)) {
-        const brief = event.kind !== 'hit' && event.kind !== 'break';
-        this.effects.push({ event, life: brief ? 12 : event.heavy ? 15 : 11, age: 0 });
-      }
-      if (event.kind === 'hit' || event.kind === 'break') {
-        const shake = event.kind === 'hit' ? event.feedback?.shake : undefined;
-        this.shake = Math.max(this.shake, shake ?? (event.heavy ? 7 : 4));
-      }
+      const life = event.kind === 'hit' && event.heavy ? 16 : expiresAfter[event.kind];
+      if (life) this.effects.push({ event, life, start: frame });
     }
   }
 
@@ -317,15 +313,17 @@ export class Renderer {
     const ctx = this.ctx;
     const { width, height } = ctx.canvas;
     const [a, b] = state.fighters;
+    this.effects = this.effects.filter(({ start, life }) => state.frame >= start && state.frame - start < life);
     const heights = [artSizes.get(config.fighters[0].id) ?? 137, artSizes.get(config.fighters[1].id) ?? 137];
     const camera = frameCamera(config.arena, { width, height },
       [{ x: a.x, y: a.y, height: heights[0] }, { x: b.x, y: b.y, height: heights[1] }],
-      this.camera, elapsed, focus, opening);
+      this.camera, state.phase === 'fight' && state.freeze ? 0 : elapsed, focus, opening);
     this.camera = camera;
     const { x, y, zoom } = camera;
-    const shake = shakeEnabled ? Math.sin(this.shake * 3) * this.shake : 0;
-    const dx = Math.min(x * zoom, Math.max(width - (config.arena.width - x) * zoom, shake));
-    ctx.setTransform(zoom, 0, 0, zoom, -x * zoom + dx, -y * zoom);
+    const [shakeX, shakeY] = shakeEnabled ? this.shakeOffset(state.frame) : [0, 0];
+    const dx = Math.min(x * zoom, Math.max(width - (config.arena.width - x) * zoom, shakeX));
+    const dy = Math.min(y * zoom, Math.max(height - (config.arena.height - y) * zoom, shakeY));
+    ctx.setTransform(zoom, 0, 0, zoom, -x * zoom + dx, -y * zoom + dy);
     const layered = !config.arena.artFrame.length;
     if (layered) {
       const layers = layersFor(config.arena);
@@ -336,7 +334,7 @@ export class Renderer {
       ctx.drawImage(this.background, 0, 0, config.arena.width, config.arena.height);
     }
     ctx.fillStyle = layered ? '#10153312' : '#10153324';
-    ctx.fillRect(x - dx / zoom, y, width / zoom, height / zoom);
+    ctx.fillRect(x - dx / zoom, y - dy / zoom, width / zoom, height / zoom);
 
     const decks = config.arena.platforms.map(p => platformAt(p, state.arenaFrame));
     if (debug) {
@@ -365,7 +363,7 @@ export class Renderer {
       const strike = active && !('counterTo' in active) ? active : undefined;
       const hitboxes = strike ? hitRegionsFor(strike, phase) : [];
       const stance = active && 'counterTo' in active && f.ground;
-      const pose = poseFor(f, action, state.frame);
+      const pose = poseFor(f, action, state.arenaFrame);
       const ground = decks.reduce((y, platform) =>
         f.x >= platform.left && f.x <= platform.right && platform.y >= f.y && platform.id !== f.ignorePlatform
           ? Math.min(y, platform.y) : y,
@@ -398,13 +396,13 @@ export class Renderer {
       if (f.recovery?.phase === 'rise') ctx.globalAlpha = .83;
       ctx.shadowColor = color + 'ae';
       ctx.shadowBlur = 9;
-      const flash = this.hitFlash(seat, f.hitstun > 0 && state.freeze > 0);
+      const flash = this.hitFlash(seat, state.frame, f.hitstun > 0 && state.freeze > 0);
       if (flash > 0) ctx.filter = `brightness(${1 + flash * .36})`;
       if (sheet?.naturalWidth && pose !== undefined) {
         drawPose(ctx, sheet, pose, height, strike && hitboxes.length && !strike.animation?.length ? 8 : 0);
       } else if (sprite?.naturalWidth) {
         const spriteWidth = height * sprite.naturalWidth / sprite.naturalHeight;
-        const breathe = pose === undefined ? Math.sin(state.frame * .10) * 1.4 : 0;
+        const breathe = pose === undefined ? Math.sin(state.arenaFrame * .10) * 1.4 : 0;
         ctx.drawImage(sprite, -spriteWidth * .51, -height - breathe, spriteWidth, height + breathe);
       }
       ctx.filter = 'none';
@@ -447,7 +445,7 @@ export class Renderer {
     }
 
     for (const entity of state.entities ?? []) drawEntity(ctx, entity, debug);
-    this.drawEffects(elapsed, Boolean(config.training));
+    this.drawEffects(state.frame, Boolean(config.training));
     ctx.resetTransform();
     for (const seat of [0, 1] as const) {
       const f = state.fighters[seat];
@@ -455,7 +453,7 @@ export class Renderer {
       if (!f.hp) continue;
       const center = (f.x - x) * zoom + dx;
       const poseHeight = f.recovery?.phase === 'down' ? heights[seat] * .60 : heights[seat];
-      const markerY = (f.y - poseHeight - y) * zoom - 25;
+      const markerY = (f.y - poseHeight - y) * zoom + dy - 25;
       const label = 'P' + (seat + 1) + (f.recovery ? ' ' + recoveryLabels[f.recovery.phase] : '');
       const labelWidth = f.recovery ? 70 : 34;
       ctx.fillStyle = '#111333e8';
@@ -470,15 +468,16 @@ export class Renderer {
           [[dot, markerY + 4], [dot + 6, markerY + 10], [dot, markerY + 16], [dot - 6, markerY + 10]]);
       }
     }
-    this.drawPositionStrip(config.arena, [a.x, b.x], camera);
-    this.shake = Math.max(0, this.shake - elapsed);
+    if (debug || Math.abs(a.x - b.x) > width / zoom * .7) {
+      this.drawPositionStrip(config.arena, [a.x, b.x], camera);
+    }
   }
 
   private drawPositionStrip(arena: ArenaDefinition, fighters: [number, number], camera: CameraView) {
     const ctx = this.ctx;
     const width = 210;
     const center = (ctx.canvas.width - width) / 2;
-    const y = 117;
+    const y = 60;
     const position = (x: number) => center + width *
       Math.min(1, Math.max(0, (x - arena.left) / (arena.right - arena.left)));
     const start = position(camera.x);
@@ -495,18 +494,35 @@ export class Renderer {
     }
   }
 
-  private hitFlash(seat: 0 | 1, frozenInHitstun: boolean) {
+  private shakeOffset(frame: number): Point {
+    let offset: Point = [0, 0];
+    let remaining = 0;
+    for (const { event, start } of this.effects) {
+      if (event.kind !== 'hit' && event.kind !== 'break') continue;
+      const heavy = event.heavy || event.kind === 'break';
+      const strength = event.kind === 'hit' ? event.feedback?.shake : undefined;
+      const age = frame - start;
+      const weight = Math.min(10, strength ?? (heavy ? 8 : 3)) * Math.max(0, 1 - age / (heavy ? 9 : 5));
+      if (weight <= remaining) continue;
+      remaining = weight;
+      const pulse = Math.cos(age * 2.3) * weight;
+      offset = [pulse * (event.direction ?? 1) * (heavy ? .45 : .8), -pulse * (heavy ? .9 : .24)];
+    }
+    return offset;
+  }
+
+  private hitFlash(seat: 0 | 1, frame: number, frozenInHitstun: boolean) {
     for (let i = this.effects.length - 1; i >= 0; i--) {
-      const { event, age } = this.effects[i];
+      const { event, start } = this.effects[i];
       if (event.kind !== 'hit' || event.source === seat) continue;
       const amount = event.feedback?.flash;
-      if (amount !== undefined) return Math.max(0, 1 - age / 6) * Math.max(0, Math.min(amount, 1));
+      if (amount !== undefined) return Math.max(0, 1 - (frame - start) / 6) * Math.max(0, Math.min(amount, 1));
       break;
     }
     return frozenInHitstun ? 1 : 0;
   }
 
-  private drawEffects(elapsed: number, training: boolean) {
+  private drawEffects(frame: number, training: boolean) {
     const ctx = this.ctx;
     const latestHit: [Effect | undefined, Effect | undefined] = [undefined, undefined];
     if (training) {
@@ -515,7 +531,8 @@ export class Renderer {
       }
     }
     for (const effect of this.effects) {
-      const { event, age, life } = effect;
+      const { event, start, life } = effect;
+      const age = frame - start;
       const color = event.kind === 'block' ? '#84e8ff' : event.kind === 'break' ? '#ff8c88' : event.feedback?.color ?? '#ffdfa0';
       ctx.save();
       ctx.globalAlpha = Math.min(1, (life - age) / 6);
@@ -563,8 +580,17 @@ export class Renderer {
         ctx.arc(-8, 0, radius * .73, -.97, .97);
         ctx.stroke();
       } else {
+        const heavy = event.heavy || event.kind === 'break';
+        if (heavy) {
+          const radius = 24 + age * 2.25;
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2.5 - age * .08;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, radius, radius * .76, -.32, 0, Math.PI * 2);
+          ctx.stroke();
+        }
         ctx.save();
-        const scale = (event.heavy ? .93 : .64) * (1 - age * .032);
+        const scale = (heavy ? .97 : .62) * (age < 3 ? 1 + age * .08 : 1.18 - age * .041);
         ctx.scale(scale * (event.direction ?? 1), scale);
         ctx.rotate(-.14 + age * .014);
         polygon(ctx, color, [[0, -39], [7, -11], [34, -18], [15, 0], [34, 18],
@@ -579,14 +605,12 @@ export class Renderer {
           ctx.textAlign = 'center';
           ctx.strokeStyle = '#181934';
           ctx.lineWidth = 5;
-          ctx.strokeText(String(event.amount), offset, -53 - age);
+          ctx.strokeText(String(event.amount), offset, -99 - age);
           ctx.fillStyle = '#fff4b9';
-          ctx.fillText(String(event.amount), offset, -53 - age);
+          ctx.fillText(String(event.amount), offset, -99 - age);
         }
       }
       ctx.restore();
-      effect.age += elapsed;
     }
-    this.effects = this.effects.filter(effect => effect.age < effect.life);
   }
 }

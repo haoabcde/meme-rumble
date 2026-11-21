@@ -48,6 +48,7 @@ const routeToggle = element<HTMLButtonElement>('route-preview');
 const fullscreen = element<HTMLButtonElement>('fullscreen');
 const trainingDummy = element<HTMLSelectElement>('training-dummy');
 const trainingSpeed = element<HTMLSelectElement>('training-speed');
+const trainingPanel = element<HTMLDetailsElement>('training-panel');
 const roundLimit = element<HTMLSelectElement>('round-limit');
 const roundWins = element<HTMLSelectElement>('round-wins');
 const fillTrainingEnergy = element('fill-training-energy');
@@ -68,6 +69,8 @@ const healthBars = namesSuffix.map(id => element('hp-' + id));
 const guardBars = namesSuffix.map(id => element('guard-' + id));
 const healthValues = namesSuffix.map(id => element('hp-value-' + id));
 const guardValues = namesSuffix.map(id => element('guard-value-' + id));
+const healthTrails = namesSuffix.map(id => element('hp-trail-' + id));
+const winPips = namesSuffix.map(id => element('wins-' + id));
 const energyRows = namesSuffix.map(id => element('energy-row-' + id));
 const energyBars = namesSuffix.map(id => element('energy-' + id));
 const energyLabels = namesSuffix.map(id => element('energy-label-' + id));
@@ -95,6 +98,7 @@ let bindings = bindingMap(preferences);
 let state = createMatch(config);
 let roundHistory: Array<RoundResult & { round: number }> = [];
 let lastChains: Duo<{ hits: number; until: number } | null> = [null, null];
+let lifeDisplay: Duo<{ hp: number; trail: number; holdUntil: number; frame: number } | null> = [null, null];
 const trainingInputs: string[] = [];
 let trainingDownHeld = false;
 let mode: Mode = 'local';
@@ -254,6 +258,7 @@ function show(next: Screen) {
   element('ui-notice').hidden = true;
   debt = 0;
   screen = next;
+  if (next !== 'match') trainingPanel.open = false;
   stage.dataset.screen = next;
   stage.dataset.phase = next === 'match' ? state.phase : next;
   for (const id of screenIds) {
@@ -293,13 +298,6 @@ function selectMode(next: Mode) {
 function acceptsSkillInput(fighter: FighterDefinition, slot: 'B' | 'C' | 'ULT') {
   return fighter.actions.some(move => move.slot === slot && (!move.linkOnly || fighter.actions.some(source =>
     source.cancelOnHit?.includes(move.id) || source.cancelOnHit?.includes(slot))));
-}
-
-function minimumSkillCost(fighter: FighterDefinition) {
-  const costs = fighter.actions.map(action => 'counterTo' in action ? 0 :
-    action.energyCost ?? (action.slot === 'ULT' ? fighter.ultimateCost ?? 0 : 0))
-    .filter(cost => cost > 0);
-  return costs.length ? Math.min(...costs) : 0;
 }
 
 function renderRoster() {
@@ -379,6 +377,7 @@ function selectArena(index: number) {
 
 function configureMatch(immediate: boolean) {
   config.arena = arenas[arenaIndex];
+  stage.dataset.mode = mode;
   stage.dataset.arena = config.arena.id;
   config.fighters = [roster[selected[0]].fighter, roster[selected[1]].fighter];
   config.training = mode === 'training';
@@ -390,6 +389,7 @@ function configureMatch(immediate: boolean) {
   state = createMatch(config);
   roundHistory = [];
   lastChains = [null, null];
+  lifeDisplay = [null, null];
   trainingInputs.length = 0;
   trainingDownHeld = false;
   bestTier = 0;
@@ -401,10 +401,12 @@ function configureMatch(immediate: boolean) {
     portraits[seat].src = fighterArt[def.id];
     healthBars[seat].parentElement!.setAttribute('aria-valuemax', String(def.maxHp));
     guardBars[seat].parentElement!.setAttribute('aria-valuemax', String(rules.guardMax));
+    winPips[seat].replaceChildren(...Array.from({ length: config.rules.winsToFinish }, () => document.createElement('span')));
   }
   renderer.load(config.arena);
   element('training-tools').hidden = !config.training;
-  fillTrainingEnergy.hidden = !config.training || !minimumSkillCost(config.fighters[0]);
+  trainingPanel.hidden = !config.training;
+  fillTrainingEnergy.hidden = !config.training;
   element('step-training').hidden = !config.training;
   element('match-tag').hidden = Boolean(config.training);
   text(element('match-tag'), config.arena.name);
@@ -514,7 +516,7 @@ element('restart').addEventListener('click', () => startMatch(Boolean(config.tra
 element('rematch').addEventListener('click', () => startMatch());
 element('reset-training').addEventListener('click', () => startMatch(true));
 fillTrainingEnergy.addEventListener('click', () => {
-  if (screen !== 'match' || !config.training || !minimumSkillCost(config.fighters[0])) return;
+  if (screen !== 'match' || !config.training) return;
   canvas.focus();
   state.fighters[0].energy = MAX_ENERGY;
   renderHUD();
@@ -529,6 +531,9 @@ element('step-training').addEventListener('click', () => {
 });
 trainingDummy.addEventListener('change', () => canvas.focus());
 trainingSpeed.addEventListener('change', () => canvas.focus());
+trainingPanel.addEventListener('toggle', () => {
+  if (!trainingPanel.open && screen === 'match') canvas.focus();
+});
 debugButton.addEventListener('click', toggleDebug);
 element('guide-open').addEventListener('click', () => {
   if (screen === 'match') pauseMatch();
@@ -726,17 +731,31 @@ function renderHUD() {
     const fighter = state.fighters[seat];
     text(names[seat], seatName(seat) + ' · ' + config.fighters[seat].name);
     text(scores[seat], String(state.wins[seat]));
+    for (const [index, pip] of Array.from(winPips[seat].children).entries()) {
+      pip.setAttribute('data-won', String(index < state.wins[seat]));
+    }
     setMeter(healthBars[seat], fighter.hp, config.fighters[seat].maxHp);
+    const life = lifeDisplay[seat] ?? { hp: fighter.hp, trail: fighter.hp, holdUntil: 0, frame: state.frame };
+    if (fighter.hp > life.hp) life.trail = fighter.hp;
+    if (fighter.hp < life.hp || fighter.hitstun || fighter.recovery) life.holdUntil = state.frame + 18;
+    if (state.frame > life.holdUntil) {
+      life.trail = Math.max(fighter.hp, life.trail - config.fighters[seat].maxHp * .012 * Math.max(0, state.frame - life.frame));
+    }
+    healthTrails[seat].style.transform = 'scaleX(' + life.trail / config.fighters[seat].maxHp + ')';
+    life.hp = fighter.hp;
+    life.frame = state.frame;
+    lifeDisplay[seat] = life;
     text(healthValues[seat], fighter.hp + ' / ' + config.fighters[seat].maxHp);
     healthValues[seat].hidden = !debug;
     setMeter(guardBars[seat], fighter.guard, rules.guardMax);
+    guardBars[seat].parentElement!.dataset.low = String(fighter.guard < rules.guardMax * .3);
+    guardBars[seat].parentElement!.dataset.broken = String(fighter.guardBreak > 0);
     text(guardValues[seat], fighter.guard + ' / ' + rules.guardMax);
     guardValues[seat].hidden = !debug;
-    const cost = minimumSkillCost(config.fighters[seat]);
-    energyRows[seat].hidden = !cost;
-    if (cost) {
+    energyRows[seat].hidden = fighter.energy === undefined;
+    if (fighter.energy !== undefined) {
       const energy = fighter.energy ?? 0;
-      const ready = energy >= cost;
+      const ready = energy >= ENERGY_PER_STOCK;
       setMeter(energyBars[seat], energy, MAX_ENERGY);
       const stocks = Math.floor(energy / ENERGY_PER_STOCK);
       energyRows[seat].dataset.stocks = String(stocks);
@@ -791,6 +810,7 @@ function tick(player: InputFrame) {
     if (event.kind === 'ultimate-no-energy') {
       notify(seatName(event.source) + ' 技能能量不足');
     }
+    if (event.kind === 'dash-no-stamina') notify(seatName(event.source) + ' 耐力不足');
     if (event.kind === 'hit' && event.chain !== undefined) {
       lastChains[event.source] = event.chain > 1 ? { hits: event.chain, until: state.frame + 33 } : null;
     }
@@ -818,7 +838,7 @@ function tick(player: InputFrame) {
   if (previous === 'fight' && state.phase === 'round-over' && state.result) {
     roundHistory.push({ ...state.result, round: state.round });
   }
-  renderer.add(events);
+  renderer.add(events, state.frame);
   audio.play(events);
 }
 

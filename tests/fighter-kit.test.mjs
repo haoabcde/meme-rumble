@@ -187,7 +187,7 @@ test('a paid signature skill shares skill energy even on a fighter without an ul
   for (const seat of [0, 1]) {
     const duel = fighterDuel(seat, entry);
     assert.equal(duel.player.energy, 0);
-    assert.equal(duel.target.energy, undefined);
+    assert.equal(duel.target.energy, 0);
     duel.tick(jab);
     duel.hold(basicAttack.startup);
     assert.equal(duel.player.energy, 20);
@@ -319,7 +319,7 @@ test('the fighter package validates ultimate settings and rejects an ultimate as
   }), /fixture.*防反/);
   const legacy = fighterDuel(0, dummy);
   assert.deepEqual(legacy.tick(ultimateInput), []);
-  assert.equal(legacy.player.energy, undefined);
+  assert.equal(legacy.player.energy, 0);
 });
 
 function counterDuel(seat, response = riposte, windowFrames = 3) {

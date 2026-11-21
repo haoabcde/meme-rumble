@@ -245,17 +245,131 @@ test('the shared air dash adds horizontal reach once per takeoff and replenishes
   const start = fighter.x;
   step(state, [input(['jump']), NEUTRAL], settings);
   const jumpVy = fighter.vy;
+  const jumpY = fighter.y;
   const events = step(state, [input(['dash'], -1), NEUTRAL], settings);
   assert.deepEqual(events.map(event => event.kind), ['dash']);
-  assert.equal(fighter.vy, jumpVy + 1);
+  assert.equal(fighter.vy, jumpVy);
+  assert.equal(fighter.y, jumpY);
   stepFor(state, 5, [NEUTRAL, NEUTRAL], settings);
   assert.equal(fighter.x, start - settings.fighters[0].dash * 6);
+  assert.equal(fighter.vy, jumpVy);
+  assert.equal(fighter.y, jumpY);
   assert.equal(fighter.airActionUsed, true);
   assert.deepEqual(step(state, [input(['dash', 'jump'], 1), NEUTRAL], settings), []);
+  assert.equal(fighter.vy, jumpVy + 1);
+  assert.equal(fighter.y, jumpY + jumpVy + 1);
   waitForEvent(state, settings, 'land');
   assert.equal(fighter.airActionUsed, false);
   step(state, [input(['jump']), NEUTRAL], settings);
   assert.ok(step(state, [input(['dash'], 1), NEUTRAL], settings).some(event => event.kind === 'dash'));
+});
+
+test('a ground dash applies gravity immediately after leaving a platform', () => {
+  const settings = trainingOn(arenas[1]);
+  const state = begin(settings);
+  const fighter = state.fighters[0];
+  const bench = settings.arena.platforms.find(platform => platform.id === 'bench');
+  fighter.x = bench.right - 5;
+  fighter.y = bench.y;
+  fighter.ground = bench.id;
+  assert.deepEqual(step(state, [input(['dash'], 1), NEUTRAL], settings).map(event => event.kind), ['dash']);
+  assert.equal(fighter.ground, null);
+  assert.equal(fighter.y, bench.y + 1);
+  assert.equal(fighter.vy, 1);
+  step(state, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(fighter.y, bench.y + 3);
+  assert.equal(fighter.vy, 2);
+});
+
+test('either seat spends public stamina once per legal dash and resets it between rounds', () => {
+  for (const seat of [0, 1]) {
+    const settings = { ...trainingOn(arenas[3]), training: false };
+    const state = begin(settings);
+    const fighter = state.fighters[seat];
+    const outward = -fighter.facing;
+    const tap = keys => step(state, inputForSeat(seat, input(keys, outward)), settings);
+    assert.deepEqual(tap(['dash']).map(event => [event.kind, event.source]), [['dash', seat]]);
+    assert.equal(fighter.guard, rules.guardMax - rules.dashGuardCost.ground);
+    assert.equal(fighter.guardWait, rules.guardDelay);
+    stepFor(state, 7, [NEUTRAL, NEUTRAL], settings);
+    assert.equal(fighter.guard, rules.guardMax - rules.dashGuardCost.ground);
+
+    fighter.guard = rules.dashGuardCost.ground - 1;
+    assert.deepEqual(tap(['dash']).map(event => [event.kind, event.source]), [['dash-no-stamina', seat]]);
+    assert.equal(fighter.guard, rules.dashGuardCost.ground - 1);
+    assert.ok(!fighter.buffer.some(command => command.key === 'dash'));
+    assert.equal(fighter.dash, 0);
+
+    tap(['jump']);
+    assert.deepEqual(tap(['dash']).map(event => event.kind), ['dash-no-stamina']);
+    assert.equal(fighter.airActionUsed, false);
+    fighter.guard = rules.dashGuardCost.air;
+    assert.deepEqual(tap(['dash']).map(event => event.kind), ['dash']);
+    assert.equal(fighter.guard, 0);
+    assert.equal(fighter.guardWait, rules.guardDelay);
+    stepFor(state, 5, [NEUTRAL, NEUTRAL], settings);
+    assert.equal(fighter.airActionUsed, true);
+    assert.deepEqual(tap(['dash']), []);
+    assert.equal(fighter.guard, 0);
+
+    state.remaining = 1;
+    step(state, [NEUTRAL, NEUTRAL], settings);
+    stepFor(state, 105, [NEUTRAL, NEUTRAL], settings);
+    assert.equal(state.round, 2);
+    assert.equal(state.fighters[seat].guard, rules.guardMax);
+    assert.equal(state.fighters[seat].guardWait, 0);
+  }
+});
+
+test('public dash crosses fighters and avoids melee and entities through its last movement tick', () => {
+  const reach = { x: -260, y: -110, w: 520, h: 110 };
+  const attack = {
+    ...baseline.actions[0], slot: 'B', id: 'dash-test-together',
+    startup: 0, active: 12, advance: 0, hitbox: reach, damage: 20, push: 0, stop: 0,
+    entities: [{
+      id: 'dash-test-entity', spawnFrame: 0, lifetime: 12,
+      offset: { x: 0, y: 0 }, velocity: { x: 0, y: 0 },
+      hitbox: reach, damage: 40, hitstun: 15, blockstun: 5, guardCost: 5,
+      push: 0, lift: 0, stop: 0
+    }]
+  };
+
+  for (const seat of [0, 1]) {
+    const source = 1 - seat;
+    const settings = trainingOn(arenas[0]);
+    settings.fighters[source] = { ...baseline, actions: [...baseline.actions, attack] };
+    const state = begin(settings);
+    closeDistance(state);
+    const fighter = state.fighters[seat];
+    const opponent = state.fighters[source];
+    const direction = fighter.facing;
+    const startingX = fighter.x;
+    const simultaneous = inputForSeat(seat, input(['dash'], direction));
+    simultaneous[source] = input(['B']);
+    const events = step(state, simultaneous, settings);
+    assert.deepEqual(events.map(event => event.kind).sort(), ['dash', 'swing']);
+    for (let tick = 1; tick <= 7; tick++) {
+      assert.equal(fighter.facing, direction);
+      assert.deepEqual(step(state, [NEUTRAL, NEUTRAL], settings), []);
+    }
+    assert.equal(fighter.dash, 0);
+    assert.equal(fighter.dashActive, true);
+    assert.equal(fighter.x, startingX + direction * baseline.dash * 8);
+    assert.ok((fighter.x - opponent.x) * direction > 0);
+    assert.equal(fighter.facing, -direction);
+    assert.equal(fighter.hp, baseline.maxHp);
+    assert.equal(fighter.guard, rules.guardMax - rules.dashGuardCost.ground);
+    assert.equal(state.entities.length, 1);
+    state.freeze = 1;
+    assert.deepEqual(step(state, [NEUTRAL, NEUTRAL], settings), []);
+    assert.equal(fighter.dashActive, true);
+
+    const impacts = step(state, [NEUTRAL, NEUTRAL], settings);
+    assert.equal(fighter.dashActive, false);
+    assert.deepEqual(impacts.map(event => [event.kind, event.amount]), [['hit', 20], ['hit', 36]]);
+    assert.equal(fighter.hp, baseline.maxHp - 56);
+    assert.equal(state.entities.length, 0);
+  }
 });
 
 test('a second jump trades the air dash for extra height without skipping the middle tier', () => {
@@ -277,6 +391,27 @@ test('a second jump trades the air dash for extra height without skipping the mi
   assert.equal(settings.arena.floor - peak, 231);
   assert.equal(fighter.ground, 'bench');
   assert.equal(fighter.airActionUsed, false);
+});
+
+test('an airborne side switch updates facing before the next directional action is sampled', () => {
+  const airAttack = baseline.actions.find(action => action.id === 'common-air');
+  const directional = { ...airAttack, id: 'air-forward', slot: 'B', direction: 'forward' };
+  for (const seat of [0, 1]) {
+    const settings = trainingOn(arenas[0]);
+    settings.fighters[seat] = { ...baseline, actions: [...baseline.actions, directional] };
+    const state = begin(settings);
+    const fighter = state.fighters[seat];
+    const opponent = state.fighters[1 - seat];
+    const approach = fighter.facing;
+    fighter.x = opponent.x - 5 * approach;
+    fighter.ground = null;
+    fighter.y = opponent.y - 130;
+    step(state, inputForSeat(seat, input([], approach)), settings);
+    assert.ok((fighter.x - opponent.x) * approach > 0);
+    assert.equal(fighter.facing, -approach);
+    step(state, inputForSeat(seat, input(['B'], -approach)), settings);
+    assert.equal(fighter.attack?.id, directional.id);
+  }
 });
 
 test('the finisher ends the chain, protects the downed fighter, and releases control on wakeup', () => {

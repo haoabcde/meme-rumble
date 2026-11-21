@@ -110,7 +110,7 @@ export function entityContacts(state: MatchState, config: MatchConfig): EntityCo
     const { owner: source, definition, facing } = entity;
     const target = source === 0 ? 1 : 0;
     const defender = state.fighters[target];
-    if (defender.recovery) continue;
+    if (defender.recovery || (config.rules.dashInvulnerable && defender.dashActive)) continue;
     const hitbox = worldBox(definition.hitbox, entity.x, entity.y, facing);
     const hurtRegions = hurtRegionsFor(config.fighters[target], actionFor(config, state, target), defender.attack?.frame ?? 0);
     for (const region of hurtRegions) {

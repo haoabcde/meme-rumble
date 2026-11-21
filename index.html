@@ -128,20 +128,18 @@
           <div class="fighter p1">
             <img id="portrait-one" alt="">
             <div class="hud-info">
-              <div class="fighter-label"><span id="name-one">P1</span><output id="score-one" aria-label="玩家一胜场">0</output></div>
-              <div class="hp" role="meter" aria-label="玩家一生命"><div id="hp-one"></div><output id="hp-value-one"></output></div>
+              <div class="fighter-label"><span id="name-one">P1</span><div class="round-pips" id="wins-one" aria-hidden="true"></div><output class="visually-hidden" id="score-one" aria-label="玩家一胜场">0</output></div>
+              <div class="hp" role="meter" aria-label="玩家一生命"><div class="hp-trail" id="hp-trail-one"></div><div id="hp-one"></div><output id="hp-value-one"></output></div>
               <div class="guard" role="meter" aria-label="玩家一耐力"><div id="guard-one"></div><output id="guard-value-one"></output></div>
-              <output class="combo" id="combo-one" hidden></output>
             </div>
           </div>
           <div class="timer"><output id="time">60</output><small id="round">第 1 回合</small></div>
           <div class="fighter p2">
             <img id="portrait-two" alt="">
             <div class="hud-info">
-              <div class="fighter-label"><span id="name-two">P2</span><output id="score-two" aria-label="玩家二胜场">0</output></div>
-              <div class="hp" role="meter" aria-label="玩家二生命"><div id="hp-two"></div><output id="hp-value-two"></output></div>
+              <div class="fighter-label"><span id="name-two">P2</span><div class="round-pips" id="wins-two" aria-hidden="true"></div><output class="visually-hidden" id="score-two" aria-label="玩家二胜场">0</output></div>
+              <div class="hp" role="meter" aria-label="玩家二生命"><div class="hp-trail" id="hp-trail-two"></div><div id="hp-two"></div><output id="hp-value-two"></output></div>
               <div class="guard" role="meter" aria-label="玩家二耐力"><div id="guard-two"></div><output id="guard-value-two"></output></div>
-              <output class="combo" id="combo-two" hidden></output>
             </div>
           </div>
         </div>
@@ -155,6 +153,8 @@
                 <span id="energy-label-two"></span>
               </div>
         </div>
+        <output class="combo" id="combo-one" hidden></output>
+        <output class="combo" id="combo-two" hidden></output>
         <aside id="training-readout" class="training-readout" aria-label="训练动作与按键" hidden>
           <div><b>P1</b><span id="training-state-one"></span></div>
           <div><b>陪练</b><span id="training-state-two"></span></div>
@@ -162,6 +162,8 @@
         </aside>
         <div id="announcement" class="announcement" aria-live="polite" hidden></div>
         <div class="fight-deck">
+          <details class="training-panel" id="training-panel" hidden>
+            <summary>训练设置</summary>
           <div id="training-tools" class="training-tools" hidden>
             <div class="feet-status"><span>脚下</span> <output id="training-ground">地面</output><small id="training-best"></small></div>
             <label>陪练 <select id="training-dummy"><option value="idle">静止</option><option value="guard">防御</option><option value="jab">重复直拳</option><option value="cpu">跟随</option></select></label>
@@ -169,6 +171,7 @@
             <button id="fill-training-energy" class="subtle" type="button" hidden>充满三格能量</button>
             <button id="reset-training" class="subtle" type="button">复位 <kbd>R</kbd></button>
           </div>
+          </details>
           <div id="match-tag" class="match-tag"></div>
           <div class="fight-tools">
             <button id="debug" class="subtle" type="button" aria-pressed="false">判定框 <kbd>H</kbd></button>

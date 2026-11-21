@@ -166,6 +166,10 @@ export interface Ruleset {
   guardMax: number;
   guardDelay: number;
   guardBreak: number;
+  dashGuardCost?: { ground: number; air: number };
+  dashInvulnerable?: boolean;
+  dashPassThrough?: boolean;
+  airDashPauseGravity?: boolean;
   inputBuffer: number;
   comboControlLimit: number;
 }
@@ -214,6 +218,8 @@ export interface FighterState {
   blockstun: number;
   push: number;
   dash: number;
+  /** True through the final tick of dash movement, including hitstop snapshots. */
+  dashActive?: boolean;
   airActionUsed: boolean;
   guarding: boolean;
   /** Undefined when released, zero when held past the window, positive while armed. */
@@ -228,7 +234,7 @@ export interface FighterState {
   moving: boolean;
 }
 
-export type EventKind = 'swing' | 'ultimate' | 'ultimate-no-energy' | 'hit' | 'block' | 'parry' | 'break' | 'whiff' | 'dash' | 'jump' | 'air-jump' |
+export type EventKind = 'swing' | 'ultimate' | 'ultimate-no-energy' | 'hit' | 'block' | 'parry' | 'break' | 'whiff' | 'dash' | 'dash-no-stamina' | 'jump' | 'air-jump' |
   'drop' | 'land' | 'knockdown' | 'rise' | 'ko';
 export interface CombatEvent {
   kind: EventKind;

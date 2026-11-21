@@ -16,14 +16,12 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 function spawn(config: MatchConfig, seat: 0 | 1, round: number): FighterState {
   const side = round % 2 ? seat : other(seat);
   const definition = config.fighters[seat];
-  const usesEnergy = (definition.ultimateCost ?? 0) > 0 || definition.actions.some(action =>
-    !('counterTo' in action) && (action.energyCost ?? 0) > 0);
   return {
     x: config.arena.spawn[side], y: config.arena.floor, vy: 0, facing: side === 0 ? 1 : -1,
     ground: 'floor', ignorePlatform: null, hp: definition.maxHp,
-    energy: usesEnergy ? 0 : undefined,
+    energy: 0,
     guard: config.rules.guardMax, guardWait: 0, guardBreak: 0, hitstun: 0, blockstun: 0,
-    push: 0, dash: 0, airActionUsed: false, guarding: false, attack: null, buffer: [], combo: 0, controlled: 0,
+    push: 0, dash: 0, dashActive: false, airActionUsed: false, guarding: false, attack: null, buffer: [], combo: 0, controlled: 0,
     recovery: null, moving: false
   };
 }
@@ -137,6 +135,12 @@ function updateGuardWindow(fighter: FighterState, input: InputFrame, windowFrame
   }
 }
 
+function faceOpponentWhenFree(fighter: FighterState, opponent: FighterState) {
+  if (fighter.hitstun || fighter.blockstun || fighter.guardBreak || fighter.recovery ||
+      fighter.attack || fighter.dash || fighter.guarding || fighter.x === opponent.x) return;
+  fighter.facing = fighter.x < opponent.x ? 1 : -1;
+}
+
 function updateControl(
   state: MatchState, config: MatchConfig, seat: 0 | 1, input: InputFrame, events: CombatEvent[]
 ) {
@@ -182,9 +186,7 @@ function updateControl(
     }
   }
 
-  if (!locked && !f.attack && !f.dash && !f.guarding && f.x !== opponent.x) {
-    f.facing = f.x < opponent.x ? 1 : -1;
-  }
+  faceOpponentWhenFree(f, opponent);
   if (locked) {
     f.guarding = f.blockstun > 0 && f.guardBreak === 0 && f.hitstun === 0;
     return;
@@ -244,12 +246,21 @@ function updateControl(
   const dash = f.buffer.find(command => command.key === 'dash');
   if (dash && !f.dash && (!airborne || (definition.airDash && !f.airActionUsed))) {
     f.buffer = f.buffer.filter(item => item.sampledAt !== dash.sampledAt);
-    f.facing = dash.x || f.facing;
-    f.dash = airborne ? 6 : 8;
-    if (airborne) f.airActionUsed = true;
-    f.guarding = false;
-    events.push({ kind: 'dash', source: seat, x: f.x, y: f.y, direction: f.facing });
-    return;
+    const cost = config.rules.dashGuardCost?.[airborne ? 'air' : 'ground'] ?? 0;
+    if (f.guard < cost) {
+      events.push({ kind: 'dash-no-stamina', source: seat, x: f.x, y: f.y });
+    } else {
+      if (cost > 0) {
+        f.guard -= cost;
+        f.guardWait = config.rules.guardDelay;
+      }
+      f.facing = dash.x || f.facing;
+      f.dash = airborne ? 6 : 8;
+      if (airborne) f.airActionUsed = true;
+      f.guarding = false;
+      events.push({ kind: 'dash', source: seat, x: f.x, y: f.y, direction: f.facing });
+      return;
+    }
   }
   f.guarding = Boolean(f.ground && input.y === 1 && !f.dash);
   if (!f.guarding && f.guardWait === 0 && state.frame % 3 === 0) {
@@ -320,8 +331,11 @@ function motion(
   releaseUnsupportedGround(f, arena, state.arenaFrame);
   if (f.ground) return;
   const previousY = f.y;
-  f.vy += 1;
-  f.y += f.vy;
+  // An air dash uses the air action budget; a ground dash off a ledge still falls.
+  if (!(config.rules.airDashPauseGravity && f.dashActive && f.airActionUsed)) {
+    f.vy += 1;
+    f.y += f.vy;
+  }
   const platform = landingPlatform(arena, f, previousX, previousY, state.arenaFrame);
   if (platform || (f.vy > 0 && f.y >= arena.floor)) {
     if (f.vy >= 5 && !f.recovery) events.push({ kind: 'land', source: seat, x: f.x, y: platform?.y ?? arena.floor });
@@ -335,6 +349,7 @@ function motion(
 
 function separate(state: MatchState, config: MatchConfig, previous: Duo<number>) {
   const [a, b] = state.fighters;
+  if (config.rules.dashPassThrough && (a.dashActive || b.dashActive)) return;
   const arena = config.arena;
   const width = (config.fighters[0].bodyWidth + config.fighters[1].bodyWidth) / 2;
   if (Math.abs(a.y - b.y) >= 82 || a.recovery?.phase === 'down' || b.recovery?.phase === 'down') return;
@@ -380,7 +395,8 @@ function collectContacts(state: MatchState, config: MatchConfig): Contact[] {
     const action = actionFor(config, state, source);
     const attack = f.attack;
     if (!action || 'counterTo' in action || !attack || (attack.connected && !attack.connectedGroups) ||
-        !isActiveFrame(action, attack.frame) || defender.recovery) return [];
+        !isActiveFrame(action, attack.frame) || defender.recovery ||
+        (config.rules.dashInvulnerable && defender.dashActive)) return [];
     const hurtboxes = hurtRegionsFor(config.fighters[target], actionFor(config, state, target), defender.attack?.frame ?? 0)
       .map(box => worldBox(box, defender.x, defender.y, defender.facing));
     const frontal = (f.x - defender.x) * defender.facing > 0;
@@ -553,9 +569,15 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   if (state.fighters.every(fighter => fighter.combo === 0 && fighter.blockstun === 0)) {
     state.comboFreeze = 0;
   }
-  for (const seat of seats) motion(state, config, seat, inputs[seat], events);
+  for (const seat of seats) {
+    const fighter = state.fighters[seat];
+    fighter.dashActive = fighter.dash > 0;
+    motion(state, config, seat, inputs[seat], events);
+  }
   separate(state, config, previous);
   for (const fighter of state.fighters) releaseUnsupportedGround(fighter, config.arena, state.arenaFrame);
+  // Keep the next input sample and the visible facing aligned after crossing sides.
+  for (const seat of seats) faceOpponentWhenFree(state.fighters[seat], state.fighters[other(seat)]);
   updateEntities(state, config);
   const contacts = collectContacts(state, config);
   for (const contact of entityContacts(state, config)) {
