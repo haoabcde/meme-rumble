@@ -1,4 +1,5 @@
 import type { ArenaDefinition, Box } from './types.js';
+import { platformContact } from './terrain.js';
 
 interface Point {
   x: number;
@@ -29,20 +30,18 @@ export function floorImpact(arena: ArenaDefinition, from: Point, to: Point) {
   const { floor: y, left, right } = arena;
   if (to.y < y || from.y > y || to.y <= from.y) return undefined;
   const time = (y - from.y) / (to.y - from.y);
-  return { x: from.x + (to.x - from.x) * time, time, surface: { y, left, right } };
+  return { x: from.x + (to.x - from.x) * time, time, surface: { id: 'floor', y, left, right } };
 }
 
-export function landingImpact(arena: ArenaDefinition, from: Point, to: Point, height: number, floorOnly = false) {
+export function landingImpact(arena: ArenaDefinition, from: Point, to: Point, height: number, frame: number,
+  floorOnly = false) {
   const base = { x: from.x, y: from.y + height };
   const next = { x: to.x, y: to.y + height };
   let impact = floorImpact(arena, base, next);
-  const dy = next.y - base.y;
-  if (dy <= 0 || floorOnly) return impact;
+  if (floorOnly) return impact;
   for (const platform of arena.platforms) {
-    const time = (platform.y - base.y) / dy;
-    if (time < 0 || time > 1 || (impact && time >= impact.time)) continue;
-    const x = base.x + (next.x - base.x) * time;
-    if (x >= platform.left && x <= platform.right) impact = { x, time, surface: platform };
+    const contact = platformContact(platform, frame, base, next);
+    if (contact && (!impact || contact.time < impact.time)) impact = contact;
   }
   return impact;
 }

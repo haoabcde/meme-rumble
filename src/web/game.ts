@@ -1,8 +1,10 @@
 import { rules } from '../content/demo.js';
 import { arenas } from '../content/arenas.js';
 import { roster } from '../content/roster.js';
+import { bananaWaveTitle } from '../content/banana.js';
+import { tierAt } from '../core/terrain.js';
 import { createMatch, step } from '../core/match.js';
-import { ENERGY_PER_BAR, NEUTRAL, type ActionKey, type Axis, type Duo, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
+import { ENERGY_PER_BAR, MAX_ENERGY, MAX_TEARS, NEUTRAL, TEAR_UNITS_PER_POINT, type ActionKey, type Axis, type Duo, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
 import { arcadeArt, arenaArt, fighterArt } from './art.js';
 import { FightAudio } from './audio.js';
 import { cpuInput } from './cpu.js';
@@ -47,6 +49,7 @@ const routeToggle = element<HTMLButtonElement>('route-preview');
 const fullscreen = element<HTMLButtonElement>('fullscreen');
 const trainingDummy = element<HTMLSelectElement>('training-dummy');
 const trainingSpeed = element<HTMLSelectElement>('training-speed');
+const trainingEnergy = element<HTMLButtonElement>('fill-training-energy');
 const roundLimit = element<HTMLSelectElement>('round-limit');
 const roundWins = element<HTMLSelectElement>('round-wins');
 const trainingGround = element('training-ground');
@@ -63,6 +66,11 @@ const healthBars = namesSuffix.map(id => element('hp-' + id));
 const guardBars = namesSuffix.map(id => element('guard-' + id));
 const energyMeters = namesSuffix.map(id => element('energy-' + id));
 const energyFills = energyMeters.map(meter => [...meter.querySelectorAll('i')]);
+const energyCounts = namesSuffix.map(id => element('energy-count-' + id));
+const ultimates = namesSuffix.map(id => element('ultimate-' + id));
+const tearRows = namesSuffix.map(id => element('tears-row-' + id));
+const tearFills = namesSuffix.map(id => element('tears-' + id));
+const tearCounts = namesSuffix.map(id => element('tears-count-' + id));
 const combos = namesSuffix.map(id => element('combo-' + id));
 const portraits = namesSuffix.map(id => element<HTMLImageElement>('portrait-' + id));
 const panels = namesSuffix.map(id => element('fighter-panel-' + id));
@@ -182,7 +190,14 @@ function footer() {
       ? 'P1 ' + keyHint(preferences, 0, ['A']) + ' × 5 连击 · ' +
         keyHint(preferences, 0, ['up', 'A'], ' + ') + ' 挑飞 · ' + keyHint(preferences, 0, ['down', 'A'], ' + ') + ' 滑行 · ' +
         keyHint(preferences, 0, ['jump', 'A'], ' → ') + ' 空中掷杆 · ' +
-        keyHint(preferences, 0, ['C']) + ' 铳械塔 / 空中榴弹炮'
+        keyHint(preferences, 0, ['C']) + ' 炮台 · ' +
+        keyHint(preferences, 0, ['down', 'C'], ' + ') + ' 帝江号'
+    : fighting && mode === 'training' && config.fighters[0].id === 'banana'
+      ? 'P1 ' + keyHint(preferences, 0, ['B']) + ' 高压眼泪（可长按） · ' +
+        keyHint(preferences, 0, ['up', 'B'], ' + ') + ' 哭哭升龙 · ' +
+        keyHint(preferences, 0, ['C']) + ' 按住回泪 · ' +
+        keyHint(preferences, 0, ['jump', 'A'], ' → ') + ' 空中水球 · ' +
+        keyHint(preferences, 0, ['down', 'C'], ' + ') + ' ' + bananaWaveTitle + '（3 格气）'
     : fighting ? 'P1 ' + keyHint(preferences, 0, ['jump']) + ' 跳 · ' +
         keyHint(preferences, 0, ['down', 'jump'], ' + ') + ' 下穿' +
         (mode === 'local' ? '　　P2 ' + keyHint(preferences, 1, ['down', 'jump'], ' + ') + ' 下穿' : '')
@@ -315,9 +330,11 @@ function selectArena(index: number) {
   const tiers = new Set(arena.platforms.map(platform => platform.tier)).size;
   text(element('map-count'), screens + ' 屏宽 · ' + tiers + ' 层 · ' + arena.platforms.length + ' 处平台');
   text(element('map-description'), arena.description);
-  const routeNames = arena.route.map(id => arena.platforms.find(platform => platform.id === id)!.name);
   const routeLine = element('map-route');
-  text(routeLine, ['地面', ...routeNames].join('  →  '));
+  for (const side of [0, 1] as const) {
+    const names = arena.routes[side].map(id => arena.platforms.find(platform => platform.id === id)!.name);
+    text(element('map-route-' + side), names.join(' → '));
+  }
   routeLine.hidden = !routeVisible;
   routeToggle.setAttribute('aria-pressed', String(routeVisible));
   previewArena(mapCanvas, arena, routeVisible);
@@ -346,6 +363,7 @@ function configureMatch(immediate: boolean) {
   }
   renderer.load(config.arena);
   element('training-tools').hidden = !config.training;
+  trainingEnergy.hidden = !config.training || config.fighters[0].id !== 'banana';
   element('step-training').hidden = !config.training;
   element('match-tag').hidden = Boolean(config.training);
   text(element('match-tag'), config.arena.name);
@@ -453,6 +471,12 @@ element('pause').addEventListener('click', pauseMatch);
 element('restart').addEventListener('click', () => startMatch(Boolean(config.training)));
 element('rematch').addEventListener('click', () => startMatch());
 element('reset-training').addEventListener('click', () => startMatch(true));
+trainingEnergy.addEventListener('click', () => {
+  if (screen !== 'match' || !config.training || trainingEnergy.hidden || state.cutIn) return;
+  state.fighters[0].energy = MAX_ENERGY;
+  renderHUD();
+  canvas.focus();
+});
 element('step-training').addEventListener('click', () => {
   if (screen !== 'pause' || !config.training) return;
   tick(NEUTRAL);
@@ -561,6 +585,13 @@ window.addEventListener('keydown', event => {
     notify(seatName(seat) + ' 的专属槽 ' + (control === 'B' ? '1' : '2') + ' 待接入');
     return;
   }
+  if (control === 'down' && config.fighters[seat].id === 'banana' && [...held].some(code =>
+    bindings.get(code)?.seat === seat && bindings.get(code)?.control === 'C'
+  )) {
+    const previous = pending[seat].find(([key]) => key === 'C');
+    if (previous) previous[1] = stickFor(seat);
+    else pending[seat].push(['C', stickFor(seat)]);
+  }
   if (control === 'A' || control === 'B' || control === 'C' || control === 'jump' || control === 'dash') {
     pending[seat].push([control, stickFor(seat)]);
   }
@@ -576,7 +607,15 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) pause
 
 function readInput(seat: Seat): InputFrame {
   const commands = pending[seat];
-  const input = { ...stickFor(seat), pressed: commands.map(([key]) => key), sampled: commands.map(([, stick]) => stick) };
+  const heldActions: ActionKey[] = [];
+  for (const code of held) {
+    const binding = bindings.get(code);
+    if (binding?.seat === seat && (binding.control === 'B' || binding.control === 'C')) {
+      heldActions.push(binding.control);
+    }
+  }
+  const input = { ...stickFor(seat), held: heldActions, pressed: commands.map(([key]) => key),
+    sampled: commands.map(([, stick]) => stick) };
   commands.length = 0;
   return input;
 }
@@ -598,6 +637,7 @@ function setMeter(node: HTMLElement, value: number, maximum: number) {
 function setEnergyMeter(seat: Seat, energy: number) {
   const meter = energyMeters[seat];
   const bars = String(energy / ENERGY_PER_BAR);
+  text(energyCounts[seat], bars + ' / 3');
   if (meter.getAttribute('aria-valuenow') === bars) return;
   meter.setAttribute('aria-valuenow', bars);
   for (const [index, fill] of energyFills[seat].entries()) {
@@ -609,6 +649,7 @@ function setEnergyMeter(seat: Seat, energy: number) {
 
 function renderHUD() {
   if (stage.dataset.phase !== state.phase) stage.dataset.phase = state.phase;
+  if (config.training) trainingEnergy.disabled = state.phase !== 'fight' || Boolean(state.cutIn);
   text(roundLabel, config.training ? '自由训练' : '第 ' + state.round + ' 回合');
   text(timer, config.training ? '∞' : String(Math.ceil(state.remaining / rules.ticksPerSecond)).padStart(2, '0'));
   for (const seat of seats) {
@@ -617,7 +658,18 @@ function renderHUD() {
     text(scores[seat], String(state.wins[seat]));
     setMeter(healthBars[seat], fighter.hp, config.fighters[seat].maxHp);
     setMeter(guardBars[seat], fighter.guard, rules.guardMax);
+    const usesTears = fighter.tearUnits !== undefined;
+    tearRows[seat].hidden = !usesTears;
     setEnergyMeter(seat, fighter.energy);
+    const ready = config.fighters[seat].id === 'banana' && fighter.energy >= MAX_ENERGY;
+    ultimates[seat].hidden = !ready;
+    if (ready) text(ultimates[seat], (fighter.ground ? '' : '落地后 ') +
+      keyHint(preferences, seat, ['down', 'C'], ' + ') + (fighter.ground ? ' 可用' : ''));
+    if (usesTears) {
+      const tears = Math.floor(fighter.tearUnits! / TEAR_UNITS_PER_POINT);
+      setMeter(tearFills[seat], tears, MAX_TEARS);
+      text(tearCounts[seat], tears + ' / ' + MAX_TEARS);
+    }
     const hits = state.fighters[seat === 0 ? 1 : 0].combo;
     combos[seat].hidden = hits < 2;
     if (hits >= 2) text(combos[seat], hits + ' 连击');
@@ -625,7 +677,7 @@ function renderHUD() {
   if (config.training) {
     const support = state.fighters[0].ground;
     const platform = config.arena.platforms.find(item => item.id === support);
-    if (platform) bestTier = Math.max(bestTier, platform.tier);
+    if (platform) bestTier = Math.max(bestTier, tierAt(config.arena, platform, state.arenaFrame));
     if (trainingGround.dataset.platform !== (support ?? 'air')) trainingGround.dataset.platform = support ?? 'air';
     text(trainingGround, platform ? platform.name : support ? '地面' : '空中');
     text(trainingBest, bestTier ? '已登第 ' + bestTier + ' 层' : '找一处低层平台起跳');
@@ -653,8 +705,13 @@ function renderHUD() {
 function tick(player: InputFrame) {
   const previous = state.phase;
   const events = step(state, [player, opponentInput()], config);
-  const shortage = events.find(event => event.kind === 'energy-short' && (event.source === 0 || mode === 'local'));
-  if (shortage?.amount) notify(seatName(shortage.source) + ' 需要 ' + shortage.amount / ENERGY_PER_BAR + ' 格气');
+  const shortage = events.find(event => (event.kind === 'energy-short' || event.kind === 'tears-short') &&
+    (event.source === 0 || mode === 'local'));
+  if (shortage?.amount) notify(seatName(shortage.source) + ' 需要 ' + (shortage.kind === 'tears-short'
+    ? shortage.amount + ' 点眼泪' : shortage.amount / ENERGY_PER_BAR + ' 格气'));
+  const blockedWave = events.find(event => event.kind === 'wave-unavailable' && (event.source === 0 || mode === 'local'));
+  if (blockedWave) notify(blockedWave.requirement === 'ground' ? '落地后才能发动' + bananaWaveTitle
+    : '等当前动作结束再发动' + bananaWaveTitle);
   if (previous === 'ready' && state.phase === 'fight') fightCueUntil = state.frame + 30;
   if (previous === 'fight' && state.phase === 'round-over' && state.result) {
     roundHistory.push({ ...state.result, round: state.round });
@@ -664,8 +721,9 @@ function tick(player: InputFrame) {
 }
 
 function draw(elapsed: number) {
+  stage.toggleAttribute('data-cinematic', Boolean(state.cutIn) || state.summon?.phase === 'cut-in');
   renderer.draw(config, state, debug, elapsed, preferences.shake && !reducedMotion.matches,
-    preferences.camera === 'focus' && !reducedMotion.matches);
+    preferences.camera === 'focus' && !reducedMotion.matches, reducedMotion.matches);
 }
 
 function frame(now: number) {

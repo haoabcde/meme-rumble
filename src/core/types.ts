@@ -15,6 +15,7 @@ export interface Stick {
 
 export interface InputFrame extends Stick {
   pressed: ActionKey[];
+  held?: ActionKey[];
   sampled?: Partial<Record<ActionKey, Stick>> | Stick[];
 }
 
@@ -26,7 +27,8 @@ export interface Box {
 }
 
 export interface ProjectileDefinition {
-  kind?: 'crate' | 'bolt' | 'grenade';
+  kind?: 'crate' | 'bolt' | 'grenade' | 'tear' | 'wave';
+  life?: number;
   turret?: TurretKind;
   blastRadius?: number;
   x: number;
@@ -43,6 +45,13 @@ export interface ActionDefinition {
   id: string;
   slot: Slot;
   energyCost?: 1 | 3;
+  energyOnHit?: true;
+  summon?: true;
+  cutIn?: { at: number; duration: number };
+  unblockable?: boolean;
+  tearCost?: number;
+  channel?: 'spray' | 'cry';
+  slow?: number;
   direction?: Direction;
   posture: 'ground' | 'air' | 'any';
   startup: number;
@@ -82,15 +91,21 @@ export interface FighterDefinition {
   hurtbox: Box;
   bodyWidth: number;
   actions: ActionDefinition[];
+  usesTears?: boolean;
 }
 
 export interface Platform {
   id: string;
   name: string;
-  tier: 1 | 2 | 3;
+  tier: 1 | 2 | 3 | 4;
   left: number;
   right: number;
   y: number;
+  prop?: 'container' | 'trailer' | 'catwalk' | 'ferry' | 'pallet' | 'office' | 'bridge' | 'gallery' |
+    'planter' | 'sunroom' | 'skywalk' | 'penthouse' | 'water-tank' | 'laundry' |
+    'bench-seat' | 'shelter' | 'bleachers' | 'press-box' | 'scoreboard' | 'camera-deck' |
+    'transformer' | 'control-room' | 'conduit' | 'inductor' | 'elevator' | 'stair';
+  travel?: { axis?: 'x' | 'y'; distance: number; period: number; dwell: number; phase: number };
 }
 
 export interface ArenaDefinition {
@@ -98,9 +113,8 @@ export interface ArenaDefinition {
   name: string;
   description: string;
   terrain: string;
-  route: string[];
+  routes: Duo<string[]>;
   theme: 'dorm' | 'court' | 'harbor' | 'station';
-  artFrame: { sourceY: number; worldY: number }[];
   width: number;
   height: number;
   left: number;
@@ -141,6 +155,8 @@ export interface Attack {
   frame: number;
   connected: boolean;
   landed: boolean;
+  sustainedFrames?: number;
+  released?: boolean;
   hitTurrets?: TurretKind[];
   queuedChain?: string[];
 }
@@ -166,6 +182,8 @@ export interface FighterState {
   ignorePlatform: string | null;
   hp: number;
   energy: number;
+  tearUnits?: number;
+  slow: number;
   guard: number;
   guardWait: number;
   guardBreak: number;
@@ -194,6 +212,7 @@ export interface Projectile {
   vx: number;
   vy: number;
   connected: boolean;
+  age?: number;
   hitTurrets?: TurretKind[];
 }
 
@@ -205,10 +224,13 @@ export interface Turret {
   age: number;
   hp: number;
   facing: Side;
+  support?: string;
 }
 
 export type EventKind = 'swing' | 'hit' | 'block' | 'break' | 'whiff' | 'dash' | 'jump' | 'drop' | 'land' |
-  'pole-impact' | 'energy-short' | 'turret-land' | 'turret-ready' | 'turret-fire' | 'turret-burst' | 'grenade-impact' | 'ko';
+  'pole-impact' | 'energy-short' | 'turret-land' | 'turret-ready' | 'turret-fire' | 'turret-burst' | 'grenade-impact' |
+  'tear-splash' | 'tears-short' | 'wave-windup' | 'wave-cut-in' | 'wave-unavailable' |
+  'summon-start' | 'summon-confirm' | 'summon-drop' | 'summon-catch' | 'summon-impact' | 'ko';
 export interface CombatEvent {
   kind: EventKind;
   source: 0 | 1;
@@ -217,10 +239,12 @@ export interface CombatEvent {
   amount?: number;
   impact?: Impact;
   actionId?: string;
+  reaction?: HitReaction['kind'];
   facing?: Side;
   radius?: number;
   turretKind?: TurretKind;
   surface?: { left: number; right: number };
+  requirement?: 'ground' | 'recovery';
 }
 
 export interface RoundResult {
@@ -230,6 +254,7 @@ export interface RoundResult {
 
 export interface MatchState {
   frame: number;
+  arenaFrame: number;
   remaining: number;
   freeze: number;
   comboFreeze: number;
@@ -241,11 +266,34 @@ export interface MatchState {
   fighters: Duo<FighterState>;
   projectiles: Projectile[];
   turrets: Record<TurretKind, Turret | null>;
+  summon?: Summon;
+  cutIn?: CutIn;
   result: RoundResult | null;
   winner: 0 | 1 | null;
 }
 
+export interface CutIn {
+  source: 0 | 1;
+  frame: number;
+  duration: number;
+}
+
+export interface Summon {
+  source: 0 | 1;
+  actionId: string;
+  facing: Side;
+  x: number;
+  y: number;
+  rise: number;
+  phase: 'cut-in' | 'fall' | 'impact';
+  frame: number;
+  carry?: { x: number; y: number; frame: number };
+}
+
 export const TICK_RATE = 60;
+// Integer units keep per-tick costs exact at the fixed 60 Hz simulation rate.
+export const TEAR_UNITS_PER_POINT = TICK_RATE;
+export const MAX_TEARS = 100;
 export const ENERGY_PER_BAR = 100;
 export const MAX_ENERGY = 3 * ENERGY_PER_BAR;
 export const NEUTRAL: InputFrame = { x: 0, y: 0, pressed: [] };

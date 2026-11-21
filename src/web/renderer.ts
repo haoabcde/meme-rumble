@@ -1,18 +1,29 @@
 import { roster } from '../content/roster.js';
+import { bananaActionIds } from '../content/banana.js';
+import { drawBanana } from './banana-art.js';
+import { drawBananaImpact } from './banana-hit-art.js';
+import { drawBananaWaveCutIn } from './banana-wave-art.js';
+import { bananaEffectLife, drawBananaEffect, drawBananaProjectile, drawBananaWave, isTearJet } from './banana-fx.js';
 import { gagaActionIds } from '../content/gaga.js';
 import { actionFor, worldBox } from '../core/match.js';
+import { summonFallFrames } from '../core/summon.js';
 import { turretBuildTicks } from '../core/turret.js';
-import type { ActionDefinition, ArenaDefinition, CombatEvent, MatchConfig, MatchState } from '../core/types.js';
-import { backgrounds, drawEngineeringCrate, drawGagaLaunchTrail, drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose, gagaReactionPose, sprites, type PolePose } from './art.js';
-import { frameCamera, type CameraView } from './camera.js';
+import type { ActionDefinition, ArenaDefinition, CombatEvent, MatchConfig, MatchState, Summon } from '../core/types.js';
+import { backgrounds, harborProps, harborGantry, stageKits, drawEngineeringCrate, drawGagaLaunchTrail, drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose, gagaReactionPose, sprites, type PolePose } from './art.js';
+import { frameCamera, frameDijiangLength, frameDijiangImpact, type CameraView } from './camera.js';
 import { drawGagaWalk, GagaWalk } from './gaga-walk.js';
 import { drawGagaContact, drawGagaReceive, gagaContact, type GagaContact } from './gaga-contact.js';
 import { drawPoleDust, drawPoleEarthBurst, drawPoleGroundMark, poleDustLife, poleImpactLife, poleSwingFor, type PoleSwing } from './gaga-pole-fx.js';
 import { drawTurretEffect, isTurretEffect, turretEffectLife } from './gaga-turret-fx.js';
+import { dijiangImpactLife, drawDijiang, drawDijiangGround, drawDijiangImpact, drawDijiangPressure,
+  drawSummonCutIn } from './dijiang.js';
+
+import { platformAt } from '../core/terrain.js';
+import { drawHarborScenery, drawHarborLift, drawQuay } from './harbor-art.js';
+import { drawStageBackdrop, drawStageMechanism, drawStageScenery } from './stage-art.js';
 
 export const seatColors = ['#61d8ff', '#ff849e'];
 const arenaColors = { dorm: '#ffc08c', court: '#8faaff', harbor: '#8de9cd', station: '#bc9bff' };
-const tierColors = ['#6adfff', '#ffdd87', '#edacff'];
 const artSizes = new Map(roster.map(entry => [entry.fighter.id, entry.height]));
 type Point = [number, number];
 type Trail = [Point, Point, Point];
@@ -36,22 +47,19 @@ function polygon(ctx: CanvasRenderingContext2D, color: string, points: Point[]) 
   ctx.fill();
 }
 
-function drawStageArt(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, image: HTMLImageElement) {
-  for (let band = 1; band < arena.artFrame.length; band++) {
-    const start = arena.artFrame[band - 1];
-    const end = arena.artFrame[band];
-    ctx.drawImage(image, 0, start.sourceY * image.naturalHeight, image.naturalWidth,
-      (end.sourceY - start.sourceY) * image.naturalHeight, 0, start.worldY, arena.width, end.worldY - start.worldY);
-  }
-}
+const harborLayers = { backdrop: drawQuay, scenery: drawHarborScenery, mechanism: drawHarborLift };
+const campusLayers = { backdrop: drawStageBackdrop, scenery: drawStageScenery, mechanism: drawStageMechanism };
+const layersFor = (arena: ArenaDefinition) => arena.theme === 'harbor' ? harborLayers : campusLayers;
+const sheetsFor = (arena: ArenaDefinition) => arena.theme === 'harbor' ? [harborProps, harborGantry] : [stageKits[arena.theme]];
 
 export function paintArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {
   const { width, height, left, right, floor } = arena;
   const accent = arenaColors[arena.theme];
-  const image = backgrounds[arena.theme];
   ctx.fillStyle = '#211f4b';
   ctx.fillRect(0, 0, width, height);
-  if (image.naturalWidth) drawStageArt(ctx, arena, image);
+  const layers = layersFor(arena);
+  layers.backdrop(ctx, arena, arena.width / 2);
+  layers.scenery(ctx, arena);
 
   const shade = ctx.createLinearGradient(0, 0, 0, 190);
   shade.addColorStop(0, '#0c0d33ac');
@@ -68,39 +76,46 @@ export function paintArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition
   for (const x of [left, right]) {
     polygon(ctx, accent, [[x - 7, floor + 10], [x + 7, floor + 10], [x, floor + 18]]);
   }
-
-  for (const p of arena.platforms) {
-    const ledgeWidth = p.right - p.left;
-    const tier = tierColors[p.tier - 1];
-    ctx.fillStyle = tier + (image.naturalWidth ? '75' : 'ff');
-    ctx.fillRect(p.left, p.y, ledgeWidth, image.naturalWidth ? 1 : 4);
-    ctx.fillStyle = tier;
-    ctx.fillRect(p.left, p.y, 11, 2);
-    ctx.fillRect(p.right - 11, p.y, 11, 2);
-  }
 }
 
-function paintRoute(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {
-  const route = arena.route.flatMap(id => arena.platforms.filter(platform => platform.id === id));
+function paintRoute(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, side: 0 | 1) {
+  const route = arena.routes[side].map(id => arena.platforms.find(platform => platform.id === id)!);
   let support = { left: arena.left, right: arena.right, y: arena.floor };
-  let from: Point = [arena.spawn[0], arena.floor];
+  let from: Point = [arena.spawn[side], arena.floor];
+  const color = seatColors[side];
+  const outline = '#10152b';
   ctx.save();
-  ctx.strokeStyle = '#fff4cb';
-  ctx.lineWidth = 9;
-  ctx.shadowColor = '#0e0b2d';
-  ctx.shadowBlur = 7;
-  for (const platform of route) {
-    const x = (Math.max(support.left, platform.left) + Math.min(support.right, platform.right)) / 2;
-    ctx.setLineDash([24, 16]);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.arc(...from, 27, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = 10;
+  ctx.stroke();
+  for (const [index, platform] of route.entries()) {
+    const left = Math.max(support.left, platform.left);
+    const right = Math.min(support.right, platform.right);
+    const margin = Math.min(22, (right - left) / 2);
+    const x = Math.min(right - margin, Math.max(left + margin, from[0]));
+    const takeoff = index === 0 ? from[0] : x;
     ctx.beginPath();
     ctx.moveTo(...from);
-    ctx.lineTo(x, support.y);
-    ctx.quadraticCurveTo(x + 75, platform.y - 60, x, platform.y);
+    ctx.lineTo(takeoff, support.y);
+    ctx.quadraticCurveTo((takeoff + x) / 2 + (side === 0 ? -72 : 72), platform.y - 56, x, platform.y);
+    ctx.lineWidth = 24;
+    ctx.strokeStyle = outline;
     ctx.stroke();
-    ctx.fillStyle = tierColors[platform.tier - 1];
+    ctx.lineWidth = 13;
+    ctx.strokeStyle = color;
+    ctx.stroke();
     ctx.beginPath();
-    ctx.arc(x, platform.y, 17, 0, Math.PI * 2);
+    ctx.arc(x, platform.y, 21, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = 8;
+    ctx.stroke();
     support = platform;
     from = [x, platform.y];
   }
@@ -115,12 +130,18 @@ export function previewArena(canvas: HTMLCanvasElement, arena: ArenaDefinition, 
     if (canvas.dataset.variant !== variant) return;
     ctx.setTransform(canvas.width / arena.width, 0, 0, canvas.height / arena.height, 0, 0);
     paintArena(ctx, arena);
-    if (route) paintRoute(ctx, arena);
+    layersFor(arena).mechanism(ctx, arena, 0);
+    if (route) {
+      ctx.fillStyle = '#10152b2b';
+      ctx.fillRect(0, 0, arena.width, arena.height);
+      for (const side of [0, 1] as const) paintRoute(ctx, arena, side);
+    }
     ctx.resetTransform();
   };
   draw();
-  const image = backgrounds[arena.theme];
-  if (!image.complete) image.addEventListener('load', draw, { once: true });
+  for (const image of [backgrounds[arena.theme], ...sheetsFor(arena)]) {
+    if (!image.complete) image.addEventListener('load', draw, { once: true });
+  }
 }
 
 interface Effect {
@@ -130,14 +151,17 @@ interface Effect {
   cue?: GagaContact;
   poleSwing?: PoleSwing;
   gagaReceives: boolean;
+  bananaImpact?: boolean;
 }
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
   private background = document.createElement('canvas');
+  private sceneryTop = 0;
   private effects: Effect[] = [];
   private shake = 0;
   private camera: CameraView | null = null;
+  private dive: { summon: Summon; length: number } | null = null;
   private gagaWalks = [new GagaWalk(), new GagaWalk()];
 
   constructor(canvas: HTMLCanvasElement, arena: ArenaDefinition) {
@@ -146,18 +170,44 @@ export class Renderer {
   }
 
   load(arena: ArenaDefinition) {
-    const cacheWidth = Math.min(2560, arena.width);
-    this.background.width = cacheWidth;
-    this.background.height = Math.round(cacheWidth * arena.height / arena.width);
-    previewArena(this.background, arena);
+    const layer = this.background;
+    // Keep the detailed foreground at world resolution. Background and mechanisms have their own transforms.
+    layer.width = arena.width;
+    layer.height = 1024;
+    this.sceneryTop = arena.floor - 950;
+    layer.dataset.variant = arena.id;
+    const draw = () => {
+      if (layer.dataset.variant !== arena.id) return;
+      const ctx = layer.getContext('2d')!;
+      ctx.resetTransform();
+      ctx.clearRect(0, 0, layer.width, layer.height);
+      ctx.translate(0, -this.sceneryTop);
+      layersFor(arena).scenery(ctx, arena);
+    };
+    draw();
+    for (const prop of sheetsFor(arena)) {
+      if (!prop.complete) prop.addEventListener('load', draw, { once: true });
+    }
     this.effects = [];
     this.shake = 0;
     this.camera = null;
+    this.dive = null;
     this.gagaWalks.forEach(walk => walk.reset());
   }
 
   add(events: CombatEvent[], fighters: MatchConfig['fighters']) {
     for (const event of events) {
+      const jet = isTearJet(event.actionId);
+      if (event.kind === 'tear-splash') {
+        this.effects.push({ event, life: bananaEffectLife(event), age: 0, gagaReceives: false });
+        this.shake = Math.max(this.shake, 5);
+      }
+      if (jet && event.kind === 'swing') {
+        this.shake = Math.max(this.shake, event.actionId === bananaActionIds.uppercut ? 8 : 5.5);
+      }
+      if (event.actionId === bananaActionIds.wave && (event.kind === 'swing' || event.kind === 'hit')) {
+        this.shake = Math.max(this.shake, event.kind === 'hit' ? 16 : 11);
+      }
       if (isTurretEffect(event)) {
         this.effects.push({ event, life: turretEffectLife[event.kind], age: 0, gagaReceives: false });
         if (event.kind === 'grenade-impact') this.shake = Math.max(this.shake, 9);
@@ -169,39 +219,90 @@ export class Renderer {
         this.effects.push({ event, life: poleImpactLife, age: 0, gagaReceives: false });
         this.shake = Math.max(this.shake, 8.5);
       }
+      if (event.kind === 'summon-impact') {
+        this.effects.push({ event, life: dijiangImpactLife, age: 0, gagaReceives: false });
+      }
+      if (event.kind === 'summon-catch') {
+        this.effects.push({ event, life: 14, age: 0, gagaReceives: false });
+      }
       if (['hit', 'block', 'break', 'dash', 'land', 'drop'].includes(event.kind)) {
         const brief = event.kind === 'dash' || event.kind === 'land' || event.kind === 'drop';
         const cue = gagaContact(event, fighters);
-        const life = cue === 'light' || brief || event.impact === 'light' ? 14 : event.impact === 'heavy' ? 22 : 23;
+        const fromBanana = fighters[event.source].id === 'banana';
+        const wet = jet || event.actionId === bananaActionIds.wave || event.actionId === bananaActionIds.tear;
+        const bananaImpact = event.kind === 'land' ? fromBanana && event.reaction === 'air'
+          : event.kind === 'hit' && Boolean(event.amount) && !wet && (fromBanana || fighters[1 - event.source].id === 'banana');
+        const life = bananaImpact ? (event.kind === 'land' ? 22 : 19) : jet ? bananaEffectLife(event)
+          : cue === 'light' || brief || event.impact === 'light' ? 14 : event.impact === 'heavy' ? 22 : 23;
         const gagaReceives = event.kind === 'hit' && fighters[1 - event.source].id === 'gaga';
-        this.effects.push({ event, life, age: 0, cue, gagaReceives });
+        this.effects.push({ event, life, age: 0, cue, gagaReceives, bananaImpact });
       }
       if (event.kind === 'hit' || event.kind === 'break') {
-        const strength = event.impact === 'heavy' ? 10 : event.impact === 'light' ? 2.5 : 4;
+        const strength = jet ? (event.actionId === bananaActionIds.uppercut ? 13 : 8)
+          : event.impact === 'heavy' ? 10 : event.impact === 'light' ? 2.5 : 4;
         this.shake = Math.max(this.shake, strength);
       }
     }
   }
 
-  draw(config: MatchConfig, state: MatchState, debug: boolean, elapsed: number, shakeEnabled: boolean, focus = false) {
+  draw(config: MatchConfig, state: MatchState, debug: boolean, elapsed: number, shakeEnabled: boolean, focus = false,
+    reducedMotion = false) {
     const ctx = this.ctx;
     const { width, height } = ctx.canvas;
+    if (state.cutIn) {
+      drawBananaWaveCutIn(ctx, state.cutIn, reducedMotion);
+      return;
+    }
+    const summon = state.summon;
+    if (summon?.phase === 'cut-in') {
+      drawSummonCutIn(ctx, summon.frame, reducedMotion);
+      return;
+    }
     const [a, b] = state.fighters;
     const heights = [artSizes.get(config.fighters[0].id) ?? 137, artSizes.get(config.fighters[1].id) ?? 137];
+    const jetTips = ([0, 1] as const).flatMap(seat => {
+      const fighter = state.fighters[seat];
+      const action = actionFor(config, state, seat);
+      if (action?.id !== bananaActionIds.pressure || !fighter.attack ||
+        fighter.attack.frame >= action.startup + action.active + 7) return [];
+      const box = worldBox(action.hitbox, fighter.x, fighter.y, fighter.facing);
+      const tipX = fighter.facing === 1 ? box.x + box.w : box.x;
+      return [{ x: Math.max(0, Math.min(config.arena.width, tipX)), y: Math.max(0, box.y) }];
+    });
     const camera = frameCamera(config.arena, { width, height },
       [{ x: a.x, y: a.y, height: heights[0] }, { x: b.x, y: b.y, height: heights[1] }],
-      this.camera, elapsed, focus);
+      this.camera, elapsed, focus, summon, jetTips);
     this.camera = camera;
-    const { x, y, zoom } = camera;
+    const impact = this.effects.find(effect => effect.event.kind === 'summon-impact');
+    const { x, y, zoom } = impact && shakeEnabled ?
+      frameDijiangImpact(config.arena, { width, height }, camera, impact.event, impact.age) : camera;
     const shake = shakeEnabled ? Math.sin(this.shake * 3) * this.shake : 0;
     const dx = Math.min(x * zoom, Math.max(width - (config.arena.width - x) * zoom, shake));
     ctx.setTransform(zoom, 0, 0, zoom, -x * zoom + dx, -y * zoom);
-    ctx.drawImage(this.background, 0, 0, config.arena.width, config.arena.height);
+    const layers = layersFor(config.arena);
+    layers.backdrop(ctx, config.arena, x + width / (2 * zoom));
+    ctx.drawImage(this.background, 0, this.sceneryTop);
+    layers.mechanism(ctx, config.arena, state.arenaFrame, state, config);
+    ctx.fillStyle = '#10153312';
+    ctx.fillRect(x - dx / zoom, y, width / zoom, height / zoom);
+
+    const decks = config.arena.platforms.map(p => platformAt(p, state.arenaFrame));
+    if (summon?.phase === 'fall') {
+      drawDijiangPressure(ctx, summon.x, summon.y, summon.frame / summonFallFrames, reducedMotion);
+    } else if (impact && impact.age < 24) {
+      const { event, age } = impact;
+      drawDijiangPressure(ctx, event.x, event.y, 1, reducedMotion, 1 - age / 24);
+    }
     for (const { event, age } of this.effects) {
-      if (event.kind !== 'pole-impact' || !event.surface) continue;
+      if (event.kind !== 'pole-impact' && event.kind !== 'summon-impact') continue;
       ctx.save();
       ctx.translate(event.x, event.y);
-      drawPoleGroundMark(ctx, age, event.surface.left - event.x, event.surface.right - event.x);
+      if (event.kind === 'pole-impact' && event.surface) {
+        drawPoleGroundMark(ctx, age, event.surface.left - event.x, event.surface.right - event.x);
+      } else if (event.kind === 'summon-impact') {
+        const surface = config.arena;
+        drawDijiangGround(ctx, age, surface.left - event.x, surface.right - event.x);
+      }
       ctx.restore();
     }
 
@@ -209,7 +310,7 @@ export class Renderer {
       ctx.strokeStyle = '#fff4d9';
       ctx.lineWidth = 2;
       ctx.setLineDash([5, 4]);
-      for (const p of config.arena.platforms) {
+      for (const p of decks) {
         ctx.beginPath();
         ctx.moveTo(p.left, p.y);
         ctx.lineTo(p.right, p.y);
@@ -217,6 +318,14 @@ export class Renderer {
       }
       ctx.setLineDash([]);
     }
+
+    if (summon && this.dive?.summon !== summon) {
+      this.dive = { summon, length: frameDijiangLength({ width, height }, camera) };
+    } else if (!summon) {
+      this.dive = null;
+    }
+    const carrying = summon?.phase === 'fall' && summon.carry;
+    if (carrying && summon && this.dive) drawDijiang(ctx, summon, this.dive.length, debug, reducedMotion);
 
     const swingTrails: { paths: Trail[]; x: number; y: number; facing: number; alpha: number; wide: boolean }[] = [];
     const poles: { pose: PolePose; x: number; y: number; facing: number; action: ActionDefinition; frame: number }[] = [];
@@ -252,7 +361,7 @@ export class Renderer {
       const walk = this.gagaWalks[seat];
       if (!allowedToWalk) walk.reset();
       const walkPose = allowedToWalk && !hurtPose ? walk.sample(f.walk, elapsed) : undefined;
-      const ground = config.arena.platforms.reduce((y, platform) =>
+      const ground = decks.reduce((y, platform) =>
         f.x >= platform.left && f.x <= platform.right && platform.y >= f.y && platform.id !== f.ignorePlatform
           ? Math.min(y, platform.y) : y,
         config.arena.floor);
@@ -269,7 +378,8 @@ export class Renderer {
       const height = heights[seat];
       const width = sprite?.naturalHeight ? height * sprite.naturalWidth / sprite.naturalHeight : 100;
       let yScale = drawnPose || walkPose ? 1 : 1 + stride * .035;
-      if (f.hp === 0) ctx.rotate(-Math.PI / 2.6);
+      if (def.id === 'banana') yScale = 1;
+      else if (f.hp === 0) ctx.rotate(-Math.PI / 2.6);
       else if (f.hitstun && !hurtPose) {
         const reeling = Math.abs(f.push) >= 15;
         ctx.rotate(reeling ? -.38 : -.20);
@@ -282,12 +392,14 @@ export class Renderer {
       ctx.scale(2 - yScale, yScale);
       if (pose?.rotation) ctx.rotate(pose.rotation);
       if (f.protection && state.frame % 6 < 3) ctx.globalAlpha = .64;
-      if (drawnPose?.image || sprite?.naturalWidth) {
+      if (def.id === 'banana' || drawnPose?.image || sprite?.naturalWidth) {
         ctx.shadowColor = color + 'ca';
         ctx.shadowBlur = 8;
         if (hurtPose && reaction && reaction.elapsed < 2) ctx.filter = 'brightness(1.45) saturate(.7)';
         else if (f.hitstun && state.freeze > 0) ctx.filter = 'brightness(1.48)';
-        if (drawnPose?.image) {
+        if (def.id === 'banana') {
+          drawBanana(ctx, f, action, state.frame, reducedMotion);
+        } else if (drawnPose?.image) {
           const { image, region, scaleX, scaleY } = drawnPose;
           ctx.drawImage(image, region.x, region.y, region.width, region.height,
             -region.footX * scaleX, -region.footY * scaleY, region.width * scaleX, region.height * scaleY);
@@ -318,7 +430,7 @@ export class Renderer {
       }
       ctx.restore();
 
-      if (active && action && !pose) {
+      if (active && action && !pose && def.id !== 'banana') {
         const hit = worldBox(action.hitbox, f.x, f.y, f.facing);
         const tip = f.facing === 1 ? hit.x + hit.w - 6 : hit.x + 6;
         ctx.save();
@@ -340,7 +452,7 @@ export class Renderer {
         ctx.strokeRect(hurt.x, hurt.y, hurt.w, hurt.h);
         ctx.strokeStyle = '#ffc263';
         ctx.strokeRect(f.x - def.bodyWidth / 2, f.y - 82, def.bodyWidth, 82);
-        if (active && action && !action.projectile) {
+        if (active && action && !action.projectile && action.channel !== 'cry') {
           const hit = worldBox(action.hitbox, f.x, f.y, f.facing);
           ctx.fillStyle = '#ff536844';
           ctx.strokeStyle = '#ff5a6e';
@@ -368,6 +480,10 @@ export class Renderer {
         drawTurretBolt(ctx, projectile);
       } else if (data.kind === 'grenade') {
         drawGrenade(ctx, projectile);
+      } else if (data.kind === 'tear') {
+        drawBananaProjectile(ctx, projectile, data);
+      } else if (data.kind === 'wave') {
+        drawBananaWave(ctx, projectile, data, reducedMotion);
       } else {
         drawThrownPole(ctx, projectile, data);
       }
@@ -394,7 +510,10 @@ export class Renderer {
       }
       ctx.restore();
     }
-    this.drawEffects(elapsed, Boolean(config.training));
+    if (!carrying && summon && this.dive) {
+      drawDijiang(ctx, summon, this.dive.length, debug, reducedMotion);
+    }
+    this.drawEffects(elapsed, Boolean(config.training), reducedMotion);
     ctx.resetTransform();
     for (const seat of [0, 1] as const) {
       const f = state.fighters[seat];
@@ -433,7 +552,7 @@ export class Renderer {
     }
   }
 
-  private drawEffects(elapsed: number, training: boolean) {
+  private drawEffects(elapsed: number, training: boolean, reducedMotion: boolean) {
     const ctx = this.ctx;
     for (const effect of this.effects) {
       const { event, age, life, cue } = effect;
@@ -445,11 +564,19 @@ export class Renderer {
         drawPoleDust(ctx, effect.poleSwing, age, event.facing);
       } else if (event.kind === 'pole-impact') {
         drawPoleEarthBurst(ctx, age, event.facing);
+      } else if (event.kind === 'summon-impact') {
+        drawDijiangImpact(ctx, age, reducedMotion);
+      } else if (event.kind === 'summon-catch') {
+        drawGagaContact(ctx, 'heavy', age, event.facing);
       } else if (isTurretEffect(event)) {
         drawTurretEffect(ctx, event, age);
+      } else if (bananaEffectLife(event) && event.kind !== 'hit') {
+        drawBananaEffect(ctx, event, age, life);
       } else if (event.kind === 'dash') {
         ctx.fillStyle = seatColors[event.source];
         for (let i = 0; i < 4; i++) ctx.fillRect(-21 + i * 15, -10 - i * 3, i + 5, 2);
+      } else if (event.kind === 'land' && effect.bananaImpact) {
+        drawBananaImpact(ctx, event, age);
       } else if (event.kind === 'land' || event.kind === 'drop') {
         ctx.strokeStyle = '#fbdfb7cf';
         ctx.lineWidth = 2;
@@ -457,9 +584,11 @@ export class Renderer {
         ctx.ellipse(0, event.kind === 'drop' ? age * 1.8 : -1, 9 + age * 2.7, 3 + age * .25, 0, 0, 2 * Math.PI);
         ctx.stroke();
       } else {
-        if (cue) {
+        if (bananaEffectLife(event)) {
+          drawBananaEffect(ctx, event, age, life);
+        } else if (cue) {
           drawGagaContact(ctx, cue, age, event.facing);
-        } else {
+        } else if (!effect.bananaImpact) {
           ctx.save();
           ctx.rotate(age * .035);
           const scale = 1 + age * .012;
@@ -469,6 +598,7 @@ export class Renderer {
           polygon(ctx, '#fff8e2', [[0, -17], [5, -5], [17, 0], [5, 4], [0, 17], [-6, 5], [-17, 0], [-5, -5]]);
           ctx.restore();
         }
+        if (effect.bananaImpact) drawBananaImpact(ctx, event, age);
         if (effect.gagaReceives) drawGagaReceive(ctx, age, event.facing);
         if (training && event.amount) {
           ctx.font = '950 23px system-ui';

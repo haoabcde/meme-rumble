@@ -1,8 +1,38 @@
 # 美术与 UI 来源
 
-角色、场景和菜单底图全部使用内置 ImageGen 生成，导出为 WebP 并内嵌到游戏 HTML。用户提供的例图用于明确四个角色和街机方向。UI 先比较了三张 16:9 概念稿，采用第一张的蓝紫调、双侧角色展示与中心四宫格。原始 UI 方案存于 [选角视觉稿](../output/design/选角_视觉稿.png)。
+项目现有角色原始位图、场景和菜单底图使用内置 ImageGen 生成，运行用 WebP 内嵌到游戏 HTML。用户提供的例图用于明确四个角色和街机方向。UI 先比较了三张 16:9 概念稿，采用第一张的蓝紫调、双侧角色展示与中心四宫格。原始 UI 方案存于 [选角视觉稿](../output/design/选角_视觉稿.png)。
 
 ## 最终资产与生成提示
+
+### 余晖货港的分层场景
+
+货港使用三张原创手绘风场景图。远处海景随镜头缓慢移动，前景的每件可站景物按实测台沿摆放。两端的船顶、塔楼、中央转运桥以及吊盘在选图和实战中共用同一套素材。
+
+| 资产 | 在游戏中的用途 |
+|---|---|
+| [港湾远景与码头地面](arenas/harbor-quay.webp) | 2172×724 全景，海港天际线与岸沿分开绘制。 |
+| [港区景物图集](arenas/harbor-props.webp) | 1536×1024 透明图，含货柜、拖车、装卸栈桥、渡船、值班室和吊盘。 |
+| [龙门吊与转运桥图集](arenas/harbor-gantry.webp) | 2172×724 透明图，上方为龙门吊架，下方为中央青色拱桥。 |
+
+各景物的源像素范围和脚底对齐点记录在 [货港绘制代码](../src/web/harbor-art.ts)。移动台面的画面与碰撞使用同一帧的轨迹。
+
+### 宿舍楼顶、夜训球场与星电站
+
+每张场地各有一幅 2172×724 的手绘全景和一张 1536×1024 的透明建筑图集。生成时将远处校园、球场或山谷与可落脚的建筑分开，保留墨线和轻微像素边缘。图集中每件建筑都测量了前沿的左右端点和脚底高度，选图、训练与双人对战共用。[建筑切片与支撑绘制](../src/web/stage-art.ts)
+
+| 场地 | 全景和图集 | 可落脚的景物 |
+|---|---|---|
+| 宿舍楼顶 | [黄昏校园](arenas/dorm-bg.webp) · [天台建筑](arenas/dorm-kit.webp) | 花坛、温室、常春藤连廊、机房、水塔、晾晒台。水塔的底座由两侧屋顶支撑，中庭可以横跳。 |
+| 夜训球场 | [夜间球场](arenas/court-bg.webp) · [场边设施](arenas/court-kit.webp) | 长椅、替补棚、看台、转播席、计分牌、摄像台。计分牌的数字在对局中绘制。 |
+| 星电站 | [紫暮山谷](arenas/station-bg.webp) · [厂区设备](arenas/station-kit.webp) | 接线台、变压器、控制室、电缆桥、线圈冠、升降机。钢缆和配重随轿厢位置变化。 |
+
+### 香蕉猫对战造型
+
+以用户的香蕉猫表情包为角色参考，使用姑姑嘎嘎的对战美术作为线条与配色参考，由 ImageGen 重新绘制 [六姿势透明动作图](fighters/banana-arcade-actions.webp)。[对战渲染](../src/web/banana-art.ts) 按姿势读取动作图，并用各姿势的脚底和眼角坐标对齐地面与水柱。[选角与头像](fighters/banana-reference-portrait.webp) 从同一对战造型导出。[平喷咬牙与升龙仰头大哭](fighters/banana-jet-expressions.webp) 是两张单独的实战作画，水柱按各自眼角定位。[海浪大招的六张关键帧](fighters/banana-wave-actions.webp) 用于准备、下蹲、聚水、抬手、推浪和收招。实战使用这套关键帧。特写由 ImageGen 单独绘制 [咬牙、蓄泪和大哭三张表情](fighters/banana-wave-expressions.webp)。
+
+海浪大招使用 Pixelfx 实际导出的透明帧。Whirlpool 用于场上与特写中的聚水，Wave Crash 用于跟随海浪的滚涌和命中破浪，Splash 用于 U 与 W + U 的水花。三组序列由上游内置导出器以 30 FPS、蓝色水系调色板生成。项目采用 Whirlpool 每隔一帧采一帧、Wave Crash 第 20 至 70 帧、Splash 第 5 至 43 帧每隔一帧采一帧。MIT 许可随单文件构建一并嵌入。 [Pixelfx 源码版本](https://github.com/patch-gg/pixelfx/tree/5294518ce7c72e48b6100a744596e0acf57f2826/src/fx/water) · [导出帧及许可](fx/pixelfx)
+
+[香蕉猫受击图集](fighters/banana-hit-reactions.webp) 使用 ImageGen 以现有角色图集为造型参考，独立绘制轻击后仰、重击失衡、击飞和落地撑手四帧。命中使用 Pixelfx 的 Hit Spark 帧，击飞落地使用 Heavy Landing 去除示例人物后导出的尘屑帧。两组序列沿用上述 Pixelfx 版本及许可。[Hit Spark](https://github.com/patch-gg/pixelfx/blob/5294518ce7c72e48b6100a744596e0acf57f2826/src/fx/impacts/hit-spark.js) · [Heavy Landing](https://github.com/patch-gg/pixelfx/blob/5294518ce7c72e48b6100a744596e0acf57f2826/src/fx/impacts/heavy-landing.js)
 
 ### 科幻设施与帝江号武器 · `props/*-v2.png`
 
@@ -12,6 +42,8 @@
 - [铳械塔](props/dual-bolt-tower-v2.png)　两个并排蓝色铳口、笔直双柱、圆底座。
 - [电线杆](props/power-pole-v2.png)　细直方杆、小顶盖、左右斜拉黄线、三脚底座。
 - [帝江号武器](props/dijiang-weapon-v2.png)　向左尖端、外露双长轨、深灰主轴和尾部蓝窗舱段。横版战斗前景素材。
+
+[帝江号召唤图集](fighters/gaga-dijiang.webp) 通过内置 ImageGen 参考咕咕嘎嘎现有造型绘制抽终端、翻盖、重按与抬眼。砸落镜头使用 [帝江号武器的 WebP 版本](props/dijiang-impact.webp)，将尖端定位到实际落点。
 
 咕咕嘎嘎的第三、四段普攻搭配 [横扫和反扫关键帧](fighters/gaga-pole-attacks.webp)。第五段使用单独的 [抡杆上挑图集](fighters/gaga-pole-launch.webp)，通过内置 ImageGen 参考原动作图集绘制咬牙低蹲、蹬地前跨、发力斜挥、抡过头顶四个姿势。保留企鹅连帽服和角色比例，透明底，武器和挥击轨迹由游戏绘制。武器从 [电线杆的 WebP 图](fighters/gaga-pole.webp) 取小顶盖、分段方杆和三脚底座。握点在底座上方，斜拉线从武器画面中去除。
 
@@ -57,7 +89,7 @@
 
 生成提示以 16:9 横向格斗视角为约束，采用手绘卡通建筑、少量像素边缘、无遮挡的平直前沿和可辨认的支撑结构。宿舍采用暖橘落日、两侧有物件的阳台、贯通天空桥和桥上机房。球场采用冷蓝夜色、中央替补席、分开的高看台与计分牌。货港采用粉色海上落日、错位货柜、吊车和可辨前沿的吊盘。电站采用紫蓝配色和青色电缆，两侧塔台高位各自独立，中层之间保留间隙。
 
-## 宽场版地图
+## 历史画稿 · 第一版宽场地图
 
 使用内置 ImageGen 按每张图的地形草图绘制新版，再转换成 1672×941 WebP。四张图共用的生成要求是连续贯通的地面、能从侧视角辨认的真实台沿、手绘卡通建筑和少量像素边缘。运行时按实际台沿登记坐标，分段映射画稿的高度，给逐层跳跃留出空间。 [场地数据](../src/content/arenas.ts)
 

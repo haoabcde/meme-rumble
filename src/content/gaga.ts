@@ -1,11 +1,12 @@
 import type { ActionDefinition } from '../core/types.js';
+import { summonFallFrames } from '../core/summon.js';
 
 export const gagaActionIds = {
   jab: 'gaga-flipper-jab', backhand: 'gaga-flipper-backhand',
   poleSweep: 'gaga-pole-sweep', poleBacksweep: 'gaga-pole-backsweep', poleLaunch: 'gaga-pole-launch',
   lift: 'gaga-flipper-lift', slide: 'gaga-belly-slide', airThrow: 'gaga-air-pole-throw',
   turret: 'gaga-turret-deploy', turretBolt: 'gaga-turret-bolt',
-  howitzer: 'gaga-howitzer-deploy', grenade: 'gaga-turret-grenade'
+  howitzer: 'gaga-howitzer-deploy', grenade: 'gaga-turret-grenade', dijiang: 'gaga-summon-dijiang'
 } as const;
 
 export const gagaComboNames = ['前鳍直击', '转身反拍', '电线杆横扫', '电线杆反扫', '电线杆挑飞'];
@@ -65,6 +66,13 @@ export const gagaAirThrow: ActionDefinition = {
 };
 
 export const gagaTurretActions: ActionDefinition[] = [
+  {
+    id: gagaActionIds.dijiang, slot: 'C', direction: 'down', posture: 'ground', energyCost: 3, summon: true,
+    startup: summonFallFrames, active: 1, recovery: 22,
+    hitbox: { x: 0, y: 0, w: 0, h: 0 },
+    damage: 320, hitstun: 30, blockstun: 0, guardCost: 0, push: 18, lift: 16,
+    stop: 6, advance: 0, impact: 'heavy', pose: 'rise'
+  },
   {
     id: gagaActionIds.turret, slot: 'C', energyCost: 1, posture: 'ground',
     startup: 16, active: 1, recovery: 17,

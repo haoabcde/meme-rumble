@@ -1,5 +1,6 @@
 import type { ActionDefinition, FighterDefinition } from '../core/types.js';
 import { gagaAirThrow, gagaComboNames, gagaGroundCombo, gagaSpecials, gagaTurretActions } from './gaga.js';
+import { bananaActions, bananaComboNames } from './banana.js';
 
 export interface RosterEntry {
   fighter: FighterDefinition;
@@ -8,7 +9,7 @@ export interface RosterEntry {
   moveSummary?: string;
 }
 
-// 其余三名角色共用的基础攻击。
+// 鲸鱼娘与奶蛙共用的基础攻击。
 export const basicAttack: ActionDefinition = {
   id: 'common-strike', slot: 'A', posture: 'any',
   startup: 6, active: 4, recovery: 12,
@@ -29,7 +30,10 @@ function fighter(id: string, name: string, actions: ActionDefinition[] = [basicA
 export const roster: RosterEntry[] = [
   { fighter: fighter('whale', 'DeepSeek 鲸鱼娘'), accent: '#75a9ff', height: 142 },
   { fighter: fighter('frog', '奶蛙'), accent: '#ffcf54', height: 130 },
-  { fighter: fighter('banana', '香蕉猫'), accent: '#ff9c62', height: 145 },
+  {
+    fighter: { ...fighter('banana', '香蕉猫', bananaActions), usesTears: true }, accent: '#ff9c62', height: 145,
+    moveSummary: bananaComboNames.join(' → ')
+  },
   {
     fighter: fighter('gaga', '姑姑嘎嘎', [...gagaGroundCombo, ...gagaSpecials, gagaAirThrow, ...gagaTurretActions]),
     accent: '#d7a5ff', height: 139, moveSummary: gagaComboNames.join(' → ')

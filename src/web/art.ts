@@ -1,7 +1,7 @@
 import arcade from '../../assets/ui/arcade.webp';
 import whale from '../../assets/fighters/whale.webp';
 import frog from '../../assets/fighters/frog-v2.webp';
-import banana from '../../assets/fighters/banana.webp';
+import banana from '../../assets/fighters/banana-reference-portrait.webp';
 import gaga from '../../assets/fighters/gaga-arcade.webp';
 import gagaActions from '../../assets/fighters/gaga-actions.webp';
 import gagaCombo from '../../assets/fighters/gaga-basic-combo.webp';
@@ -14,12 +14,18 @@ import gagaTurretDeploy from '../../assets/props/gaga-turret-deploy.webp';
 import gagaHowitzerDeploy from '../../assets/props/gaga-howitzer-deploy.webp';
 import gagaPole from '../../assets/fighters/gaga-pole.webp';
 import gagaReactions from '../../assets/fighters/gaga-hit-reactions.webp';
-import dorm from '../../assets/arenas/dorm-wide.webp';
-import court from '../../assets/arenas/court-wide.webp';
-import harbor from '../../assets/arenas/harbor-wide.webp';
-import station from '../../assets/arenas/station-wide.webp';
+import dorm from '../../assets/arenas/dorm-bg.webp';
+import court from '../../assets/arenas/court-bg.webp';
+import harbor from '../../assets/arenas/harbor-quay.webp';
+import dockProps from '../../assets/arenas/harbor-props.webp';
+import gantry from '../../assets/arenas/harbor-gantry.webp';
+import station from '../../assets/arenas/station-bg.webp';
+import dormKit from '../../assets/arenas/dorm-kit.webp';
+import courtKit from '../../assets/arenas/court-kit.webp';
+import stationKit from '../../assets/arenas/station-kit.webp';
 import type { ActionDefinition, ArenaDefinition, HitReaction, Projectile, ProjectileDefinition, Turret, TurretKind } from '../core/types.js';
 import { turretFrame } from '../core/turret.js';
+import { summonAtlas } from './dijiang.js';
 import { gagaActionIds } from '../content/gaga.js';
 
 export const arcadeArt = arcade;
@@ -36,6 +42,8 @@ function loadImages(sources: Record<string, string>) {
 
 export const sprites = loadImages(fighterArt);
 export const backgrounds = loadImages(arenaArt);
+export const { dockProps: harborProps, gantry: harborGantry } = loadImages({ dockProps, gantry });
+export const stageKits = loadImages({ dorm: dormKit, court: courtKit, station: stationKit });
 
 interface ActionPose {
   x: number;
@@ -435,7 +443,12 @@ comboAtlas.src = gagaCombo;
 const finishAtlas = new Image();
 finishAtlas.src = gagaFinish;
 
+const summonFinish = pose(938, 520, 407, 486, 1128);
+
 export function gagaActionPose(action: ActionDefinition, frame: number, grounded: boolean): GagaActionPose | undefined {
+  if (action.summon && summonAtlas.naturalWidth && frame < action.startup + 11) {
+    return { image: summonAtlas, region: summonFinish, scaleX: .28, scaleY: .28 };
+  }
   if (action.id === gagaActionIds.turret && terminalAtlas.naturalWidth) return terminalPose(action, frame);
   if ((action.id === gagaActionIds.airThrow || action.id === gagaActionIds.howitzer) && airPoleAtlas.naturalWidth) {
     return grounded && frame >= action.startup + 7 ? undefined : airPolePose(action, frame);

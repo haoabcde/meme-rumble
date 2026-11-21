@@ -100,8 +100,16 @@ export function renderGuide(preferences: Preferences) {
     { title: '基础攻击', controls: ['A'] },
     { title: '姑姑嘎嘎 · 突进挑飞', controls: ['up', 'A'], join: ' + ' },
     { title: '姑姑嘎嘎 · 肚皮滑行', controls: ['down', 'A'], join: ' + ' },
-    { title: '技能槽 1（预留）', controls: ['B'] },
-    { title: '姑姑嘎嘎 · 地面铳械塔 / 空中榴弹炮（1 格气）', controls: ['C'] }
+    { title: '香蕉猫 · 高压眼泪（20 点，长按额外每秒 10 点）', controls: ['B'] },
+    { title: '姑姑嘎嘎 · 地面铳械塔 / 空中榴弹炮（1 格气）', controls: ['C'] },
+    { title: '姑姑嘎嘎 · 帝江号（地面，3 格气）', controls: ['down', 'C'], join: ' + ' },
+    { title: '香蕉猫 · 地面四连击（连续按四次）', controls: ['A'] },
+    { title: '香蕉猫 · 蕉尖挑飞', controls: ['up', 'A'], join: ' + ' },
+    { title: '香蕉猫 · 泪水滑铲', controls: ['down', 'A'], join: ' + ' },
+    { title: '香蕉猫 · 空中水球（10 点）', controls: ['jump', 'A'], join: ' → ' },
+    { title: '香蕉猫 · ' + bananaWaveTitle + '（地面，3 格气）', controls: ['down', 'C'], join: ' + ' },
+    { title: '香蕉猫 · 哭哭升龙（35 点）', controls: ['up', 'B'], join: ' + ' },
+    { title: '香蕉猫 · 按住哭泣回泪（每秒 20 点）', controls: ['C'] }
   ] as const;
   for (const seat of seats) {
     const list = element(seat === 0 ? 'guide-one' : 'guide-two');
@@ -226,3 +234,4 @@ export function installSettings(preferences: Preferences, changed: () => void) {
 export function keyHint(preferences: Preferences, seat: Seat, controlsToShow: Control[], divider = ' / ') {
   return controlsToShow.map(control => keyLabel(preferences.bindings[seat][control])).join(divider);
 }
+import { bananaWaveTitle } from '../content/banana.js';

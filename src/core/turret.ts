@@ -33,9 +33,9 @@ function clearTurret(state: MatchState, kind: TurretKind, events: CombatEvent[])
 }
 
 export function deployTurret(state: MatchState, kind: TurretKind, source: 0 | 1, x: number, y: number,
-  facing: Side, events: CombatEvent[]) {
+  facing: Side, events: CombatEvent[], support?: string) {
   clearTurret(state, kind, events);
-  state.turrets[kind] = { kind, owner: source, x, y, facing, age: 0, hp: turretHealth };
+  state.turrets[kind] = { kind, owner: source, x, y, facing, age: 0, hp: turretHealth, ...(support && { support }) };
   events.push({ kind: 'turret-land', source, turretKind: kind, x, y, facing });
 }
 
