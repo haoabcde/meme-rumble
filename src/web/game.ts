@@ -66,6 +66,8 @@ const names = namesSuffix.map(id => element('name-' + id));
 const scores = namesSuffix.map(id => element('score-' + id));
 const healthBars = namesSuffix.map(id => element('hp-' + id));
 const guardBars = namesSuffix.map(id => element('guard-' + id));
+const healthValues = namesSuffix.map(id => element('hp-value-' + id));
+const guardValues = namesSuffix.map(id => element('guard-value-' + id));
 const energyRows = namesSuffix.map(id => element('energy-row-' + id));
 const energyBars = namesSuffix.map(id => element('energy-' + id));
 const energyLabels = namesSuffix.map(id => element('energy-label-' + id));
@@ -361,6 +363,7 @@ function selectArena(index: number) {
   const screens = ((arena.right - arena.left) / canvas.width).toFixed(1);
   const tiers = new Set(arena.platforms.map(platform => platform.tier)).size;
   text(element('map-count'), screens + ' 屏宽 · ' + tiers + ' 层 · ' + arena.platforms.length + ' 处平台');
+  text(element('start'), mode === 'training' ? '进入训练 ›' : '开始对战 ›');
   text(element('map-description'), arena.description);
   const routeLine = element('map-route');
   for (const [side, suffix] of namesSuffix.entries()) {
@@ -722,7 +725,9 @@ function renderHUD() {
     text(names[seat], seatName(seat) + ' · ' + config.fighters[seat].name);
     text(scores[seat], String(state.wins[seat]));
     setMeter(healthBars[seat], fighter.hp, config.fighters[seat].maxHp);
+    text(healthValues[seat], fighter.hp + ' / ' + config.fighters[seat].maxHp);
     setMeter(guardBars[seat], fighter.guard, rules.guardMax);
+    text(guardValues[seat], fighter.guard + ' / ' + rules.guardMax);
     const cost = ultimateCost(config.fighters[seat]);
     energyRows[seat].hidden = !cost;
     if (cost) {
