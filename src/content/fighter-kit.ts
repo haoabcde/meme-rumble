@@ -21,6 +21,11 @@ export interface RosterEntry {
 
 export type SignatureMove = (ActionDefinition & { slot: 'B' | 'C' }) | CounterStance;
 
+interface UltimateMove {
+  cost: number;
+  move: Omit<ActionDefinition, 'slot' | 'energyCost'>;
+}
+
 export interface FighterPackage {
   id: string;
   name: string;
@@ -30,7 +35,7 @@ export interface FighterPackage {
   stats?: Partial<Omit<FighterDefinition, 'id' | 'name' | 'actions' | 'guardCounter' | 'ultimateCost' | 'ultimateGain'>>;
   signatureMoves: SignatureMove[];
   guardCounter?: FighterDefinition['guardCounter'];
-  ultimate?: { cost: number; gain?: UltimateGain; move: Omit<ActionDefinition, 'slot'> };
+  ultimate?: UltimateMove & { gain?: UltimateGain; variants?: UltimateMove[] };
   /** Additional destinations after a shared attack lands, applied to this fighter only. */
   extraCancels?: Record<string, string[]>;
 }
@@ -112,6 +117,9 @@ function validateCounterTarget(owner: string, targetId: string, actions: Fighter
   if (!target || 'counterTo' in target || target.posture === 'air' || target.slot === 'ULT') {
     throw Error(owner + ' 的防反必须指向本角色可在地面发动的非大招攻击：' + targetId);
   }
+  if ((target.energyCost ?? 0) > 0) {
+    throw Error(owner + ' 的自动反击不能指向需要消耗技能能量的动作：' + targetId);
+  }
 }
 
 function validateMoves(owner: string, actions: FighterAction[]) {
@@ -141,6 +149,9 @@ function validateMoves(owner: string, actions: FighterAction[]) {
       validateCounterTarget(where, action.counterTo, actions);
     } else {
       if (!validBox(action.hitbox)) throw Error(where + ' 的攻击框坐标或宽高无效');
+      if (action.energyCost !== undefined && !validEnergy(action.energyCost)) {
+        throw Error(where + ' 的技能能量消耗须为 0–' + MAX_ENERGY + ' 的整数');
+      }
       if (![action.hitstun, action.blockstun, action.stop].every(n => Number.isInteger(n) && n >= 0) ||
         ![action.damage, action.guardCost].every(n => Number.isFinite(n) && n >= 0) ||
         ![action.push, action.lift, action.advance, action.airControl ?? 0].every(Number.isFinite)) {
@@ -181,13 +192,15 @@ export function defineFighter(spec: FighterPackage): RosterEntry {
   });
   const actions: FighterAction[] = [...shared, ...signatureMoves];
   if (ultimate) {
-    if (!validEnergy(ultimate.cost)) {
-      throw Error(id + ' 的大招消耗须为 0–' + MAX_ENERGY + ' 的整数');
-    }
     if (!validEnergy(ultimate.gain?.onHit ?? 0) || !validEnergy(ultimate.gain?.onHurt ?? 0)) {
       throw Error(id + ' 的大招能量增量须为 0–' + MAX_ENERGY + ' 的整数');
     }
-    actions.push({ ...ultimate.move, slot: 'ULT' });
+    for (const { cost, move } of [ultimate, ...(ultimate.variants ?? [])]) {
+      if (!validEnergy(cost)) {
+        throw Error(id + ' / ' + move.id + ' 的大招消耗须为 0–' + MAX_ENERGY + ' 的整数');
+      }
+      actions.push({ ...move, slot: 'ULT', energyCost: cost });
+    }
   }
   validateMoves(id, actions);
   validateEntities(id, actions);

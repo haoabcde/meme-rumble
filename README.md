@@ -15,7 +15,7 @@
 
 单人验证地图时可直接选**自由训练**。屏幕左下会随实际落脚更新平台名称和已到达的最高层。陪练可静止、防御、重复直拳或跟随，训练支持半速。暂停后可前进一帧，按 R 可以重置。给角色接入精准防反后，用「重复直拳」和 H 面板可以核对生效窗口与反击动作。[防反接口与试招方法](docs/character-handoff.md#防反接口)
 
-实战界面显示生命与防御耐力的具体数值。防御耐力按来招的 `guardCost` 削减，多段攻击可分别配置每段的削减值，耐力耗尽会破防。训练工具集中在画面底部，自由训练的选图按钮显示「进入训练」。
+实战界面以血条、耐力条和三段气槽显示状态，气槽旁只显示已攒满的格数。按 H 打开调试时可查看生命和耐力数值。防御耐力按来招的 `guardCost` 削减，多段攻击可分别配置每段的削减值，耐力耗尽会破防。训练工具集中在画面底部，自由训练的选图按钮显示「进入训练」。
 
 | 地图 · 直接进训练 | 可走宽度（游戏单位） | 落脚面 | 场景和路线 |
 |---|---:|---:|---|
@@ -50,7 +50,7 @@
 
 四个角色文件各自拥有 `stats`、`art`、`signatureMoves` 和可选的公共招式命中衔接配置。队友可以分别填入 B/C 动作和独立的 `ultimate`，追加动画画格、替换素材，构建会检查并打入离线版本。自由训练链接支持 `p1` 和 `p2` 指定两个角色。[角色文件](src/content/fighters) · [接口与示例](docs/character-handoff.md) · [奶蛙对香蕉猫训练](http://127.0.0.1:4182/?practice=harbor&p1=frog&p2=banana)
 
-大招能量默认通过命中和承伤积累。训练中可点「充满大招能量」，用 H 面板与半速核对出招时机。独立样例可直接用桌面浏览器打开，从源码构建也会生成 `dist/ultimate-demo.html`。[大招接口](docs/character-handoff.md#大招接口) · [下载试招样例](https://github.com/haoabcde/meme-rumble/releases/download/ultimate-handoff-v1/ultimate-demo.html) · [本机试玩](http://127.0.0.1:4182/ultimate-demo.html)
+技能能量最多存三格，每格 100 点，默认通过命中和承伤积累。B/C 技能和大招都能使用这同一条气槽，消耗按动作设置。角色可只配一个大招，也可用不同方向或组合键触发其他大招。训练中可点「充满三格能量」补到 300 点，用 H 面板与半速核对出招。独立样例可用桌面浏览器直接打开，源码构建也会生成 `dist/ultimate-demo.html`。[技能能量接口](docs/character-handoff.md#技能能量) · [下载试招样例](https://github.com/haoabcde/meme-rumble/releases/download/ui-three-stock-v1/ultimate-demo.html) · [本机试玩](http://127.0.0.1:4182/ultimate-demo.html)
 
 角色可以配置逐帧攻击框和受击框、多段命中组、独立飞行或驻留实体，以及命中特效、震动和声音预设。组合输入用逻辑按键声明，方向修饰和键位重绑共用现有输入层。构建会生成独立的 `dist/combat-demo.html`。[战斗接口交接](docs/character-handoff.md#逐帧判定组合输入与命中表现) · [本机试招](http://127.0.0.1:4182/combat-demo.html)
 

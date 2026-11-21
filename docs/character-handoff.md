@@ -117,9 +117,19 @@ guardCounter: { windowFrames: 4, actionId: 'common-jab' },
 
 **一个人试招**。重新构建并刷新自由训练，靠近对手，把陪练切到「重复直拳」，打开 **H** 面板和 **0.5×** 速度。观察陪练起手，按防御或架势键。面板依次显示「防反窗口」「防反成立」和反击动作名。再提前长按防御一次，或提早摆架势一次，分别核对普通格挡的耐力消耗和架势落空后的收招。
 
+## 技能能量
+
+技能能量每回合从 0 开始，最多存三格，每格 100 点，满气为 300 点。B/C 技能与大招共用气槽。要让 B/C 动作耗气，在 `signatureMoves` 对应动作中填 `energyCost`，例如 `energyCost: 100` 消耗一格。只接耗气 B/C 的角色可省略 `ultimate`。防反成立后自动触发的反击动作须为零消耗。
+
+实战气槽放在画面下方两侧，分成三段，旁边数字表示完整格数。具体点数保留在状态数据和调试检查里。原作 `QiBar.as` 的 `InsBar.setProcess` 按 0–3 的进度分别填充槽段、更新格数，可用于核对储能表现。[原作气槽实现](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/d51f13dc36cac8e7622328bf4a9afc94156fb79f/CORE_KernelLogic/src/net/play5d/game/bvn/ui/fight/QiBar.as)
+
+动作获准开始时立即扣除本招消耗，中断、打空或被防住都不返还。满气用掉一格后还剩 200 点。能量不足时无法启动该动作。消耗使用 0–300 的整数。角色的技能均为零消耗时，HUD 会省略气槽。
+
+默认 A/B/C 实际造成伤害时出招方加 20 点，承伤方加 10 点。耗气 B/C 命中也适用。大招命中时仅承伤方加气。打空、格挡和被防反拦下的攻击不计。接入 `ultimate` 时，可用 `gain: { onHit: 20, onHurt: 10 }` 覆盖任一项，值为 0–300 的整数。
+
 ## 大招接口
 
-在角色文件的 `defineFighter({ ... })` 顶层加入 `ultimate`。它有独立按键，P1 默认按 **O**，P2 默认按**单引号**或小键盘 **6**。每个角色可选配一个大招。下面的「联调大招」复用直拳的数据和现有图集，供接入时试招。
+在角色文件的 `defineFighter({ ... })` 顶层加入 `ultimate`。P1 的大招键默认为 **O**，P2 默认为**单引号**或小键盘 **6**。角色只做一招时，填写 `cost` 和 `move` 即可。需要更多大招时再用 `variants`，每招各自填写动作、输入条件与消耗。下面的配置复用直拳的数据和现有图集，供接入时试招。
 
 ```ts
 import { basicAttack, defineFighter } from '../fighter-kit.js';
@@ -131,7 +141,7 @@ const { slot: _slot, ...probeMove } = basicAttack;
 
 ```ts
 ultimate: {
-  cost: 60,
+  cost: 100,
   move: {
     ...probeMove,
     id: 'ultimate-probe',
@@ -139,15 +149,24 @@ ultimate: {
     startup: 12,
     cancelOnHit: [],
     animation: [{ frame: 0, cell: 4 }, { frame: 12, cell: 7 }]
-  }
+  },
+  variants: [
+    {
+      cost: 200,
+      move: { ...probeMove, id: 'ultimate-probe-up', name: '两格联调大招', direction: 'up' }
+    },
+    {
+      cost: 300,
+      move: { ...probeMove, id: 'ultimate-probe-down', name: '三格联调大招', direction: 'down' }
+    }
+  ]
 },
 ```
 
-- **能量**每回合从 0 开始，最多 100。默认普通招式实际造成伤害时，出招方加 20，承受伤害的一方加 10。大招命中仅给承伤方加能量。打空、格挡和被防反拦下的攻击不计。角色可用 `gain: { onHit: 20, onHurt: 10 }` 覆盖任一项。
-- **释放**要求能量达到 `cost`，且当前姿态、方向和动作状态允许出招。填 `cost: 0` 可无消耗释放，此时不显示能量条。`cost` 和两项 `gain` 均使用 0–100 的整数。动作被接受并开始时立即扣除能量，中断、打空或被防住都不返还。
-- **动作**沿用普通动作的帧数、攻击框和图集动画，`posture`、`direction` 可限制起招姿态和方向。配置 `extraCancels: { 'common-jab': ['ULT'] }` 可在直拳命中后按大招键衔接，也可写大招的动作 ID。`linkOnly: true` 可限制为命中衔接。防反动作的 `counterTo` 和 `guardCounter.actionId` 使用普通攻击 ID。
+- **释放**。大招使用 `cost` 配置消耗，常用的 100、200、300 分别对应一格、两格和三格。
+- **输入与衔接**。所有大招共用逻辑输入 `ULT`。每个 `move` 沿用普通动作的帧数、攻击框和图集动画，可用 `posture`、`direction` 和 `comboKeys` 指定姿态、方向或组合键。上例的方向和消耗只用于联调，正式角色按动作设计填写。配置 `extraCancels: { 'common-jab': ['ULT'] }` 可在直拳命中后衔接大招，也可填写具体大招的动作 ID。`linkOnly: true` 可限制为命中衔接。防反动作的 `counterTo` 和 `guardCounter.actionId` 使用普通攻击 ID。
 
-下载独立样例后，用桌面浏览器直接打开 HTML。先按 **O** 试能量不足，再靠近陪练，用 **J** 命中三次积到 60，或点「充满大招能量」立即试招。用 **H** 面板查看起手、有效和收招，用 **0.5×** 或暂停后的「前进一帧」检查第 12 帧切换的画格与判定。用 **R** 复位验证能量归零。改自己的角色后，用自由训练的角色链接重复这套检查。[下载大招联调样例](https://github.com/haoabcde/meme-rumble/releases/download/ultimate-handoff-v1/ultimate-demo.html) · [本机直接试玩](http://127.0.0.1:4182/ultimate-demo.html)
+用桌面浏览器打开下载的独立样例，或打开构建生成的 `dist/ultimate-demo.html`。先按 **O** 验证缺气时无法释放，再靠近陪练，用 **J** 命中五次攒满第一格。也可以点「充满三格能量」，分别试 **O**、**W + O** 和 **S + O** 的一格、两格和三格消耗，每次试招前充满。用 **H** 面板查看起手、有效和收招，用 **0.5×** 或暂停后的「前进一帧」检查画格与判定。用 **R** 复位验证能量归零。改自己的角色后，用自由训练的角色链接重复这套检查。[下载大招联调样例](https://github.com/haoabcde/meme-rumble/releases/download/ui-three-stock-v1/ultimate-demo.html) · [本机直接试玩](http://127.0.0.1:4182/ultimate-demo.html)
 
 ## 交付美术
 

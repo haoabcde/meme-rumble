@@ -128,18 +128,18 @@ test('both seats earn energy on clean hits and spend it once when starting an ul
     assert.deepEqual(tick(ultimateInput).map(e => [e.kind, e.source]), [['ultimate-no-energy', seat]]);
     assert.equal(player.attack, null);
     assert.deepEqual(tick(), []);
-    player.energy = 90;
+    player.energy = 290;
     tick(jab);
     assert.deepEqual(hold(basicAttack.startup).map(e => [e.kind, e.source]), [['hit', seat]]);
-    assert.equal(player.energy, 100);
+    assert.equal(player.energy, 300);
     assert.equal(target.energy, 10);
     hold(40);
     target.x = player.x + player.facing * 90;
     assert.deepEqual(tick(ultimateInput).map(e => [e.kind, e.source]), [['ultimate', seat]]);
     assert.equal(player.attack.id, ultimateMove.id);
-    assert.equal(player.energy, 40);
+    assert.equal(player.energy, 240);
     assert.deepEqual(hold(ultimateMove.startup).map(e => [e.kind, e.source]), [['hit', seat]]);
-    assert.equal(player.energy, 40);
+    assert.equal(player.energy, 240);
     assert.equal(target.energy, 20);
     const fresh = createMatch(config);
     fresh.fighters.forEach(fighter => { fighter.energy = 75; });
@@ -149,6 +149,79 @@ test('both seats earn energy on clean hits and spend it once when starting an ul
     assert.equal(fresh.round, 2);
     assert.deepEqual(fresh.fighters.map(fighter => fighter.energy), [0, 0]);
   }
+});
+
+test('three-stock ultimates choose the sampled direction and spend only the selected move cost', () => {
+  const rise = { ...ultimateMove, id: 'fixture-ultimate-up', direction: 'up' };
+  const sweep = { ...ultimateMove, id: 'fixture-ultimate-down', direction: 'down' };
+  const ultimate = {
+    cost: 100, move: ultimateMove,
+    variants: [{ cost: 200, move: rise }, { cost: 300, move: sweep }]
+  };
+  const entry = defineFighter({ ...empty, ultimate });
+  for (const seat of [0, 1]) {
+    for (const [y, move, cost] of [[0, ultimateMove, 100], [-1, rise, 200], [1, sweep, 300]]) {
+      const duel = fighterDuel(seat, entry, entry);
+      const command = { ...ultimateInput, sampled: { ULT: { x: 0, y } } };
+      duel.player.energy = cost - 1;
+      assert.deepEqual(duel.tick(command).map(e => [e.kind, e.source]), [['ultimate-no-energy', seat]]);
+      assert.equal(duel.player.attack, null);
+      assert.equal(duel.player.energy, cost - 1);
+      assert.deepEqual(duel.tick(), []);
+
+      duel.player.energy = 300;
+      assert.deepEqual(duel.tick(command).map(e => [e.kind, e.source]), [['ultimate', seat]]);
+      assert.equal(duel.player.attack.id, move.id);
+      assert.equal(duel.player.energy, 300 - cost);
+      assert.deepEqual(duel.hold(move.startup).map(e => [e.kind, e.source]), [['hit', seat]]);
+      assert.equal(duel.player.energy, 300 - cost);
+      assert.equal(duel.target.energy, 10);
+    }
+  }
+});
+
+test('a paid signature skill shares skill energy even on a fighter without an ultimate', () => {
+  const paidMove = { ...probeB, direction: undefined, energyCost: 30 };
+  const entry = defineFighter({ ...empty, signatureMoves: [paidMove] });
+  const command = { ...NEUTRAL, pressed: ['B'] };
+  for (const seat of [0, 1]) {
+    const duel = fighterDuel(seat, entry);
+    assert.equal(duel.player.energy, 0);
+    assert.equal(duel.target.energy, undefined);
+    duel.tick(jab);
+    duel.hold(basicAttack.startup);
+    assert.equal(duel.player.energy, 20);
+    duel.hold(40);
+
+    assert.deepEqual(duel.tick(command).map(event => [event.kind, event.source]), [['ultimate-no-energy', seat]]);
+    assert.equal(duel.player.attack, null);
+    assert.equal(duel.player.energy, 20);
+    assert.deepEqual(duel.tick(), []);
+
+    duel.player.energy = 100;
+    assert.deepEqual(duel.tick(command).map(event => [event.kind, event.source]), [['swing', seat]]);
+    assert.equal(duel.player.attack.id, paidMove.id);
+    assert.equal(duel.player.energy, 70);
+    duel.target.x += duel.player.facing * 250;
+    const held = { ...NEUTRAL, held: ['B'] };
+    const events = duel.hold(paidMove.startup + paidMove.active + paidMove.recovery + 3, held);
+    assert.deepEqual(events.map(event => event.kind), ['whiff']);
+    assert.equal(duel.player.energy, 70);
+  }
+});
+
+test('paid actions cannot be used as automatic counter responses', () => {
+  const paidMove = { ...probeB, energyCost: 30 };
+  const spec = { ...empty, signatureMoves: [paidMove] };
+  assert.throws(() => defineFighter({
+    ...spec, guardCounter: { windowFrames: 3, actionId: paidMove.id }
+  }), /fixture.*消耗技能能量/);
+  assert.throws(() => defineFighter({
+    ...spec, signatureMoves: [paidMove, { ...stance, counterTo: paidMove.id }]
+  }), /fixture.*消耗技能能量/);
+  assert.throws(() => defineFighter({
+    ...empty, signatureMoves: [{ ...paidMove, energyCost: 301 }]
+  }), /fixture/);
 });
 
 test('taking damage earns the configured amount while block, whiff and parry do not charge the meter', () => {
@@ -223,13 +296,21 @@ test('an interrupted ultimate keeps its cost and the incoming hit still grants e
 });
 
 test('the fighter package validates ultimate settings and rejects an ultimate as a counter response', () => {
-  for (const cost of [-1, 101, 0.5, NaN]) {
+  for (const cost of [-1, 301, 0.5, NaN]) {
     assert.throws(() => defineFighter({ ...empty, ultimate: { ...ultimateKit, cost } }), /fixture/);
   }
-  for (const gain of [{ onHit: -1 }, { onHurt: NaN }]) {
+  for (const gain of [{ onHit: -1 }, { onHurt: NaN }, { onHurt: 301 }]) {
     assert.throws(() => defineFighter({ ...empty, ultimate: { ...ultimateKit, gain } }), /fixture/);
   }
   const spec = { ...empty, ultimate: ultimateKit };
+  for (const variant of [
+    { cost: 301, move: { ...ultimateMove, id: 'variant', direction: 'up' } },
+    { cost: 100, move: { ...ultimateMove, direction: 'up' } }
+  ]) {
+    assert.throws(() => defineFighter({
+      ...spec, ultimate: { ...ultimateKit, variants: [variant] }
+    }), /fixture/);
+  }
   assert.throws(() => defineFighter({ ...spec,
     guardCounter: { windowFrames: 3, actionId: ultimateMove.id }
   }), /fixture.*防反/);

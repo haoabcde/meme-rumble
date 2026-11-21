@@ -71,6 +71,8 @@ interface ActionTiming {
 
 export interface ActionDefinition extends ActionTiming {
   hitbox: Box;
+  /** Skill energy paid once when the action starts. */
+  energyCost?: number;
   /** The first overlapping unconsumed group connects on each active frame. */
   hitTimeline?: HitWindow[];
   feedback?: HitFeedback;
@@ -264,5 +266,6 @@ export interface MatchState {
 }
 
 export const TICK_RATE = 60;
-export const MAX_ENERGY = 100;
+export const ENERGY_PER_STOCK = 100;
+export const MAX_ENERGY = 3 * ENERGY_PER_STOCK;
 export const NEUTRAL: InputFrame = { x: 0, y: 0, pressed: [] };

@@ -2,7 +2,7 @@ import { rules } from '../content/demo.js';
 import { arenas } from '../content/arenas.js';
 import { roster } from '../content/roster.js';
 import { actionFor, createMatch, step } from '../core/match.js';
-import { MAX_ENERGY, NEUTRAL, type ActionKey, type Axis, type Duo, type FighterDefinition, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
+import { ENERGY_PER_STOCK, MAX_ENERGY, NEUTRAL, type ActionKey, type Axis, type Duo, type FighterDefinition, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
 import { arcadeArt, arenaArt, fighterArt } from './art.js';
 import { FightAudio } from './audio.js';
 import { cpuInput } from './cpu.js';
@@ -295,9 +295,11 @@ function acceptsSkillInput(fighter: FighterDefinition, slot: 'B' | 'C' | 'ULT') 
     source.cancelOnHit?.includes(move.id) || source.cancelOnHit?.includes(slot))));
 }
 
-function ultimateCost(fighter: FighterDefinition) {
-  const cost = fighter.ultimateCost ?? 0;
-  return cost > 0 && acceptsSkillInput(fighter, 'ULT') ? cost : 0;
+function minimumSkillCost(fighter: FighterDefinition) {
+  const costs = fighter.actions.map(action => 'counterTo' in action ? 0 :
+    action.energyCost ?? (action.slot === 'ULT' ? fighter.ultimateCost ?? 0 : 0))
+    .filter(cost => cost > 0);
+  return costs.length ? Math.min(...costs) : 0;
 }
 
 function renderRoster() {
@@ -402,7 +404,7 @@ function configureMatch(immediate: boolean) {
   }
   renderer.load(config.arena);
   element('training-tools').hidden = !config.training;
-  fillTrainingEnergy.hidden = !config.training || !ultimateCost(config.fighters[0]);
+  fillTrainingEnergy.hidden = !config.training || !minimumSkillCost(config.fighters[0]);
   element('step-training').hidden = !config.training;
   element('match-tag').hidden = Boolean(config.training);
   text(element('match-tag'), config.arena.name);
@@ -512,7 +514,7 @@ element('restart').addEventListener('click', () => startMatch(Boolean(config.tra
 element('rematch').addEventListener('click', () => startMatch());
 element('reset-training').addEventListener('click', () => startMatch(true));
 fillTrainingEnergy.addEventListener('click', () => {
-  if (screen !== 'match' || !config.training || !ultimateCost(config.fighters[0])) return;
+  if (screen !== 'match' || !config.training || !minimumSkillCost(config.fighters[0])) return;
   canvas.focus();
   state.fighters[0].energy = MAX_ENERGY;
   renderHUD();
@@ -726,16 +728,21 @@ function renderHUD() {
     text(scores[seat], String(state.wins[seat]));
     setMeter(healthBars[seat], fighter.hp, config.fighters[seat].maxHp);
     text(healthValues[seat], fighter.hp + ' / ' + config.fighters[seat].maxHp);
+    healthValues[seat].hidden = !debug;
     setMeter(guardBars[seat], fighter.guard, rules.guardMax);
     text(guardValues[seat], fighter.guard + ' / ' + rules.guardMax);
-    const cost = ultimateCost(config.fighters[seat]);
+    guardValues[seat].hidden = !debug;
+    const cost = minimumSkillCost(config.fighters[seat]);
     energyRows[seat].hidden = !cost;
     if (cost) {
       const energy = fighter.energy ?? 0;
       const ready = energy >= cost;
       setMeter(energyBars[seat], energy, MAX_ENERGY);
+      const stocks = Math.floor(energy / ENERGY_PER_STOCK);
+      energyRows[seat].dataset.stocks = String(stocks);
       if (energyRows[seat].dataset.ready !== String(ready)) energyRows[seat].dataset.ready = String(ready);
-      text(energyLabels[seat], '大招 ' + energy + ' · 消耗 ' + cost + (ready ? ' · 就绪' : ''));
+      text(energyLabels[seat], String(stocks));
+      energyBars[seat].parentElement!.setAttribute('aria-valuetext', '技能能量 ' + energy + ' / ' + MAX_ENERGY);
     }
     const recent = lastChains[seat];
     const hits = state.fighters[seat === 0 ? 1 : 0].combo ||
@@ -782,7 +789,7 @@ function tick(player: InputFrame) {
   if (state.phase === 'ready' && previous !== 'ready') lastChains = [null, null];
   for (const event of events) {
     if (event.kind === 'ultimate-no-energy') {
-      notify(seatName(event.source) + ' 大招能量不足');
+      notify(seatName(event.source) + ' 技能能量不足');
     }
     if (event.kind === 'hit' && event.chain !== undefined) {
       lastChains[event.source] = event.chain > 1 ? { hits: event.chain, until: state.frame + 33 } : null;

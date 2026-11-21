@@ -129,12 +129,8 @@
             <img id="portrait-one" alt="">
             <div class="hud-info">
               <div class="fighter-label"><span id="name-one">P1</span><output id="score-one" aria-label="玩家一胜场">0</output></div>
-              <div class="hp" role="meter" aria-label="玩家一生命"><div id="hp-one"></div><span class="meter-name">生命</span><output id="hp-value-one"></output></div>
-              <div class="guard" role="meter" aria-label="玩家一耐力"><div id="guard-one"></div><span class="meter-name">耐力</span><output id="guard-value-one"></output></div>
-              <div class="energy-row" id="energy-row-one" hidden>
-                <div class="energy" role="meter" aria-label="玩家一大招能量" aria-valuemax="100"><div id="energy-one"></div></div>
-                <span id="energy-label-one"></span>
-              </div>
+              <div class="hp" role="meter" aria-label="玩家一生命"><div id="hp-one"></div><output id="hp-value-one"></output></div>
+              <div class="guard" role="meter" aria-label="玩家一耐力"><div id="guard-one"></div><output id="guard-value-one"></output></div>
               <output class="combo" id="combo-one" hidden></output>
             </div>
           </div>
@@ -143,15 +139,21 @@
             <img id="portrait-two" alt="">
             <div class="hud-info">
               <div class="fighter-label"><span id="name-two">P2</span><output id="score-two" aria-label="玩家二胜场">0</output></div>
-              <div class="hp" role="meter" aria-label="玩家二生命"><div id="hp-two"></div><span class="meter-name">生命</span><output id="hp-value-two"></output></div>
-              <div class="guard" role="meter" aria-label="玩家二耐力"><div id="guard-two"></div><span class="meter-name">耐力</span><output id="guard-value-two"></output></div>
-              <div class="energy-row" id="energy-row-two" hidden>
-                <div class="energy" role="meter" aria-label="玩家二大招能量" aria-valuemax="100"><div id="energy-two"></div></div>
-                <span id="energy-label-two"></span>
-              </div>
+              <div class="hp" role="meter" aria-label="玩家二生命"><div id="hp-two"></div><output id="hp-value-two"></output></div>
+              <div class="guard" role="meter" aria-label="玩家二耐力"><div id="guard-two"></div><output id="guard-value-two"></output></div>
               <output class="combo" id="combo-two" hidden></output>
             </div>
           </div>
+        </div>
+        <div class="skill-gauges">
+              <div class="energy-row p1" id="energy-row-one" hidden>
+                <div class="energy" role="meter" aria-label="玩家一技能能量" aria-valuemax="300"><div id="energy-one"></div></div>
+                <span id="energy-label-one"></span>
+              </div>
+              <div class="energy-row p2" id="energy-row-two" hidden>
+                <div class="energy" role="meter" aria-label="玩家二技能能量" aria-valuemax="300"><div id="energy-two"></div></div>
+                <span id="energy-label-two"></span>
+              </div>
         </div>
         <aside id="training-readout" class="training-readout" aria-label="训练动作与按键" hidden>
           <div><b>P1</b><span id="training-state-one"></span></div>
@@ -164,7 +166,7 @@
             <div class="feet-status"><span>脚下</span> <output id="training-ground">地面</output><small id="training-best"></small></div>
             <label>陪练 <select id="training-dummy"><option value="idle">静止</option><option value="guard">防御</option><option value="jab">重复直拳</option><option value="cpu">跟随</option></select></label>
             <label>速度 <select id="training-speed"><option value="1">1×</option><option value=".5">0.5×</option></select></label>
-            <button id="fill-training-energy" class="subtle" type="button" hidden>充满大招能量</button>
+            <button id="fill-training-energy" class="subtle" type="button" hidden>充满三格能量</button>
             <button id="reset-training" class="subtle" type="button">复位 <kbd>R</kbd></button>
           </div>
           <div id="match-tag" class="match-tag"></div>
@@ -216,7 +218,7 @@
           <article><h3 class="p2">P2 玩家二</h3><dl id="guide-two"></dl></article>
         </div>
         <p>普攻命中后再按攻击，可接到第三段并击倒对手。挑空后可以起跳追打。倒地和起身期间有保护，站稳即可恢复攻防。</p>
-        <p>角色接入大招后，命中或受击可积攒能量。能量条显示当前能量和释放所需能量。</p>
+        <p>命中和受击可积攒技能能量，技能释放会扣除所需能量。</p>
         <p>每次离地可选一次二段跳或空中冲刺，角色标记旁的亮菱形表示还有机会。站在平台上时用下方向＋跳跃逐层下穿。<kbd>Esc</kbd> 暂停，<kbd>H</kbd> 显示判定框与训练动作数据。</p>
       </dialog>
 

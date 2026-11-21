@@ -15,10 +15,13 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 
 function spawn(config: MatchConfig, seat: 0 | 1, round: number): FighterState {
   const side = round % 2 ? seat : other(seat);
+  const definition = config.fighters[seat];
+  const usesEnergy = (definition.ultimateCost ?? 0) > 0 || definition.actions.some(action =>
+    !('counterTo' in action) && (action.energyCost ?? 0) > 0);
   return {
     x: config.arena.spawn[side], y: config.arena.floor, vy: 0, facing: side === 0 ? 1 : -1,
-    ground: 'floor', ignorePlatform: null, hp: config.fighters[seat].maxHp,
-    energy: config.fighters[seat].ultimateCost ? 0 : undefined,
+    ground: 'floor', ignorePlatform: null, hp: definition.maxHp,
+    energy: usesEnergy ? 0 : undefined,
     guard: config.rules.guardMax, guardWait: 0, guardBreak: 0, hitstun: 0, blockstun: 0,
     push: 0, dash: 0, airActionUsed: false, guarding: false, attack: null, buffer: [], combo: 0, controlled: 0,
     recovery: null, moving: false
@@ -200,15 +203,14 @@ function updateControl(
       (!action.direction || item.directions.includes(action.direction)) &&
       action.comboKeys?.every(key => item.keys?.includes(key)) !== false);
     if (!command) continue;
-    if (action.slot === 'ULT') {
-      const cost = definition.ultimateCost ?? 0;
-      if ((f.energy ?? 0) < cost) {
-        events.push({ kind: 'ultimate-no-energy', source: seat, x: f.x, y: f.y });
-        f.buffer = f.buffer.filter(item => item !== command);
-        continue;
-      }
-      if (cost) f.energy = (f.energy ?? 0) - cost;
+    const legacyCost = action.slot === 'ULT' ? definition.ultimateCost ?? 0 : 0;
+    const cost = 'counterTo' in action ? 0 : action.energyCost ?? legacyCost;
+    if ((f.energy ?? 0) < cost) {
+      events.push({ kind: 'ultimate-no-energy', source: seat, x: f.x, y: f.y });
+      f.buffer = f.buffer.filter(item => item !== command);
+      continue;
     }
+    if (cost) f.energy = (f.energy ?? 0) - cost;
     // A single accepted command consumes competing actions from the same sampled frame.
     f.buffer = f.buffer.filter(item => item.sampledAt !== command.sampledAt);
     startAction(f, action.id, seat, events, action.slot === 'ULT');

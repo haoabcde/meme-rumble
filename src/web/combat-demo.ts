@@ -39,7 +39,7 @@ for (const id of ['whale', 'banana']) {
         comboKeys: ['B'], cancelOnHit: [], damage: 20
       }
     ],
-    ultimate: { cost: 60, move: { ...basicAttack, id: 'ultimate-probe', name: '大招联调', cancelOnHit: [] } }
+    ultimate: { cost: 100, move: { ...basicAttack, id: 'ultimate-probe', name: '大招联调', cancelOnHit: [] } }
   });
 }
 const arena = arenas.find(entry => entry.id === 'harbor')!;
