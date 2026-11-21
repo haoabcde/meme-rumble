@@ -1,5 +1,5 @@
 export type Side = -1 | 1;
-export type Slot = 'A' | 'B' | 'C';
+export type Slot = 'A' | 'B' | 'C' | 'ULT';
 export type Direction = 'up' | 'down' | 'forward' | 'back';
 export type ActionKey = Slot | 'jump' | 'dash';
 export type Duo<T> = [T, T];
@@ -63,6 +63,11 @@ export interface CounterStance extends ActionTiming {
 
 export type FighterAction = ActionDefinition | CounterStance;
 
+export interface UltimateGain {
+  onHit?: number;
+  onHurt?: number;
+}
+
 export interface FighterDefinition {
   id: string;
   name: string;
@@ -79,6 +84,8 @@ export interface FighterDefinition {
   actions: FighterAction[];
   /** A fresh grounded guard can turn a frontal contact into this fighter's named action. */
   guardCounter?: { windowFrames: number; actionId: string };
+  ultimateCost?: number;
+  ultimateGain?: UltimateGain;
 }
 
 export interface Platform {
@@ -157,6 +164,7 @@ export interface FighterState {
   ground: string | null;
   ignorePlatform: string | null;
   hp: number;
+  energy?: number;
   guard: number;
   guardWait: number;
   guardBreak: number;
@@ -178,7 +186,7 @@ export interface FighterState {
   moving: boolean;
 }
 
-export type EventKind = 'swing' | 'hit' | 'block' | 'parry' | 'break' | 'whiff' | 'dash' | 'jump' | 'air-jump' |
+export type EventKind = 'swing' | 'ultimate' | 'ultimate-no-energy' | 'hit' | 'block' | 'parry' | 'break' | 'whiff' | 'dash' | 'jump' | 'air-jump' |
   'drop' | 'land' | 'knockdown' | 'rise' | 'ko';
 export interface CombatEvent {
   kind: EventKind;
@@ -213,4 +221,5 @@ export interface MatchState {
 }
 
 export const TICK_RATE = 60;
+export const MAX_ENERGY = 100;
 export const NEUTRAL: InputFrame = { x: 0, y: 0, pressed: [] };

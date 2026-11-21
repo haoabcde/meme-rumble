@@ -170,6 +170,13 @@ img { display: block; }
 .guard > div { background: repeating-linear-gradient(90deg,#ffde75 0 16%,#e6ad45 16% 16.8%); }
 .p2 .hp > div, .p2 .guard > div { transform-origin: right; }
 .p2 .guard { margin-left: auto; }
+.energy-row { display: flex; align-items: center; gap: .45em; margin-top: .25cqw; color: #e2dfff; font-size: clamp(8px, .95cqw, 14px); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; text-shadow: 0 1px 2px #0a0f2a; }
+.energy { width: 35%; height: clamp(5px, .85cqw, 12px); overflow: hidden; border: 1px solid #a8a0d2; background: #202042; }
+.energy > div { width: 100%; height: 100%; background: #9a81ec; transform-origin: left; }
+.energy-row[data-ready="true"] { color: #ffe387; }
+.energy-row[data-ready="true"] .energy > div { background: #ffe387; }
+.p2 .energy-row { flex-direction: row-reverse; }
+.p2 .energy > div { transform-origin: right; }
 .timer { text-align: center; font-variant-numeric: tabular-nums; font-weight: 950; color: var(--ivory); text-shadow: 0 .09em #17172c, 0 .15em #3f4388; }
 .timer output { display: block; font-size: clamp(22px, 5.2cqw, 74px); line-height: .95; font-style: italic; }
 .timer small { font-size: clamp(8px, 1.08cqw, 15px); white-space: nowrap; }

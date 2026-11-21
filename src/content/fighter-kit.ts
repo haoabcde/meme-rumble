@@ -1,4 +1,5 @@
-import type { ActionDefinition, Box, CounterStance, FighterAction, FighterDefinition } from '../core/types.js';
+import { MAX_ENERGY, type ActionDefinition, type Box, type CounterStance, type FighterAction,
+  type FighterDefinition, type UltimateGain } from '../core/types.js';
 
 export const motionGrid = {
   columns: 4, defaultRows: 3, cell: 216, footX: 108, footY: 184, referenceHeight: 144
@@ -25,9 +26,10 @@ export interface FighterPackage {
   accent: string;
   height: number;
   art: FighterArt;
-  stats?: Partial<Omit<FighterDefinition, 'id' | 'name' | 'actions' | 'guardCounter'>>;
+  stats?: Partial<Omit<FighterDefinition, 'id' | 'name' | 'actions' | 'guardCounter' | 'ultimateCost' | 'ultimateGain'>>;
   signatureMoves: SignatureMove[];
   guardCounter?: FighterDefinition['guardCounter'];
+  ultimate?: { cost: number; gain?: UltimateGain; move: Omit<ActionDefinition, 'slot'> };
   /** Additional destinations after a shared attack lands, applied to this fighter only. */
   extraCancels?: Record<string, string[]>;
 }
@@ -77,10 +79,14 @@ function validBox(box: Box) {
   return [box.x, box.y, box.w, box.h].every(Number.isFinite) && box.w > 0 && box.h > 0;
 }
 
+function validEnergy(value: number) {
+  return Number.isInteger(value) && value >= 0 && value <= MAX_ENERGY;
+}
+
 function validateCounterTarget(owner: string, targetId: string, actions: FighterAction[]) {
   const target = actions.find(action => action.id === targetId);
-  if (!target || 'counterTo' in target || target.posture === 'air') {
-    throw Error(owner + ' 的防反必须指向本角色可在地面发动的攻击：' + targetId);
+  if (!target || 'counterTo' in target || target.posture === 'air' || target.slot === 'ULT') {
+    throw Error(owner + ' 的防反必须指向本角色可在地面发动的非大招攻击：' + targetId);
   }
 }
 
@@ -116,6 +122,7 @@ function validateMoves(owner: string, actions: FighterAction[]) {
     }
   }
   const legalTargets = new Set([...ids, 'A', 'B', 'C', 'jump']);
+  if (actions.some(action => action.slot === 'ULT')) legalTargets.add('ULT');
   for (const action of actions) {
     for (const target of action.cancelOnHit ?? []) {
       if (!legalTargets.has(target)) throw Error(owner + ' / ' + action.id + ' 引用了未知的取消目标 ' + target);
@@ -124,7 +131,7 @@ function validateMoves(owner: string, actions: FighterAction[]) {
 }
 
 export function defineFighter(spec: FighterPackage): RosterEntry {
-  const { id, name, accent, height, art, stats, signatureMoves, guardCounter, extraCancels = {} } = spec;
+  const { id, name, accent, height, art, stats, signatureMoves, guardCounter, ultimate, extraCancels = {} } = spec;
   for (const source of Object.keys(extraCancels)) {
     if (!commonActions.some(move => move.id === source)) throw Error(id + ' 找不到公共动作 ' + source);
   }
@@ -132,7 +139,16 @@ export function defineFighter(spec: FighterPackage): RosterEntry {
     const extra = extraCancels[move.id];
     return extra ? { ...move, cancelOnHit: [...new Set([...(move.cancelOnHit ?? []), ...extra])] } : move;
   });
-  const actions = [...shared, ...signatureMoves];
+  const actions: FighterAction[] = [...shared, ...signatureMoves];
+  if (ultimate) {
+    if (!validEnergy(ultimate.cost)) {
+      throw Error(id + ' 的大招消耗须为 0–' + MAX_ENERGY + ' 的整数');
+    }
+    if (!validEnergy(ultimate.gain?.onHit ?? 0) || !validEnergy(ultimate.gain?.onHurt ?? 0)) {
+      throw Error(id + ' 的大招能量增量须为 0–' + MAX_ENERGY + ' 的整数');
+    }
+    actions.push({ ...ultimate.move, slot: 'ULT' });
+  }
   validateMoves(id, actions);
   if (guardCounter) {
     if (!Number.isSafeInteger(guardCounter.windowFrames) || guardCounter.windowFrames < 1) {
@@ -143,7 +159,7 @@ export function defineFighter(spec: FighterPackage): RosterEntry {
   const fighter: FighterDefinition = {
     maxHp: 1000, run: 8, airSpeed: 9, jump: 18, dash: 23, airDash: true, airJump: 13,
     hurtbox: { x: -28, y: -114, w: 56, h: 114 }, bodyWidth: 72,
-    ...stats, id, name, actions, guardCounter
+    ...stats, id, name, actions, guardCounter, ultimateCost: ultimate?.cost, ultimateGain: ultimate?.gain
   };
   if (!id.trim() || !name.trim() || !Number.isFinite(height) || height <= 0 ||
       !Number.isFinite(fighter.maxHp) || fighter.maxHp <= 0) {

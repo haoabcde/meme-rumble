@@ -2,6 +2,7 @@ import type { CombatEvent, EventKind } from '../core/types.js';
 
 const tones: Partial<Record<EventKind, [number, number, number, OscillatorType, number]>> = {
   swing: [316, 168, .06, 'triangle', .042],
+  ultimate: [260, 540, .17, 'triangle', .12],
   hit: [148, 40, .13, 'triangle', .23],
   block: [870, 430, .085, 'sine', .14],
   parry: [740, 1480, .12, 'sine', .16],

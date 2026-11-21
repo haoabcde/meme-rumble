@@ -22,8 +22,8 @@ const authored = defineFighter({
 });
 const dummy = defineFighter({ ...empty, id: 'target' });
 
-function opening(seat, entry = authored) {
-  const fighters = [dummy.fighter, dummy.fighter];
+function opening(seat, entry = authored, opponent = dummy) {
+  const fighters = [opponent.fighter, opponent.fighter];
   fighters[seat] = entry.fighter;
   const config = { rules, arena: arenas[0], training: true, fighters };
   const state = createMatch(config);
@@ -106,14 +106,140 @@ const riposte = {
   ...basicAttack, id: 'test-riposte', slot: 'B', linkOnly: true, startup: 0, active: 1,
   advance: 0, damage: 37, cancelOnHit: []
 };
-function fighterDuel(seat, entry) {
-  const { state, config, player, target } = opening(seat, entry);
+function fighterDuel(seat, entry, opponent) {
+  const { state, config, player, target } = opening(seat, entry, opponent);
   const tick = (defend = NEUTRAL, attack = NEUTRAL) =>
     step(state, seat === 0 ? [defend, attack] : [attack, defend], config);
   const hold = (frames, defend = NEUTRAL, attack = NEUTRAL) =>
     Array.from({ length: frames }, () => tick(defend, attack)).flat();
   return { state, config, player, target, tick, hold };
 }
+
+const ultimateMove = { ...basicAttack, id: 'fixture-ultimate', name: '必杀技测试招式' };
+delete ultimateMove.slot;
+const ultimateInput = { ...NEUTRAL, pressed: ['ULT'] };
+const ultimateKit = { cost: 60, move: ultimateMove };
+const charged = defineFighter({ ...empty, ultimate: ultimateKit });
+
+test('both seats earn energy on clean hits and spend it once when starting an ultimate', () => {
+  for (const seat of [0, 1]) {
+    const { config, tick, hold, player, target } = fighterDuel(seat, charged, charged);
+    assert.equal(player.energy, 0);
+    assert.deepEqual(tick(ultimateInput).map(e => [e.kind, e.source]), [['ultimate-no-energy', seat]]);
+    assert.equal(player.attack, null);
+    assert.deepEqual(tick(), []);
+    player.energy = 90;
+    tick(jab);
+    assert.deepEqual(hold(basicAttack.startup).map(e => [e.kind, e.source]), [['hit', seat]]);
+    assert.equal(player.energy, 100);
+    assert.equal(target.energy, 10);
+    hold(40);
+    target.x = player.x + player.facing * 90;
+    assert.deepEqual(tick(ultimateInput).map(e => [e.kind, e.source]), [['ultimate', seat]]);
+    assert.equal(player.attack.id, ultimateMove.id);
+    assert.equal(player.energy, 40);
+    assert.deepEqual(hold(ultimateMove.startup).map(e => [e.kind, e.source]), [['hit', seat]]);
+    assert.equal(player.energy, 40);
+    assert.equal(target.energy, 20);
+    const fresh = createMatch(config);
+    fresh.fighters.forEach(fighter => { fighter.energy = 75; });
+    fresh.phase = 'round-over';
+    fresh.phaseTicks = 1;
+    step(fresh, [NEUTRAL, NEUTRAL], config);
+    assert.equal(fresh.round, 2);
+    assert.deepEqual(fresh.fighters.map(fighter => fighter.energy), [0, 0]);
+  }
+});
+
+test('taking damage earns the configured amount while block, whiff and parry do not charge the meter', () => {
+  const entry = defineFighter({ ...empty, ultimate: { ...ultimateKit, gain: { onHit: 9, onHurt: 7 } } });
+  const hit = fighterDuel(0, entry);
+  hit.tick(jab);
+  hit.hold(basicAttack.startup);
+  assert.equal(hit.player.energy, 9);
+  const hurt = fighterDuel(0, entry);
+  hurt.tick(NEUTRAL, jab);
+  hurt.hold(basicAttack.startup);
+  assert.equal(hurt.player.energy, 7);
+  const guarded = fighterDuel(0, entry);
+  guarded.tick(jab, guard);
+  assert.deepEqual(guarded.hold(basicAttack.startup, NEUTRAL, guard).map(e => e.kind), ['block']);
+  assert.equal(guarded.player.energy, 0);
+  const missed = fighterDuel(0, entry);
+  missed.target.x += 250;
+  missed.tick(jab);
+  assert.deepEqual(missed.hold(basicAttack.startup + basicAttack.active).map(e => e.kind), ['whiff']);
+  assert.equal(missed.player.energy, 0);
+  const counter = defineFighter({ ...empty, ultimate: ultimateKit, guardCounter: { windowFrames: 3, actionId: basicAttack.id } });
+  const parried = fighterDuel(0, counter);
+  parried.tick(NEUTRAL, jab);
+  parried.hold(basicAttack.startup - 1);
+  assert.deepEqual(parried.tick(guard).map(e => e.kind), ['parry']);
+  assert.equal(parried.player.energy, 0);
+});
+
+test('ultimates follow posture and hit-cancel rules and retain their cost on a block or whiff', () => {
+  const linked = defineFighter({ ...empty, ultimate: ultimateKit, extraCancels: { [basicAttack.id]: ['ULT'] } });
+  const air = fighterDuel(0, linked);
+  air.player.energy = 60;
+  air.tick({ ...NEUTRAL, pressed: ['jump'] });
+  assert.deepEqual(air.tick(ultimateInput), []);
+  assert.equal(air.player.energy, 60);
+  assert.equal(air.player.attack, null);
+  for (const [entry, defense] of [[linked, NEUTRAL], [linked, guard], [charged, NEUTRAL]]) {
+    const duel = fighterDuel(0, entry);
+    duel.player.energy = 60;
+    duel.tick(jab, defense);
+    duel.hold(basicAttack.startup, NEUTRAL, defense);
+    const events = [duel.tick(ultimateInput, defense), duel.hold(duel.state.freeze + 1, NEUTRAL, defense)].flat();
+    const confirmed = entry === linked && defense === NEUTRAL;
+    assert.equal(events.some(event => event.kind === 'ultimate'), confirmed);
+    assert.equal(duel.player.attack.id, confirmed ? ultimateMove.id : basicAttack.id);
+  }
+  for (const defense of [NEUTRAL, guard]) {
+    const duel = fighterDuel(0, charged);
+    duel.player.energy = 60;
+    if (defense === NEUTRAL) duel.target.x += 250;
+    duel.tick(ultimateInput, defense);
+    const events = duel.hold(ultimateMove.startup + ultimateMove.active, NEUTRAL, defense);
+    assert.deepEqual(events.map(e => e.kind), [defense === NEUTRAL ? 'whiff' : 'block']);
+    assert.equal(duel.player.energy, 0);
+  }
+});
+
+test('an interrupted ultimate keeps its cost and the incoming hit still grants energy', () => {
+  const slow = defineFighter({ ...empty, ultimate: {
+    ...ultimateKit, move: { ...ultimateMove, startup: basicAttack.startup + 8 }
+  } });
+  const duel = fighterDuel(0, slow);
+  duel.player.energy = 60;
+  assert.deepEqual(duel.tick(ultimateInput, jab).map(e => e.kind), ['ultimate', 'swing']);
+  assert.equal(duel.player.energy, 0);
+  assert.deepEqual(duel.hold(basicAttack.startup).map(e => [e.kind, e.source]), [['hit', 1]]);
+  assert.equal(duel.player.attack, null);
+  assert.equal(duel.player.energy, 10);
+  assert.deepEqual(duel.tick(ultimateInput), []);
+  assert.equal(duel.player.energy, 10);
+});
+
+test('the fighter package validates ultimate settings and rejects an ultimate as a counter response', () => {
+  for (const cost of [-1, 101, 0.5, NaN]) {
+    assert.throws(() => defineFighter({ ...empty, ultimate: { ...ultimateKit, cost } }), /fixture/);
+  }
+  for (const gain of [{ onHit: -1 }, { onHurt: NaN }]) {
+    assert.throws(() => defineFighter({ ...empty, ultimate: { ...ultimateKit, gain } }), /fixture/);
+  }
+  const spec = { ...empty, ultimate: ultimateKit };
+  assert.throws(() => defineFighter({ ...spec,
+    guardCounter: { windowFrames: 3, actionId: ultimateMove.id }
+  }), /fixture.*防反/);
+  assert.throws(() => defineFighter({ ...spec,
+    signatureMoves: [{ ...stance, counterTo: ultimateMove.id }]
+  }), /fixture.*防反/);
+  const legacy = fighterDuel(0, dummy);
+  assert.deepEqual(legacy.tick(ultimateInput), []);
+  assert.equal(legacy.player.energy, undefined);
+});
 
 function counterDuel(seat, response = riposte, windowFrames = 3) {
   return fighterDuel(seat, defineFighter({ ...empty, signatureMoves: [response],

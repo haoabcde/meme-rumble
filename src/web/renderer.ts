@@ -261,6 +261,7 @@ export class Renderer {
 
   add(events: CombatEvent[]) {
     for (const event of events) {
+      if (event.kind === 'ultimate') this.effects.push({ event, life: 13, age: 0 });
       if (['hit', 'block', 'parry', 'break', 'dash', 'land', 'drop', 'air-jump', 'knockdown'].includes(event.kind)) {
         const brief = event.kind !== 'hit' && event.kind !== 'break';
         this.effects.push({ event, life: brief ? 12 : event.heavy ? 15 : 11, age: 0 });
@@ -458,7 +459,13 @@ export class Renderer {
       ctx.save();
       ctx.globalAlpha = Math.min(1, (life - age) / 6);
       ctx.translate(event.x, event.y);
-      if (event.kind === 'dash') {
+      if (event.kind === 'ultimate') {
+        ctx.strokeStyle = '#efd28a';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 24 + age * 4, 6 + age, 0, 0, 2 * Math.PI);
+        ctx.stroke();
+      } else if (event.kind === 'dash') {
         ctx.fillStyle = seatColors[event.source];
         ctx.scale(event.direction ?? 1, 1);
         for (let i = 0; i < 4; i++) ctx.fillRect(-37 - age * 2 + i * 5, -15 - i * 15, 10 + age, 2);

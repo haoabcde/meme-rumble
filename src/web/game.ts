@@ -2,7 +2,7 @@ import { rules } from '../content/demo.js';
 import { arenas } from '../content/arenas.js';
 import { roster } from '../content/roster.js';
 import { actionFor, createMatch, step } from '../core/match.js';
-import { NEUTRAL, type ActionKey, type Axis, type Duo, type FighterDefinition, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
+import { MAX_ENERGY, NEUTRAL, type ActionKey, type Axis, type Duo, type FighterDefinition, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
 import { arcadeArt, arenaArt, fighterArt } from './art.js';
 import { FightAudio } from './audio.js';
 import { cpuInput } from './cpu.js';
@@ -50,6 +50,7 @@ const trainingDummy = element<HTMLSelectElement>('training-dummy');
 const trainingSpeed = element<HTMLSelectElement>('training-speed');
 const roundLimit = element<HTMLSelectElement>('round-limit');
 const roundWins = element<HTMLSelectElement>('round-wins');
+const fillTrainingEnergy = element('fill-training-energy');
 const trainingGround = element('training-ground');
 const trainingBest = element('training-best');
 const trainingReadout = element('training-readout');
@@ -65,6 +66,9 @@ const names = namesSuffix.map(id => element('name-' + id));
 const scores = namesSuffix.map(id => element('score-' + id));
 const healthBars = namesSuffix.map(id => element('hp-' + id));
 const guardBars = namesSuffix.map(id => element('guard-' + id));
+const energyRows = namesSuffix.map(id => element('energy-row-' + id));
+const energyBars = namesSuffix.map(id => element('energy-' + id));
+const energyLabels = namesSuffix.map(id => element('energy-label-' + id));
 const combos = namesSuffix.map(id => element('combo-' + id));
 const portraits = namesSuffix.map(id => element<HTMLImageElement>('portrait-' + id));
 const panels = namesSuffix.map(id => element('fighter-panel-' + id));
@@ -111,6 +115,7 @@ const settings = installSettings(preferences, () => {
   audio.volume = preferences.volume / 100;
   audio.enableFromGesture();
   renderGuide(preferences);
+  if (screen === 'roster') renderRoster();
   footer();
 });
 audio.volume = preferences.volume / 100;
@@ -173,8 +178,9 @@ function seatName(seat: Seat) {
   return seat === 0 ? 'P1' : mode === 'cpu' ? '电脑' : mode === 'training' ? '陪练' : 'P2';
 }
 
-function trainingCounterHints(fighter: FighterDefinition) {
+function trainingSkillHints(fighter: FighterDefinition) {
   const hints: string[] = [];
+  if (acceptsSkillInput(fighter, 'ULT')) hints.push(keyHint(preferences, 0, ['ULT']) + ' 大招');
   if (fighter.guardCounter) hints.push(keyHint(preferences, 0, ['down']) + ' 精准防反');
   for (const move of fighter.actions) {
     if (!('counterTo' in move) || move.linkOnly) continue;
@@ -193,7 +199,7 @@ function footer() {
   const confirmKey = keyHint(preferences, 0, ['A']);
   const backKey = keyHint(preferences, 0, ['jump']);
   const upDown = keyHint(preferences, 0, ['up', 'down']);
-  const counters = screen === 'match' && mode === 'training' ? trainingCounterHints(config.fighters[0]) : '';
+  const skills = screen === 'match' && mode === 'training' ? trainingSkillHints(config.fighters[0]) : '';
   text(element('footer-main'), fighting ? modeNames[mode] + ' · ' + config.arena.name : 'Meme 乱斗 · 抽象之王');
   const hints = screen === 'roster'
     ? 'P1 ' + keyHint(preferences, 0, ['left', 'right', 'up', 'down'], ' ') + ' 移动 · ' +
@@ -204,7 +210,7 @@ function footer() {
     : screen === 'menu' ? upDown + ' 选模式 · ' + confirmKey + ' 确认'
     : screen === 'title' ? confirmKey + ' 进入游戏'
     : screen === 'result' || screen === 'pause' ? upDown + ' 选择 · ' + confirmKey + ' 确认 · Esc 返回'
-    : counters ? 'P1 ' + counters
+    : skills ? 'P1 ' + skills
     : fighting ? 'P1 ' + keyHint(preferences, 0, ['A']) + ' 普攻 · ' +
         keyHint(preferences, 0, ['up', 'A'], ' + ') + ' 挑空' +
         (mode === 'local' ? '　　P2 ' + keyHint(preferences, 1, ['up', 'A'], ' + ') + ' 挑空'
@@ -282,9 +288,14 @@ function selectMode(next: Mode) {
   go('roster');
 }
 
-function acceptsSkillInput(fighter: FighterDefinition, slot: 'B' | 'C') {
+function acceptsSkillInput(fighter: FighterDefinition, slot: 'B' | 'C' | 'ULT') {
   return fighter.actions.some(move => move.slot === slot && (!move.linkOnly || fighter.actions.some(source =>
     source.cancelOnHit?.includes(move.id) || source.cancelOnHit?.includes(slot))));
+}
+
+function ultimateCost(fighter: FighterDefinition) {
+  const cost = fighter.ultimateCost ?? 0;
+  return cost > 0 && acceptsSkillInput(fighter, 'ULT') ? cost : 0;
 }
 
 function renderRoster() {
@@ -300,6 +311,10 @@ function renderRoster() {
     const enabledSlots = (['B', 'C'] as const).filter(slot => acceptsSkillInput(entry.fighter, slot));
     const skills = enabledSlots.length ? ['可用专属槽 · ' + enabledSlots.join(' / ')] : [];
     if (entry.fighter.guardCounter) skills.push('精准防反');
+    if (acceptsSkillInput(entry.fighter, 'ULT')) {
+      const cost = entry.fighter.ultimateCost ?? 0;
+      skills.push('大招 ' + keyHint(preferences, seat, ['ULT']) + (cost ? ' · 消耗 ' + cost : ' · 无消耗'));
+    }
     text(panels[seat].querySelector('p')!, skills.join(' · ') || '专属技能待接入');
     lockButtons[seat].setAttribute('aria-pressed', String(confirmed[seat]));
     text(lockButtons[seat], confirmed[seat] ? who + ' 已确认' : '确认 ' + who);
@@ -384,6 +399,7 @@ function configureMatch(immediate: boolean) {
   }
   renderer.load(config.arena);
   element('training-tools').hidden = !config.training;
+  fillTrainingEnergy.hidden = !config.training || !ultimateCost(config.fighters[0]);
   element('step-training').hidden = !config.training;
   element('match-tag').hidden = Boolean(config.training);
   text(element('match-tag'), config.arena.name);
@@ -492,6 +508,12 @@ element('pause').addEventListener('click', pauseMatch);
 element('restart').addEventListener('click', () => startMatch(Boolean(config.training)));
 element('rematch').addEventListener('click', () => startMatch());
 element('reset-training').addEventListener('click', () => startMatch(true));
+fillTrainingEnergy.addEventListener('click', () => {
+  if (screen !== 'match' || !config.training || !ultimateCost(config.fighters[0])) return;
+  canvas.focus();
+  state.fighters[0].energy = MAX_ENERGY;
+  renderHUD();
+});
 element('step-training').addEventListener('click', () => {
   if (screen !== 'pause' || !config.training) return;
   tick(NEUTRAL);
@@ -614,11 +636,13 @@ window.addEventListener('keydown', event => {
   if (held.has(event.code) || event.repeat || (binding.seat === 1 && mode !== 'local')) return;
   held.add(event.code);
   const { seat, control } = binding;
-  if ((control === 'B' || control === 'C') && !acceptsSkillInput(config.fighters[seat], control)) {
-    notify(seatName(seat) + ' 的专属槽 ' + control + ' 待接入');
+  if ((control === 'B' || control === 'C' || control === 'ULT') &&
+      !acceptsSkillInput(config.fighters[seat], control)) {
+    const skill = control === 'ULT' ? '大招' : '专属槽 ' + control;
+    notify(seatName(seat) + ' 的' + skill + '待接入');
     return;
   }
-  if (control === 'A' || control === 'B' || control === 'C' || control === 'jump' || control === 'dash') {
+  if (control === 'A' || control === 'B' || control === 'C' || control === 'ULT' || control === 'jump' || control === 'dash') {
     pending[seat].set(control, stickFor(seat));
   }
 });
@@ -691,6 +715,15 @@ function renderHUD() {
     text(scores[seat], String(state.wins[seat]));
     setMeter(healthBars[seat], fighter.hp, config.fighters[seat].maxHp);
     setMeter(guardBars[seat], fighter.guard, rules.guardMax);
+    const cost = ultimateCost(config.fighters[seat]);
+    energyRows[seat].hidden = !cost;
+    if (cost) {
+      const energy = fighter.energy ?? 0;
+      const ready = energy >= cost;
+      setMeter(energyBars[seat], energy, MAX_ENERGY);
+      if (energyRows[seat].dataset.ready !== String(ready)) energyRows[seat].dataset.ready = String(ready);
+      text(energyLabels[seat], '大招 ' + energy + ' · 消耗 ' + cost + (ready ? ' · 就绪' : ''));
+    }
     const recent = lastChains[seat];
     const hits = state.fighters[seat === 0 ? 1 : 0].combo ||
       (recent && state.frame < recent.until ? recent.hits : 0);
@@ -735,6 +768,9 @@ function tick(player: InputFrame) {
   const events = step(state, [player, opponentInput()], config);
   if (state.phase === 'ready' && previous !== 'ready') lastChains = [null, null];
   for (const event of events) {
+    if (event.kind === 'ultimate-no-energy') {
+      notify(seatName(event.source) + ' 大招能量不足');
+    }
     if (event.kind === 'hit' && event.chain !== undefined) {
       lastChains[event.source] = event.chain > 1 ? { hits: event.chain, until: state.frame + 33 } : null;
     }

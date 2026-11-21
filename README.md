@@ -38,6 +38,7 @@
 | 普攻 / 空中攻击 | J | 逗号或小键盘 1 |
 | 地面挑空 | W + J | ↑ + 逗号 |
 | 预留专属槽 | U / I | 句号 / 斜杠 |
+| 大招（角色已接入时） | O | 单引号或小键盘 6 |
 
 第一拳打中后再按攻击，可接第二段和第三段。第三段击倒对手，对手落地后从倒地过渡到起身，起身结束恢复操作。前两段也能接挑空。以 P1 为例，按 J 命中、W + J 挑空、K 起跳、J 空中追击。打空或被防住时要等收招。每次离地可在二段跳和空中冲刺之间选一次，落地恢复。
 
@@ -45,7 +46,9 @@
 
 ## 接入正式技能
 
-四个角色文件各自拥有 `stats`、`art`、`signatureMoves` 和可选的公共招式命中衔接配置。队友可以分别填入 B/C 动作、追加动画画格、替换素材，构建会检查并打入离线版本。自由训练链接支持 `p1` 和 `p2` 指定两个角色。[角色文件](src/content/fighters) · [接口与示例](docs/character-handoff.md) · [奶蛙对香蕉猫训练](http://127.0.0.1:4182/?practice=harbor&p1=frog&p2=banana)
+四个角色文件各自拥有 `stats`、`art`、`signatureMoves` 和可选的公共招式命中衔接配置。队友可以分别填入 B/C 动作和独立的 `ultimate`，追加动画画格、替换素材，构建会检查并打入离线版本。自由训练链接支持 `p1` 和 `p2` 指定两个角色。[角色文件](src/content/fighters) · [接口与示例](docs/character-handoff.md) · [奶蛙对香蕉猫训练](http://127.0.0.1:4182/?practice=harbor&p1=frog&p2=banana)
+
+大招能量默认通过命中和承伤积累。训练中可点「充满大招」，用 H 面板与半速核对出招时机。独立样例可直接用桌面浏览器打开，从源码构建也会生成 `dist/ultimate-demo.html`。[大招接口](docs/character-handoff.md#大招接口) · [下载试招样例](https://github.com/haoabcde/meme-rumble/releases/download/ultimate-handoff-v1/ultimate-demo.html) · [本机试玩](http://127.0.0.1:4182/ultimate-demo.html)
 
 技能的射程、影响高度与位移按世界坐标设计。场地左右边界用 `arena.left` 和 `arena.right`，地面高度用 `arena.floor`。1280×720 是镜头画布尺寸，镜头平移和缩放独立于战斗判定。
 

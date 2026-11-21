@@ -1,6 +1,6 @@
 # 角色制作交接
 
-两位角色制作者可以并行工作。先认领角色，各自在对应的 TypeScript 文件里填写属性、素材路径和动作。四个角色已经接入选角、对局和自由训练，目前都能使用公共动作，B、C 两个专属槽留空。具体人选、角色设定和技能数值由你们决定。
+两位角色制作者可以并行工作。先认领角色，各自在对应的 TypeScript 文件里填写属性、素材路径和动作。四个角色已经接入选角、对局和自由训练，目前都能使用公共动作，B、C 和独立大招槽留给你们填写。具体人选、角色设定和技能数值由你们决定。
 
 ## 找到自己的入口
 
@@ -104,6 +104,38 @@ guardCounter: { windowFrames: 4, actionId: 'common-jab' },
 换成专属反击时，在 `signatureMoves` 注册自己的地面或通用攻击，把它的 ID 填进 `guardCounter.actionId` 或架势的 `counterTo`。希望只能防反触发时，给反击动作加 `linkOnly: true`，并让其他动作的 `cancelOnHit` 避开它的 ID 和槽位。
 
 **一个人试招**。重新构建并刷新自由训练，靠近对手，把陪练切到「重复直拳」，打开 **H** 面板和 **0.5×** 速度。观察陪练起手，按防御或架势键。面板依次显示「防反窗口」「防反成立」和反击动作名。再提前长按防御一次，或提早摆架势一次，分别核对普通格挡的耐力消耗和架势落空后的收招。
+
+## 大招接口
+
+在角色文件的 `defineFighter({ ... })` 顶层加入 `ultimate`。它有独立按键，P1 默认按 **O**，P2 默认按**单引号**或小键盘 **6**。每个角色可选配一个大招。下面的「联调大招」复用直拳的数据和现有图集，供接入时试招。
+
+```ts
+import { basicAttack, defineFighter } from '../fighter-kit.js';
+
+const { slot: _slot, ...probeMove } = basicAttack;
+```
+
+将下面这段放入同一文件的 `defineFighter({ ... })`。
+
+```ts
+ultimate: {
+  cost: 60,
+  move: {
+    ...probeMove,
+    id: 'ultimate-probe',
+    name: '联调大招',
+    startup: 12,
+    cancelOnHit: [],
+    animation: [{ frame: 0, cell: 4 }, { frame: 12, cell: 7 }]
+  }
+},
+```
+
+- **能量**每回合从 0 开始，最多 100。默认普通招式实际造成伤害时，出招方加 20，承受伤害的一方加 10。大招命中仅给承伤方加能量。打空、格挡和被防反拦下的攻击不计。角色可用 `gain: { onHit: 20, onHurt: 10 }` 覆盖任一项。
+- **释放**要求能量达到 `cost`，且当前姿态、方向和动作状态允许出招。填 `cost: 0` 可无消耗释放，此时不显示能量条。`cost` 和两项 `gain` 均使用 0–100 的整数。动作被接受并开始时立即扣除能量，中断、打空或被防住都不返还。
+- **动作**沿用普通动作的帧数、攻击框和图集动画，`posture`、`direction` 可限制起招姿态和方向。配置 `extraCancels: { 'common-jab': ['ULT'] }` 可在直拳命中后按大招键衔接，也可写大招的动作 ID。`linkOnly: true` 可限制为命中衔接。防反动作的 `counterTo` 和 `guardCounter.actionId` 使用普通攻击 ID。
+
+下载独立样例后，用桌面浏览器直接打开 HTML。先按 **O** 试能量不足，再靠近陪练，用 **J** 命中三次积到 60，或点「充满大招能量」立即试招。用 **H** 面板查看起手、有效和收招，用 **0.5×** 或暂停后的「前进一帧」检查第 12 帧切换的画格与判定。用 **R** 复位验证能量归零。改自己的角色后，用自由训练的角色链接重复这套检查。[下载大招联调样例](https://github.com/haoabcde/meme-rumble/releases/download/ultimate-handoff-v1/ultimate-demo.html) · [本机直接试玩](http://127.0.0.1:4182/ultimate-demo.html)
 
 ## 交付美术
 

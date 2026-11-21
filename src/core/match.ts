@@ -3,9 +3,10 @@ import type {
   InputFrame, MatchConfig, MatchState, RoundResult, Side
 } from './types.js';
 import { platformAt, platformOffset } from './terrain.js';
+import { MAX_ENERGY } from './types.js';
 
 const seats = [0, 1] as const;
-const slotPriority = ['C', 'B', 'A'] as const;
+const slotPriority = ['ULT', 'C', 'B', 'A'] as const;
 const downFrames = 18;
 const riseFrames = 12;
 const other = (seat: 0 | 1) => seat === 0 ? 1 : 0;
@@ -16,6 +17,7 @@ function spawn(config: MatchConfig, seat: 0 | 1, round: number): FighterState {
   return {
     x: config.arena.spawn[side], y: config.arena.floor, vy: 0, facing: side === 0 ? 1 : -1,
     ground: 'floor', ignorePlatform: null, hp: config.fighters[seat].maxHp,
+    energy: config.fighters[seat].ultimateCost ? 0 : undefined,
     guard: config.rules.guardMax, guardWait: 0, guardBreak: 0, hitstun: 0, blockstun: 0,
     push: 0, dash: 0, airActionUsed: false, guarding: false, attack: null, buffer: [], combo: 0, controlled: 0,
     recovery: null, moving: false
@@ -94,11 +96,11 @@ function advanceRecovery(fighter: FighterState, seat: 0 | 1, events: CombatEvent
   return false;
 }
 
-function startAction(fighter: FighterState, id: string, seat: 0 | 1, events: CombatEvent[]) {
+function startAction(fighter: FighterState, id: string, seat: 0 | 1, events: CombatEvent[], ultimate = false) {
   fighter.attack = { id, frame: 0, connected: false, landed: false };
   fighter.guarding = false;
   fighter.dash = 0;
-  events.push({ kind: 'swing', source: seat, x: fighter.x, y: fighter.y });
+  events.push({ kind: ultimate ? 'ultimate' : 'swing', source: seat, x: fighter.x, y: fighter.y });
 }
 
 function updateGuardWindow(fighter: FighterState, input: InputFrame, windowFrames: number) {
@@ -180,8 +182,17 @@ function updateControl(
       // A single accepted command consumes competing actions from the same sampled frame.
       const command = f.buffer.find(item => item.key === slot &&
         (!action.direction || item.directions.includes(action.direction)))!;
+      if (slot === 'ULT') {
+        const cost = definition.ultimateCost ?? 0;
+        if ((f.energy ?? 0) < cost) {
+          events.push({ kind: 'ultimate-no-energy', source: seat, x: f.x, y: f.y });
+          f.buffer = f.buffer.filter(item => item !== command);
+          continue;
+        }
+        if (cost) f.energy = (f.energy ?? 0) - cost;
+      }
       f.buffer = f.buffer.filter(item => item.sampledAt !== command.sampledAt);
-      startAction(f, action.id, seat, events);
+      startAction(f, action.id, seat, events, slot === 'ULT');
       return;
     }
   }
@@ -394,6 +405,15 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
     }
     const amount = Math.min(defender.hp, Math.floor(action.damage * Math.max(35, 100 - 8 * defender.combo) / 100));
     defender.hp -= amount;
+    if (amount > 0) {
+      const attacker = state.fighters[source];
+      if (attacker.energy !== undefined && action.slot !== 'ULT') {
+        attacker.energy = Math.min(MAX_ENERGY, attacker.energy + (config.fighters[source].ultimateGain?.onHit ?? 20));
+      }
+      if (defender.energy !== undefined) {
+        defender.energy = Math.min(MAX_ENERGY, defender.energy + (config.fighters[target].ultimateGain?.onHurt ?? 10));
+      }
+    }
     if (config.training && defender.hp === 0) defender.hp = config.fighters[target].maxHp;
     const chain = ++defender.combo;
     defender.hitstun = action.hitstun;
