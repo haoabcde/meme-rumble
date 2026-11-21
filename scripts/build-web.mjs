@@ -19,9 +19,9 @@ async function bundleEntry(entry) {
   });
   return result.outputFiles[0].text;
 }
-const [template, css, game, counterDemo, ultimateDemo] = await Promise.all([
+const [template, css, game, counterDemo, ultimateDemo, combatDemo] = await Promise.all([
   readFile(new URL('index.html', root), 'utf8'), readFile(new URL('styles.css', root), 'utf8'),
-  bundleEntry('game.ts'), bundleEntry('counter-demo.ts'), bundleEntry('ultimate-demo.ts')
+  bundleEntry('game.ts'), bundleEntry('counter-demo.ts'), bundleEntry('ultimate-demo.ts'), bundleEntry('combat-demo.ts')
 ]);
 
 function standalone(script) {
@@ -38,5 +38,6 @@ async function publish(file, content) {
 await Promise.all([
   publish('game.bundle.js', game), publish('index.html', standalone(game)),
   publish('guard-counter-demo.html', standalone(counterDemo)),
-  publish('ultimate-demo.html', standalone(ultimateDemo))
+  publish('ultimate-demo.html', standalone(ultimateDemo)),
+  publish('combat-demo.html', standalone(combatDemo))
 ]);

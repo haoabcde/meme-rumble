@@ -1,5 +1,6 @@
-import { MAX_ENERGY, type ActionDefinition, type Box, type CounterStance, type FighterAction,
-  type FighterDefinition, type UltimateGain } from '../core/types.js';
+import { MAX_ENERGY, type ActionDefinition, type Box, type BoxWindow, type CounterStance, type FighterAction,
+  type FighterDefinition, type HitFeedback, type UltimateGain } from '../core/types.js';
+import { validateEntities } from '../core/entities.js';
 
 export const motionGrid = {
   columns: 4, defaultRows: 3, cell: 216, footX: 108, footY: 184, referenceHeight: 144
@@ -83,6 +84,29 @@ function validEnergy(value: number) {
   return Number.isInteger(value) && value >= 0 && value <= MAX_ENERGY;
 }
 
+function validBoxWindows(windows: BoxWindow[] | undefined, firstFrame: number, endFrame: number) {
+  return windows === undefined || (Array.isArray(windows) && windows.every(window =>
+    window && Number.isInteger(window.from) && Number.isInteger(window.to) &&
+    window.from >= firstFrame && window.from < window.to && window.to <= endFrame &&
+    Array.isArray(window.boxes) && window.boxes.every(box => box && validBox(box))));
+}
+
+function validImpact(impact: Partial<Pick<ActionDefinition,
+  'hitstun' | 'blockstun' | 'stop' | 'damage' | 'guardCost' | 'push' | 'lift' | 'knockdown'>>) {
+  const optional = (value: number | undefined, check: (number: number) => boolean) =>
+    value === undefined || check(value);
+  return [impact.hitstun, impact.blockstun, impact.stop].every(n => optional(n, n => Number.isInteger(n) && n >= 0)) &&
+    [impact.damage, impact.guardCost].every(n => optional(n, n => Number.isFinite(n) && n >= 0)) &&
+    [impact.push, impact.lift].every(n => optional(n, Number.isFinite)) &&
+    (impact.knockdown === undefined || typeof impact.knockdown === 'boolean');
+}
+
+function validFeedback(feedback: HitFeedback) {
+  return feedback && (feedback.color === undefined || (typeof feedback.color === 'string' && feedback.color.trim())) &&
+    [feedback.shake, feedback.flash].every(n => n === undefined || (Number.isFinite(n) && n >= 0)) &&
+    (feedback.sound === undefined || ['light', 'heavy', 'sharp'].includes(feedback.sound));
+}
+
 function validateCounterTarget(owner: string, targetId: string, actions: FighterAction[]) {
   const target = actions.find(action => action.id === targetId);
   if (!target || 'counterTo' in target || target.posture === 'air' || target.slot === 'ULT') {
@@ -100,6 +124,16 @@ function validateMoves(owner: string, actions: FighterAction[]) {
         action.startup < 0 || action.active < 1 || action.recovery < 0) {
       throw Error(where + ' 的动作帧数无效');
     }
+    const duration = action.startup + action.active + action.recovery;
+    if (!validBoxWindows(action.hurtTimeline, 0, duration)) {
+      throw Error(where + ' 的逐帧受击框无效');
+    }
+    const required = action.comboKeys;
+    if (required !== undefined && (!Array.isArray(required) || !required.length ||
+        new Set(required).size !== required.length ||
+        required.some(slot => slot === action.slot || !['A', 'B', 'C', 'ULT'].includes(slot)))) {
+      throw Error(where + ' 的组合键须为互不重复、且不同于动作槽的按键');
+    }
     if ('counterTo' in action) {
       if (action.posture !== 'ground' || !['B', 'C'].includes(action.slot)) {
         throw Error(where + ' 的防反架势须使用地面 B/C 槽');
@@ -112,9 +146,15 @@ function validateMoves(owner: string, actions: FighterAction[]) {
         ![action.push, action.lift, action.advance, action.airControl ?? 0].every(Number.isFinite)) {
         throw Error(where + ' 的命中、位移或硬直参数无效');
       }
+      if (!validBoxWindows(action.hitTimeline, action.startup, action.startup + action.active) ||
+        action.hitTimeline?.some(window => typeof window.group !== 'string' || !window.group.trim() || !validImpact(window))) {
+        throw Error(where + ' 的逐帧攻击框、命中组或命中参数无效');
+      }
+      if (action.feedback !== undefined && !validFeedback(action.feedback)) {
+        throw Error(where + ' 的命中反馈参数无效');
+      }
     }
     let previous = -1;
-    const duration = action.startup + action.active + action.recovery;
     for (const key of action.animation ?? []) {
       if (!Number.isInteger(key.frame) || key.frame <= previous || key.frame >= duration ||
           !Number.isInteger(key.cell) || key.cell < 0) throw Error(where + ' 的动画帧序列无效');
@@ -150,6 +190,16 @@ export function defineFighter(spec: FighterPackage): RosterEntry {
     actions.push({ ...ultimate.move, slot: 'ULT' });
   }
   validateMoves(id, actions);
+  validateEntities(id, actions);
+  for (const action of actions) {
+    if ('counterTo' in action) continue;
+    for (const entity of action.entities ?? []) {
+      if ((entity.feedback !== undefined && !validFeedback(entity.feedback)) ||
+          (entity.color !== undefined && !/^#[0-9a-f]{3,8}$/i.test(entity.color))) {
+        throw Error(id + ' / ' + action.id + ' / ' + entity.id + ' 的实体反馈或颜色无效');
+      }
+    }
+  }
   if (guardCounter) {
     if (!Number.isSafeInteger(guardCounter.windowFrames) || guardCounter.windowFrames < 1) {
       throw Error(id + ' 的防反窗口须为正整数帧');

@@ -1,9 +1,10 @@
 import type {
-  ActionDefinition, ArenaDefinition, Box, CombatEvent, Direction, Duo, FighterAction, FighterState,
-  InputFrame, MatchConfig, MatchState, RoundResult, Side
+  ActionDefinition, ArenaDefinition, Box, CombatEvent, Direction, Duo, FighterAction, FighterDefinition, FighterState,
+  HitWindow, InputFrame, MatchConfig, MatchState, RoundResult, Side
 } from './types.js';
 import { platformAt, platformOffset } from './terrain.js';
 import { MAX_ENERGY } from './types.js';
+import { entityContacts, removeContactEntity, updateEntities } from './entities.js';
 
 const seats = [0, 1] as const;
 const slotPriority = ['ULT', 'C', 'B', 'A'] as const;
@@ -42,6 +43,23 @@ export function isActiveFrame(action: FighterAction, frame: number) {
   return frame >= action.startup && frame < action.startup + action.active;
 }
 
+function hitWindowsFor(action: ActionDefinition, frame: number): HitWindow[] {
+  return action.hitTimeline?.filter(window => frame >= window.from && frame < window.to) ??
+    [{ from: action.startup, to: action.startup + action.active, group: '', boxes: [action.hitbox] }];
+}
+
+export function hitRegionsFor(action: FighterAction | undefined, frame: number): Box[] {
+  if (!action || 'counterTo' in action || !isActiveFrame(action, frame)) return [];
+  return hitWindowsFor(action, frame).flatMap(window => window.boxes);
+}
+
+export function hurtRegionsFor(definition: FighterDefinition, action: FighterAction | undefined, frame: number): Box[] {
+  if (!action?.hurtTimeline || frame < 0 || frame >= action.startup + action.active + action.recovery) {
+    return [definition.hurtbox];
+  }
+  return action.hurtTimeline.flatMap(window => frame >= window.from && frame < window.to ? window.boxes : []);
+}
+
 export function worldBox(box: Box, x: number, y: number, facing: Side): Box {
   return {
     x: x + (facing === 1 ? box.x : -box.x - box.w),
@@ -58,13 +76,15 @@ function queueInputs(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   for (const seat of seats) {
     const fighter = state.fighters[seat];
     const input = inputs[seat];
+    if (!input.pressed.length) continue;
+    const keys = [...new Set([...(input.held ?? []), ...input.pressed])];
     for (const key of input.pressed) {
       const { x, y } = input.sampled?.[key] ?? input;
       const directions: Direction[] = [];
       if (y) directions.push(y === -1 ? 'up' : 'down');
       if (x) directions.push(x === fighter.facing ? 'forward' : 'back');
       fighter.buffer.push({
-        key, x, directions, down: y === 1, sampledAt: state.frame, remaining: config.rules.inputBuffer
+        key, keys, x, directions, down: y === 1, sampledAt: state.frame, remaining: config.rules.inputBuffer
       });
     }
   }
@@ -172,29 +192,27 @@ function updateControl(
     (action.posture === 'any' || (action.posture === 'ground') === Boolean(f.ground)) &&
     (f.attack ? cancels?.includes(action.id) || cancels?.includes(action.slot) : !action.linkOnly)
   );
-  for (const useDirection of [true, false]) {
-    for (const slot of slotPriority) {
-      const action = candidates.find(candidate => candidate.slot === slot &&
-        Boolean(candidate.direction) === useDirection &&
-        f.buffer.some(command => command.key === slot &&
-          (!candidate.direction || command.directions.includes(candidate.direction))));
-      if (!action) continue;
-      // A single accepted command consumes competing actions from the same sampled frame.
-      const command = f.buffer.find(item => item.key === slot &&
-        (!action.direction || item.directions.includes(action.direction)))!;
-      if (slot === 'ULT') {
-        const cost = definition.ultimateCost ?? 0;
-        if ((f.energy ?? 0) < cost) {
-          events.push({ kind: 'ultimate-no-energy', source: seat, x: f.x, y: f.y });
-          f.buffer = f.buffer.filter(item => item !== command);
-          continue;
-        }
-        if (cost) f.energy = (f.energy ?? 0) - cost;
+  candidates.sort((a, b) => (b.comboKeys?.length ?? 0) - (a.comboKeys?.length ?? 0) ||
+    Number(Boolean(b.direction)) - Number(Boolean(a.direction)) ||
+    slotPriority.indexOf(a.slot) - slotPriority.indexOf(b.slot));
+  for (const action of candidates) {
+    const command = f.buffer.find(item => item.key === action.slot &&
+      (!action.direction || item.directions.includes(action.direction)) &&
+      action.comboKeys?.every(key => item.keys?.includes(key)) !== false);
+    if (!command) continue;
+    if (action.slot === 'ULT') {
+      const cost = definition.ultimateCost ?? 0;
+      if ((f.energy ?? 0) < cost) {
+        events.push({ kind: 'ultimate-no-energy', source: seat, x: f.x, y: f.y });
+        f.buffer = f.buffer.filter(item => item !== command);
+        continue;
       }
-      f.buffer = f.buffer.filter(item => item.sampledAt !== command.sampledAt);
-      startAction(f, action.id, seat, events, slot === 'ULT');
-      return;
+      if (cost) f.energy = (f.energy ?? 0) - cost;
     }
+    // A single accepted command consumes competing actions from the same sampled frame.
+    f.buffer = f.buffer.filter(item => item.sampledAt !== command.sampledAt);
+    startAction(f, action.id, seat, events, action.slot === 'ULT');
+    return;
   }
   const jump = f.buffer.find(command => command.key === 'jump');
   if (f.ground && jump && (!f.attack || (!jump.down && cancels?.includes('jump')))) {
@@ -330,9 +348,11 @@ function separate(state: MatchState, config: MatchConfig, previous: Duo<number>)
 }
 
 interface Contact {
+  entityId?: number;
   source: 0 | 1;
   target: 0 | 1;
   action: ActionDefinition;
+  group: string;
   blocked: boolean;
   counterAction?: string;
   facing: Side;
@@ -357,26 +377,51 @@ function collectContacts(state: MatchState, config: MatchConfig): Contact[] {
     const defender = state.fighters[target];
     const action = actionFor(config, state, source);
     const attack = f.attack;
-    if (!action || 'counterTo' in action || !attack || attack.connected ||
+    if (!action || 'counterTo' in action || !attack || (attack.connected && !attack.connectedGroups) ||
         !isActiveFrame(action, attack.frame) || defender.recovery) return [];
-    const hitbox = worldBox(action.hitbox, f.x, f.y, f.facing);
-    const hurtbox = worldBox(config.fighters[target].hurtbox, defender.x, defender.y, defender.facing);
-    if (!overlap(hitbox, hurtbox)) return [];
+    const hurtboxes = hurtRegionsFor(config.fighters[target], actionFor(config, state, target), defender.attack?.frame ?? 0)
+      .map(box => worldBox(box, defender.x, defender.y, defender.facing));
     const frontal = (f.x - defender.x) * defender.facing > 0;
     const counterAction = frontal ? counterForContact(state, config, target) : undefined;
-    return [{
-      source, target, action, facing: f.facing, counterAction, blocked: frontal && defender.guarding,
-      x: (Math.max(hitbox.x, hurtbox.x) + Math.min(hitbox.x + hitbox.w, hurtbox.x + hurtbox.w)) / 2,
-      y: (Math.max(hitbox.y, hurtbox.y) + Math.min(hitbox.y + hitbox.h, hurtbox.y + hurtbox.h)) / 2
-    }];
+    for (const window of hitWindowsFor(action, attack.frame)) {
+      if (attack.connectedGroups?.includes(window.group)) continue;
+      for (const box of window.boxes) {
+        const hitbox = worldBox(box, f.x, f.y, f.facing);
+        const hurtbox = hurtboxes.find(hurt => overlap(hitbox, hurt));
+        if (!hurtbox) continue;
+        return [{
+          source, target, group: window.group,
+          action: {
+            ...action,
+            damage: window.damage ?? action.damage,
+            hitstun: window.hitstun ?? action.hitstun,
+            blockstun: window.blockstun ?? action.blockstun,
+            guardCost: window.guardCost ?? action.guardCost,
+            push: window.push ?? action.push,
+            lift: window.lift ?? action.lift,
+            stop: window.stop ?? action.stop,
+            knockdown: window.knockdown ?? action.knockdown
+          },
+          facing: f.facing, counterAction, blocked: frontal && defender.guarding,
+          x: (Math.max(hitbox.x, hurtbox.x) + Math.min(hitbox.x + hitbox.w, hurtbox.x + hurtbox.w)) / 2,
+          y: (Math.max(hitbox.y, hurtbox.y) + Math.min(hitbox.y + hitbox.h, hurtbox.y + hurtbox.h)) / 2
+        }];
+      }
+    }
+    return [];
   });
 }
 
 function settle(state: MatchState, config: MatchConfig, contacts: Contact[], events: CombatEvent[]) {
   for (const contact of contacts) {
+    if (contact.entityId !== undefined) {
+      removeContactEntity(state, contact.entityId);
+      continue;
+    }
     const attack = state.fighters[contact.source].attack!;
     attack.connected = true;
-    attack.landed = !contact.blocked && !contact.counterAction;
+    if (contact.action.hitTimeline) (attack.connectedGroups ??= []).push(contact.group);
+    attack.landed ||= !contact.blocked && !contact.counterAction;
   }
   let maxStop = 0;
   for (const { source, target, action, blocked, counterAction, facing, x, y } of contacts) {
@@ -395,8 +440,8 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
       defender.guardWait = config.rules.guardDelay;
       defender.push = Math.sign(facing) * Math.ceil(action.push / 2);
       defender.blockstun = action.blockstun;
-      events.push({ kind: 'block', source, x, y, direction: facing });
-      if (defender.guard === 0) {
+      events.push({ kind: 'block', source, x, y, direction: facing, ...(action.feedback && { feedback: action.feedback }) });
+      if (defender.guard === 0 && defender.guardBreak === 0) {
         defender.guardBreak = config.rules.guardBreak;
         defender.guarding = false;
         events.push({ kind: 'break', source, x, y, direction: facing });
@@ -427,8 +472,11 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
     if (action.knockdown) startKnockdown(defender);
     events.push({
       kind: 'hit', source, x, y, amount, chain, direction: facing,
-      heavy: action.pose === 'rise' || action.pose === 'finish'
+      heavy: action.pose === 'rise' || action.pose === 'finish', ...(action.feedback && { feedback: action.feedback })
     });
+  }
+  for (const fighter of state.fighters) {
+    if (fighter.hitstun > 0 || fighter.recovery) delete fighter.pendingCounter;
   }
   state.freeze = Math.min(maxStop, 60 - state.comboFreeze);
   state.comboFreeze += state.freeze;
@@ -439,6 +487,8 @@ function rampToNextRound(state: MatchState, config: MatchConfig) {
   state.arenaFrame = 0;
   state.remaining = config.rules.roundSeconds * config.rules.ticksPerSecond;
   state.fighters = [spawn(config, 0, state.round), spawn(config, 1, state.round)];
+  delete state.entities;
+  delete state.nextEntityId;
   state.freeze = 0;
   state.comboFreeze = 0;
   state.result = null;
@@ -504,7 +554,17 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   for (const seat of seats) motion(state, config, seat, inputs[seat], events);
   separate(state, config, previous);
   for (const fighter of state.fighters) releaseUnsupportedGround(fighter, config.arena, state.arenaFrame);
+  updateEntities(state, config);
   const contacts = collectContacts(state, config);
+  for (const contact of entityContacts(state, config)) {
+    const defender = state.fighters[contact.target];
+    const frontal = (contact.entity.x - defender.x) * defender.facing > 0;
+    contacts.push({
+      ...contact, entityId: contact.entity.id, group: String(contact.entity.id),
+      blocked: frontal && defender.guarding,
+      counterAction: frontal ? counterForContact(state, config, contact.target) : undefined
+    });
+  }
   settle(state, config, contacts, events);
   for (const seat of seats) {
     const fighter = state.fighters[seat];

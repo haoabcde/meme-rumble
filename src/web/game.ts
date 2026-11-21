@@ -638,6 +638,7 @@ window.addEventListener('keydown', event => {
   const { seat, control } = binding;
   if ((control === 'B' || control === 'C' || control === 'ULT') &&
       !acceptsSkillInput(config.fighters[seat], control)) {
+    if (config.fighters[seat].actions.some(action => action.comboKeys?.includes(control))) return;
     const skill = control === 'ULT' ? '大招' : '专属槽 ' + control;
     notify(seatName(seat) + ' 的' + skill + '待接入');
     return;
@@ -657,7 +658,14 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) pause
 
 function readInput(seat: Seat): InputFrame {
   const commands = pending[seat];
-  const input = { ...stickFor(seat), pressed: [...commands.keys()], sampled: Object.fromEntries(commands) };
+  const heldActions: ActionKey[] = [];
+  for (const code of held) {
+    const binding = bindings.get(code);
+    if (binding?.seat === seat && ['A', 'B', 'C', 'ULT', 'jump', 'dash'].includes(binding.control)) {
+      heldActions.push(binding.control as ActionKey);
+    }
+  }
+  const input = { ...stickFor(seat), held: heldActions, pressed: [...commands.keys()], sampled: Object.fromEntries(commands) };
   commands.clear();
   return input;
 }
@@ -786,6 +794,9 @@ function tick(player: InputFrame) {
       const controls: Control[] = [];
       if (y) controls.push(y < 0 ? 'up' : 'down');
       if (x) controls.push(x < 0 ? 'left' : 'right');
+      for (const heldKey of player.held ?? []) {
+        if (heldKey !== key) controls.push(heldKey);
+      }
       controls.push(key);
       trainingInputs.push(keyHint(preferences, 0, controls, '+'));
     }

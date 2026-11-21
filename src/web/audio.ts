@@ -1,6 +1,15 @@
-import type { CombatEvent, EventKind } from '../core/types.js';
+import type { CombatEvent, EventKind, HitFeedback } from '../core/types.js';
 
-const tones: Partial<Record<EventKind, [number, number, number, OscillatorType, number]>> = {
+type Tone = [number, number, number, OscillatorType, number];
+type HitSound = NonNullable<HitFeedback['sound']>;
+
+const hitTones: Record<HitSound, Tone> = {
+  light: [184, 66, .09, 'triangle', .16],
+  heavy: [112, 33, .17, 'triangle', .26],
+  sharp: [440, 138, .075, 'sawtooth', .11]
+};
+
+const tones: Partial<Record<EventKind, Tone>> = {
   swing: [316, 168, .06, 'triangle', .042],
   ultimate: [260, 540, .17, 'triangle', .12],
   hit: [148, 40, .13, 'triangle', .23],
@@ -32,18 +41,22 @@ export class FightAudio {
   play(events: CombatEvent[]) {
     const ctx = this.context;
     if (!this.enabled || this.volume <= 0 || !ctx || ctx.state !== 'running') return;
-    const sounds = new Map<EventKind, CombatEvent>();
+    const sounds = new Map<string, CombatEvent>();
     for (const event of events) {
-      if (event.heavy || !sounds.has(event.kind)) sounds.set(event.kind, event);
+      const preset = event.kind === 'hit' ? event.feedback?.sound : undefined;
+      const key = preset ? 'hit-' + preset : event.kind;
+      if (event.heavy || !sounds.has(key)) sounds.set(key, event);
     }
-    for (const [kind, event] of sounds) {
-      const tone = tones[kind];
+    for (const event of sounds.values()) {
+      const { kind } = event;
+      const sound = kind === 'hit' ? event.feedback?.sound : undefined;
+      const tone = sound ? hitTones[sound] : tones[kind];
       if (!tone) continue;
       const [head, tail, duration, wave, volume] = tone;
       const now = ctx.currentTime;
       const oscillator = ctx.createOscillator();
       const gain = ctx.createGain();
-      const weight = event.heavy ? .78 : 1;
+      const weight = event.heavy && !sound ? .78 : 1;
       oscillator.type = wave;
       oscillator.frequency.setValueAtTime(head * weight, now);
       oscillator.frequency.exponentialRampToValueAtTime(tail, now + duration);
@@ -53,11 +66,14 @@ export class FightAudio {
       oscillator.connect(gain).connect(ctx.destination);
       oscillator.start(now);
       oscillator.stop(now + duration);
-      if (kind === 'hit' || kind === 'block' || kind === 'break') this.impact(ctx, now, kind === 'block', Boolean(event.heavy));
+      if (kind === 'hit' || kind === 'block' || kind === 'break') {
+        const heavy = sound ? sound === 'heavy' : Boolean(event.heavy);
+        this.impact(ctx, now, kind === 'block', heavy, sound === 'sharp');
+      }
     }
   }
 
-  private impact(ctx: AudioContext, now: number, blocked: boolean, heavy: boolean) {
+  private impact(ctx: AudioContext, now: number, blocked: boolean, heavy: boolean, sharp: boolean) {
     if (!this.noise) {
       this.noise = ctx.createBuffer(1, Math.round(ctx.sampleRate * .095), ctx.sampleRate);
       const samples = this.noise.getChannelData(0);
@@ -67,7 +83,7 @@ export class FightAudio {
     source.buffer = this.noise;
     const filter = ctx.createBiquadFilter();
     filter.type = 'bandpass';
-    filter.frequency.value = blocked ? 2300 : heavy ? 490 : 940;
+    filter.frequency.value = sharp ? 3250 : blocked ? 2300 : heavy ? 490 : 940;
     filter.Q.value = .8;
     const gain = ctx.createGain();
     gain.gain.setValueAtTime((heavy ? .36 : .25) * this.volume, now);

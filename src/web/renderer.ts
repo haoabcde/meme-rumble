@@ -1,7 +1,8 @@
 import { roster } from '../content/roster.js';
 import { motionGrid } from '../content/fighter-kit.js';
-import { actionFor, isActiveFrame, worldBox } from '../core/match.js';
-import type { ActionDefinition, ArenaDefinition, CombatEvent, FighterAction, FighterState, MatchConfig, MatchState } from '../core/types.js';
+import { actionFor, hitRegionsFor, hurtRegionsFor, isActiveFrame, worldBox } from '../core/match.js';
+import type { EntityState } from '../core/entities.js';
+import type { ActionDefinition, ArenaDefinition, Box, CombatEvent, FighterAction, FighterState, MatchConfig, MatchState } from '../core/types.js';
 import { backgrounds, harborProps, harborGantry, motionArt, sprites, stageKits } from './art.js';
 import { drawHarborScenery, drawHarborLift, drawQuay } from './harbor-art.js';
 import { drawStageBackdrop, drawStageMechanism, drawStageScenery } from './stage-art.js';
@@ -61,26 +62,26 @@ function polygon(ctx: CanvasRenderingContext2D, color: string, points: Point[]) 
   ctx.fill();
 }
 
-function drawSwing(ctx: CanvasRenderingContext2D, fighter: FighterState, action: ActionDefinition, progress: number, color: string) {
-  const { hitbox } = action;
+function drawSwing(ctx: CanvasRenderingContext2D, fighter: FighterState, hitbox: Box,
+  pose: ActionDefinition['pose'], progress: number, color: string) {
   const tip = hitbox.x + hitbox.w - 6;
   const y = hitbox.y + hitbox.h * .58;
   ctx.save();
   ctx.translate(fighter.x, fighter.y);
   ctx.scale(fighter.facing, 1);
   ctx.globalAlpha = .91 - progress * .45;
-  if (action.pose === 'strike') {
+  if (pose === 'strike') {
     polygon(ctx, color, [[tip - 91, y - 4], [tip - 4, y - 12], [tip, y - 6], [tip - 37, y]]);
     polygon(ctx, '#fff7da', [[tip - 55, y + 1], [tip, y - 5], [tip - 7, y + 3]]);
   } else {
-    ctx.lineWidth = action.pose === 'finish' ? 9 : 6;
+    ctx.lineWidth = pose === 'finish' ? 9 : 6;
     ctx.lineCap = 'round';
     ctx.strokeStyle = color;
     ctx.beginPath();
-    if (action.pose === 'rise') {
+    if (pose === 'rise') {
       ctx.moveTo(tip - 64, hitbox.y + hitbox.h);
       ctx.quadraticCurveTo(tip + 24, hitbox.y + 62, tip - 32, hitbox.y + 6);
-    } else if (action.pose === 'air') {
+    } else if (pose === 'air') {
       ctx.moveTo(tip - 65, y - 20);
       ctx.quadraticCurveTo(tip - 8, y - 12, tip, y + 22);
     } else {
@@ -92,6 +93,45 @@ function drawSwing(ctx: CanvasRenderingContext2D, fighter: FighterState, action:
     ctx.strokeStyle = '#fff6d6';
     ctx.stroke();
   }
+  ctx.restore();
+}
+
+function drawEntity(ctx: CanvasRenderingContext2D, entity: EntityState, debug: boolean) {
+  const { definition, owner, x, y, facing } = entity;
+  const box = worldBox(definition.hitbox, x, y, facing);
+  const centerX = box.x + box.w / 2;
+  const centerY = box.y + box.h / 2;
+  const color = definition.color ?? seatColors[owner];
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(centerX, centerY, box.w / 2, box.h / 2, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = '#181633';
+  ctx.lineWidth = 5;
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = '#fff6d8';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.fillStyle = '#fff6d8';
+  ctx.beginPath();
+  ctx.ellipse(centerX - facing * box.w * .1, centerY, box.w * .18, box.h * .18, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (debug) {
+    ctx.fillStyle = '#ff536844';
+    ctx.strokeStyle = '#ff5a6e';
+    ctx.lineWidth = 2;
+    ctx.fillRect(box.x, box.y, box.w, box.h);
+    ctx.strokeRect(box.x, box.y, box.w, box.h);
+  }
+  const label = 'P' + (owner + 1);
+  ctx.font = '900 15px system-ui';
+  ctx.textAlign = 'center';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#181633';
+  ctx.strokeText(label, centerX, box.y - 5);
+  ctx.fillStyle = seatColors[owner];
+  ctx.fillText(label, centerX, box.y - 5);
   ctx.restore();
 }
 
@@ -266,7 +306,10 @@ export class Renderer {
         const brief = event.kind !== 'hit' && event.kind !== 'break';
         this.effects.push({ event, life: brief ? 12 : event.heavy ? 15 : 11, age: 0 });
       }
-      if (event.kind === 'hit' || event.kind === 'break') this.shake = Math.max(this.shake, event.heavy ? 7 : 4);
+      if (event.kind === 'hit' || event.kind === 'break') {
+        const shake = event.kind === 'hit' ? event.feedback?.shake : undefined;
+        this.shake = Math.max(this.shake, shake ?? (event.heavy ? 7 : 4));
+      }
     }
   }
 
@@ -320,6 +363,7 @@ export class Renderer {
       const phase = f.attack?.frame ?? 0;
       const active = action && isActiveFrame(action, phase) ? action : undefined;
       const strike = active && !('counterTo' in active) ? active : undefined;
+      const hitboxes = strike ? hitRegionsFor(strike, phase) : [];
       const stance = active && 'counterTo' in active && f.ground;
       const pose = poseFor(f, action, state.frame);
       const ground = decks.reduce((y, platform) =>
@@ -354,9 +398,10 @@ export class Renderer {
       if (f.recovery?.phase === 'rise') ctx.globalAlpha = .83;
       ctx.shadowColor = color + 'ae';
       ctx.shadowBlur = 9;
-      if (f.hitstun && state.freeze > 0) ctx.filter = 'brightness(1.36)';
+      const flash = this.hitFlash(seat, f.hitstun > 0 && state.freeze > 0);
+      if (flash > 0) ctx.filter = `brightness(${1 + flash * .36})`;
       if (sheet?.naturalWidth && pose !== undefined) {
-        drawPose(ctx, sheet, pose, height, strike && !strike.animation?.length ? 8 : 0);
+        drawPose(ctx, sheet, pose, height, strike && hitboxes.length && !strike.animation?.length ? 8 : 0);
       } else if (sprite?.naturalWidth) {
         const spriteWidth = height * sprite.naturalWidth / sprite.naturalHeight;
         const breathe = pose === undefined ? Math.sin(state.frame * .10) * 1.4 : 0;
@@ -375,28 +420,33 @@ export class Renderer {
       ctx.restore();
 
       if (strike) {
-        drawSwing(ctx, f, strike, (phase - strike.startup) / strike.active, color);
+        for (const hitbox of hitboxes) {
+          drawSwing(ctx, f, hitbox, strike.pose, (phase - strike.startup) / strike.active, color);
+        }
       }
 
       if (debug) {
-        const hurt = worldBox(def.hurtbox, f.x, f.y, f.facing);
         ctx.fillStyle = '#27d7ee24';
         ctx.strokeStyle = '#4ce2e8';
         ctx.lineWidth = 2;
-        ctx.fillRect(hurt.x, hurt.y, hurt.w, hurt.h);
-        ctx.strokeRect(hurt.x, hurt.y, hurt.w, hurt.h);
+        for (const region of hurtRegionsFor(def, action, phase)) {
+          const hurt = worldBox(region, f.x, f.y, f.facing);
+          ctx.fillRect(hurt.x, hurt.y, hurt.w, hurt.h);
+          ctx.strokeRect(hurt.x, hurt.y, hurt.w, hurt.h);
+        }
         ctx.strokeStyle = '#ffc263';
         ctx.strokeRect(f.x - def.bodyWidth / 2, f.y - 82, def.bodyWidth, 82);
-        if (strike) {
-          const hit = worldBox(strike.hitbox, f.x, f.y, f.facing);
-          ctx.fillStyle = '#ff536844';
-          ctx.strokeStyle = '#ff5a6e';
+        ctx.fillStyle = '#ff536844';
+        ctx.strokeStyle = '#ff5a6e';
+        for (const region of hitboxes) {
+          const hit = worldBox(region, f.x, f.y, f.facing);
           ctx.fillRect(hit.x, hit.y, hit.w, hit.h);
           ctx.strokeRect(hit.x, hit.y, hit.w, hit.h);
         }
       }
     }
 
+    for (const entity of state.entities ?? []) drawEntity(ctx, entity, debug);
     this.drawEffects(elapsed, Boolean(config.training));
     ctx.resetTransform();
     for (const seat of [0, 1] as const) {
@@ -445,6 +495,17 @@ export class Renderer {
     }
   }
 
+  private hitFlash(seat: 0 | 1, frozenInHitstun: boolean) {
+    for (let i = this.effects.length - 1; i >= 0; i--) {
+      const { event, age } = this.effects[i];
+      if (event.kind !== 'hit' || event.source === seat) continue;
+      const amount = event.feedback?.flash;
+      if (amount !== undefined) return Math.max(0, 1 - age / 6) * Math.max(0, Math.min(amount, 1));
+      break;
+    }
+    return frozenInHitstun ? 1 : 0;
+  }
+
   private drawEffects(elapsed: number, training: boolean) {
     const ctx = this.ctx;
     const latestHit: [Effect | undefined, Effect | undefined] = [undefined, undefined];
@@ -455,7 +516,7 @@ export class Renderer {
     }
     for (const effect of this.effects) {
       const { event, age, life } = effect;
-      const color = event.kind === 'block' ? '#84e8ff' : event.kind === 'break' ? '#ff8c88' : '#ffdfa0';
+      const color = event.kind === 'block' ? '#84e8ff' : event.kind === 'break' ? '#ff8c88' : event.feedback?.color ?? '#ffdfa0';
       ctx.save();
       ctx.globalAlpha = Math.min(1, (life - age) / 6);
       ctx.translate(event.x, event.y);

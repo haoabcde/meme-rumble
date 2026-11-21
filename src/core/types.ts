@@ -1,3 +1,5 @@
+import type { EntityDefinition, EntityState } from './entities.js';
+
 export type Side = -1 | 1;
 export type Slot = 'A' | 'B' | 'C' | 'ULT';
 export type Direction = 'up' | 'down' | 'forward' | 'back';
@@ -12,6 +14,7 @@ export interface Stick {
 
 export interface InputFrame extends Stick {
   pressed: ActionKey[];
+  held?: ActionKey[];
   sampled?: Partial<Record<ActionKey, Stick>>;
 }
 
@@ -22,10 +25,38 @@ export interface Box {
   h: number;
 }
 
+/** A half-open range of zero-based action frames. */
+export interface BoxWindow {
+  from: number;
+  to: number;
+  boxes: Box[];
+}
+
+export interface HitWindow extends BoxWindow {
+  group: string;
+  damage?: number;
+  hitstun?: number;
+  blockstun?: number;
+  guardCost?: number;
+  push?: number;
+  lift?: number;
+  stop?: number;
+  knockdown?: boolean;
+}
+
+export interface HitFeedback {
+  color?: string;
+  shake?: number;
+  flash?: number;
+  sound?: 'light' | 'heavy' | 'sharp';
+}
+
 interface ActionTiming {
   id: string;
   name?: string;
   slot: Slot;
+  /** Other action slots required when this action's slot is pressed. */
+  comboKeys?: Slot[];
   direction?: Direction;
   posture: 'ground' | 'air' | 'any';
   startup: number;
@@ -34,10 +65,16 @@ interface ActionTiming {
   linkOnly?: boolean;
   /** Hold each sprite cell from its zero-based action frame until the next key. */
   animation?: { frame: number; cell: number }[];
+  /** Gaps and empty boxes leave the fighter without a hurt region. */
+  hurtTimeline?: BoxWindow[];
 }
 
 export interface ActionDefinition extends ActionTiming {
   hitbox: Box;
+  /** The first overlapping unconsumed group connects on each active frame. */
+  hitTimeline?: HitWindow[];
+  feedback?: HitFeedback;
+  entities?: EntityDefinition[];
   damage: number;
   hitstun: number;
   blockstun: number;
@@ -140,6 +177,7 @@ export interface MatchConfig {
 
 export interface Command {
   key: ActionKey;
+  keys?: ActionKey[];
   x: Axis;
   directions: Direction[];
   down: boolean;
@@ -152,6 +190,8 @@ export interface Attack {
   frame: number;
   connected: boolean;
   landed: boolean;
+  connectedGroups?: string[];
+  spawnedEntities?: string[];
 }
 
 export type Recovery = { phase: 'fall' } | { phase: 'down' | 'rise'; remaining: number };
@@ -197,6 +237,7 @@ export interface CombatEvent {
   chain?: number;
   direction?: Side;
   heavy?: boolean;
+  feedback?: HitFeedback;
 }
 
 export interface RoundResult {
@@ -218,6 +259,8 @@ export interface MatchState {
   fighters: Duo<FighterState>;
   result: RoundResult | null;
   winner: 0 | 1 | null;
+  entities?: EntityState[];
+  nextEntityId?: number;
 }
 
 export const TICK_RATE = 60;

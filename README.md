@@ -48,7 +48,9 @@
 
 四个角色文件各自拥有 `stats`、`art`、`signatureMoves` 和可选的公共招式命中衔接配置。队友可以分别填入 B/C 动作和独立的 `ultimate`，追加动画画格、替换素材，构建会检查并打入离线版本。自由训练链接支持 `p1` 和 `p2` 指定两个角色。[角色文件](src/content/fighters) · [接口与示例](docs/character-handoff.md) · [奶蛙对香蕉猫训练](http://127.0.0.1:4182/?practice=harbor&p1=frog&p2=banana)
 
-大招能量默认通过命中和承伤积累。训练中可点「充满大招」，用 H 面板与半速核对出招时机。独立样例可直接用桌面浏览器打开，从源码构建也会生成 `dist/ultimate-demo.html`。[大招接口](docs/character-handoff.md#大招接口) · [下载试招样例](https://github.com/haoabcde/meme-rumble/releases/download/ultimate-handoff-v1/ultimate-demo.html) · [本机试玩](http://127.0.0.1:4182/ultimate-demo.html)
+大招能量默认通过命中和承伤积累。训练中可点「充满大招能量」，用 H 面板与半速核对出招时机。独立样例可直接用桌面浏览器打开，从源码构建也会生成 `dist/ultimate-demo.html`。[大招接口](docs/character-handoff.md#大招接口) · [下载试招样例](https://github.com/haoabcde/meme-rumble/releases/download/ultimate-handoff-v1/ultimate-demo.html) · [本机试玩](http://127.0.0.1:4182/ultimate-demo.html)
+
+角色可以配置逐帧攻击框和受击框、多段命中组、独立飞行或驻留实体，以及命中特效、震动和声音预设。组合输入用逻辑按键声明，方向修饰和键位重绑共用现有输入层。构建会生成独立的 `dist/combat-demo.html`。[战斗接口交接](docs/character-handoff.md#逐帧判定组合输入与命中表现) · [本机试招](http://127.0.0.1:4182/combat-demo.html)
 
 技能的射程、影响高度与位移按世界坐标设计。场地左右边界用 `arena.left` 和 `arena.right`，地面高度用 `arena.floor`。1280×720 是镜头画布尺寸，镜头平移和缩放独立于战斗判定。
 
