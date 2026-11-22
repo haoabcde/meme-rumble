@@ -510,6 +510,76 @@ test('counter targets must be strikes and invalid stance references, inputs and 
     guardCounter: { windowFrames: 3, actionId: stance.id } }), /fixture.*防反/);
 });
 
+const audio = { launch: { src: 'assets/audio/fixture/start.WAV', volume: 0 }, impact: { src: 'assets/audio/命中.mp3' } };
+const launchCue = { frame: 0, clip: 'launch', channel: 'voice', volume: .5, stopOnInterrupt: true };
+
+test('audio references are retained for attacks, stances and ultimates with fighter-local common attack overrides', () => {
+  const commonHit = { clip: 'impact', volume: 1 };
+  const duration = probeB.startup + probeB.active + probeB.recovery;
+  const authored = defineFighter({ ...empty, audio,
+    commonAudio: { [basicAttack.id]: { audioTimeline: [launchCue], hit: commonHit } },
+    signatureMoves: [
+      { ...probeB, audioTimeline: [launchCue, { frame: duration - 1, clip: 'impact' }], feedback: { sound: 'sharp', audio: commonHit } },
+      { ...stance, slot: 'C', audioTimeline: [launchCue] }, riposte
+    ],
+    ultimate: { ...ultimateKit, move: { ...ultimateMove, audioTimeline: [launchCue] } }
+  });
+  assert.equal(authored.audio, audio);
+  const actions = new Map(authored.fighter.actions.map(action => [action.id, action]));
+  for (const id of [basicAttack.id, probeB.id, stance.id, ultimateMove.id]) {
+    assert.deepEqual(actions.get(id).audioTimeline[0], launchCue, id);
+  }
+  const { audioTimeline, feedback, ...shared } = actions.get(basicAttack.id);
+  assert.deepEqual(shared, basicAttack);
+  assert.deepEqual(feedback, { audio: commonHit });
+  assert.deepEqual(actions.get(probeB.id).feedback, { sound: 'sharp', audio: commonHit });
+  assert.equal(dummy.fighter.actions[0], basicAttack);
+  assert.equal(basicAttack.audioTimeline, undefined);
+  assert.equal(basicAttack.feedback, undefined);
+  assert.equal(dummy.audio, undefined);
+});
+
+test('malformed paths, volume, frame and clip references are rejected with the fighter and action context', () => {
+  const duration = probeB.startup + probeB.active + probeB.recovery;
+  for (const src of [
+    'https://example.org/remote.wav', '/assets/audio/absolute.wav', 'assets/audio/../escape.wav',
+    'assets/audio/deep/../local.wav', 'assets/audio//double.wav', 'assets/audio/%2e%2e/escape.wav',
+    'assets/audio/deep\\clip.wav', 'assets/audio/C:clip.wav', 'assets/audio/clip.aac'
+  ]) {
+    assert.throws(() => defineFighter({ ...empty, audio: { launch: { src } } }), /fixture.*audio\.launch.*路径/);
+  }
+  for (const volume of [-.01, 1.01, NaN, Infinity, '.5']) {
+    assert.throws(() => defineFighter({ ...empty, audio: { launch: { ...audio.launch, volume } } }), /fixture.*audio\.launch.*音量/);
+  }
+  for (const invalid of [
+    { frame: -1 }, { frame: duration }, { frame: .5 }, { frame: NaN }, { clip: 'missing' },
+    { clip: 'constructor' }, { volume: 2 }, { channel: 'music' }, { stopOnInterrupt: 'false' }
+  ]) {
+    assert.throws(() => defineFighter({ ...empty, audio,
+      signatureMoves: [{ ...probeB, audioTimeline: [{ ...launchCue, ...invalid }] }]
+    }), /fixture.*test-b.*audioTimeline\[0\]/);
+  }
+  assert.throws(() => defineFighter({ ...empty, audio, signatureMoves: [{ ...probeB, audioTimeline: Array(1) }] }), /audioTimeline\[0\]/);
+  assert.throws(() => defineFighter({ ...empty, audio, commonAudio: { missing: { audioTimeline: [launchCue] } } }), /fixture.*commonAudio.*missing/);
+  assert.throws(() => defineFighter({ ...empty, audio, commonAudio: { [basicAttack.id]: { hit: { clip: 'missing' } } } }), /fixture.*common-jab.*feedback.audio/);
+  assert.throws(() => defineFighter({ ...empty, signatureMoves: [{ ...probeB, audioTimeline: [launchCue] }] }), /fixture.*test-b.*audioTimeline/);
+});
+
+test('entity impact clips must refer to the owning fighter audio bank', () => {
+  const projectile = {
+    id: 'test-entity', spawnFrame: 0, lifetime: 20, offset: { x: 25, y: -60 }, velocity: { x: 25, y: 0 },
+    hitbox: { x: 0, y: -10, w: 20, h: 20 }, damage: 40, hitstun: 10, blockstun: 8, guardCost: 12,
+    push: 0, lift: 0, stop: 2
+  };
+  const withImpact = (clip, volume) => defineFighter({ ...empty, audio,
+    signatureMoves: [{ ...probeB, entities: [{ ...projectile, feedback: { audio: { clip, volume } } }] }]
+  });
+  const withAudio = withImpact('impact', .3).fighter.actions.find(action => action.id === probeB.id);
+  assert.equal(withAudio.entities[0].feedback.audio.volume, .3);
+  assert.throws(() => withImpact('unknown'), /fixture.*test-b.*test-entity.*feedback.audio/);
+  assert.throws(() => withImpact('impact', 1.1), /fixture.*test-b.*test-entity.*feedback.audio/);
+});
+
 test('the offline builder embeds character-owned files and checks sprite references against the actual sheet', async t => {
   const dir = await mkdtemp(join(tmpdir(), 'meme-fighter-assets-'));
   t.after(() => rm(dir, { recursive: true, force: true }));

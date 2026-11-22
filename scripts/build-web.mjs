@@ -1,12 +1,19 @@
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
+import { audioDemoRoster } from '../dist/content/audio-demo.js';
 import { roster } from '../dist/content/roster.js';
 import { embedFighterImages } from './fighter-art.mjs';
+import { embedFighterAudio } from './fighter-audio.mjs';
 
 const root = new URL('../', import.meta.url);
-const fighterImages = await embedFighterImages(roster, fileURLToPath(new URL('assets/fighters/', root)));
-async function bundleEntry(entry) {
+const demoRoster = roster.map(entry => audioDemoRoster.find(demo => demo.fighter.id === entry.fighter.id) ?? entry);
+const [fighterImages, fighterAudio, demoAudio] = await Promise.all([
+  embedFighterImages(roster, fileURLToPath(new URL('assets/fighters/', root))),
+  embedFighterAudio(roster, fileURLToPath(root)),
+  embedFighterAudio(demoRoster, fileURLToPath(root))
+]);
+async function bundleEntry(entry, audio = fighterAudio) {
   const result = await build({
     entryPoints: [fileURLToPath(new URL('src/web/' + entry, root))],
     bundle: true,
@@ -14,14 +21,15 @@ async function bundleEntry(entry) {
     format: 'iife',
     target: 'es2022',
     loader: { '.webp': 'dataurl' },
-    define: { __FIGHTER_IMAGES__: JSON.stringify(fighterImages) },
+    define: { __FIGHTER_IMAGES__: JSON.stringify(fighterImages), __FIGHTER_AUDIO__: JSON.stringify(audio) },
     write: false
   });
   return result.outputFiles[0].text;
 }
-const [template, css, game, counterDemo, ultimateDemo, combatDemo] = await Promise.all([
+const [template, css, game, counterDemo, ultimateDemo, combatDemo, audioDemo] = await Promise.all([
   readFile(new URL('index.html', root), 'utf8'), readFile(new URL('styles.css', root), 'utf8'),
-  bundleEntry('game.ts'), bundleEntry('counter-demo.ts'), bundleEntry('ultimate-demo.ts'), bundleEntry('combat-demo.ts')
+  bundleEntry('game.ts'), bundleEntry('counter-demo.ts'), bundleEntry('ultimate-demo.ts'), bundleEntry('combat-demo.ts'),
+  bundleEntry('audio-demo.ts', demoAudio)
 ]);
 
 function standalone(script) {
@@ -39,5 +47,6 @@ await Promise.all([
   publish('game.bundle.js', game), publish('index.html', standalone(game)),
   publish('guard-counter-demo.html', standalone(counterDemo)),
   publish('ultimate-demo.html', standalone(ultimateDemo)),
-  publish('combat-demo.html', standalone(combatDemo))
+  publish('combat-demo.html', standalone(combatDemo)),
+  publish('audio-demo.html', standalone(audioDemo))
 ]);

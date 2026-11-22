@@ -44,11 +44,24 @@ export interface HitWindow extends BoxWindow {
   knockdown?: boolean;
 }
 
+export interface AudioClipRef {
+  clip: string;
+  volume?: number;
+}
+
 export interface HitFeedback {
   color?: string;
   shake?: number;
   flash?: number;
   sound?: 'light' | 'heavy' | 'sharp';
+  /** Optional impact clip from the attacking fighter's audio bank. */
+  audio?: AudioClipRef;
+}
+
+export interface ActionAudioCue extends AudioClipRef {
+  frame: number;
+  channel?: 'sfx' | 'voice';
+  stopOnInterrupt?: boolean;
 }
 
 interface ActionTiming {
@@ -65,6 +78,8 @@ interface ActionTiming {
   linkOnly?: boolean;
   /** Hold each sprite cell from its zero-based action frame until the next key. */
   animation?: { frame: number; cell: number }[];
+  /** Play clips once at their zero-based action frames. */
+  audioTimeline?: ActionAudioCue[];
   /** Gaps and empty boxes leave the fighter without a hurt region. */
   hurtTimeline?: BoxWindow[];
 }
@@ -241,7 +256,7 @@ export interface FighterState {
 }
 
 export type EventKind = 'swing' | 'ultimate' | 'ultimate-no-energy' | 'hit' | 'block' | 'parry' | 'break' | 'whiff' | 'dash' | 'dash-no-stamina' | 'jump' | 'air-jump' |
-  'drop' | 'land' | 'knockdown' | 'rise' | 'ko';
+  'drop' | 'land' | 'knockdown' | 'rise' | 'ko' | 'action-audio';
 export interface CombatEvent {
   kind: EventKind;
   source: 0 | 1;
@@ -252,6 +267,8 @@ export interface CombatEvent {
   direction?: Side;
   heavy?: boolean;
   feedback?: HitFeedback;
+  /** The attack identity survives removal from the fighter during this tick's contact resolution. */
+  actionAudio?: { attack: Attack; cue: ActionAudioCue };
 }
 
 export interface RoundResult {

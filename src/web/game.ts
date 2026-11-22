@@ -10,6 +10,8 @@ import { tierAt } from '../core/terrain.js';
 import { previewArena, recoveryLabels, Renderer } from './renderer.js';
 import { bindingMap, installSettings, keyHint, loadPreferences, renderGuide, type Control, type Seat } from './settings.js';
 
+declare const __FIGHTER_AUDIO__: Record<string, string>;
+
 function element<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
 }
@@ -119,12 +121,16 @@ const settings = installSettings(preferences, () => {
   clearInputs();
   bindings = bindingMap(preferences);
   audio.volume = preferences.volume / 100;
+  audio.sfxVolume = preferences.sfxVolume / 100;
+  audio.voiceVolume = preferences.voiceVolume / 100;
   audio.enableFromGesture();
   renderGuide(preferences);
   if (screen === 'roster') renderRoster();
   footer();
 });
 audio.volume = preferences.volume / 100;
+audio.sfxVolume = preferences.sfxVolume / 100;
+audio.voiceVolume = preferences.voiceVolume / 100;
 renderGuide(preferences);
 
 stage.style.setProperty('--arcade-art', 'url("' + arcadeArt + '")');
@@ -253,6 +259,8 @@ function renderPreparationNav() {
 }
 
 function show(next: Screen) {
+  if (next === 'match' || next === 'pause') audio.setPaused(next === 'pause');
+  else audio.stopAll();
   clearInputs();
   window.clearTimeout(toastTimer);
   element('ui-notice').hidden = true;
@@ -376,6 +384,7 @@ function selectArena(index: number) {
 }
 
 function configureMatch(immediate: boolean) {
+  audio.configure([roster[selected[0]].audio, roster[selected[1]].audio], __FIGHTER_AUDIO__);
   config.arena = arenas[arenaIndex];
   stage.dataset.mode = mode;
   stage.dataset.arena = config.arena.id;
@@ -659,6 +668,7 @@ window.addEventListener('keydown', event => {
 });
 window.addEventListener('keyup', event => held.delete(event.code));
 canvas.addEventListener('blur', clearInputs);
+canvas.addEventListener('pointerdown', () => audio.enableFromGesture());
 function pauseOnHide() {
   if (screen === 'match') pauseMatch();
   else clearInputs();
@@ -842,7 +852,7 @@ function tick(player: InputFrame) {
     roundHistory.push({ ...state.result, round: state.round });
   }
   renderer.add(events, state.frame);
-  audio.play(events);
+  audio.update(config, state, events);
 }
 
 function draw(elapsed: number) {

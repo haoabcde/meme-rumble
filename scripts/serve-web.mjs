@@ -6,7 +6,8 @@ const game = new URL('../dist/index.html', import.meta.url);
 const pages = new Map([
   ['/', game], ['/index.html', game], ['/guard-counter-demo.html', new URL('guard-counter-demo.html', game)],
   ['/ultimate-demo.html', new URL('ultimate-demo.html', game)],
-  ['/combat-demo.html', new URL('combat-demo.html', game)]
+  ['/combat-demo.html', new URL('combat-demo.html', game)],
+  ['/audio-demo.html', new URL('audio-demo.html', game)]
 ]);
 const server = createServer(async (request, response) => {
   const page = pages.get(request.url?.split('?')[0]);

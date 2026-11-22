@@ -92,6 +92,44 @@ signatureMoves: [
 
 构建后打开战斗接口联调页。默认按 **U** 检查两段判定，按 **I** 生成独立实体，同时按 **U＋I** 或按住 **U** 后再按 **I** 检查组合输入。用 **H** 检查框和当前帧，需要看清区间边缘时使用暂停后的「前进一帧」。[下载离线联调页](https://github.com/haoabcde/meme-rumble/releases/latest/download/combat-demo.html) · [本机联调页](http://127.0.0.1:4182/combat-demo.html) · [样例配置](../src/web/combat-demo.ts) · [独立实体类型](../src/core/entities.ts)
 
+## 音效与角色语音
+
+声音放在 `assets/audio/` 下，在角色包顶层的 `audio` 登记。文件由角色负责人提供；框架不会替角色生成笑声或台词。支持 WAV、MP3、Ogg 和 WebM，具体编码需当前浏览器能够解码。构建时按引用内嵌到离线 HTML，不需要联网加载。单文件上限 8 MiB，每份打包音频总量上限 32 MiB。
+
+```ts
+audio: {
+  laugh: { src: 'assets/audio/frog/laugh.mp3', volume: .8 },
+  impact: { src: 'assets/audio/frog/impact.wav' }
+},
+commonAudio: {
+  'common-jab': { hit: { clip: 'impact', volume: .9 } }
+},
+```
+
+上面的路径是接入示例，需要先放入实际文件。同一角色的专属动作、大招和防反架势都可以追加 `audioTimeline`：
+
+```ts
+audioTimeline: [
+  { frame: 12, clip: 'laugh', channel: 'voice', volume: 1, stopOnInterrupt: true }
+],
+feedback: { audio: { clip: 'impact', volume: .9 } },
+```
+
+`frame` 从动作第 0 帧开始，12 帧在 60 Hz 下约为 0.2 秒；必须落在起手、有效、收招的总时长内。同一帧可同时播放音效和语音。`feedback.audio` 在实际命中或格挡接触时播放，实体的命中反馈也支持它；省略时保留公共合成音，角色无需提供全套素材。公共动作的出手声可配置在 `commonAudio[动作ID].audioTimeline`，不会改变公共判定或伤害。
+
+| 字段 | 行为 |
+|---|---|
+| `clip` | 引用本角色 `audio` 中的 ID；不同角色可以使用相同 ID。 |
+| `channel` | `sfx` 或 `voice`，默认 `sfx`。双方语音分别管理，同一角色的新语音替换旧语音；音效可叠加。 |
+| `volume` | 0–1；最终音量是总音量 × 分类音量 × 素材音量 × 本次播放音量。设置变更立即作用于正在播放的声音。 |
+| `stopOnInterrupt` | 默认 `true`。动作在结束前受击、被取消或换招时停止该声音；设为 `false` 可继续播完。动作自然结束允许尾音继续。 |
+
+半速按逻辑帧推迟触发，声音本身保持原速。命中停顿不会重复触发同一帧音轨。暂停会暂停声音，暂停逐帧只推进动作和消费该帧提示，不积攒声音到恢复时爆发。训练复位、换人、换回合和离开对局会清理旧声音。
+
+浏览器需要一次点击或键盘操作解锁音频。配置对局时预解码，交互后才允许播放；未及时就绪的动作提示跳过，不在之后突然补播。自定义命中音频未就绪时回退公共音，解码失败可在浏览器控制台看到文件信息。
+
+构建后打开[音频联调页](http://127.0.0.1:4182/audio-demo.html)，也可[下载离线联调页](https://github.com/haoabcde/meme-rumble/releases/latest/download/audio-demo.html)。先点击画布，再按 **U** 检查第 0 帧音效、第 12 帧语音和命中音；按 **I** 检查受击后继续播放。展开训练设置，选择「重复直拳」和 **0.5×**，复位后分别测试 U、I 的打断差异。设置里的「总音量」「音效」「角色语音」可独立调节，**H** 查看动作阶段，**R** 复位。样例只包含中性电子测试信号，正式角色声音由负责人替换。[样例数据](../src/content/audio-demo.ts)
+
 ## 防反接口
 
 角色可以选「按下防御」或「按 B/C 摆架势」，也可以两种都接，分别指向不同反击。下面用公共直拳跑通流程。4 个逻辑帧约 67 毫秒，正式时机、伤害和动画由角色设计师填写。

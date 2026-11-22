@@ -56,6 +56,8 @@
 
 角色可以配置逐帧攻击框和受击框、多段命中组、独立飞行或驻留实体，以及命中特效、震动和声音预设。组合输入用逻辑按键声明，方向修饰和键位重绑共用现有输入层。构建会生成独立的 `dist/combat-demo.html`。[战斗接口交接](docs/character-handoff.md#逐帧判定组合输入与命中表现) · [本机试招](http://127.0.0.1:4182/combat-demo.html)
 
+角色包还可登记音效和语音文件，用 `audioTimeline` 按动作帧播放，用 `feedback.audio` 配置命中声；公共普攻也可按角色更换音频。支持受击打断或继续播放、双方独立语音、暂停及总音量／音效／角色语音调节。文件随离线版内嵌，正式素材由角色负责人提供。[音频交接](docs/character-handoff.md#音效与角色语音) · [本机音频联调](http://127.0.0.1:4182/audio-demo.html) · [下载联调页](https://github.com/haoabcde/meme-rumble/releases/latest/download/audio-demo.html)
+
 技能的射程、影响高度与位移按世界坐标设计。场地左右边界用 `arena.left` 和 `arena.right`，地面高度用 `arena.floor`。1280×720 是镜头画布尺寸，镜头平移和缩放独立于战斗判定。
 
 ## 地图、美术与运行

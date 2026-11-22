@@ -633,8 +633,19 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   advanceArena(state, config);
   for (const seat of seats) {
     const fighter = state.fighters[seat];
+    const lastAttack = fighter.attack;
+    const lastFrame = lastAttack?.frame;
     const wasRising = fighter.recovery?.phase === 'rise';
     updateControl(state, config, seat, inputs[seat], events);
+    const attack = fighter.attack;
+    if (attack && (attack !== lastAttack || attack.frame !== lastFrame)) {
+      const timeline = actionFor(config, state, seat)?.audioTimeline;
+      for (const cue of timeline ?? []) {
+        if (cue.frame === attack.frame) {
+          events.push({ kind: 'action-audio', source: seat, x: fighter.x, y: fighter.y, actionAudio: { attack, cue } });
+        }
+      }
+    }
     waking[seat] = wasRising && !fighter.recovery;
     const guardCounter = config.fighters[seat].guardCounter;
     if (guardCounter) updateGuardWindow(fighter, inputs[seat], guardCounter.windowFrames);
