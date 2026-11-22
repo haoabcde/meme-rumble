@@ -121,7 +121,7 @@ export function renderGuide(preferences: Preferences) {
     { title: '下穿平台', controls: ['down', 'jump'], join: ' + ' },
     { title: '防御', controls: ['down'] },
     { title: '普攻 / 空中攻击', controls: ['A'] },
-    { title: '地面挑空', controls: ['up', 'A'], join: ' + ' },
+    { title: '公共挑空（大肥鱼除外）', controls: ['up', 'A'], join: ' + ' },
     { title: '角色专属槽 B / C', controls: ['B', 'C'] },
     { title: '大招', controls: ['ULT'] }
   ] as const;

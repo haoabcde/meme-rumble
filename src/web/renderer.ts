@@ -8,6 +8,7 @@ import { drawHarborScenery, drawHarborLift, drawQuay } from './harbor-art.js';
 import { drawStageBackdrop, drawStageMechanism, drawStageScenery } from './stage-art.js';
 import { platformAt } from '../core/terrain.js';
 import { frameCamera, type CameraView } from './camera.js';
+import {drawWhaleActor,drawWhaleEntities,drawWhaleIntro} from './whale-art.js';
 
 export const seatColors = ['#61d8ff', '#ff849e'];
 export const recoveryLabels = { fall: '击倒', down: '倒地', rise: '起身' };
@@ -350,6 +351,7 @@ export class Renderer {
       ctx.setLineDash([]);
     }
 
+    drawWhaleEntities(ctx,state,config,'back');
     const front = a.attack && b.hitstun ? [1, 0] as const : [0, 1] as const;
     for (const seat of front) {
       const f = state.fighters[seat];
@@ -377,6 +379,11 @@ export class Renderer {
       ctx.translate(f.x, f.y);
       ctx.scale(f.facing, 1);
       const height = heights[seat];
+      if(def.id==='whale'){
+        const flash=this.hitFlash(seat,state.frame,f.hitstun>0&&state.freeze>0);
+        if(flash>0)ctx.filter=`brightness(${1+flash*.36})`;
+        drawWhaleActor(ctx,f,state,seat,action);ctx.filter='none';
+      }else{
       if (!f.hp) ctx.rotate(-Math.PI / 2.6);
       else if (f.recovery?.phase === 'down') {
         ctx.translate(height * .40, -height * .32);
@@ -415,6 +422,7 @@ export class Renderer {
         ctx.ellipse(15, -60, 48, 56, 0, -1.33, 1.32);
         ctx.stroke();
       }
+      }
       ctx.restore();
 
       if (strike) {
@@ -444,7 +452,8 @@ export class Renderer {
       }
     }
 
-    for (const entity of state.entities ?? []) drawEntity(ctx, entity, debug);
+    for (const entity of state.entities ?? []) if(!entity.definition.behavior)drawEntity(ctx, entity, debug);
+    drawWhaleEntities(ctx,state,config,'front');
     this.drawEffects(state.frame, Boolean(config.training));
     ctx.resetTransform();
     for (const seat of [0, 1] as const) {
@@ -471,6 +480,7 @@ export class Renderer {
     if (debug || Math.abs(a.x - b.x) > width / zoom * .7) {
       this.drawPositionStrip(config.arena, [a.x, b.x], camera);
     }
+    drawWhaleIntro(ctx,config,state);
   }
 
   private drawPositionStrip(arena: ArenaDefinition, fighters: [number, number], camera: CameraView) {

@@ -1,7 +1,9 @@
 import { actionFor, hurtRegionsFor, worldBox } from './match.js';
 import type { ActionDefinition, Box, FighterAction, HitFeedback, MatchConfig, MatchState, Side, Slot } from './types.js';
+import { advanceKitEntity, initializeKitEntity, kitContactAllowed, kitContactBox, kitContactResolved, kitLifetime } from './whale-kit.js';
 
 export interface EntityDefinition {
+  behavior?: 'rice' | 'spin' | 'spin-up' | 'counter' | 'orca';
   id: string;
   /** Zero-based frame of the spawning action. */
   spawnFrame: number;
@@ -23,6 +25,17 @@ export interface EntityDefinition {
 }
 
 export interface EntityState {
+  previousX?: number;
+  previousY?: number;
+  originX?: number;
+  originY?: number;
+  grounded?: boolean;
+  support?: string;
+  windTicks?: number;
+  hits?: number;
+  nextHitAge?: number;
+  hitSeats?: number[];
+  endingAge?: number;
   id: number;
   owner: 0 | 1;
   slot: Slot;
@@ -77,10 +90,10 @@ export function validateEntities(owner: string, actions: FighterAction[]) {
 
 export function updateEntities(state: MatchState, config: MatchConfig) {
   if (state.entities?.length) {
-    state.entities = state.entities.filter(entity => ++entity.age < entity.definition.lifetime);
+    state.entities = state.entities.filter(entity => ++entity.age < kitLifetime(entity));
     for (const entity of state.entities) {
-      entity.x += entity.vx;
-      entity.y += entity.vy;
+      entity.previousX=entity.x;entity.previousY=entity.y;
+      if (!advanceKitEntity(entity,state,config)) { entity.x += entity.vx; entity.y += entity.vy; }
     }
   }
   for (const owner of [0, 1] as const) {
@@ -93,13 +106,15 @@ export function updateEntities(state: MatchState, config: MatchConfig) {
       (attack.spawnedEntities ??= []).push(definition.id);
       const id = state.nextEntityId ?? 0;
       state.nextEntityId = id + 1;
-      (state.entities ??= []).push({
+      const entity:EntityState={
         id, owner, definition, slot: action.slot, age: 0, facing: fighter.facing,
         x: fighter.x + definition.offset.x * fighter.facing,
         y: fighter.y + definition.offset.y,
         vx: definition.velocity.x * fighter.facing,
         vy: definition.velocity.y
-      });
+      };
+      initializeKitEntity(entity,state,config);
+      (state.entities ??= []).push(entity);
     }
   }
 }
@@ -110,8 +125,8 @@ export function entityContacts(state: MatchState, config: MatchConfig): EntityCo
     const { owner: source, definition, facing } = entity;
     const target = source === 0 ? 1 : 0;
     const defender = state.fighters[target];
-    if (defender.recovery || (config.rules.dashInvulnerable && defender.dashActive)) continue;
-    const hitbox = worldBox(definition.hitbox, entity.x, entity.y, facing);
+    if (defender.hp<=0 || defender.recovery || (definition.behavior!=='orca' && config.rules.dashInvulnerable && defender.dashActive) || !kitContactAllowed(entity,defender,target)) continue;
+    const hitbox = kitContactBox(entity,defender,worldBox(definition.hitbox, entity.x, entity.y, facing));
     const hurtRegions = hurtRegionsFor(config.fighters[target], actionFor(config, state, target), defender.attack?.frame ?? 0);
     for (const region of hurtRegions) {
       const hurtbox = worldBox(region, defender.x, defender.y, defender.facing);
@@ -121,10 +136,11 @@ export function entityContacts(state: MatchState, config: MatchConfig): EntityCo
       const bottom = Math.min(hitbox.y + hitbox.h, hurtbox.y + hurtbox.h);
       if (left >= right || top >= bottom) continue;
       contacts.push({
-        entity, source, target, facing, x: (left + right) / 2, y: (top + bottom) / 2,
+        entity, source, target, facing:definition.behavior==='counter'?(defender.x<entity.x?-1:1):facing, x: (left + right) / 2, y: (top + bottom) / 2,
         action: {
           id: definition.id, hitbox: definition.hitbox, feedback: definition.feedback,
-          damage: definition.damage, guardCost: definition.guardCost,
+          damage: definition.behavior==='rice' && entity.grounded ? 0 : definition.damage, guardCost: definition.guardCost,
+          fixedDamage: Boolean(definition.behavior),
           push: definition.push, lift: definition.lift, hitstun: definition.hitstun,
           blockstun: definition.blockstun, stop: definition.stop,
           slot: entity.slot, posture: 'any', startup: 0, active: 1, recovery: 0, advance: 0, pose: 'strike'
@@ -138,4 +154,10 @@ export function entityContacts(state: MatchState, config: MatchConfig): EntityCo
 
 export function removeContactEntity(state: MatchState, id: number) {
   if (state.entities) state.entities = state.entities.filter(entity => entity.id !== id);
+}
+
+export function resolveContactEntity(state:MatchState,id:number,target:0|1,blocked:boolean,countered:boolean){
+  const entity=state.entities?.find(e=>e.id===id);
+  if(!entity)return;
+  if(!kitContactResolved(entity,state,target,blocked,countered))removeContactEntity(state,id);
 }

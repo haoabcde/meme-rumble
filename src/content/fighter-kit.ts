@@ -27,6 +27,7 @@ interface UltimateMove {
 }
 
 export interface FighterPackage {
+  commonMoves?: ActionDefinition[];
   id: string;
   name: string;
   accent: string;
@@ -186,7 +187,7 @@ export function defineFighter(spec: FighterPackage): RosterEntry {
   for (const source of Object.keys(extraCancels)) {
     if (!commonActions.some(move => move.id === source)) throw Error(id + ' 找不到公共动作 ' + source);
   }
-  const shared = commonActions.map(move => {
+  const shared = (spec.commonMoves ?? commonActions).map(move => {
     const extra = extraCancels[move.id];
     return extra ? { ...move, cancelOnHit: [...new Set([...(move.cancelOnHit ?? []), ...extra])] } : move;
   });

@@ -1,0 +1,132 @@
+{
+  "status": "Independent preview only. User-defined rules plus explicitly provisional parameters; not registered in the game.",
+  "visualApproval": {
+    "date": "2026-11-21",
+    "status": "approved",
+    "scope": "漏斗龙卷风V2防反演出：下窄上宽、浓密蓝色风柱、旋转时隐藏人物并在散去时重现、快速一周后左右投饭。",
+    "excludes": "暂定伤害、攻击判定范围、技能未定细则及正式游戏接入。"
+  },
+  "fps": 60,
+  "fighterId": "whale",
+  "skillSlot": "B",
+  "upVariantDirection": "up",
+  "motionAtlas": {
+    "columns": 4,
+    "cell": 216,
+    "footX": 108,
+    "footY": 184,
+    "referenceHeight": 144,
+    "appendAfterCommonCells": 12,
+    "appendedCells": 8,
+    "image": "大肥鱼_米饭与旋转_专属追加图集_V1.webp"
+  },
+  "counterActionCompatibleWithCurrentSchema": {
+    "id": "whale-rice-tornado",
+    "name": "蓝色龙卷风",
+    "slot": "C",
+    "posture": "ground",
+    "startup": 1,
+    "active": 15,
+    "recovery": 4,
+    "hitbox": {
+      "x": -86,
+      "y": -160,
+      "w": 172,
+      "h": 160
+    },
+    "damage": 20,
+    "hitstun": 12,
+    "blockstun": 7,
+    "guardCost": 13,
+    "push": 7,
+    "lift": 0,
+    "stop": 3,
+    "advance": 0,
+    "cancelOnHit": [],
+    "linkOnly": true,
+    "pose": "sweep",
+    "animation": [
+      {
+        "frame": 0,
+        "cell": 16
+      },
+      {
+        "frame": 3,
+        "cell": 17
+      },
+      {
+        "frame": 6,
+        "cell": 18
+      },
+      {
+        "frame": 9,
+        "cell": 19
+      },
+      {
+        "frame": 12,
+        "cell": 16
+      }
+    ]
+  },
+  "counterEntry": {
+    "guardCounterActionId": "whale-rice-tornado",
+    "stanceCounterTo": "whale-rice-tornado",
+    "windowFrames": "use the framework setting; no new window chosen in this preview"
+  },
+  "pendingFrameworkExtensions": {
+    "riceProjectile": {
+      "spawnNormalAtActionFrame": 8,
+      "spawnCounterAtActionFrame": 12,
+      "counterDirections": [
+        -1,
+        1
+      ],
+      "ttlFrames": 120,
+      "normalRangeBodyWidths": 2,
+      "upRangeBodyWidths": 3.7,
+      "damage": 30,
+      "stepDamage": 0,
+      "consumeAfterContact": true,
+      "sweptCollision": true
+    },
+    "stickyStatus": {
+      "durationFrames": 60,
+      "startAtContact": true,
+      "blockHorizontalMovement": true,
+      "blockJumpDashAndWalking": true,
+      "airborneFallsVertically": true,
+      "landingRestartsTimer": false,
+      "riceMark": "one small clump at bottom centre; keep original feet visible"
+    },
+    "greedMeter": {
+      "successfulManualThrows": 5,
+      "laterAttempts": "eat with no gameplay effect",
+      "idleFramesToReset": 90,
+      "eatingRefreshesLastAttempt": true,
+      "upVariantSharesCounter": true,
+      "counterRiceConsumesMeter": false
+    },
+    "visualTimeline": {
+      "counterTurnFrames": 12,
+      "counterEffectDurationFrames": 20,
+      "backAndFrontFxLayers": true,
+      "synchronizedToLogicAndHitstop": true,
+      "effectSource": "Pixel FX nature/tornado, dense-funnel adaptation V2",
+      "effectShape": "narrow contact point and wide flared crown",
+      "hideActorFirstFrames": 16,
+      "revealLastFrames": 4,
+      "visualScaleX": 2.8,
+      "visualScaleY": 1.12,
+      "combatHitboxUnchangedByVisualRevision": true
+    },
+    "radialPush": "push away from caster based on victim relative position; current generic push follows facing"
+  },
+  "provisional": [
+    "damage and push values",
+    "startup/recovery and throw arcs",
+    "rice expires from spawn; consumed after one contact",
+    "bind expires from impact; no landing refresh",
+    "counter rice excluded from greed",
+    "one wind hit per target per counter"
+  ]
+}

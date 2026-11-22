@@ -1,0 +1,131 @@
+{
+  "columns": 4,
+  "rows": 2,
+  "cell": 216,
+  "referenceHeight": 144,
+  "footX": 108,
+  "footY": 184,
+  "note": "Append these rows BELOW 12 common cells; shoes share the foot anchor. Not a complete motion atlas.",
+  "frames": [
+    {
+      "name": "掏取米饭",
+      "sourceCell": 0,
+      "engineCellAfterCommon12": 12,
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 216,
+        "h": 216
+      },
+      "foot": {
+        "x": 108,
+        "y": 184
+      }
+    },
+    {
+      "name": "向前投掷",
+      "sourceCell": 1,
+      "engineCellAfterCommon12": 13,
+      "frame": {
+        "x": 216,
+        "y": 0,
+        "w": 216,
+        "h": 216
+      },
+      "foot": {
+        "x": 108,
+        "y": 184
+      }
+    },
+    {
+      "name": "向上投掷",
+      "sourceCell": 2,
+      "engineCellAfterCommon12": 14,
+      "frame": {
+        "x": 432,
+        "y": 0,
+        "w": 216,
+        "h": 216
+      },
+      "foot": {
+        "x": 108,
+        "y": 184
+      }
+    },
+    {
+      "name": "贪吃误食",
+      "sourceCell": 3,
+      "engineCellAfterCommon12": 15,
+      "frame": {
+        "x": 648,
+        "y": 0,
+        "w": 216,
+        "h": 216
+      },
+      "foot": {
+        "x": 108,
+        "y": 184
+      }
+    },
+    {
+      "name": "旋转正面",
+      "sourceCell": 4,
+      "engineCellAfterCommon12": 16,
+      "frame": {
+        "x": 0,
+        "y": 216,
+        "w": 216,
+        "h": 216
+      },
+      "foot": {
+        "x": 108,
+        "y": 184
+      }
+    },
+    {
+      "name": "旋转右侧",
+      "sourceCell": 5,
+      "engineCellAfterCommon12": 17,
+      "frame": {
+        "x": 216,
+        "y": 216,
+        "w": 216,
+        "h": 216
+      },
+      "foot": {
+        "x": 108,
+        "y": 184
+      }
+    },
+    {
+      "name": "旋转背面",
+      "sourceCell": 6,
+      "engineCellAfterCommon12": 18,
+      "frame": {
+        "x": 432,
+        "y": 216,
+        "w": 216,
+        "h": 216
+      },
+      "foot": {
+        "x": 108,
+        "y": 184
+      }
+    },
+    {
+      "name": "旋转左侧",
+      "sourceCell": 7,
+      "engineCellAfterCommon12": 19,
+      "frame": {
+        "x": 648,
+        "y": 216,
+        "w": 216,
+        "h": 216
+      },
+      "foot": {
+        "x": 108,
+        "y": 184
+      }
+    }
+  ]
+}

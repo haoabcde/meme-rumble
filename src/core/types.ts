@@ -70,6 +70,11 @@ interface ActionTiming {
 }
 
 export interface ActionDefinition extends ActionTiming {
+  /** Authored whale kit hooks; serialized state, no renderer-side combat logic. */
+  whale?: 'rice' | 'rice-up' | 'spin' | 'spin-up' | 'counter' | 'eat' | 'open-source';
+  chainAfter?: number;
+  guardHitsToBreak?: number;
+  fixedDamage?: boolean;
   hitbox: Box;
   /** Skill energy paid once when the action starts. */
   energyCost?: number;
@@ -203,6 +208,13 @@ export interface Attack {
 export type Recovery = { phase: 'fall' } | { phase: 'down' | 'rise'; remaining: number };
 
 export interface FighterState {
+  whale?: { riceCount: number; lastRice: number; spinReady: number };
+  bindUntil?: number;
+  guardChain?: { source: number; count: number; until: number };
+  jumpCount?: number;
+  secondApex?: boolean;
+  jumpOriginY?: number;
+  poseEvent?: { kind: string; tick: number };
   x: number;
   y: number;
   vy: number;

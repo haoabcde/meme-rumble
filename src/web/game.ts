@@ -118,13 +118,13 @@ let windowFit = false;
 const settings = installSettings(preferences, () => {
   clearInputs();
   bindings = bindingMap(preferences);
-  audio.volume = preferences.volume / 100;
+  audio.volume = new URLSearchParams(location.search).has('silent') ? 0 : preferences.volume / 100;
   audio.enableFromGesture();
   renderGuide(preferences);
   if (screen === 'roster') renderRoster();
   footer();
 });
-audio.volume = preferences.volume / 100;
+audio.volume = new URLSearchParams(location.search).has('silent') ? 0 : preferences.volume / 100;
 renderGuide(preferences);
 
 stage.style.setProperty('--arcade-art', 'url("' + arcadeArt + '")');
@@ -185,6 +185,7 @@ function seatName(seat: Seat) {
 }
 
 function trainingSkillHints(fighter: FighterDefinition) {
+  if(fighter.id==='whale')return whaleInputHints(0);
   const hints: string[] = [];
   if (acceptsSkillInput(fighter, 'ULT')) hints.push(keyHint(preferences, 0, ['ULT']) + ' 大招');
   if (fighter.guardCounter) hints.push(keyHint(preferences, 0, ['down']) + ' 精准防反');
@@ -198,6 +199,10 @@ function trainingSkillHints(fighter: FighterDefinition) {
     hints.push(keys.join(' + ') + ' 防反架势');
   }
   return hints.join(' · ');
+}
+
+function whaleInputHints(seat:Seat){
+  return keyHint(preferences,seat,['A'])+' 三段尾击 · '+keyHint(preferences,seat,['B'])+' 米饭 · '+keyHint(preferences,seat,['C'])+' 旋风 · '+keyHint(preferences,seat,['ULT'])+' 开源！';
 }
 
 function footer() {
@@ -217,9 +222,10 @@ function footer() {
     : screen === 'title' ? confirmKey + ' 进入游戏'
     : screen === 'result' || screen === 'pause' ? upDown + ' 选择 · ' + confirmKey + ' 确认 · Esc 返回'
     : skills ? 'P1 ' + skills
+    : fighting && config.fighters[0].id==='whale' ? 'P1 '+whaleInputHints(0)+(mode==='local'&&config.fighters[1].id==='whale'?'　P2 '+whaleInputHints(1):'')
     : fighting ? 'P1 ' + keyHint(preferences, 0, ['A']) + ' 普攻 · ' +
         keyHint(preferences, 0, ['up', 'A'], ' + ') + ' 挑空' +
-        (mode === 'local' ? '　　P2 ' + keyHint(preferences, 1, ['up', 'A'], ' + ') + ' 挑空'
+        (mode === 'local' ? (config.fighters[1].id==='whale'?'　P2 '+whaleInputHints(1):'　　P2 ' + keyHint(preferences, 1, ['up', 'A'], ' + ') + ' 挑空')
           : ' · ' + keyHint(preferences, 0, ['dash']) + ' 空中冲刺')
     : 'Esc 返回';
   text(element('footer-detail'), hints);

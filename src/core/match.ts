@@ -4,7 +4,8 @@ import type {
 } from './types.js';
 import { platformAt, platformOffset } from './terrain.js';
 import { MAX_ENERGY } from './types.js';
-import { entityContacts, removeContactEntity, updateEntities } from './entities.js';
+import { entityContacts, resolveContactEntity, updateEntities } from './entities.js';
+import {canStartWhale,startWhale} from './whale-kit.js';
 
 const seats = [0, 1] as const;
 const slotPriority = ['ULT', 'C', 'B', 'A'] as const;
@@ -147,7 +148,9 @@ function updateControl(
   const f = state.fighters[seat];
   const opponent = state.fighters[other(seat)];
   const definition = config.fighters[seat];
+  const wasMoving=f.moving;
   f.moving = false;
+  if(f.hp<=0){f.attack=null;f.guarding=false;f.dash=0;return;}
   for (const counter of ['hitstun', 'blockstun', 'guardWait'] as const) {
     if (f[counter] > 0) f[counter]--;
   }
@@ -192,7 +195,7 @@ function updateControl(
     return;
   }
 
-  const cancels = f.attack?.landed ? previousAction?.cancelOnHit : undefined;
+  const cancels = f.attack && (f.attack.landed || (previousAction && 'chainAfter' in previousAction && previousAction.chainAfter!==undefined && f.attack.frame>=previousAction.chainAfter)) ? previousAction?.cancelOnHit : undefined;
   const candidates = definition.actions.filter(action =>
     (action.posture === 'any' || (action.posture === 'ground') === Boolean(f.ground)) &&
     (f.attack ? cancels?.includes(action.id) || cancels?.includes(action.slot) : !action.linkOnly)
@@ -201,6 +204,7 @@ function updateControl(
     Number(Boolean(b.direction)) - Number(Boolean(a.direction)) ||
     slotPriority.indexOf(a.slot) - slotPriority.indexOf(b.slot));
   for (const action of candidates) {
+    if(!('counterTo' in action)&&!canStartWhale(action,f,state))continue;
     const command = f.buffer.find(item => item.key === action.slot &&
       (!action.direction || item.directions.includes(action.direction)) &&
       action.comboKeys?.every(key => item.keys?.includes(key)) !== false);
@@ -215,10 +219,11 @@ function updateControl(
     if (cost) f.energy = (f.energy ?? 0) - cost;
     // A single accepted command consumes competing actions from the same sampled frame.
     f.buffer = f.buffer.filter(item => item.sampledAt !== command.sampledAt);
-    startAction(f, action.id, seat, events, action.slot === 'ULT');
+    startAction(f, 'counterTo' in action?action.id:startWhale(action,f,state), seat, events, action.slot === 'ULT');
     return;
   }
-  const jump = f.buffer.find(command => command.key === 'jump');
+  const bound=(f.bindUntil??0)>state.arenaFrame;
+  const jump = !bound && f.buffer.find(command => command.key === 'jump');
   if (f.ground && jump && (!f.attack || (!jump.down && cancels?.includes('jump')))) {
     f.buffer = f.buffer.filter(item => item.sampledAt !== jump.sampledAt);
     const dropping = jump.down && f.ground !== 'floor';
@@ -226,6 +231,7 @@ function updateControl(
       f.attack = null;
       f.ignorePlatform = dropping ? f.ground : null;
       f.vy = dropping ? 2 : -definition.jump;
+      f.jumpCount=dropping?0:1;f.secondApex=false;f.jumpOriginY=f.y;
       events.push({ kind: dropping ? 'drop' : 'jump', source: seat, x: f.x, y: f.y });
       f.ground = null;
       f.guarding = false;
@@ -240,10 +246,11 @@ function updateControl(
     f.buffer = f.buffer.filter(item => item.sampledAt !== jump.sampledAt);
     f.airActionUsed = true;
     f.vy = -definition.airJump;
+    f.jumpCount=2;f.secondApex=false;
     events.push({ kind: 'air-jump', source: seat, x: f.x, y: f.y });
     return;
   }
-  const dash = f.buffer.find(command => command.key === 'dash');
+  const dash = !bound && f.buffer.find(command => command.key === 'dash');
   if (dash && !f.dash && (!airborne || (definition.airDash && !f.airActionUsed))) {
     f.buffer = f.buffer.filter(item => item.sampledAt !== dash.sampledAt);
     const cost = config.rules.dashGuardCost?.[airborne ? 'air' : 'ground'] ?? 0;
@@ -267,6 +274,7 @@ function updateControl(
     f.guard = Math.min(config.rules.guardMax, f.guard + 1);
   }
   f.moving = !f.guarding && Boolean(input.x || f.dash);
+  if(wasMoving&&!f.moving)f.poseEvent={kind:'brake',tick:state.arenaFrame};
 }
 
 function releaseUnsupportedGround(fighter: FighterState, arena: ArenaDefinition, frame: number) {
@@ -327,6 +335,7 @@ function motion(
     move = input.x * (f.ground ? definition.run : definition.airSpeed);
   }
   const previousX = f.x;
+  if((f.bindUntil??0)>state.arenaFrame){move=0;f.push=0;f.moving=false;if(!f.ground)f.vy=Math.max(6,f.vy);}
   f.x = clamp(f.x + move, arena.left, arena.right);
   releaseUnsupportedGround(f, arena, state.arenaFrame);
   if (f.ground) return;
@@ -335,6 +344,7 @@ function motion(
   if (!(config.rules.airDashPauseGravity && f.dashActive && f.airActionUsed)) {
     f.vy += 1;
     f.y += f.vy;
+    if(f.jumpCount===2&&Math.abs(f.vy)<=1)f.secondApex=true;
   }
   const platform = landingPlatform(arena, f, previousX, previousY, state.arenaFrame);
   if (platform || (f.vy > 0 && f.y >= arena.floor)) {
@@ -344,6 +354,7 @@ function motion(
     f.vy = 0;
     f.ignorePlatform = null;
     f.airActionUsed = false;
+    f.jumpCount=0;f.secondApex=false;
   }
 }
 
@@ -433,17 +444,17 @@ function collectContacts(state: MatchState, config: MatchConfig): Contact[] {
 function settle(state: MatchState, config: MatchConfig, contacts: Contact[], events: CombatEvent[]) {
   for (const contact of contacts) {
     if (contact.entityId !== undefined) {
-      removeContactEntity(state, contact.entityId);
       continue;
     }
     const attack = state.fighters[contact.source].attack!;
     attack.connected = true;
     if (contact.action.hitTimeline) (attack.connectedGroups ??= []).push(contact.group);
-    attack.landed ||= !contact.blocked && !contact.counterAction;
+    attack.landed ||= (!contact.blocked && !contact.counterAction) || Boolean(contact.action.guardHitsToBreak && contact.blocked && !contact.counterAction);
   }
   let maxStop = 0;
-  for (const { source, target, action, blocked, counterAction, facing, x, y } of contacts) {
+  for (const { source, target, action, blocked, counterAction, facing, x, y,entityId } of contacts) {
     const defender = state.fighters[target];
+    if(entityId!==undefined)resolveContactEntity(state,entityId,target,blocked,Boolean(counterAction));
     defender.dash = 0;
     if (defender.guardCounterLeft !== undefined) defender.guardCounterLeft = 0;
     maxStop = Math.max(maxStop, Math.min(blocked || counterAction ? 3 : 6, action.stop));
@@ -454,9 +465,14 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
     }
     defender.attack = null;
     if (blocked) {
-      defender.guard = Math.max(0, defender.guard - action.guardCost);
+      if(action.guardHitsToBreak){
+        const previous=defender.guardChain;
+        const count=previous?.source===source&&previous.until>=state.arenaFrame?previous.count+1:1;
+        defender.guardChain={source,count,until:state.arenaFrame+90};
+        defender.guard=count>=action.guardHitsToBreak?0:Math.max(1,defender.guard-action.guardCost);
+      }else defender.guard = Math.max(0, defender.guard - action.guardCost);
       defender.guardWait = config.rules.guardDelay;
-      defender.push = Math.sign(facing) * Math.ceil(action.push / 2);
+      defender.push = Math.sign(facing) * (action.guardHitsToBreak?1.15:Math.ceil(action.push / 2));
       defender.blockstun = action.blockstun;
       events.push({ kind: 'block', source, x, y, direction: facing, ...(action.feedback && { feedback: action.feedback }) });
       if (defender.guard === 0 && defender.guardBreak === 0) {
@@ -466,7 +482,7 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
       }
       continue;
     }
-    const amount = Math.min(defender.hp, Math.floor(action.damage * Math.max(35, 100 - 8 * defender.combo) / 100));
+    const amount = Math.min(defender.hp, action.fixedDamage?action.damage:Math.floor(action.damage * Math.max(35, 100 - 8 * defender.combo) / 100));
     defender.hp -= amount;
     if (amount > 0) {
       const attacker = state.fighters[source];
@@ -480,6 +496,7 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
     if (config.training && defender.hp === 0) defender.hp = config.fighters[target].maxHp;
     const chain = ++defender.combo;
     defender.hitstun = action.hitstun;
+    defender.poseEvent={kind:action.lift?'launch':action.damage>=80?'heavy':'hurt',tick:state.arenaFrame};
     defender.blockstun = 0;
     defender.guarding = false;
     defender.push = facing * action.push;
@@ -602,6 +619,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     }
   }
 
+  for(const event of events)if(['jump','air-jump','land','dash','knockdown','rise'].includes(event.kind))state.fighters[event.source].poseEvent={kind:event.kind,tick:state.arenaFrame};
   if (config.training) return events;
   state.remaining--;
   const result = roundResult(state, config);
@@ -618,6 +636,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   }
   for (const fighter of state.fighters) fighter.buffer = [];
   state.phase = 'round-over';
+  delete state.entities;
   state.phaseTicks = 105;
   return events;
 }
