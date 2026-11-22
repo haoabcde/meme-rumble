@@ -73,7 +73,7 @@ interface ActionTiming {
 export interface ActionDefinition extends ActionTiming {
   /** Authored whale kit hooks; serialized state, no renderer-side combat logic. */
   whale?: 'rice' | 'rice-up' | 'spin' | 'spin-up' | 'counter' | 'eat' | 'open-source';
-  frog?: 'laugh' | 'global' | 'ascend';
+  frog?: 'laugh' | 'global' | 'ascend' | 'crouch' | 'burrow' | 'evade';
   radial?: boolean;
   chainAfter?: number;
   guardHitsToBreak?: number;
@@ -218,6 +218,8 @@ export interface FighterState {
   ascendVisual?: { tick: number; x: number; y: number };
   ascendEndVisual?: { tick: number; x: number; y: number };
   frogCasts?: { id: string; tick: number; x: number; y: number; facing: Side; powered: boolean; startup: number; anchors?: {frame:number;x:number;y:number}[] }[];
+  frogWarps?: {tick:number;fromX:number;fromY:number;toX:number;toY:number;powered:boolean;kind:'behind'|'burrow'}[];
+  frogFollowup?: boolean;
 
   bindUntil?: number;
   guardChain?: { source: number; count: number; until: number };

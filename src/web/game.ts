@@ -204,7 +204,7 @@ function trainingSkillHints(fighter: FighterDefinition) {
 }
 
 function frogInputHints(seat:Seat){
- return keyHint(preferences,seat,['A'])+' 五段拳脚 · '+keyHint(preferences,seat,['B'])+' 捧腹 · '+keyHint(preferences,seat,['up','B'],'＋')+' 全图冲击（2秒间隔） · '+keyHint(preferences,seat,['ULT'])+' 天使变身';
+ return keyHint(preferences,seat,['A'])+' 五段拳脚 · '+keyHint(preferences,seat,['B'])+' 捧腹 · '+keyHint(preferences,seat,['up','B'],'＋')+' 全图冲击 · 按住'+keyHint(preferences,seat,['C'])+' 下蹲绕背 · '+keyHint(preferences,seat,['up','C'],'＋')+' 脚下钻出 · '+keyHint(preferences,seat,['ULT'])+' 天使变身';
 }
 
 function whaleInputHints(seat:Seat){

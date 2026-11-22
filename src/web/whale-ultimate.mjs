@@ -1,6 +1,6 @@
 import {drawPixelFx} from './pixel-fx.mjs';
 // The portrait is centered; native library bursts supply depth and impact.
-export function createUltimateRenderer(images){
+export function createUltimateRenderer(images,water){
  const clamp=x=>Math.max(0,Math.min(1,x));
  return{intro(g,w,h,phase){
   if(phase>=60)return;
@@ -10,6 +10,7 @@ export function createUltimateRenderer(images){
   drawPixelFx(g,'burst',640,570,.12+phase/60*.75,6.1,'both','blue',.62);
   drawPixelFx(g,'thunder',640,580,.08+phase/60*.7,4.8,'both','blue',.72);
   drawPixelFx(g,'wave',640,720,.65+phase/60*2.15,5,'both','blue',.6);
+  water?.cinematic(g,phase);
   const ph=650*(.96+.04*p),pw=ph*images.portrait.width/images.portrait.height;
   g.drawImage(images.portrait,640-pw/2,70+(1-p)*38,pw,ph);
   g.restore();

@@ -3,14 +3,21 @@ import {frogPowered,FROG_RULES} from '../core/frog-kit.js';
 import {cutGrid} from './pixel-sprites.mjs';
 import {drawPixelFx} from './pixel-fx.mjs';
 import {holyFanSample} from './holy-fan.mjs';
+import {drawWarp,setWarpArt} from './frog-warp.mjs';
+import crouchSource from '../../assets/角色/技能/奶蛙/二技能/调皮下蹲_像素姿态_V1.png';
+import thinkingSource from '../../assets/角色/常态/奶蛙/托腮思考_像素姿态_V1.png';
+import spiralSource from '../../assets/角色/特效/奶蛙/传送_V2/金色旋涡_常态与符文.png';
+import discSource from '../../assets/角色/特效/奶蛙/传送_V2/钻出法阵_常态与符文.png';
 import moveSource from '../../assets/角色/技能/奶娃/拳脚与捧腹_八姿态.png';
 import goldSource from '../../assets/角色/特效/奶蛙/金色符文_V1/星芒_法环_螺旋_星轨.png';
 import travelSource from '../../assets/角色/常态/奶蛙/移动与悬浮_八帧_V1.png';
 import angelSource from '../../assets/角色/大招/奶娃/神了/天使_四姿态.png';
 import introSource from '../../assets/角色/大招/奶娃/神了/神性指尖_演出像素关键帧.png';
-let moves:HTMLCanvasElement[]=[],angels:HTMLCanvasElement[]=[],travel:HTMLCanvasElement[]=[],gold:HTMLCanvasElement[]=[],intro:HTMLImageElement;
+let moves:HTMLCanvasElement[]=[],angels:HTMLCanvasElement[]=[],travel:HTMLCanvasElement[]=[],gold:HTMLCanvasElement[]=[],crouch:HTMLCanvasElement,thinking:HTMLCanvasElement,intro:HTMLImageElement;
 const load=(src:string)=>{const im=new Image();im.src=src;return im.decode().then(()=>im)};
-void Promise.all([load(moveSource),load(angelSource),load(introSource),load(travelSource),load(goldSource)]).then(([m,a,i,t,v])=>{moves=cutGrid(m,4,2);angels=cutGrid(a,2,2);travel=cutGrid(t,4,2);gold=cutGrid(v,2,2);intro=i;});
+void Promise.all([load(moveSource),load(angelSource),load(introSource),load(travelSource),load(goldSource),load(crouchSource)]).then(([m,a,i,t,v,c])=>{moves=cutGrid(m,4,2);angels=cutGrid(a,2,2);travel=cutGrid(t,4,2);gold=cutGrid(v,2,2);crouch=cutGrid(c,1,1)[0];intro=i;});
+void load(thinkingSource).then(im=>thinking=cutGrid(im,1,1)[0]);
+void Promise.all([load(spiralSource),load(discSource)]).then(([s,d])=>setWarpArt(cutGrid(s,2,1),cutGrid(d,2,1)));
 const clamp=(n:number)=>Math.max(0,Math.min(1,n));
 function actorImage(g:CanvasRenderingContext2D,im:HTMLCanvasElement,h:number,y=0){const w=h*im.width/im.height;g.drawImage(im,-w/2,y-h,w,h);}
 function goldMotif(g:CanvasRenderingContext2D,index:number,x:number,y:number,w:number,alpha:number,angle=0,squash=1){
@@ -51,7 +58,7 @@ function shockRing(g:CanvasRenderingContext2D,x:number,y:number,r:number,t:numbe
  if(t<0||t>20)return;
  const p=clamp((t+1)/12),fade=clamp((20-t)/14),from=layer==='back'?Math.PI:0;
  g.save();g.translate(x,y);g.globalAlpha*=fade;
- for(const [offset,width,color,alpha]of [[0,powered?15:8,'#ffd87c',.25],[-4,3,'#fff3cf',.95],[5,2,'#ffce64',.65]] as const){
+ for(const [offset,width,color,alpha]of [[0,powered?23:8,'#ffd87c',powered?.5:.25],[-4,powered?6:3,'#fff3cf',1],[5,powered?4:2,'#ffce64',powered?.95:.65]] as const){
   g.globalAlpha=fade*alpha;g.strokeStyle=color;g.lineWidth=width;g.beginPath();g.arc(0,0,Math.max(3,r*p+offset),from,from+Math.PI);g.stroke();
  }g.restore();
 }
@@ -80,7 +87,13 @@ export function drawFrogActor(g:CanvasRenderingContext2D,f:FighterState,state:Ma
  const stage=['common-jab','common-sweep','frog-left-kick','frog-ha','common-finish'].indexOf(action?.id??'');
  let pose=f.guarding?7:a==='laugh'||a==='global'?6:stage>=0?stage+1:action?.id==='common-air'?3:0;
  const h=pose===5?100:130,evAge=state.arenaFrame-(f.poseEvent?.tick??-999);
+ const warp=f.frogWarps?.at(-1),warpAge=state.arenaFrame-(warp?.tick??-999);
  g.save();g.imageSmoothingEnabled=false;
+ if(warpAge<FROG_RULES.warpHidden){g.restore();return;}
+ if(warpAge<16){
+  const rise=clamp((warpAge-FROG_RULES.warpHidden+1)/10),height=powered?182:104;
+  g.beginPath();g.rect(-250,-300,500,300);g.clip();g.translate(0,height*(1-rise));
+ }
  if(!f.hp||f.recovery?.phase==='down'){g.translate(0,-20);g.rotate(-1.25);}
  else if(f.recovery?.phase==='fall')g.rotate(-.2);
  else if(f.hitstun)g.rotate(-.07);
@@ -96,7 +109,13 @@ export function drawFrogActor(g:CanvasRenderingContext2D,f:FighterState,state:Ma
   if(a==='laugh'||a==='global'){g.rotate(Math.sin(frame*.8)*.035);g.scale(1+Math.sin(frame*.8)*.018,1-Math.sin(frame*.8)*.018);}
   if(stage>=0&&action){const anticipation=clamp(frame/action.startup);if(frame<action.startup){pose=0;g.rotate((stage%2?1:-1)*anticipation*.09);g.scale(1+anticipation*.025,1-anticipation*.06);}}
   if(f.dashActive){g.save();g.globalAlpha=.18;actorImage(g,moves[0],130,-3);g.restore();g.translate(18,0);}
-  if(f.moving&&f.ground&&pose===0&&!action&&travel.length){actorImage(g,travel[Math.floor(state.arenaFrame/6)%4],130);}
+  const idle=state.arenaFrame%420,ponder=!action&&!f.moving&&!f.guarding&&!f.hitstun&&!f.recovery&&f.ground&&idle>=150&&idle<320;
+  if(ponder&&thinking){
+   const blend=clamp((idle-150)/8)*clamp((320-idle)/8);
+   g.save();g.globalAlpha*=1-blend;actorImage(g,moves[0],130);g.restore();
+   g.save();g.globalAlpha*=blend;g.translate(0,-Math.sin(idle*.075)*1.2);g.rotate(Math.sin(idle*.045)*.008);actorImage(g,thinking,130);g.restore();
+  }else if((a==='crouch'||a==='burrow'||a==='evade')&&crouch){g.translate(0,-Math.sin(state.arenaFrame*.16)*.7);actorImage(g,crouch,104);}
+  else if(f.moving&&f.ground&&pose===0&&!action&&travel.length){actorImage(g,travel[Math.floor(state.arenaFrame/6)%4],130);}
   else actorImage(g,moves[pose],h);
   g.restore();
   if(f.hp>0)dissolvingAngel(g,endAge,state.arenaFrame);
@@ -123,6 +142,19 @@ export function drawFrogEffects(g:CanvasRenderingContext2D,state:MatchState,conf
    drawPixelFx(g,'feather',end.x,end.y-95,(state.arenaFrame-end.tick)/60,1.9,layer,true,.85);
   }
   drawCastEffects(g,f,state,config,layer);
+  for(const w of f.frogWarps??[]){
+   const age=state.arenaFrame-w.tick;
+   drawWarp(g,w.fromX,w.fromY-70,age,w.powered,layer);
+   drawWarp(g,w.toX,w.toY-2,age,w.powered,layer,true);
+   if(w.powered)drawPixelFx(g,'feather',w.fromX,w.fromY-80,age/60,1.8,layer,true,.95);
+   if(w.powered&&layer==='back'&&age<34){
+    const alpha=clamp((age-3)/4)*clamp((34-age)/18);
+    g.save();const top=-config.arena.height-400;
+    for(const [width,opacity,color]of [[88,.13,'#edaf37'],[42,.32,'#ffdc82'],[14,.72,'#fff7d5']] as const){
+     g.fillStyle=color;g.globalAlpha=alpha*opacity;g.fillRect(w.toX-width/2,top,width,w.toY-top);
+    }g.restore();
+   }
+  }
   if(a&&'frog' in a&&(a.frog==='laugh'||a.frog==='global')){
    if(frame<a.startup&&layer==='back'){
     g.save();g.globalAlpha=.35*frame/a.startup;g.strokeStyle='#ffe4a1';g.lineWidth=3;g.beginPath();g.arc(f.x,f.y-65,30+25*frame/a.startup,0,Math.PI*2);g.stroke();g.restore();
@@ -132,8 +164,8 @@ export function drawFrogEffects(g:CanvasRenderingContext2D,state:MatchState,conf
   if(!power&&a?.id==='common-finish'&&frame>=4&&frame<21){g.save();g.translate(f.x,f.y-25);g.scale(f.facing,1);g.rotate(.8);drawPixelFx(g,'uppercut',0,0,(frame-4)/60*2,1.25*scale,layer,true,.62);g.restore();}
   const target=state.fighters[seat===0?1:0],hitAge=state.arenaFrame-(target.poseEvent?.tick??-999);
   const laughing=a&&'frog' in a&&(a.frog==='laugh'||a.frog==='global');
-  if(power&&layer==='front'&&['hurt','heavy','launch'].includes(target.poseEvent?.kind??'')&&hitAge<10)goldMotif(g,0,target.x,target.y-65,105+hitAge*3,.65*clamp((10-hitAge)/8),.12);
-  if((power||!laughing)&&layer==='front'&&['hurt','heavy','launch'].includes(target.poseEvent?.kind??'')&&hitAge<14)drawPixelFx(g,power?'spark':'blunt',target.x,target.y-30,hitAge/60*2,power?1.65:1.25,layer,true,.65);
+  if(power&&layer==='front'&&['hurt','heavy','launch'].includes(target.poseEvent?.kind??'')&&hitAge<12)goldMotif(g,0,target.x,target.y-65,150+hitAge*3,.98*clamp((12-hitAge)/8),.12);
+  if((power||!laughing)&&layer==='front'&&['hurt','heavy','launch'].includes(target.poseEvent?.kind??'')&&hitAge<14)drawPixelFx(g,power?'spark':'blunt',target.x,target.y-30,hitAge/60*2,power?2.1:1.25,layer,true,power?.92:.65);
  }
 }
 export function drawFrogIntro(g:CanvasRenderingContext2D,config:MatchConfig,state:MatchState){
@@ -154,8 +186,8 @@ function drawCastEffects(g:CanvasRenderingContext2D,f:FighterState,state:MatchSt
   const age=state.arenaFrame-c.tick;
   if(c.id==='frog-laugh'||c.id==='frog-laugh-global'){
    const global=c.id==='frog-laugh-global',envelope=clamp(age/12)*clamp((65-age)/25);
-   const radius=global?config.arena.right-config.arena.left+config.arena.height:240*(c.powered?2:1);
-   if(c.powered&&layer==='back')goldMotif(g,1,c.x,c.y-65,Math.min(global?960:radius*2,200+age*19),.36*envelope,age*.022);
+   const radius=global?config.arena.right-config.arena.left+config.arena.height:FROG_RULES.laughRadius*(c.powered?FROG_RULES.poweredLaughRange:1);
+   if(c.powered&&layer==='back')goldMotif(g,1,c.x,c.y-65,Math.min(global?960:radius*2,200+age*19),.58*envelope,age*.022);
    for(const at of global?[32]:[16,26,36]){
     const point=global?c:c.anchors?.find(a=>a.frame===at)??c;
     shockRing(g,point.x,point.y-65,radius,age-at,c.powered,layer);

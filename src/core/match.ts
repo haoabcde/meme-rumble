@@ -6,7 +6,7 @@ import { platformAt, platformOffset } from './terrain.js';
 import { MAX_ENERGY } from './types.js';
 import { entityContacts, resolveContactEntity, updateEntities, spawnEntities } from './entities.js';
 import {startWhale,cinematicOwner,WHALE_RULES} from './whale-kit.js';
-import {frogAction,frogCanStart,startFrog,finishAscension,tickAscension,frogPowered,FROG_RULES} from './frog-kit.js';
+import {frogAction,frogCanStart,startFrog,finishAscension,tickAscension,frogPowered,frogCrouching,warpFrog,FROG_RULES} from './frog-kit.js';
 
 const seats = [0, 1] as const;
 const slotPriority = ['ULT', 'C', 'B', 'A'] as const;
@@ -99,6 +99,7 @@ function startKnockdown(fighter: FighterState) {
   fighter.hitstun = 0;
   fighter.blockstun = 0;
   fighter.attack = null;
+  delete fighter.frogFollowup;
   fighter.dash = 0;
   fighter.guarding = false;
   fighter.moving = false;
@@ -179,6 +180,10 @@ function updateControl(
   }
 
   let previousAction = actionFor(config, state, seat);
+  if(f.attack?.id==='frog-crouch'){
+    if(!locked&&f.ground&&input.held?.includes('C')){f.push=0;f.guarding=false;return;}
+    f.attack=null;previousAction=undefined;
+  }
   if (f.attack && previousAction) {
     f.attack.frame++;
     if (f.attack.frame >= previousAction.startup + previousAction.active && !f.attack.connected) {
@@ -188,6 +193,15 @@ function updateControl(
     if (f.attack.frame >= previousAction.startup + previousAction.active + previousAction.recovery) {
       f.attack = null;
       previousAction = undefined;
+    }
+  }
+
+  if(f.frogFollowup){
+    if(locked||!frogPowered(f,state)){delete f.frogFollowup;}
+    else if(!f.attack||(f.attack.id==='frog-evade'&&f.attack.frame>=12)){
+      delete f.frogFollowup;
+      const laugh=definition.actions.find(a=>'frog' in a&&a.frog==='laugh') as ActionDefinition;
+      f.buffer=[];startFrog(laugh,f,state,config,seat);startAction(f,laugh.id,seat,events);return;
     }
   }
 
@@ -221,7 +235,7 @@ function updateControl(
     if (cost) f.energy = (f.energy ?? 0) - cost;
     // A single accepted command consumes competing actions from the same sampled frame.
     f.buffer = f.buffer.filter(item => item.sampledAt !== command.sampledAt);
-    if(definition.id==='frog'&&!('counterTo' in action))startFrog(action,f,state);
+    if(definition.id==='frog'&&!('counterTo' in action))startFrog(action,f,state,config,seat);
     startAction(f, 'counterTo' in action?action.id:startWhale(action,f,state), seat, events, action.slot === 'ULT');
     return;
   }
@@ -369,6 +383,7 @@ function motion(
 
 function separate(state: MatchState, config: MatchConfig, previous: Duo<number>) {
   const [a, b] = state.fighters;
+  if([a,b].some(f=>f.attack?.id==='frog-burrow'&&f.attack.frame<FROG_RULES.warpHidden))return;
   if (config.rules.dashPassThrough && (a.dashActive || b.dashActive)) return;
   const arena = config.arena;
   const width = (config.fighters[0].bodyWidth + config.fighters[1].bodyWidth) / 2;
@@ -453,6 +468,14 @@ function collectContacts(state: MatchState, config: MatchConfig): Contact[] {
 }
 
 function settle(state: MatchState, config: MatchConfig, contacts: Contact[], events: CombatEvent[]) {
+  const evaded=new Set<0|1>();
+  for(const contact of contacts){
+    const {target,source}=contact,defender=state.fighters[target];
+    if(!evaded.has(target)&&config.fighters[target].id==='frog'&&frogCrouching(defender)){
+      warpFrog(state,config,target,source,'behind');evaded.add(target);
+      events.push({kind:'parry',source:target,x:contact.x,y:contact.y,direction:defender.facing});
+    }
+  }
   for (const contact of contacts) {
     if (contact.entityId !== undefined) {
       continue;
@@ -460,11 +483,15 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
     const attack = state.fighters[contact.source].attack!;
     attack.connected = true;
     if (contact.action.hitTimeline) (attack.connectedGroups ??= []).push(contact.group);
-    attack.landed ||= (!contact.blocked && !contact.counterAction) || Boolean(contact.action.guardHitsToBreak && contact.blocked && !contact.counterAction);
+    attack.landed ||= !evaded.has(contact.target)&&((!contact.blocked && !contact.counterAction) || Boolean(contact.action.guardHitsToBreak && contact.blocked && !contact.counterAction));
   }
   let maxStop = 0;
   for (const { source, target, action, blocked, counterAction, facing, x, y,entityId } of contacts) {
     const defender = state.fighters[target];
+    if(evaded.has(target)){
+      if(entityId!==undefined)resolveContactEntity(state,entityId,target,false,true);
+      continue;
+    }
     if(entityId!==undefined)resolveContactEntity(state,entityId,target,blocked,Boolean(counterAction));
     defender.dash = 0;
     if (defender.guardCounterLeft !== undefined) defender.guardCounterLeft = 0;
@@ -475,6 +502,7 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
       continue;
     }
     defender.attack = null;
+    delete defender.frogFollowup;
     if (blocked) {
       if(action.guardHitsToBreak){
         const previous=defender.guardChain;
@@ -496,7 +524,7 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
     const rawDamage=action.fixedDamage?action.damage:Math.floor(action.damage * Math.max(35, 100 - 8 * defender.combo) / 100);
     const resisted=frogPowered(defender,state);
     const amount = Math.min(defender.hp,resisted?Math.round(rawDamage*FROG_RULES.incomingDamage*1000)/1000:rawDamage);
-    defender.hp = resisted?Math.round((defender.hp-amount)*1000)/1000:defender.hp-amount;
+    defender.hp = Math.round((defender.hp-amount)*1000)/1000;
     if (amount > 0) {
       const attacker = state.fighters[source];
       if (attacker.energy !== undefined && action.slot !== 'ULT' && !frogPowered(attacker,state)) {

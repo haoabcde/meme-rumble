@@ -19,12 +19,19 @@ const wave=(n:number,global=false):EntityDefinition=>({
  feedback:{shape:'ring',color:'#ffe7b0',shake:global?2:2.5,flash:.55}
 });
 const laugh=(global=false):ActionDefinition&{slot:'B'}=>({
- id:global?'frog-laugh-global':'frog-laugh',name:global?'响彻天地':'捧腹大笑',slot:'B',direction:global?'up':undefined,posture:global?'ground':'any',frog:global?'global':'laugh',
+ id:global?'frog-laugh-global':'frog-laugh',name:global?'响彻天地':'捧腹大笑',slot:'B',direction:global?'up':undefined,posture:'any',frog:global?'global':'laugh',
  startup:global?32:16,active:global?1:21,recovery:18,hitTimeline:[],hitbox:{x:0,y:0,w:1,h:1},damage:0,hitstun:0,blockstun:0,guardCost:0,push:0,lift:0,stop:0,advance:0,pose:'rise',
  entities:global?[wave(0,true)]:[wave(0),wave(1),wave(2)],feedback:{color:'#ffe5ac',shake:2,flash:.5}
+});
+const slip=(mode:'crouch'|'burrow'|'evade'):ActionDefinition&{slot:'C'}=>({
+ id:'frog-'+mode,name:mode==='crouch'?'调皮下蹲':mode==='burrow'?'脚下钻出':'绕背闪现',slot:'C',frog:mode,
+ direction:mode==='burrow'?'up':undefined,posture:mode==='evade'?'any':'ground',linkOnly:mode==='evade',
+ startup:0,active:1,recovery:mode==='crouch'?0:17,hitTimeline:[],
+ ...(mode==='crouch'?{}:{hurtTimeline:[{from:6,to:18,boxes:[{x:-32,y:-128,w:64,h:128}]}]}),
+ hitbox:{x:0,y:0,w:1,h:1},damage:0,hitstun:0,blockstun:0,guardCost:0,push:0,lift:0,stop:0,advance:0,pose:'rise'
 });
 export const frog=defineFighter({id:'frog',name:'奶蛙',accent:'#ffcf54',height:130,art:{portrait:'frog-v2.webp',motion:'frog-motion.webp'},
  stats:{bodyWidth:80,hurtbox:{x:-32,y:-128,w:64,h:128}},
  commonMoves:[...Array.from({length:5},(_,i)=>combo(i+1)),{...combo(3),id:'common-air',name:'空中踢腿',posture:'air',linkOnly:false,advance:0,chainAfter:undefined,cancelOnHit:[],airControl:.5}],
- signatureMoves:[laugh(),laugh(true)],ultimate:{cost:300,move:{id:'frog-ascend',name:'神了！',frog:'ascend',posture:'any',startup:60,active:1,recovery:0,hitTimeline:[],hitbox:{x:0,y:0,w:1,h:1},damage:0,hitstun:0,blockstun:0,guardCost:0,push:0,lift:0,stop:0,advance:0,pose:'rise'}}
+ signatureMoves:[laugh(),laugh(true),slip('crouch'),slip('burrow'),slip('evade')],ultimate:{cost:300,move:{id:'frog-ascend',name:'神了！',frog:'ascend',posture:'any',startup:60,active:1,recovery:0,hitTimeline:[],hitbox:{x:0,y:0,w:1,h:1},damage:0,hitstun:0,blockstun:0,guardCost:0,push:0,lift:0,stop:0,advance:0,pose:'rise'}}
 });
