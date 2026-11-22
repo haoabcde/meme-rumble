@@ -323,6 +323,11 @@ function motion(
   const arena = config.arena;
   const action = actionFor(config, state, seat);
   const speedScale=frogPowered(f,state)?FROG_RULES.poweredSpeed:1;
+  // Airborne laughter holds the caster, but interruption or rice binding still releases them.
+  if (!f.ground && action && 'frog' in action && (action.frog==='laugh'||action.frog==='global') &&
+      !f.hitstun && !f.recovery && (f.bindUntil??0)<=state.arenaFrame) {
+    f.vy=0;f.push=0;f.moving=false;return;
+  }
   let move = 0;
   if (f.push !== 0) {
     move = f.push;

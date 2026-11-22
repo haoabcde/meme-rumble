@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {orbitAngle,leapSample} from '../src/web/whale-presentation.mjs';
-test('travelling tornado whale completes a visible orbit every 24 ticks independently of map distance',()=>{
- for(const wind of [30,110,240])assert.ok(Math.abs(orbitAngle(27,wind,true)-orbitAngle(3,wind,true)-Math.PI*2)<1e-9);
- assert.equal(orbitAngle(18,40,true),orbitAngle(18,240,true));
- assert.equal(orbitAngle(48,20,false),-2.7+Math.PI*2*1.05);
+import {orbitAngle,orbitSample,leapSample} from '../src/web/whale-presentation.mjs';
+test('travelling and stationary tornado whales share shape, rise and speed, repeating only on long journeys',()=>{
+ for(const wind of [60,110,240])for(let age=0;age<48;age++)assert.deepEqual(orbitSample(age,wind,true),orbitSample(age,20,false));
+ for(let age=0;age<48;age++)assert.deepEqual(orbitSample(age+48,240,true),orbitSample(age,20,false));
+ assert.equal(orbitAngle(48),-2.7+Math.PI*2*1.05);
+ assert.equal(orbitSample(138,110,true).fade,0);
 });
 test('three hero leaps gain scale, accelerate out of water, linger at the crest and return with no extra damage schedule',()=>{
  const first=leapSample(0,0),mid=leapSample(16,0),last=leapSample(48,8);

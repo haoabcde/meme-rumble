@@ -599,6 +599,10 @@ export class Renderer {
         ctx.beginPath();
         ctx.arc(-8, 0, radius * .73, -.97, .97);
         ctx.stroke();
+      } else if (event.feedback?.shape === 'ring') {
+        ctx.strokeStyle = '#fff2cf';
+        ctx.lineWidth = 3;
+        ctx.beginPath();ctx.arc(0, 0, 10 + age * 1.7, 0, Math.PI * 2);ctx.stroke();
       } else {
         const heavy = event.heavy || event.kind === 'break';
         if (heavy) {

@@ -1,7 +1,7 @@
 import {WHALE_RULES} from '../core/whale-kit.js';
 import {cutGrid,createPoseMorph} from './pixel-sprites.mjs';
 import {drawPixelFx} from './pixel-fx.mjs';
-import {orbitAngle,leapSample} from './whale-presentation.mjs';
+import {orbitSample,leapSample} from './whale-presentation.mjs';
 // Independent pixel sprites, world-space depth layers and simulation-clock animation.
 const clamp=n=>Math.max(0,Math.min(1,n));
 const TAU=Math.PI*2;
@@ -81,8 +81,7 @@ export function createWaterRenderer(images){
   }
  }
  function orbit(g,e,layer){
-  const wind=e.windTicks??20,total=wind+28,p=clamp(e.age/total),fade=clamp(e.age/3)*clamp((total-e.age)/16);
-  const a=orbitAngle(e.age,wind,e.definition.behavior==='spin'),depth=Math.sin(a),front=depth>0;
+  const {angle:a,p,depth,fade}=orbitSample(e.age,e.windTicks??20,e.definition.behavior==='spin'),front=depth>0;
   if((layer==='front')!==front)return;
   const x=e.x+Math.cos(a)*112,y=e.y-70-p*156+depth*28,w=119+depth*17;
   const yaw=(((a+Math.PI/2)/TAU*8)%8+8)%8;

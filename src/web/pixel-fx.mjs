@@ -16,13 +16,25 @@ import * as whirlpool from '../../assets/特效库/PixelFX/src/fx/water/whirlpoo
 export const selectedEffects={thunder,wave,whirlpool,blunt,burst,uppercut,pillar,halo,feather,rays,thrust,spark,smite,sun};
 export const GOLD=['#342032','#75402e','#b46c26','#e6a53a','#ffcf62','#ffeaa4','#fff8d8','#ffffff'];
 export const BLUE=['#142c58','#28598a','#467fb7','#68adde','#99d3f5','#c4eaff','#edfaff','#ffffff'];
+export const FEATHER_WHITE=['#aeb9c8','#c3ceda','#dbe3ec','#eef3fa','#fafcff','#ffffff'];
+// Some library flashes read an actor mask even when the demo actor is hidden.
+// An empty silhouette satisfies that contract without painting the library's dummy actor.
+const EMPTY_ACTOR={x:0,y:0,mask:{w:0,h:0,data:new Uint8Array(0)},pixels:new Uint32Array(0)};
+export function createPixelSimulation(name,gold=false){
+ const mod=selectedEffects[name],meta=mod.meta,f=createFrame(...meta.size);
+ const palette=gold==='blue'?BLUE:GOLD;
+ const fx=createFx({...mod,meta:{...meta,actor:false}},{x:meta.origin[0],y:meta.origin[1],actor:EMPTY_ACTOR,
+  ...(gold?{palette}:{}),...(name==='feather'?{palette:FEATHER_WHITE,glow:'#ffffff'}:{}),
+  ...(name==='pillar'?{featherPalette:FEATHER_WHITE}:{}),seed:7});
+ return {f,fx,tick:0,frames:new Map()};
+}
 const stores=new Map();
 export function pixelFrame(name,seconds,layer='both',gold=false){
  const mod=selectedEffects[name],meta=mod.meta,fps=30;
  if(seconds<0||!meta.loop&&seconds>meta.duration)return null;
  const tick=Math.floor((meta.loop?seconds%meta.duration:seconds)*fps),key=name+'/'+layer+'/'+gold;
  let store=stores.get(key);
- function reset(){const f=createFrame(...meta.size);return{f,fx:createFx({...mod,meta:{...meta,actor:false}},{x:meta.origin[0],y:meta.origin[1],...(gold?{palette:gold==='blue'?BLUE:GOLD}:{}),seed:7}),tick:0,frames:new Map()};}
+ function reset(){return createPixelSimulation(name,gold);}
  if(!store){store=reset();stores.set(key,store);}
  if(store.frames.has(tick))return store.frames.get(tick);
  if(tick<store.tick){const cached=store.frames;store=reset();store.frames=cached;stores.set(key,store);}

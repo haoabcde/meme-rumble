@@ -16,6 +16,31 @@ function goldMotif(g:CanvasRenderingContext2D,index:number,x:number,y:number,w:n
  const im=gold[index];if(!im||alpha<=0)return;
  g.save();g.imageSmoothingEnabled=false;g.globalAlpha*=alpha;g.translate(x,y);g.rotate(angle);g.scale(1,squash);g.drawImage(im,-w/2,-w*im.height/im.width/2,w,w*im.height/im.width);g.restore();
 }
+function whiteFeather(g:CanvasRenderingContext2D,x:number,y:number,angle:number,alpha:number,size=1){
+ g.save();g.globalAlpha*=alpha;g.translate(Math.round(x),Math.round(y));g.rotate(angle);g.scale(size,size);
+ g.fillStyle='#dce6f2';g.fillRect(-3,-9,4,15);g.fillRect(-5,-6,8,10);
+ g.fillStyle='#ffffff';g.fillRect(-3,-8,4,12);g.fillRect(-5,-5,4,7);g.fillRect(1,-4,3,7);
+ g.fillStyle='#f5f9ff';g.fillRect(-1,-10,2,21);g.restore();
+}
+function holyColumn(g:CanvasRenderingContext2D,f:FighterState,seconds:number,config:MatchConfig){
+ const alpha=clamp((seconds-.25)/.2)*clamp((2.78-seconds)/.4);if(!alpha)return;
+ // World-space column reaches above the entire map; the sun is kept at its original 1.65x position.
+ const top=-config.arena.height-400,bottom=f.y+8;
+ g.save();g.globalAlpha*=alpha;const glow=g.createLinearGradient(f.x-130,0,f.x+130,0);
+ glow.addColorStop(0,'#ffcc5500');glow.addColorStop(.3,'#ffdb6b55');glow.addColorStop(.5,'#fff4c9aa');glow.addColorStop(.7,'#ffdb6b55');glow.addColorStop(1,'#ffcc5500');
+ g.fillStyle=glow;g.fillRect(f.x-130,top,260,bottom-top);
+ for(let i=-3;i<=3;i++){const x=Math.round((f.x+i*19+Math.sin(seconds*2+i)*4)/3)*3;
+  g.globalAlpha=alpha*(i===0?.7:.25);g.fillStyle=i===0?'#fffce8':'#ffe7a0';g.fillRect(x-3,top,i===0?9:3,bottom-top);}
+ g.restore();
+}
+function shockRing(g:CanvasRenderingContext2D,x:number,y:number,r:number,t:number,powered:boolean,layer:'back'|'front'){
+ if(t<0||t>20)return;
+ const p=clamp((t+1)/12),fade=clamp((20-t)/14),from=layer==='back'?Math.PI:0;
+ g.save();g.translate(x,y);g.globalAlpha*=fade;
+ for(const [offset,width,color,alpha]of [[0,powered?15:8,'#ffd87c',.25],[-4,3,'#fff3cf',.95],[5,2,'#ffce64',.65]] as const){
+  g.globalAlpha=fade*alpha;g.strokeStyle=color;g.lineWidth=width;g.beginPath();g.arc(0,0,Math.max(3,r*p+offset),from,from+Math.PI);g.stroke();
+ }g.restore();
+}
 export function drawFrogActor(g:CanvasRenderingContext2D,f:FighterState,state:MatchState,action?:FighterAction){
  if(!moves.length)return;
  const frame=f.attack?.frame??0,powered=frogPowered(f,state),a=action&&'frog' in action?action.frog:undefined;
@@ -45,35 +70,30 @@ export function drawFrogEffects(g:CanvasRenderingContext2D,state:MatchState,conf
  for(const seat of [0,1] as const){
   if(config.fighters[seat].id!=='frog')continue;
   const f=state.fighters[seat],a=config.fighters[seat].actions.find(a=>a.id===f.attack?.id),frame=f.attack?.frame??-999,power=frogPowered(f,state),scale=power?1.5:1;
-  if(power&&f.moving&&!f.attack&&layer==='back'){goldMotif(g,2,f.x-f.facing*65,f.y-55,165,.32,state.arenaFrame*.01,.75);}
+  if(power&&f.moving&&!f.attack&&layer==='back')for(let i=0;i<4;i++){
+   const p=((state.arenaFrame+i*8)%32)/32;
+   whiteFeather(g,f.x-f.facing*(60+p*100),f.y-70-i*8+p*30,Math.sin(p*5+i)*.5,.75*Math.sin(p*Math.PI),.85+i*.05);
+  }
   if(power)drawPixelFx(g,'halo',f.x,f.y-72,(state.arenaFrame%120)/60,2.4,layer,true,.44);
   const reveal=f.ascendVisual;
   if(reveal){
    const seconds=(state.arenaFrame-reveal.tick)/60;
-   g.save();g.translate(f.x,f.y);g.scale(1,2);
-   drawPixelFx(g,'pillar',0,0,seconds,1.65,layer,true,.9);g.restore();
+   if(layer==='back')holyColumn(g,f,seconds,config);
+   drawPixelFx(g,'pillar',f.x,f.y,seconds,1.65,layer,true,1);
    drawPixelFx(g,'feather',f.x,f.y-95,seconds-.66,1.6,layer,true,.85);
   }
-  drawCastEffects(g,f,state,layer);
+  drawCastEffects(g,f,state,config,layer);
   if(a&&'frog' in a&&(a.frog==='laugh'||a.frog==='global')){
-   const starts=a.frog==='global'?[32]:[16,26,36];
    if(frame<a.startup&&layer==='back'){
     g.save();g.globalAlpha=.35*frame/a.startup;g.strokeStyle='#ffe4a1';g.lineWidth=3;g.beginPath();g.arc(f.x,f.y-65,30+25*frame/a.startup,0,Math.PI*2);g.stroke();g.restore();
-   }
-   for(const start of starts){const t=frame-start;if(t<0||t>20)continue;
-    const k=a.frog==='global'?3:240/90*(power?2:1);
-    drawPixelFx(g,'burst',f.x,f.y-65+28*k,.22+t/60*3,k,layer,true,.7);
-    if(a.frog==='global'&&layer==='front'){
-     const r=(config.arena.right-config.arena.left+config.arena.height)*clamp((t+1)/12);
-     g.save();g.globalAlpha=clamp((20-t)/18)*.65;g.strokeStyle='#ffe5a8';g.lineWidth=9;g.beginPath();g.arc(f.x,f.y-65,r,0,Math.PI*2);g.stroke();g.restore();
-    }
    }
   }
   if(!power&&a?.id==='frog-ha'&&frame>=3&&frame<19)drawPixelFx(g,'burst',f.x,f.y-65+28*scale, .22+(frame-3)/60*3,scale,layer,true,.8);
   if(!power&&a?.id==='common-finish'&&frame>=4&&frame<21){g.save();g.translate(f.x,f.y-25);g.scale(f.facing,1);g.rotate(.8);drawPixelFx(g,'uppercut',0,0,(frame-4)/60*2,1.25*scale,layer,true,.62);g.restore();}
   const target=state.fighters[seat===0?1:0],hitAge=state.arenaFrame-(target.poseEvent?.tick??-999);
-  if(power&&layer==='front'&&['hurt','heavy','launch'].includes(target.poseEvent?.kind??'')&&hitAge<10)goldMotif(g,0,target.x,target.y-65,105+hitAge*3,.65*clamp((10-hitAge)/8),.12);
-  if(layer==='front'&&['hurt','heavy','launch'].includes(target.poseEvent?.kind??'')&&hitAge<14)drawPixelFx(g,power?'spark':'blunt',target.x,target.y-30,hitAge/60*2,power?1.65:1.25,layer,true,.65);
+  const laughing=a&&'frog' in a&&(a.frog==='laugh'||a.frog==='global');
+  if(!laughing&&power&&layer==='front'&&['hurt','heavy','launch'].includes(target.poseEvent?.kind??'')&&hitAge<10)goldMotif(g,0,target.x,target.y-65,105+hitAge*3,.65*clamp((10-hitAge)/8),.12);
+  if(!laughing&&layer==='front'&&['hurt','heavy','launch'].includes(target.poseEvent?.kind??'')&&hitAge<14)drawPixelFx(g,power?'spark':'blunt',target.x,target.y-30,hitAge/60*2,power?1.65:1.25,layer,true,.65);
  }
 }
 export function drawFrogIntro(g:CanvasRenderingContext2D,config:MatchConfig,state:MatchState){
@@ -89,17 +109,20 @@ export function drawFrogIntro(g:CanvasRenderingContext2D,config:MatchConfig,stat
 }
 
 /** Persist the library's natural decay across attack cancels and hit reactions. */
-function drawCastEffects(g:CanvasRenderingContext2D,f:FighterState,state:MatchState,layer:'back'|'front'){
+function drawCastEffects(g:CanvasRenderingContext2D,f:FighterState,state:MatchState,config:MatchConfig,layer:'back'|'front'){
  for(const c of f.frogCasts??[]){
   const age=state.arenaFrame-c.tick;
   if(c.id==='frog-laugh'||c.id==='frog-laugh-global'){
-   if(!c.powered)continue; // The approved normal laugh remains unchanged.
-   const envelope=clamp(age/12)*clamp((100-age)/50);
-   drawPixelFx(g,'sun',c.x,c.y-80,age/60,6.2,layer,true,.36*envelope);
-   if(layer==='back')goldMotif(g,1,c.x,c.y-65,Math.min(960,200+age*19),.32*envelope,age*.022);
-   const strikes=c.id==='frog-laugh-global'?[[32,0]]:[[16,0],[36,-330],[36,330]];
-   for(const [at,dx]of strikes){const t=.54+(age-at)/60;if(t<.25)continue;const point=c.anchors?.find(a=>a.frame===at)??c;drawPixelFx(g,'smite',point.x+dx,point.y,t,1.12,layer,true,.72);}
-   if(age>=36){const point=c.anchors?.find(a=>a.frame===36)??c;drawPixelFx(g,'feather',point.x,point.y-90,(age-36)/60,2.3,layer,true,.55);}
+   const global=c.id==='frog-laugh-global',envelope=clamp(age/12)*clamp((65-age)/25);
+   const radius=global?config.arena.right-config.arena.left+config.arena.height:240*(c.powered?2:1);
+   if(c.powered&&layer==='back')goldMotif(g,1,c.x,c.y-65,Math.min(global?960:radius*2,200+age*19),.36*envelope,age*.022);
+   for(const at of global?[32]:[16,26,36]){
+    const point=c.anchors?.find(a=>a.frame===at)??c;
+    shockRing(g,point.x,point.y-65,radius,age-at,c.powered,layer);
+   }
+   if(c.powered&&layer==='front'&&age>=36&&age<76)for(let i=0;i<4;i++){
+    const p=(age-36)/40;whiteFeather(g,c.x+(i-1.5)*(30+p*40),c.y-60-p*50+i*8,Math.sin(p*4+i),Math.sin(p*Math.PI)*.55,.8);
+   }
    continue;
   }
   const stage=['common-jab','common-sweep','frog-left-kick','frog-ha','common-finish'].indexOf(c.id);

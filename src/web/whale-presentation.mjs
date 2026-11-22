@@ -1,6 +1,10 @@
 const clamp=n=>Math.max(0,Math.min(1,n));
-export function orbitAngle(age,windTicks=20,moving=false){
- return -2.7+(moving?age/24:clamp(age/(windTicks+28))*1.05)*Math.PI*2;
+export function orbitAngle(age){
+ return -2.7+clamp(age/48)*1.05*Math.PI*2;
+}
+export function orbitSample(age,windTicks=20,moving=false){
+ const phase=moving?age%48:age,p=clamp(phase/48),angle=orbitAngle(phase);
+ return{angle,p,depth:Math.sin(angle),fade:Math.min(clamp(phase/3),clamp((48-phase)/16),clamp((windTicks+28-age)/16))};
 }
 export function leapSample(age,index){
  const p=clamp(age/48),rise=clamp(p/.34),fall=clamp((p-.54)/.46);

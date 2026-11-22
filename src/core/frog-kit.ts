@@ -1,6 +1,6 @@
 import type {ActionDefinition,Box,FighterAction,FighterState,MatchState} from './types.js';
 
-export const FROG_RULES=Object.freeze({buffTicks:900,body:80,laughRadius:240,globalCooldown:120,poweredLaughRange:2,poweredSpeed:1.5,incomingDamage:.7});
+export const FROG_RULES=Object.freeze({buffTicks:900,body:80,laughRadius:240,poweredLaughRange:2,poweredSpeed:1.5,incomingDamage:.7});
 export const frogPowered=(f:FighterState,state:MatchState)=>(f.ascendUntil??0)>state.arenaFrame;
 export function frogBox(box:Box,scale:number):Box{return {x:box.x*scale,y:(box.y+65)*scale-65,w:box.w*scale,h:box.h*scale};}
 export function frogAction(action:FighterAction|undefined,f:FighterState,state:MatchState):FighterAction|undefined{
@@ -11,10 +11,9 @@ export function frogAction(action:FighterAction|undefined,f:FighterState,state:M
   entities:action.entities?.map(e=>({...e,damage:e.damage*1.5,hitbox:e.behavior==='frog-global'?e.hitbox:{x:e.hitbox.x*reach,y:e.hitbox.y*reach,w:e.hitbox.w*reach,h:e.hitbox.h*reach}}))};
 }
 export function frogCanStart(action:FighterAction,f:FighterState,state:MatchState){
- return !('frog' in action&&(action.frog==='ascend'&&frogPowered(f,state)||action.frog==='global'&&(f.frogGlobalReady??0)>state.arenaFrame));
+ return !('frog' in action&&action.frog==='ascend'&&frogPowered(f,state));
 }
 export function startFrog(action:ActionDefinition,f:FighterState,state:MatchState){
- if(action.frog==='global')f.frogGlobalReady=state.arenaFrame+FROG_RULES.globalCooldown;
  if(action.slot==='A'||action.frog==='laugh'||action.frog==='global'){
   (f.frogCasts??=[]).push({id:action.id,tick:state.arenaFrame,x:f.x,y:f.y,facing:f.facing,powered:frogPowered(f,state),startup:action.startup});
  }

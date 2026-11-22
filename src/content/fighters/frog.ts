@@ -16,7 +16,7 @@ const wave=(n:number,global=false):EntityDefinition=>({
  offset:{x:0,y:-65},velocity:{x:0,y:0},lifetime:8,
  hitbox:{x:-240,y:-240,w:480,h:480},damage:global?25:n===2?44:28,
  hitstun:global?18:n===2?30:14,blockstun:8,guardCost:global?12:14,push:global?9:n===2?10:0,lift:global?10:n===2?15:0,stop:2,
- feedback:{color:'#ffe7b0',shake:global?2:2.5,flash:.55}
+ feedback:{shape:'ring',color:'#ffe7b0',shake:global?2:2.5,flash:.55}
 });
 const laugh=(global=false):ActionDefinition&{slot:'B'}=>({
  id:global?'frog-laugh-global':'frog-laugh',name:global?'响彻天地':'捧腹大笑',slot:'B',direction:global?'up':undefined,posture:global?'ground':'any',frog:global?'global':'laugh',

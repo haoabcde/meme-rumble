@@ -31,10 +31,11 @@ test('laugh deals three independent circular hits then launches; out-of-radius e
  for(const source of [0,1]){const t=setup(source,190);t.press('B');const hits=t.run(90).filter(e=>e.kind==='hit'&&e.source===source);assert.deepEqual(hits.map(e=>e.amount),[28,28,44]);assert.equal(t.target.hp,900);assert.equal(t.caster.x,t.config.arena.spawn[source]);}
  const far=setup(0,330);far.press('B');assert.equal(far.run(80).some(e=>e.kind==='hit'),false);
 });
-test('global wave hits once across the complete map and upper platforms, with a genuine two-second cooldown',()=>{
+test('global wave hits once across the complete map and upper platforms, and can recast as soon as recovery ends',()=>{
  for(const source of [0,1]){const t=setup(source,2800);t.target.y=320;t.target.ground='high';t.config.arena.platforms=[{id:'high',name:'high',tier:4,left:t.target.x-120,right:t.target.x+120,y:320}];t.press('B',-1);assert.equal(t.caster.attack.id,'frog-laugh-global');assert.equal(t.run(30).some(e=>e.kind==='hit'),false);
   const hits=t.run(30).filter(e=>e.kind==='hit');assert.equal(hits.length,1);assert.equal(hits[0].amount,25);
-  t.press('B',-1);assert.equal(t.caster.attack,null);t.run(65);t.press('B',-1);assert.equal(t.caster.attack.id,'frog-laugh-global');
+  t.press('B',-1);assert.equal(t.caster.attack.id,'frog-laugh-global');
+  assert.equal(t.run(60).filter(e=>e.kind==='hit').length,1);
  }
 });
 test('ascension freezes battle during its cinematic and grants exactly 900 playable ticks without healing',()=>{
@@ -69,10 +70,10 @@ test('angel damage is 1.5x across basic attacks and laugh waves',()=>{
 test('buff does not change the hurtbox, platform movement or jump budget and cannot be refreshed',()=>{
  const t=setup();t.caster.ascendUntil=900;t.caster.energy=300;const box=structuredClone(t.config.fighters[0].hurtbox);t.press('jump');assert.equal(t.caster.ground,null);t.run(5);t.press('jump');assert.equal(t.caster.jumpCount,2);assert.equal(t.caster.airActionUsed,true);assert.deepEqual(t.config.fighters[0].hurtbox,box);
 });
-test('frog buff, global cooldown and wave hits survive snapshot replay and clear at round reset',()=>{
+test('frog buff, casts and wave hits survive snapshot replay and clear at round reset',()=>{
  const t=setup(0,190);t.caster.ascendUntil=900;t.caster.energy=300;t.press('B');t.run(18);const clone=structuredClone(t.state);
  for(let i=0;i<180;i++){const a=input(i===90?['B']:[],0,i===90?-1:0);assert.deepEqual(step(t.state,[a,NEUTRAL],t.config),step(clone,[a,NEUTRAL],t.config));assert.deepEqual(t.state,clone);}
- t.caster.attack=null;t.caster.hitstun=0;t.target.hp=1;t.target.x=t.caster.x+90;t.target.y=t.caster.y;t.target.ground='floor';t.caster.attack={id:'common-jab',frame:4,connected:false,landed:false};t.state.freeze=0;t.tick();assert.equal(t.state.phase,'round-over');t.run(110);assert.equal(t.state.fighters[0].ascendUntil,undefined);assert.equal(t.state.fighters[0].frogGlobalReady,undefined);assert.equal(t.state.fighters[0].energy,0);
+ t.caster.attack=null;t.caster.hitstun=0;t.target.hp=1;t.target.x=t.caster.x+90;t.target.y=t.caster.y;t.target.ground='floor';t.caster.attack={id:'common-jab',frame:4,connected:false,landed:false};t.state.freeze=0;t.tick();assert.equal(t.state.phase,'round-over');t.run(110);assert.equal(t.state.fighters[0].ascendUntil,undefined);assert.equal(t.state.fighters[0].energy,0);
 });
 
 
@@ -80,7 +81,7 @@ test('ordinary laugh and ascension can start in the air; the cinematic preserves
  for(const source of [0,1]){
   const t=setup(source,1200);t.press('jump');t.run(4);t.press('B');assert.equal(t.caster.attack.id,'frog-laugh');assert.equal(t.caster.ground,null);
   let aerialWave=false;for(let i=0;i<22;i++){t.tick();aerialWave ||= (t.state.entities??[]).some(e=>e.definition.behavior==='frog-wave'&&e.y<t.config.arena.floor-65);}
-  assert.equal(aerialWave,true);assert.equal(t.caster.frogCasts[0].anchors[0].frame,16);assert.ok(t.caster.frogCasts[0].anchors[0].y<t.config.arena.floor);
+ assert.equal(aerialWave,true);assert.equal(t.caster.frogCasts[0].anchors[0].frame,16);assert.ok(t.caster.frogCasts[0].anchors[0].y<t.config.arena.floor);
   const u=setup(source,1200);u.caster.energy=300;u.press('jump');u.run(5);u.press('ULT');assert.equal(u.caster.attack.id,'frog-ascend');const y=u.caster.y,vy=u.caster.vy,clock=u.state.arenaFrame;
   u.run(60);assert.equal(u.caster.y,y);assert.equal(u.caster.vy,vy);assert.equal(u.state.arenaFrame,clock);assert.equal(u.caster.ascendUntil-clock,900);
   u.tick();assert.equal(u.caster.ground,null);assert.equal(u.caster.vy,vy+1);
@@ -91,6 +92,25 @@ test('empowered laugh reaches twice the normal radius while basic reach and all 
  const near=setup(0,450);near.caster.ascendUntil=900;near.press('B');const action=actionFor(near.config,near.state,0);assert.equal(action.entities[0].hitbox.w,960);
  assert.deepEqual(near.run(90).filter(e=>e.kind==='hit').map(e=>e.amount),[42,42,66]);
  const far=setup(0,530);far.caster.ascendUntil=900;far.press('B');assert.equal(far.run(90).some(e=>e.kind==='hit'),false);
+});
+
+test('airborne laugh holds both coordinates through all three waves, then falls; bind and interruption release it',()=>{
+ for(const source of [0,1])for(const powered of [false,true]){
+  const t=setup(source,1200);t.caster.ground=null;t.caster.y=400;t.caster.vy=-12;
+  if(powered)t.caster.ascendUntil=900;
+  const x=t.caster.x,y=t.caster.y;t.press('B');
+  for(let i=0;i<48;i++){
+   const c=input([],source===0?1:-1);t.tick(...(source===0?[c,NEUTRAL]:[NEUTRAL,c]));
+   assert.equal(t.caster.x,x);assert.equal(t.caster.y,y);assert.equal(t.caster.vy,0);
+  }
+  assert.deepEqual(t.caster.frogCasts[0].anchors.map(a=>a.y),[y,y,y]);
+  t.run(15);assert.equal(t.caster.attack,null);assert.ok(t.caster.y>y);assert.ok(t.caster.vy>0);
+ }
+ for(const bound of [false,true]){
+  const t=setup(0,1200);t.caster.ground=null;t.caster.y=400;t.press('B');const y=t.caster.y;
+  if(bound)t.caster.bindUntil=t.state.arenaFrame+72;else{t.caster.attack=null;t.caster.hitstun=4;}
+  t.tick();assert.ok(t.caster.y>y);assert.ok(t.caster.vy>0);
+ }
 });
 
 test('ascension multiplies controlled ground and aerial travel by 1.5 and restores speed on expiry',()=>{

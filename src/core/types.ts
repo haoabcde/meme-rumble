@@ -45,6 +45,7 @@ export interface HitWindow extends BoxWindow {
 }
 
 export interface HitFeedback {
+  shape?: 'ring';
   color?: string;
   shake?: number;
   flash?: number;
@@ -216,7 +217,6 @@ export interface FighterState {
   /** Presentation clocks use arena time, independent of interruptible hit poses. */
   ascendVisual?: { tick: number; x: number; y: number };
   frogCasts?: { id: string; tick: number; x: number; y: number; facing: Side; powered: boolean; startup: number; anchors?: {frame:number;x:number;y:number}[] }[];
-  frogGlobalReady?: number;
 
   bindUntil?: number;
   guardChain?: { source: number; count: number; until: number };
