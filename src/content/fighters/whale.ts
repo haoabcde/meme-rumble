@@ -14,16 +14,16 @@ const tail=(stage:1|2|3):ActionDefinition=>({
  .map(([frame,index])=>({frame,cell:12+(stage-1)*8+index}))
 });
 const projectile=(id:string,behavior:EntityDefinition['behavior'],spawnFrame:number,sign=1):EntityDefinition=>({
- id,behavior,spawnFrame,offset:{x:behavior==='rice'?26*sign:behavior==='orca'?-107.5:0,y:behavior==='rice'?-92:behavior==='orca'?-90:0},
- velocity:{x:behavior==='spin'?24:behavior==='orca'?WHALE_RULES.orcaSpeed:behavior==='rice'?sign:0,y:0},
- lifetime:behavior==='rice'?120:behavior==='orca'?240:48,
- hitbox:behavior==='rice'?{x:-14,y:-11,w:28,h:22}:behavior==='orca'?{x:-202.5,y:-92,w:405,h:197}:{x:-86,y:-240,w:172,h:240},
- damage:behavior==='orca'?35:behavior==='counter'?20:30,hitstun:behavior==='rice'?0:behavior==='orca'?12:22,
- blockstun:7,guardCost:behavior==='orca'?8:20,push:behavior==='rice'?0:behavior==='orca'?3.4:7,lift:behavior==='spin'||behavior==='spin-up'||behavior==='counter'?12:0,
- stop:behavior==='orca'?1:3,feedback:{color:'#8bdfff',shake:2,flash:.6},color:'#65baff'
+ id,behavior,spawnFrame,offset:{x:behavior==='rice'?26*sign:0,y:behavior==='rice'?-92:0},
+ velocity:{x:behavior==='spin'?24:behavior==='rice'?sign:0,y:0},
+ lifetime:behavior==='rice'?120:behavior==='pool'?WHALE_RULES.telegraph+WHALE_RULES.ultimateHits*WHALE_RULES.hitGap+24:48,
+ hitbox:behavior==='rice'?{x:-14,y:-11,w:28,h:22}:behavior==='pool'?{x:-152,y:-260,w:304,h:262}:{x:-86,y:-240,w:172,h:240},
+ damage:behavior==='pool'?35:behavior==='counter'?20:30,hitstun:behavior==='rice'?0:behavior==='pool'?12:22,
+ blockstun:7,guardCost:behavior==='pool'?8:20,push:behavior==='rice'?0:behavior==='pool'?0:7,lift:behavior==='spin'||behavior==='spin-up'||behavior==='counter'?12:0,
+ stop:behavior==='pool'?1:3,feedback:{color:'#8bdfff',shake:2,flash:.6},color:'#65baff'
 });
 const rice=(up=false):ActionDefinition&{slot:'B'}=>({
- id:up?'rice-up':'rice',name:up?'60°上投米饭':'米饭投手',slot:'B',posture:'ground',direction:up?'up':undefined,
+ id:up?'rice-up':'rice',name:up?'60°上投米饭':'米饭投手',slot:'B',posture:'any',airControl:.25,cancelOnHit:['ULT'],direction:up?'up':undefined,
  startup:8,active:1,recovery:9,whale:up?'rice-up':'rice',hitTimeline:[],hitbox:{x:0,y:0,w:1,h:1},damage:0,hitstun:0,blockstun:0,guardCost:0,push:0,lift:0,stop:0,advance:0,pose:'strike',
  animation:[{frame:0,cell:68},{frame:8,cell:up?70:69},{frame:15,cell:77}],entities:[projectile(up?'rice-up':'rice','rice',8)]
 });
@@ -35,8 +35,8 @@ const spin=(up=false):ActionDefinition&{slot:'C'}=>({
 const counter:ActionDefinition&{slot:'C'}={...spin(),id:'whale-counter',name:'旋风防反',whale:'counter',linkOnly:true,startup:0,active:20,recovery:0,
  entities:[projectile('counter','counter',0),projectile('counter-rice-left','rice',12,-1),projectile('counter-rice-right','rice',12)],
  animation:[{frame:0,cell:72},{frame:3,cell:73},{frame:6,cell:74},{frame:9,cell:75},{frame:12,cell:77}]};
-const ult:ActionDefinition={...spin(),id:'open-source',name:'开源！',slot:'ULT',direction:undefined,whale:'open-source',startup:64,active:1,recovery:10,
- animation:[{frame:0,cell:76},{frame:22,cell:77}],entities:[projectile('open-source-orca','orca',64)]};
+const ult:ActionDefinition={...spin(),id:'open-source',name:'开源！',slot:'ULT',direction:undefined,whale:'open-source',startup:60,active:1,recovery:0,
+ animation:[{frame:0,cell:76},{frame:22,cell:77}],entities:[projectile('open-source-pool','pool',60)]};
 const {slot:_slot,energyCost:_energy,...ultimateMove}=ult;
 export const whale=defineFighter({id:'whale',name:'大肥鱼',accent:'#75a9ff',height:144,art:{portrait:'大肥鱼/常态.webp',motion:'大肥鱼/完整动作.webp'},
  stats:{run:7,airSpeed:8,jump:18,airJump:14,dash:24,airDash:true,hurtbox:{x:-27,y:-140,w:54,h:140},bodyWidth:72},

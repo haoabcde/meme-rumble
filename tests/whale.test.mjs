@@ -5,7 +5,7 @@ import {whale} from '../dist/content/fighters/whale.js';
 import {rules,testFighter} from '../dist/content/demo.js';
 import {arenas} from '../dist/content/arenas.js';
 import {NEUTRAL} from '../dist/core/types.js';
-import {contactMouthBlend} from '../src/web/whale-ultimate.mjs';
+import {riceRoll} from '../dist/core/whale-kit.js';
 const input=(pressed=[],x=0,y=0)=>({pressed,x,y});
 function setup(source=0,sep=320){
  const arena={...arenas[0],width:2200,height:1000,left:100,right:2100,floor:800,spawn:[600,600+sep],platforms:[]};
@@ -33,13 +33,6 @@ test('tail requires two actual blocks before normal third contact; a lone third 
   const ev=alone.run(7,...guard);assert.equal(alone.target.hp,1000);assert.equal(ev.some(e=>e.kind==='break'),false);
  }
 });
-test('rice normal/up share five-throw greed and reset at exactly 24 playable ticks',()=>{
- const t=setup(0,1300);
- for(let i=0;i<5;i++){t.press('B',i%2?-1:0);t.run(20);}
- assert.equal(t.caster.whale.riceCount,5);t.press('B');assert.equal(t.caster.attack.id,'whale-eat');
- t.run(22);t.press('B');assert.equal(t.caster.attack.id,'whale-eat');t.run(23);t.press('B');assert.equal(t.caster.attack.id,'rice');
- assert.equal(t.caster.whale.riceCount,1);
-});
 test('rice direct hit damages and roots, floor contact only roots, airborne root drops vertically, and rice expires',()=>{
  for(const source of [0,1]){
   const t=setup(source,130);t.press('B');const ev=t.run(70);assert.equal(ev.filter(e=>e.kind==='hit').length,1);assert.equal(t.target.hp,970);
@@ -62,18 +55,18 @@ test('counter catches melee or an entity, emits two opposite rice throws, keeps 
  for(const source of [0,1]){
   const t=setup(source,95),attacker=t.target;attacker.attack={id:'test-a',frame:4,connected:false,landed:false};
   const ev=source===0?t.tick(input([],0,1)):t.tick(NEUTRAL,input([],0,1));assert.ok(ev.some(e=>e.kind==='parry'));
-  t.run(20);const rice=t.state.entities.filter(e=>e.definition.behavior==='rice');assert.equal(rice.length,2);assert.equal(Math.sign(rice[0].vx),-Math.sign(rice[1].vx));assert.equal(t.caster.whale?.riceCount??0,0);
+  t.run(20);const rice=t.state.entities.filter(e=>e.definition.behavior==='rice');assert.equal(rice.length,2);assert.equal(Math.sign(rice[0].vx),-Math.sign(rice[1].vx));assert.equal(t.state.randomState,0x6d2b79f5);
   const wind=t.state.entities.find(e=>e.definition.behavior==='counter');assert.equal(wind.windTicks,20);assert.equal(wind.definition.lifetime,48);
  }
 });
-test('remote projectiles also trigger the shared guard counter without consuming rice greed',()=>{
+test('remote projectiles also trigger the shared guard counter without consuming rice randomness',()=>{
  for(const source of [0,1]){
   const t=setup(source,240),enemy=1-source;
   const orb={id:'remote-orb',spawnFrame:0,offset:{x:190,y:-80},velocity:{x:0,y:0},lifetime:10,hitbox:{x:-25,y:-25,w:50,h:50},damage:50,hitstun:10,blockstun:8,guardCost:10,push:2,lift:0,stop:2};
   t.config.fighters[enemy]={...testFighter,actions:[{...testFighter.actions[0],id:'remote-cast',entities:[orb],hitTimeline:[]}]};
   t.target.attack={id:'remote-cast',frame:-1,connected:false,landed:false};
   const ev=source===0?t.tick(input([],0,1)):t.tick(NEUTRAL,input([],0,1));assert.ok(ev.some(e=>e.kind==='parry'));assert.equal(t.caster.hp,1000);
-  t.run(24);assert.ok(t.state.entities.some(e=>e.definition.behavior==='counter'));assert.equal(t.caster.whale?.riceCount??0,0);
+  t.run(24);assert.ok(t.state.entities.some(e=>e.definition.behavior==='counter'));assert.equal(t.state.randomState,0x6d2b79f5);
  }
 });
 test('rice rides a moving platform and expires without being restored by a round reset',()=>{
@@ -81,16 +74,6 @@ test('rice rides a moving platform and expires without being restored by a round
  t.press('B');t.run(50);const e=t.state.entities.find(e=>e.definition.behavior==='rice');assert.equal(e.support,'ride');const x=e.x;t.run(8);assert.notEqual(e.x,x);
  t.config.training=false;t.target.hp=1;t.caster.attack={id:'common-jab',frame:5,connected:false,landed:false};t.target.x=t.caster.x+90;t.tick();assert.equal(t.state.phase,'round-over');assert.equal(t.state.entities,undefined);
  t.run(110);assert.equal(t.state.fighters[0].whale,undefined);assert.equal(t.state.fighters[0].bindUntil,undefined);assert.equal(t.state.fighters[0].energy,0);
-});
-test('ultimate delivers twelve equal hits, then accelerates onwards without a thirteenth hit or early despawn',()=>{
- for(const source of [0,1]){
-  const t=setup(source,650);t.press('ULT');assert.equal(t.caster.attack,null);t.caster.energy=300;t.press('ULT');assert.equal(t.caster.energy,0);
-  const hits=[];for(let i=0;i<220&&hits.length<12;i++)hits.push(...t.tick().filter(e=>e.kind==='hit'&&e.source===source));
-  assert.equal(hits.length,12);assert.ok(hits.every(e=>e.amount===35));assert.equal(t.target.hp,580);assert.equal(t.caster.energy,0);assert.equal(t.caster.attack,null);
-  const e=t.state.entities.find(e=>e.definition.behavior==='orca');assert.ok(e);assert.equal(e.hits,12);assert.equal(e.endingAge,undefined);assert.equal(Math.abs(e.vx),32);
-  const x=e.x,tick=t.state.arenaFrame;t.run(5);assert.equal(Math.abs(e.x-x),32*(t.state.arenaFrame-tick));assert.equal(t.target.hp,580);assert.ok(t.state.entities.some(v=>v.id===e.id));
-  t.run(180);assert.equal(t.state.entities.length,0);
- }
 });
 test('rice has no apex: normal descends straight to six body widths, up follows a faster 60-degree line',()=>{
  for(const source of [0,1]){
@@ -119,24 +102,76 @@ test('both skill-two variants can be cast back-to-back as soon as their action r
   for(const up of [false,true,false,true]){const time=t.state.arenaFrame;t.press('C',up?-1:0);assert.equal(t.caster.attack.id,up?'tornado-up':'tornado');for(let i=0;i<40&&t.caster.attack;i++)t.tick();assert.equal(t.caster.attack,null);assert.ok(t.state.arenaFrame-time<40);}
  }
 });
-test('orca is fast whenever out of contact and its mouth opens only in response to actual contact',()=>{
- const t=setup(0,1300);t.caster.energy=300;t.press('ULT');t.run(64);const e=t.state.entities[0];assert.equal(Math.abs(e.vx),32);assert.equal(contactMouthBlend({...e,age:180}),0);
- const x=e.x;t.run(5);assert.equal(e.x-x,160);assert.equal(contactMouthBlend(e),0);
- t.target.x=e.x+205;for(let i=0;i<4;i++)t.tick();assert.ok((e.hits??0)>0);assert.equal(Math.abs(e.vx),3.8);assert.ok(contactMouthBlend(e)>.9);
- t.target.x=2050;t.target.y=300;t.target.ground=null;t.target.vy=0;t.run(16);assert.equal(Math.abs(e.vx),32);assert.equal(contactMouthBlend(e),0);
-});
-test('orca contacts forward dashes and single jumps, but second-jump apex can clear it',()=>{
- for(const source of [0,1]){
-  function contact(set){const t=setup(source,800);t.caster.energy=300;t.press('ULT');t.run(64);const e=t.state.entities[0];e.x=t.target.x-e.facing*180;e.previousX=e.x;e.originX=e.x-e.facing*500;e.vx=20*e.facing;set(t.target,e);const ev=t.tick();return ev.some(v=>v.kind==='hit');}
-  assert.equal(contact(f=>{f.dash=5;f.facing=source===0?-1:1;}),true);
-  assert.equal(contact(f=>{f.ground=null;f.jumpCount=1;f.jumpOriginY=800;f.y=550;f.vy=-1;}),true);
-  assert.equal(contact(f=>{f.ground=null;f.jumpCount=2;f.secondApex=false;f.jumpOriginY=800;f.y=550;f.vy=-5;}),true);
-  assert.equal(contact(f=>{f.ground=null;f.jumpCount=2;f.secondApex=true;f.jumpOriginY=800;f.y=550;f.vy=0;}),false);
- }
-});
 test('whale state, projectile physics, multihits and root restore deterministically; freeze pauses ages',()=>{
  const t=setup(0,800);t.press('B');t.run(12);t.state.freeze=3;const age=t.state.entities[0].age;t.run(3);assert.equal(t.state.entities[0].age,age);
  t.caster.attack=null;t.caster.energy=300;t.press('ULT');t.run(70);const clone=structuredClone(t.state);
  for(let i=0;i<150;i++){const a=input(i%29===0?['B']:[],i%2?0:1);assert.deepEqual(step(t.state,[a,NEUTRAL],t.config),step(clone,[a,NEUTRAL],t.config));assert.deepEqual(t.state,clone);}
  const reset=createMatch(t.config);assert.equal(reset.entities,undefined);assert.equal(reset.fighters[0].whale,undefined);assert.equal(reset.fighters[0].energy,0);
+});
+
+test('rice uses independent deterministic 20% rolls, with no five-throw cap or cooldown',()=>{
+ const t=setup(0,1300),clone=structuredClone(t.state);let eaten=0;
+ for(let i=0;i<10000;i++){const a=riceRoll(t.state),b=riceRoll(clone);assert.equal(a,b);if(a<.2)eaten++;}
+ assert.ok(eaten>1800&&eaten<2200);
+ const u=setup(0,1300);
+ for(let i=0;i<25;i++){
+  const snapshot=structuredClone(u.state),expected=riceRoll(snapshot)<.2?'whale-eat':i%2?'rice-up':'rice';
+  u.press('B',i%2?-1:0);assert.equal(u.caster.attack.id,expected);u.run(19);
+ }
+ assert.equal('whale' in u.caster,false);
+});
+test('both airborne rice variants release projectiles or eat according to the same single roll',()=>{
+ for(const source of [0,1])for(const up of [false,true])for(const eats of [false,true]){
+  const t=setup(source,1300);t.press('jump');t.run(6);assert.equal(t.caster.ground,null);
+  if(eats)t.state.randomState=1;
+  const before=t.state.randomState;t.press('B',up?-1:0);assert.equal(t.caster.attack.id,eats?'whale-eat':up?'rice-up':'rice');assert.notEqual(t.state.randomState,before);
+  t.run(8);assert.equal(t.state.entities?.some(e=>e.definition.behavior==='rice')??false,!eats);assert.equal(t.caster.ground,null);
+ }
+});
+test('cinematic freezes world time, all actors, projectiles, root and timers; restores from snapshot',()=>{
+ for(const source of [0,1]){
+  const t=setup(source,1300);t.press('B');t.run(10);t.caster.attack=null;t.caster.energy=300;t.target.bindUntil=t.state.arenaFrame+120;
+  t.target.attack={id:'test-a',frame:1,connected:false,landed:false};
+  t.press('ULT');const frozen=structuredClone(t.state),clone=structuredClone(t.state);
+  for(let i=0;i<59;i++){
+   const inputs=[input(['jump','dash','B'],1),input(['A','C'], -1)];
+   assert.deepEqual(step(t.state,inputs,t.config),step(clone,inputs,t.config));assert.deepEqual(t.state,clone);
+   assert.equal(t.state.arenaFrame,frozen.arenaFrame);assert.equal(t.state.remaining,frozen.remaining);
+   for(const seat of [0,1])for(const k of ['x','y','hp','bindUntil','hitstun','guard','vy'])assert.equal(t.state.fighters[seat][k],frozen.fighters[seat][k]);
+   assert.deepEqual(t.target.attack,frozen.fighters[1-source].attack);
+   assert.deepEqual(t.state.entities,frozen.entities);
+  }
+  t.tick();assert.equal(t.state.arenaFrame,frozen.arenaFrame);assert.equal(t.caster.attack,null);
+  const pool=t.state.entities.find(e=>e.definition.behavior==='pool');assert.ok(pool);assert.equal(pool.age,0);
+  assert.equal(t.state.entities[0].age,frozen.entities[0].age);assert.equal(t.target.bindUntil,frozen.fighters[1-source].bindUntil);
+  t.tick();assert.equal(t.state.arenaFrame,frozen.arenaFrame+1);
+ }
+});
+test('pool snapshots enemy feet, telegraphs sixty playable ticks, then schedules exactly twelve equal hits',()=>{
+ for(const source of [0,1]){
+  const t=setup(source,650);t.caster.energy=300;t.press('ULT');assert.equal(t.caster.energy,0);t.run(60);
+  const pool=t.state.entities.find(e=>e.definition.behavior==='pool');assert.ok(pool);assert.equal(pool.x,t.target.x);assert.equal(pool.y,t.target.y);
+  const x=pool.x,y=pool.y;t.run(59);assert.equal(t.target.hp,1000);assert.equal(pool.age,59);
+  const first=t.tick();assert.equal(first.filter(e=>e.kind==='hit').length,1);assert.equal(pool.age,60);
+  const hits=[...first,...t.run(120)].filter(e=>e.kind==='hit'&&e.source===source);
+  assert.equal(hits.length,12);assert.ok(hits.every(e=>e.amount===35));assert.equal(t.target.hp,580);assert.equal(pool.x,x);assert.equal(pool.y,y);
+  t.run(80);assert.equal(t.state.entities.length,0);
+ }
+});
+test('pool does not chase a moving opponent and missed waves cannot be banked',()=>{
+ const t=setup(0,650);t.caster.energy=300;t.press('ULT');t.run(60);const e=t.state.entities[0],x=e.x;
+ t.run(60,NEUTRAL,input([],1));assert.equal(e.x,x);assert.equal(t.target.hp,1000);
+ t.run(45);t.target.x=x;const hits=t.run(60).filter(e=>e.kind==='hit');assert.ok(hits.length>0&&hits.length<12);
+ const up=setup(0,650);up.config.arena.platforms=[{id:'deck',name:'deck',tier:1,left:1000,right:1600,y:600}];up.target.y=600;up.target.ground='deck';up.caster.energy=300;up.press('ULT');up.run(60);assert.equal(up.state.entities[0].y,600);
+});
+test('rice binds for two seconds and can confirm into ultimate without consuming root during the cinematic',()=>{
+ for(const source of [0,1]){
+  const t=setup(source,150);t.caster.energy=300;t.press('B');let hit=false;
+  for(let i=0;i<25&&!hit;i++)hit=t.tick().some(e=>e.kind==='hit');assert.ok(hit);
+  assert.equal(t.target.bindUntil-t.state.arenaFrame,120);assert.equal(t.caster.attack.landed,true);
+  t.press('ULT');while(t.state.freeze)t.tick();t.tick();assert.equal(t.caster.attack.id,'open-source');t.run(60);
+  const e=t.state.entities.find(e=>e.definition.behavior==='pool');assert.ok(e);assert.ok(t.target.bindUntil-t.state.arenaFrame>=119);
+  t.run(59);assert.equal(e.hits,0);assert.ok(t.target.bindUntil>t.state.arenaFrame);
+  const events=t.run(130);assert.equal(events.filter(e=>e.kind==='hit').length,12);assert.equal(t.target.hp,550);
+ }
 });

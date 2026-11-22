@@ -2,25 +2,29 @@ import type {ActionDefinition,Box,FighterState,MatchConfig,MatchState} from './t
 import type {EntityState} from './entities.js';
 import {platformAt} from './terrain.js';
 
-export const WHALE_RULES=Object.freeze({riceLife:120,bind:60,greed:5,greedReset:24,riceSpeed:28,riceUpSpeed:32,riceRange:432,wind:20,whale:48,windSpeed:24,orcaSpeed:32,orcaBiteSpeed:3.8,ultimateHits:12,hitGap:7});
-export function kit(f:FighterState){return f.whale??={riceCount:0,lastRice:-1000};}
-export function startWhale(action:ActionDefinition,f:FighterState,state:MatchState){
- if(!action.whale)return action.id;
- const k=kit(f),now=state.arenaFrame;
- if(action.whale==='rice'||action.whale==='rice-up'){
-  if(now-k.lastRice>=WHALE_RULES.greedReset)k.riceCount=0;k.lastRice=now;
-  if(k.riceCount>=WHALE_RULES.greed)return 'whale-eat';k.riceCount++;
- }
+export const WHALE_RULES=Object.freeze({riceLife:120,bind:120,eatChance:.2,riceSpeed:28,riceUpSpeed:32,riceRange:432,wind:20,whale:48,windSpeed:24,cinematic:60,telegraph:60,ultimateHits:12,hitGap:7});
+/** All randomness lives in the snapshot, never in Math.random or the renderer. */
+export function riceRoll(state:MatchState){
+ let x=state.randomState??0x6d2b79f5;
+ x^=x<<13;x^=x>>>17;x^=x<<5;state.randomState=x>>>0;
+ return state.randomState/4294967296;
+}
+export function startWhale(action:ActionDefinition,_f:FighterState,state:MatchState){
+ if(action.whale==='rice'||action.whale==='rice-up')return riceRoll(state)<WHALE_RULES.eatChance?'whale-eat':action.id;
  return action.id;
 }
+export function cinematicOwner(state:MatchState){return ([0,1] as const).find(seat=>state.fighters[seat].attack?.id==='open-source'&&(state.fighters[seat].attack?.frame??60)<WHALE_RULES.cinematic);}
 export function kitLifetime(e:EntityState){return e.endingAge??(e.windTicks!==undefined?e.windTicks+28:e.definition.lifetime);}
 export function initializeKitEntity(e:EntityState,state:MatchState,config:MatchConfig){
  const b=e.definition.behavior;if(!b)return;
- const f=state.fighters[e.owner];e.originX=e.x;e.originY=e.y;e.previousX=e.x;e.previousY=e.y;e.hits=0;e.hitSeats=[];
+ e.originX=e.x;e.originY=e.y;e.previousX=e.x;e.previousY=e.y;e.hits=0;e.hitSeats=[];
  if(b==='spin-up'){e.x=state.fighters[e.owner===0?1:0].x;e.originX=e.x;e.previousX=e.x;}
  if(b==='spin'||b==='spin-up'||b==='counter')e.windTicks=b==='spin'?Math.ceil((e.facing===1?config.arena.right+220-e.x:e.x-config.arena.left+220)/24)+1:20;
- // The disc is at the nose on the spawn tick, not at the body's centre.
- if(b==='orca')e.originX=e.x+e.facing*202.5;
+ if(b==='pool'){
+  const target=state.fighters[e.owner===0?1:0];e.x=target.x;e.y=config.arena.floor;e.support='floor';
+  for(const raw of config.arena.platforms){const p=platformAt(raw,state.arenaFrame);if(e.x>=p.left&&e.x<=p.right&&p.y>=target.y-1&&p.y<e.y){e.y=p.y;e.support=p.id;}}
+  e.originX=e.previousX=e.x;e.originY=e.previousY=e.y;e.hitWaves=[];
+ }
  if(b==='rice'){
   const up=e.definition.id.includes('up'),sign=e.facing*Math.sign(e.definition.velocity.x||1);
   // No arc: normal flies straight from the pocket to six body widths away.
@@ -43,18 +47,16 @@ export function advanceKitEntity(e:EntityState,state:MatchState,config:MatchConf
  }
  if(b==='spin'){if(e.age<(e.windTicks??20))e.x+=e.vx;return true;}
  if(b==='spin-up'||b==='counter')return true;
- const biting=(e.hits??0)<WHALE_RULES.ultimateHits&&e.lastContactAge!==undefined&&e.age-e.lastContactAge<=WHALE_RULES.hitGap+1;
- e.vx=e.facing*(biting?WHALE_RULES.orcaBiteSpeed:WHALE_RULES.orcaSpeed);
- e.x+=e.vx;
- if(e.x<config.arena.left-400||e.x>config.arena.right+400)e.endingAge=e.age;
+ // Water pools are fixed in world space, including the complete warning period.
  return true;
 }
+
 export function kitContactAllowed(e:EntityState,f:FighterState,target:number){
  const b=e.definition.behavior;if(!b)return true;
  if(e.age>=(e.endingAge??Infinity)||e.age<(e.nextHitAge??0))return false;
- if(b==='orca'){
-  if((e.hits??0)>=WHALE_RULES.ultimateHits)return false;
-  return !(f.jumpCount===2&&f.secondApex&&f.y<e.y-90);
+ if(b==='pool'){
+  const wave=Math.floor((e.age-WHALE_RULES.telegraph)/WHALE_RULES.hitGap);
+  return wave>=0&&wave<WHALE_RULES.ultimateHits&&!e.hitWaves?.includes(wave);
  }
  if(e.hitSeats?.includes(target))return false;
  return e.windTicks===undefined||e.age<e.windTicks;
@@ -63,26 +65,20 @@ export function kitContactBox(e:EntityState,f:FighterState,box:Box):Box{
  if(!e.definition.behavior)return box;
  // Swept horizontal contact avoids tunnelling at 24 units per tick.
  const dx=(e.previousX??e.x)-e.x;box={...box,x:box.x+Math.min(0,dx),w:box.w+Math.abs(dx)};
- if(e.definition.behavior==='orca'){
-  if(e.facing===1){const left=Math.max(box.x,e.originX??box.x);box.w=Math.max(0,box.x+box.w-left);box.x=left;}
-  else box.w=Math.max(0,Math.min(box.x+box.w,e.originX??Infinity)-box.x);
-  // Same-lane single jumps and early second jumps do not clear this attack.
-  if((f.jumpCount??0)>0&&!f.secondApex&&Math.abs((f.jumpOriginY??f.y)-(e.y+90))<100){box.y=Math.min(box.y,f.y-150);box.h=Math.max(box.h,f.y-box.y);}
- }
+
  return box;
 }
 export function kitContactResolved(e:EntityState,state:MatchState,target:0|1,blocked:boolean,countered:boolean){
  const b=e.definition.behavior;if(!b)return false;
  e.hits=(e.hits??0)+1;(e.hitSeats??=[]).push(target);
  if(b==='rice'){
-  if(!blocked&&!countered){const f=state.fighters[target];f.bindUntil=state.arenaFrame+60;f.push=0;f.dash=0;f.dashActive=false;if(!f.ground)f.vy=Math.max(6,f.vy);}
+  if(!blocked&&!countered){const owner=state.fighters[e.owner];if(owner.attack?.id==='rice'||owner.attack?.id==='rice-up')owner.attack.landed=true;const f=state.fighters[target];f.bindUntil=state.arenaFrame+WHALE_RULES.bind;f.push=0;f.dash=0;f.dashActive=false;if(!f.ground)f.vy=Math.max(6,f.vy);}
   return false;
  }
- if(b==='orca'){
-  if(countered){e.hits=WHALE_RULES.ultimateHits;e.endingAge=e.age+8;return true;}
+ if(b==='pool'){
+  (e.hitWaves??=[]).push(Math.floor((e.age-WHALE_RULES.telegraph)/WHALE_RULES.hitGap));
   e.lastContactAge=e.age;e.firstContactAge??=e.age;
-  e.vx=e.facing*(e.hits>=WHALE_RULES.ultimateHits?WHALE_RULES.orcaSpeed:WHALE_RULES.orcaBiteSpeed);
-  e.nextHitAge=e.age+WHALE_RULES.hitGap;
  }
+
  return true;
 }

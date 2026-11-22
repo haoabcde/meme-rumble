@@ -4,8 +4,8 @@ import type {
 } from './types.js';
 import { platformAt, platformOffset } from './terrain.js';
 import { MAX_ENERGY } from './types.js';
-import { entityContacts, resolveContactEntity, updateEntities } from './entities.js';
-import {startWhale} from './whale-kit.js';
+import { entityContacts, resolveContactEntity, updateEntities, spawnEntities } from './entities.js';
+import {startWhale,cinematicOwner,WHALE_RULES} from './whale-kit.js';
 
 const seats = [0, 1] as const;
 const slotPriority = ['ULT', 'C', 'B', 'A'] as const;
@@ -29,6 +29,7 @@ function spawn(config: MatchConfig, seat: 0 | 1, round: number): FighterState {
 
 export function createMatch(config: MatchConfig): MatchState {
   return {
+    randomState: (config.randomSeed ?? 0x6d2b79f5) >>> 0 || 1,
     frame: 0, arenaFrame: 0, remaining: config.rules.roundSeconds * config.rules.ticksPerSecond,
     freeze: 0, comboFreeze: 0, phase: 'ready', phaseTicks: 120, round: 1,
     wins: [0, 0], draws: 0, fighters: [spawn(config, 0, 1), spawn(config, 1, 1)],
@@ -558,6 +559,14 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     return events;
   }
 
+  const cinematic=cinematicOwner(state);
+  if(cinematic!==undefined){
+    // Presentation advances, simulation clocks, statuses, entities and inputs do not.
+    const attack=state.fighters[cinematic].attack!;
+    if(++attack.frame===WHALE_RULES.cinematic){spawnEntities(state,config);state.fighters[cinematic].attack=null;}
+    for(const fighter of state.fighters)fighter.buffer=[];
+    return events;
+  }
   queueInputs(state, inputs, config);
   if (state.freeze > 0) {
     state.freeze--;
@@ -577,6 +586,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   }
   for (const seat of seats) {
     updateControl(state, config, seat, inputs[seat], events);
+    if(cinematicOwner(state)!==undefined){for(const fighter of state.fighters)fighter.buffer=[];return events;}
     const fighter = state.fighters[seat];
     const guardCounter = config.fighters[seat].guardCounter;
     if (guardCounter) updateGuardWindow(fighter, inputs[seat], guardCounter.windowFrames);

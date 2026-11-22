@@ -4,17 +4,18 @@ import {createUnifiedTornadoRenderer} from '../../assets/角色/防御/大肥鱼
 import {createUltimateRenderer} from './whale-ultimate.mjs';
 import portrait from '../../assets/角色/大招/大肥鱼/开源/演出分层/梁文峰_宽肩修订_V4.png';
 import title from '../../assets/角色/大招/大肥鱼/开源/演出分层/开源_递增透视字_透明_V2.png';
-import logo from '../../assets/角色/大招/大肥鱼/开源/虎鲸/开源_虎鲸_原图标弯折母版_V2.png';
-import calm from '../../assets/角色/大招/大肥鱼/开源/虎鲸/游动凶化_V3/虎鲸_初醒闭口_表情.png';
-import alert from '../../assets/角色/大招/大肥鱼/开源/虎鲸/游动凶化_V3/虎鲸_凝视微露齿_表情.png';
-import fierce from '../../assets/角色/大招/大肥鱼/开源/虎鲸/游动凶化_V3/虎鲸_凶化露齿_像素母版.png';
+import {createWaterRenderer} from './whale-water.mjs';
+import waterWhale from '../../assets/角色/特效/大肥鱼/水鲸符文_V1/水鲸_四姿态.png';
+import waterParts from '../../assets/角色/特效/大肥鱼/水鲸符文_V1/水潭_水花_小鱼_花.png';
+import runeParts from '../../assets/角色/特效/大肥鱼/水鲸符文_V1/符文_弧光_冲刺_上升_星芒.png';
 
-let tornado:any,ultimate:any;
+let tornado:any,ultimate:any,water:any;
 const load=(src:string)=>{const im=new Image();im.src=src;return im.decode().then(()=>im)};
-function trimmed(im:HTMLImageElement){const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const g=c.getContext('2d')!;g.drawImage(im,0,0);const p=g.getImageData(0,0,c.width,c.height).data;let x0=c.width,y0=c.height,x1=0,y1=0;for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++)if(p[(y*c.width+x)*4+3]>100){x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y)}const out=document.createElement('canvas');out.width=x1-x0+1;out.height=y1-y0+1;out.getContext('2d')!.drawImage(c,x0,y0,out.width,out.height,0,0,out.width,out.height);return out;}
-void Promise.all(Object.entries({portrait,title,logo,calm,alert,fierce}).map(async([k,v])=>[k,await load(v)] as const)).then(entries=>{
- const images=Object.fromEntries(entries);tornado=createUnifiedTornadoRenderer(trimmed(images.fierce));ultimate=createUltimateRenderer(images);
- let i=0;function warm(){tornado.prewarm(i++);if(i<48)requestAnimationFrame(warm)}requestAnimationFrame(warm);
+
+void Promise.all(Object.entries({portrait,title,waterWhale,waterParts,runeParts}).map(async([k,v])=>[k,await load(v)] as const)).then(entries=>{
+ const images=Object.fromEntries(entries);water=createWaterRenderer(images);tornado=createUnifiedTornadoRenderer(water.whales[0]);ultimate=createUltimateRenderer(images);
+ const warmCanvas=document.createElement('canvas');const warmContext=warmCanvas.getContext('2d');
+ let i=0;function warm(){for(const layer of ['back','front'])tornado.wind(warmContext,0,0,i,layer);if(++i<8)requestAnimationFrame(warm)}requestAnimationFrame(warm);
 }).catch(e=>console.error('大肥鱼特效素材加载失败',e));
 
 export function whaleCell(f:FighterState,state:MatchState,seat:0|1,action?:FighterAction){
@@ -52,13 +53,13 @@ function riceBlob(ctx:CanvasRenderingContext2D,x:number,y:number,r=14){
 }
 export function drawWhaleEntities(ctx:CanvasRenderingContext2D,state:MatchState,config:MatchConfig,layer:'back'|'front'){
  for(const e of state.entities??[]){const b=e.definition.behavior;if(!b)continue;
-  if(b==='spin'||b==='spin-up'||b==='counter')tornado?.draw(ctx,{x:e.x,y:e.y,visualWindFrames:e.windTicks??20},e.age,layer);
+  if(b==='spin'||b==='spin-up'||b==='counter'){tornado?.wind(ctx,e.x,e.y,e.age,layer,e.windTicks??20);water?.orbit(ctx,e,layer);}
   if(layer==='front'&&b==='rice')riceBlob(ctx,e.x,e.y);
-  if(layer==='front'&&b==='orca')ultimate?.draw(ctx,e);
+  if(b==='pool')water?.pool(ctx,e,layer);
  }
  for(const seat of [0,1] as const){const f=state.fighters[seat],a=config.fighters[seat].actions.find(a=>a.id===f.attack?.id),age=f.attack?.frame??0;
   if(a&&'whale' in a&&a.whale==='spin'&&age<12)tornado?.formation(ctx,{x:f.x,y:f.y},age,layer);
-  if(layer==='front'&&a&&'whale' in a&&a.whale==='open-source'&&age>=60&&age<64)ultimate?.portalStart(ctx,f.x+f.facing*95,f.y-90,f.facing,age-60);
+  if(config.fighters[seat].id==='whale')water?.motion(ctx,f,state,a,layer);
   if(layer==='front'&&(f.bindUntil??0)>state.arenaFrame)riceBlob(ctx,f.x,f.y-3,21);
  }
 }

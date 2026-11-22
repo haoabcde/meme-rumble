@@ -382,6 +382,7 @@ function selectArena(index: number) {
 }
 
 function configureMatch(immediate: boolean) {
+  config.randomSeed = crypto.getRandomValues(new Uint32Array(1))[0] || 1;
   config.arena = arenas[arenaIndex];
   stage.dataset.mode = mode;
   stage.dataset.arena = config.arena.id;
@@ -845,7 +846,7 @@ function tick(player: InputFrame) {
   if (previous === 'fight' && state.phase === 'round-over' && state.result) {
     roundHistory.push({ ...state.result, round: state.round });
   }
-  renderer.add(events, state.frame);
+  renderer.add(events, state.arenaFrame);
   audio.play(events);
 }
 

@@ -8,6 +8,7 @@ import { drawHarborScenery, drawHarborLift, drawQuay } from './harbor-art.js';
 import { drawStageBackdrop, drawStageMechanism, drawStageScenery } from './stage-art.js';
 import { platformAt } from '../core/terrain.js';
 import { frameCamera, type CameraView } from './camera.js';
+import {cinematicOwner} from '../core/whale-kit.js';
 import {drawWhaleActor,drawWhaleEntities,drawWhaleIntro} from './whale-art.js';
 
 export const seatColors = ['#61d8ff', '#ff849e'];
@@ -314,14 +315,14 @@ export class Renderer {
     const ctx = this.ctx;
     const { width, height } = ctx.canvas;
     const [a, b] = state.fighters;
-    this.effects = this.effects.filter(({ start, life }) => state.frame >= start && state.frame - start < life);
+    this.effects = this.effects.filter(({ start, life }) => state.arenaFrame >= start && state.arenaFrame - start < life);
     const heights = [artSizes.get(config.fighters[0].id) ?? 137, artSizes.get(config.fighters[1].id) ?? 137];
     const camera = frameCamera(config.arena, { width, height },
       [{ x: a.x, y: a.y, height: heights[0] }, { x: b.x, y: b.y, height: heights[1] }],
-      this.camera, state.phase === 'fight' && state.freeze ? 0 : elapsed, focus, opening);
+      this.camera, state.phase === 'fight' && (state.freeze || cinematicOwner(state)!==undefined) ? 0 : elapsed, focus, opening);
     this.camera = camera;
     const { x, y, zoom } = camera;
-    const [shakeX, shakeY] = shakeEnabled ? this.shakeOffset(state.frame) : [0, 0];
+    const [shakeX, shakeY] = shakeEnabled ? this.shakeOffset(state.arenaFrame) : [0, 0];
     const dx = Math.min(x * zoom, Math.max(width - (config.arena.width - x) * zoom, shakeX));
     const dy = Math.min(y * zoom, Math.max(height - (config.arena.height - y) * zoom, shakeY));
     ctx.setTransform(zoom, 0, 0, zoom, -x * zoom + dx, -y * zoom + dy);
@@ -380,7 +381,7 @@ export class Renderer {
       ctx.scale(f.facing, 1);
       const height = heights[seat];
       if(def.id==='whale'){
-        const flash=this.hitFlash(seat,state.frame,f.hitstun>0&&state.freeze>0);
+        const flash=this.hitFlash(seat,state.arenaFrame,f.hitstun>0&&state.freeze>0);
         if(flash>0)ctx.filter=`brightness(${1+flash*.36})`;
         drawWhaleActor(ctx,f,state,seat,action);ctx.filter='none';
       }else{
@@ -403,7 +404,7 @@ export class Renderer {
       if (f.recovery?.phase === 'rise') ctx.globalAlpha = .83;
       ctx.shadowColor = color + 'ae';
       ctx.shadowBlur = 9;
-      const flash = this.hitFlash(seat, state.frame, f.hitstun > 0 && state.freeze > 0);
+      const flash = this.hitFlash(seat, state.arenaFrame, f.hitstun > 0 && state.freeze > 0);
       if (flash > 0) ctx.filter = `brightness(${1 + flash * .36})`;
       if (sheet?.naturalWidth && pose !== undefined) {
         drawPose(ctx, sheet, pose, height, strike && hitboxes.length && !strike.animation?.length ? 8 : 0);
@@ -425,7 +426,7 @@ export class Renderer {
       }
       ctx.restore();
 
-      if (strike) {
+      if (strike && def.id!=='whale') {
         for (const hitbox of hitboxes) {
           drawSwing(ctx, f, hitbox, strike.pose, (phase - strike.startup) / strike.active, color);
         }
@@ -454,7 +455,7 @@ export class Renderer {
 
     for (const entity of state.entities ?? []) if(!entity.definition.behavior)drawEntity(ctx, entity, debug);
     drawWhaleEntities(ctx,state,config,'front');
-    this.drawEffects(state.frame, Boolean(config.training));
+    this.drawEffects(state.arenaFrame, Boolean(config.training));
     ctx.resetTransform();
     for (const seat of [0, 1] as const) {
       const f = state.fighters[seat];

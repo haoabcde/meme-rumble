@@ -3,7 +3,7 @@ import type { ActionDefinition, Box, FighterAction, HitFeedback, MatchConfig, Ma
 import { advanceKitEntity, initializeKitEntity, kitContactAllowed, kitContactBox, kitContactResolved, kitLifetime } from './whale-kit.js';
 
 export interface EntityDefinition {
-  behavior?: 'rice' | 'spin' | 'spin-up' | 'counter' | 'orca';
+  behavior?: 'rice' | 'spin' | 'spin-up' | 'counter' | 'pool';
   id: string;
   /** Zero-based frame of the spawning action. */
   spawnFrame: number;
@@ -35,6 +35,7 @@ export interface EntityState {
   hits?: number;
   nextHitAge?: number;
   hitSeats?: number[];
+  hitWaves?: number[];
   endingAge?: number;
   firstContactAge?: number;
   lastContactAge?: number;
@@ -98,6 +99,11 @@ export function updateEntities(state: MatchState, config: MatchConfig) {
       if (!advanceKitEntity(entity,state,config)) { entity.x += entity.vx; entity.y += entity.vy; }
     }
   }
+  spawnEntities(state, config);
+}
+
+/** Spawn without advancing the world when a cinematic releases. */
+export function spawnEntities(state: MatchState, config: MatchConfig) {
   for (const owner of [0, 1] as const) {
     const fighter = state.fighters[owner];
     const action = actionFor(config, state, owner);
@@ -127,7 +133,7 @@ export function entityContacts(state: MatchState, config: MatchConfig): EntityCo
     const { owner: source, definition, facing } = entity;
     const target = source === 0 ? 1 : 0;
     const defender = state.fighters[target];
-    if (defender.hp<=0 || defender.recovery || (definition.behavior!=='orca' && config.rules.dashInvulnerable && defender.dashActive) || !kitContactAllowed(entity,defender,target)) continue;
+    if (defender.hp<=0 || defender.recovery || (config.rules.dashInvulnerable && defender.dashActive) || !kitContactAllowed(entity,defender,target)) continue;
     const hitbox = kitContactBox(entity,defender,worldBox(definition.hitbox, entity.x, entity.y, facing));
     const hurtRegions = hurtRegionsFor(config.fighters[target], actionFor(config, state, target), defender.attack?.frame ?? 0);
     for (const region of hurtRegions) {

@@ -184,6 +184,8 @@ export interface MatchConfig {
   arena: ArenaDefinition;
   fighters: Duo<FighterDefinition>;
   training?: boolean;
+  /** Serialized deterministic rice chance; peers must share the seed. */
+  randomSeed?: number;
 }
 
 export interface Command {
@@ -208,7 +210,7 @@ export interface Attack {
 export type Recovery = { phase: 'fall' } | { phase: 'down' | 'rise'; remaining: number };
 
 export interface FighterState {
-  whale?: { riceCount: number; lastRice: number };
+
   bindUntil?: number;
   guardChain?: { source: number; count: number; until: number };
   jumpCount?: number;
@@ -281,6 +283,7 @@ export interface MatchState {
   winner: 0 | 1 | null;
   entities?: EntityState[];
   nextEntityId?: number;
+  randomState?: number;
 }
 
 export const TICK_RATE = 60;
