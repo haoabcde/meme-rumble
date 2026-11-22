@@ -216,6 +216,7 @@ export interface FighterState {
   ascendUntil?: number;
   /** Presentation clocks use arena time, independent of interruptible hit poses. */
   ascendVisual?: { tick: number; x: number; y: number };
+  ascendEndVisual?: { tick: number; x: number; y: number };
   frogCasts?: { id: string; tick: number; x: number; y: number; facing: Side; powered: boolean; startup: number; anchors?: {frame:number;x:number;y:number}[] }[];
 
   bindUntil?: number;

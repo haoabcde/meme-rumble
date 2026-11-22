@@ -33,7 +33,11 @@ const spin=(up=false):ActionDefinition&{slot:'C'}=>({
  animation:[{frame:0,cell:up?76:72},{frame:6,cell:up?76:74},{frame:22,cell:77}],entities:[projectile(up?'spin-up':'spin',up?'spin-up':'spin',12)]
 });
 const counter:ActionDefinition&{slot:'C'}={...spin(),id:'whale-counter',name:'旋风防反',whale:'counter',linkOnly:true,startup:0,active:20,recovery:0,
- entities:[projectile('counter','counter',0),projectile('counter-rice-left','rice',12,-1),projectile('counter-rice-right','rice',12)],
+ entities:[projectile('counter','counter',0),...Array.from({length:8},(_,i)=>{
+  const angle=i*Math.PI/4,x=Math.cos(angle),y=Math.sin(angle);
+  return{...projectile('counter-rice-'+i,'rice',12),riceRadial:true,
+   offset:{x:26*x,y:-92+26*y},velocity:{x:WHALE_RULES.riceSpeed*x,y:WHALE_RULES.riceSpeed*y}};
+ })],
  animation:[{frame:0,cell:72},{frame:3,cell:73},{frame:6,cell:74},{frame:9,cell:75},{frame:12,cell:77}]};
 const ult:ActionDefinition={...spin(),id:'open-source',name:'开源！',slot:'ULT',direction:undefined,whale:'open-source',startup:60,active:1,recovery:0,
  animation:[{frame:0,cell:76},{frame:22,cell:77}],entities:[projectile('open-source-pool','pool',60)]};

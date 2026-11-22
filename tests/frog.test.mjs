@@ -60,6 +60,21 @@ test('post-cinematic transformation and cast trails retain their own clocks thro
  assert.deepEqual(t.caster.ascendVisual,reveal); // Still alive at three seconds, including feather drift.
  t.run(31);assert.equal(t.caster.ascendVisual,undefined);assert.equal(t.caster.frogCasts,undefined);
 });
+test('buff expires on time while feather dissolution has an independent paused, replayable visual clock',()=>{
+ const t=setup(0,1200);t.caster.ascendUntil=2;t.caster.energy=300;
+ t.tick();assert.equal(t.caster.ascendEndVisual,undefined);
+ t.tick();assert.equal(t.caster.ascendUntil,undefined);assert.equal(t.caster.energy,0);
+ assert.deepEqual(t.caster.ascendEndVisual,{tick:2,x:t.caster.x,y:t.caster.y});
+ t.caster.attack={id:'common-jab',frame:0,connected:false,landed:false};
+ assert.equal(actionFor(t.config,t.state,0).damage,28);
+ t.caster.attack=null;t.state.freeze=6;const end=structuredClone(t.caster.ascendEndVisual);t.run(6);
+ assert.equal(t.state.arenaFrame,2);assert.deepEqual(t.caster.ascendEndVisual,end);
+ const replay=structuredClone(t.state);
+ for(let i=0;i<180;i++){t.tick();step(replay,[NEUTRAL,NEUTRAL],t.config);assert.deepEqual(t.state,replay);}
+ assert.equal(t.caster.ascendEndVisual,undefined);
+ const next=setup(0,1200);next.caster.ascendUntil=1;next.tick();next.caster.energy=300;
+ next.press('ULT');next.run(60);assert.equal(next.caster.ascendEndVisual,undefined);assert.ok(next.caster.ascendVisual);
+});
 test('angel damage is 1.5x across basic attacks and laugh waves',()=>{
  const t=setup();t.caster.ascendUntil=900;
  for(const raw of frog.fighter.actions.filter(a=>a.slot==='A')){t.caster.attack={id:raw.id,frame:0,connected:false,landed:false};const a=actionFor(t.config,t.state,0);assert.equal(a.damage,raw.damage*1.5);assert.equal(a.hitbox.w,raw.hitbox.w*1.5);assert.equal(a.hitbox.h,raw.hitbox.h*1.5);}

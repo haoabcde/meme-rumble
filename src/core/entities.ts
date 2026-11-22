@@ -4,6 +4,8 @@ import { advanceKitEntity, initializeKitEntity, kitContactAllowed, kitContactBox
 
 export interface EntityDefinition {
   behavior?: 'rice' | 'spin' | 'spin-up' | 'counter' | 'pool' | 'frog-wave' | 'frog-global';
+  /** Counter rice uses its authored velocity instead of the ordinary throw ray. */
+  riceRadial?: boolean;
   id: string;
   /** Zero-based frame of the spawning action. */
   spawnFrame: number;

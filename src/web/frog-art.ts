@@ -1,5 +1,5 @@
 import type {FighterAction,FighterState,MatchConfig,MatchState} from '../core/types.js';
-import {frogPowered} from '../core/frog-kit.js';
+import {frogPowered,FROG_RULES} from '../core/frog-kit.js';
 import {cutGrid} from './pixel-sprites.mjs';
 import {drawPixelFx} from './pixel-fx.mjs';
 import {holyFanSample} from './holy-fan.mjs';
@@ -55,6 +55,25 @@ function shockRing(g:CanvasRenderingContext2D,x:number,y:number,r:number,t:numbe
   g.globalAlpha=fade*alpha;g.strokeStyle=color;g.lineWidth=width;g.beginPath();g.arc(0,0,Math.max(3,r*p+offset),from,from+Math.PI);g.stroke();
  }g.restore();
 }
+function dissolvingAngel(g:CanvasRenderingContext2D,age:number,tick:number){
+ const im=angels[0];if(!im||age<0||age>=FROG_RULES.fadeTicks)return;
+ const p=age/FROG_RULES.fadeTicks,h=164-34*p,w=h*im.width/im.height,y=(-18+Math.sin(tick*.1)*3)*(1-p),size=6;
+ g.save();g.imageSmoothingEnabled=false;g.globalAlpha*=1-clamp((p-.35)/.65)*.7;
+ // The actual sacred sprite breaks into pixel clusters, which leave feathers as they disappear.
+ for(let sy=0;sy<im.height;sy+=size)for(let sx=0;sx<im.width;sx+=size){
+  const col=sx/size,row=sy/size,hash=((col*73856093)^(row*19349663))>>>0;
+  const cut=.15+.55*(1-Math.abs(sx/im.width-.5)*2)+(hash%1000)/1000*.2+sy/im.height*.05;
+  if(p<cut){
+   const sw=Math.min(size,im.width-sx),sh=Math.min(size,im.height-sy);
+   g.drawImage(im,sx,sy,sw,sh,-w/2+sx/im.width*w,y-h+sy/im.height*h,sw/im.width*w,sh/im.height*h);
+  }else if(hash%10===0&&p<cut+.3){
+   const drift=(p-cut)/.3;
+   holyFeather(g,(sx/im.width-.5)*w+(sx/im.width-.5)*drift*60,y-h+sy/im.height*h-drift*38,
+    Math.sin(row+drift*4)*.7,(1-drift)*.65,.7);
+  }
+ }
+ g.restore();
+}
 export function drawFrogActor(g:CanvasRenderingContext2D,f:FighterState,state:MatchState,action?:FighterAction){
  if(!moves.length)return;
  const frame=f.attack?.frame??0,powered=frogPowered(f,state),a=action&&'frog' in action?action.frog:undefined;
@@ -71,12 +90,16 @@ export function drawFrogActor(g:CanvasRenderingContext2D,f:FighterState,state:Ma
   if(f.moving&&!action&&!f.hitstun&&!f.recovery&&travel.length){g.rotate(.035);actorImage(g,travel[4+Math.floor(state.arenaFrame/8)%4],164,y);}
   else actorImage(g,angels[0],164,y);
  }else{
+  const endAge=state.arenaFrame-(f.ascendEndVisual?.tick??-999);
+  g.save();if(f.hp>0&&endAge<FROG_RULES.fadeTicks)g.globalAlpha*=clamp((endAge-5)/19);
   if(f.moving&&pose===0){g.translate(0,-Math.abs(Math.sin(state.arenaFrame*.4))*4);g.rotate(Math.sin(state.arenaFrame*.4)*.025);}
   if(a==='laugh'||a==='global'){g.rotate(Math.sin(frame*.8)*.035);g.scale(1+Math.sin(frame*.8)*.018,1-Math.sin(frame*.8)*.018);}
   if(stage>=0&&action){const anticipation=clamp(frame/action.startup);if(frame<action.startup){pose=0;g.rotate((stage%2?1:-1)*anticipation*.09);g.scale(1+anticipation*.025,1-anticipation*.06);}}
   if(f.dashActive){g.save();g.globalAlpha=.18;actorImage(g,moves[0],130,-3);g.restore();g.translate(18,0);}
   if(f.moving&&f.ground&&pose===0&&!action&&travel.length){actorImage(g,travel[Math.floor(state.arenaFrame/6)%4],130);}
   else actorImage(g,moves[pose],h);
+  g.restore();
+  if(f.hp>0)dissolvingAngel(g,endAge,state.arenaFrame);
  }
  g.restore();
 }
@@ -95,6 +118,9 @@ export function drawFrogEffects(g:CanvasRenderingContext2D,state:MatchState,conf
    if(layer==='back')holyColumn(g,f,seconds,config);
    drawPixelFx(g,'pillarTall',f.x,f.y,seconds,1.65,layer,true,1);
    drawPixelFx(g,'feather',f.x,f.y-95,seconds-.66,1.6,layer,true,.85);
+  }
+  if(f.ascendEndVisual){const end=f.ascendEndVisual;
+   drawPixelFx(g,'feather',end.x,end.y-95,(state.arenaFrame-end.tick)/60,1.9,layer,true,.85);
   }
   drawCastEffects(g,f,state,config,layer);
   if(a&&'frog' in a&&(a.frog==='laugh'||a.frog==='global')){
@@ -135,7 +161,7 @@ function drawCastEffects(g:CanvasRenderingContext2D,f:FighterState,state:MatchSt
     shockRing(g,point.x,point.y-65,radius,age-at,c.powered,layer);
    }
    const point=global?c:c.anchors?.find(a=>a.frame===c.startup)??c;
-   drawPixelFx(g,'feather',point.x,point.y-90,(age-c.startup)/60,c.powered?2.3:1.4,layer,true,c.powered?.75:.6);
+   if(c.powered)drawPixelFx(g,'feather',point.x,point.y-90,(age-c.startup)/60,2.3,layer,true,.75);
    continue;
   }
   const stage=['common-jab','common-sweep','frog-left-kick','frog-ha','common-finish'].indexOf(c.id);

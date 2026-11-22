@@ -51,12 +51,25 @@ test('ordinary tornado travels off stage, up tornado snapshots target x/caster y
   const up=setup(source,800);up.target.y-=120;up.target.ground=null;up.press('C',-1);up.run(12);const u=up.state.entities.find(e=>e.definition.behavior==='spin-up');assert.equal(u.x,up.target.x);assert.equal(u.y,up.caster.y);const ux=u.x;up.target.x+=200;up.run(20);assert.equal(u.x,ux);assert.equal(u.windTicks,20);up.run(40);assert.equal(up.state.entities.length,0);
  }
 });
-test('counter catches melee or an entity, emits two opposite rice throws, keeps 48-tick visual lifetime',()=>{
+test('counter emits exactly eight equally spaced rice rays with mirrored authored velocity and unchanged rice effects',()=>{
  for(const source of [0,1]){
   const t=setup(source,95),attacker=t.target;attacker.attack={id:'test-a',frame:4,connected:false,landed:false};
   const ev=source===0?t.tick(input([],0,1)):t.tick(NEUTRAL,input([],0,1));assert.ok(ev.some(e=>e.kind==='parry'));
-  t.run(20);const rice=t.state.entities.filter(e=>e.definition.behavior==='rice');assert.equal(rice.length,2);assert.equal(Math.sign(rice[0].vx),-Math.sign(rice[1].vx));assert.equal(t.state.randomState,0x6d2b79f5);
+  for(let i=0;i<40&&!t.state.entities?.some(e=>e.definition.behavior==='rice');i++)t.tick();
+  const rice=t.state.entities.filter(e=>e.definition.behavior==='rice');assert.equal(rice.length,8);
+  const angles=rice.map(e=>(Math.atan2(e.vy,e.vx)+Math.PI*2)%(Math.PI*2)).sort((a,b)=>a-b);
+  for(let i=0;i<8;i++){
+   assert.ok(Math.abs(angles[i]-i*Math.PI/4)<1e-9);
+   assert.ok(Math.abs(Math.hypot(rice[i].vx,rice[i].vy)-28)<1e-9);
+   assert.ok(Math.abs(Math.hypot(rice[i].x-t.caster.x,rice[i].y-t.caster.y+92)-26)<1e-9);
+   assert.equal(rice[i].definition.damage,30);assert.equal(rice[i].definition.lifetime,120);
+  }
+  assert.equal(t.state.randomState,0x6d2b79f5);
   const wind=t.state.entities.find(e=>e.definition.behavior==='counter');assert.equal(wind.windTicks,20);assert.equal(wind.definition.lifetime,48);
+  const upper=rice.find(e=>e.vy< -27),x=upper.x,y=upper.y,replay=structuredClone(t.state);t.tick();
+  assert.ok(Math.abs(upper.x-x)<1e-9);assert.equal(upper.y,y-28);assert.equal(upper.vy,-28);
+  step(replay,[NEUTRAL,NEUTRAL],t.config);assert.deepEqual(t.state,replay);
+  for(let i=0;i<30;i++){t.tick();step(replay,[NEUTRAL,NEUTRAL],t.config);assert.deepEqual(t.state,replay);}
  }
 });
 test('remote projectiles also trigger the shared guard counter without consuming rice randomness',()=>{

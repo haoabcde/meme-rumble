@@ -30,6 +30,7 @@ export function initializeKitEntity(e:EntityState,state:MatchState,config:MatchC
   e.originX=e.previousX=e.x;e.originY=e.previousY=e.y;e.hitWaves=[];
  }
  if(b==='rice'){
+  if(e.definition.riceRadial)return;
   const up=e.definition.id.includes('up'),sign=e.facing*Math.sign(e.definition.velocity.x||1);
   // No arc: normal flies straight from the pocket to six body widths away.
   // Up throws remain on a 60-degree ray; neither throw accelerates under gravity.
