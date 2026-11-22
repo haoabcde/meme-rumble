@@ -10,15 +10,19 @@ import * as thrust from '../../assets/特效库/PixelFX/src/fx/melee/thrust.js';
 import * as spark from '../../assets/特效库/PixelFX/src/fx/impacts/hit-spark.js';
 import * as smite from '../../assets/特效库/PixelFX/src/fx/holy/smite.js';
 import * as sun from '../../assets/特效库/PixelFX/src/fx/holy/sunburst.js';
-export const selectedEffects={blunt,burst,uppercut,pillar,halo,feather,rays,thrust,spark,smite,sun};
+import * as thunder from '../../assets/特效库/PixelFX/src/fx/lightning/thunderclap.js';
+import * as wave from '../../assets/特效库/PixelFX/src/fx/water/wave-crash.js';
+import * as whirlpool from '../../assets/特效库/PixelFX/src/fx/water/whirlpool.js';
+export const selectedEffects={thunder,wave,whirlpool,blunt,burst,uppercut,pillar,halo,feather,rays,thrust,spark,smite,sun};
 export const GOLD=['#342032','#75402e','#b46c26','#e6a53a','#ffcf62','#ffeaa4','#fff8d8','#ffffff'];
+export const BLUE=['#142c58','#28598a','#467fb7','#68adde','#99d3f5','#c4eaff','#edfaff','#ffffff'];
 const stores=new Map();
 export function pixelFrame(name,seconds,layer='both',gold=false){
  const mod=selectedEffects[name],meta=mod.meta,fps=30;
  if(seconds<0||!meta.loop&&seconds>meta.duration)return null;
  const tick=Math.floor((meta.loop?seconds%meta.duration:seconds)*fps),key=name+'/'+layer+'/'+gold;
  let store=stores.get(key);
- function reset(){const f=createFrame(...meta.size);return{f,fx:createFx({...mod,meta:{...meta,actor:false}},{x:meta.origin[0],y:meta.origin[1],...(gold?{palette:GOLD}:{}),seed:7}),tick:0,frames:new Map()};}
+ function reset(){const f=createFrame(...meta.size);return{f,fx:createFx({...mod,meta:{...meta,actor:false}},{x:meta.origin[0],y:meta.origin[1],...(gold?{palette:gold==='blue'?BLUE:GOLD}:{}),seed:7}),tick:0,frames:new Map()};}
  if(!store){store=reset();stores.set(key,store);}
  if(store.frames.has(tick))return store.frames.get(tick);
  if(tick<store.tick){const cached=store.frames;store=reset();store.frames=cached;stores.set(key,store);}

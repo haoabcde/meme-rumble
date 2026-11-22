@@ -6,7 +6,7 @@ import { platformAt, platformOffset } from './terrain.js';
 import { MAX_ENERGY } from './types.js';
 import { entityContacts, resolveContactEntity, updateEntities, spawnEntities } from './entities.js';
 import {startWhale,cinematicOwner,WHALE_RULES} from './whale-kit.js';
-import {frogAction,frogCanStart,startFrog,finishAscension,tickAscension,frogPowered} from './frog-kit.js';
+import {frogAction,frogCanStart,startFrog,finishAscension,tickAscension,frogPowered,FROG_RULES} from './frog-kit.js';
 
 const seats = [0, 1] as const;
 const slotPriority = ['ULT', 'C', 'B', 'A'] as const;
@@ -322,6 +322,7 @@ function motion(
   const definition = config.fighters[seat];
   const arena = config.arena;
   const action = actionFor(config, state, seat);
+  const speedScale=frogPowered(f,state)?FROG_RULES.poweredSpeed:1;
   let move = 0;
   if (f.push !== 0) {
     move = f.push;
@@ -332,10 +333,10 @@ function motion(
   } else if (f.attack && action) {
     if (!('counterTo' in action)) {
       move = f.attack.frame < action.startup ? f.facing * action.advance : 0;
-      if (!f.ground) move += Math.round(definition.airSpeed * (action.airControl ?? 0)) * input.x;
+      if (!f.ground) move += Math.round(definition.airSpeed * (action.airControl ?? 0)) * speedScale * input.x;
     }
   } else if (!f.hitstun && !f.blockstun && !f.guardBreak && !f.guarding && !f.recovery) {
-    move = input.x * (f.ground ? definition.run : definition.airSpeed);
+    move = input.x * (f.ground ? definition.run : definition.airSpeed) * speedScale;
   }
   const previousX = f.x;
   if((f.bindUntil??0)>state.arenaFrame){move=0;f.push=0;f.moving=false;if(!f.ground)f.vy=Math.max(6,f.vy);}
@@ -487,8 +488,10 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
       }
       continue;
     }
-    const amount = Math.min(defender.hp, action.fixedDamage?action.damage:Math.floor(action.damage * Math.max(35, 100 - 8 * defender.combo) / 100));
-    defender.hp -= amount;
+    const rawDamage=action.fixedDamage?action.damage:Math.floor(action.damage * Math.max(35, 100 - 8 * defender.combo) / 100);
+    const resisted=frogPowered(defender,state);
+    const amount = Math.min(defender.hp,resisted?Math.round(rawDamage*FROG_RULES.incomingDamage*1000)/1000:rawDamage);
+    defender.hp = resisted?Math.round((defender.hp-amount)*1000)/1000:defender.hp-amount;
     if (amount > 0) {
       const attacker = state.fighters[source];
       if (attacker.energy !== undefined && action.slot !== 'ULT' && !frogPowered(attacker,state)) {

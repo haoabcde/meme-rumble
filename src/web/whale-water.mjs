@@ -1,4 +1,6 @@
 import {cutGrid,createPoseMorph} from './pixel-sprites.mjs';
+import {drawPixelFx} from './pixel-fx.mjs';
+import {orbitAngle,leapSample} from './whale-presentation.mjs';
 // Independent pixel sprites, world-space depth layers and simulation-clock animation.
 const clamp=n=>Math.max(0,Math.min(1,n));
 const TAU=Math.PI*2;
@@ -25,19 +27,27 @@ function swim(g,im,x,y,w,phase,alpha=1,flip=1){
   g.drawImage(im,i*im.width/segments,0,im.width/segments+1,im.height,-w/segments/2,-h/2,w/segments+1.5,h);g.restore();
  }g.restore();
 }
+// Runtime water palette: retain luminance and transparency, shift green water to pale blue.
+function paleWater(im){
+ const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(im,0,0);
+ const image=g.getImageData(0,0,c.width,c.height),p=image.data;
+ for(let i=0;i<p.length;i+=4){if(!p[i+3])continue;const v=Math.max(p[i],p[i+1],p[i+2])/255,white=clamp((v-.96)/.04),r=12+185*Math.pow(v,1.1),green=52+178*v;p[i]=r+(255-r)*white;p[i+1]=green+(255-green)*white;p[i+2]=117+138*v;}
+ g.putImageData(image,0,0);return c;
+}
 export function createWaterRenderer(images){
- const whales=parts(images.waterWhale),water=parts(images.waterParts),runes=parts(images.runeParts);
- const turning=createPoseMorph(cutGrid(images.whaleTurn,4,2)),leaping=createPoseMorph(cutGrid(images.whaleLeap,4,2));
+ const whales=parts(images.waterWhale).map(paleWater),water=parts(images.waterParts).map(paleWater),runes=parts(images.runeParts).map(paleWater);
+ const turning=createPoseMorph(cutGrid(images.whaleTurn,4,2).map(paleWater)),leaping=createPoseMorph(cutGrid(images.whaleLeap,4,2).map(paleWater));
  function droplets(g,x,y,t,amount=14,alpha=1){
-  g.save();for(let j=0;j<amount;j++){const p=((t+j*2.71)%23)/23,a=j*2.399;g.globalAlpha=alpha*(1-p)*.8;g.fillStyle=j%3?'#73e6e7':'#edffff';const xx=x+Math.cos(a)*(15+70*p),yy=y-18-110*p+85*p*p;g.fillRect(Math.round(xx/3)*3,Math.round(yy/3)*3,3,3);}g.restore();
+  g.save();for(let j=0;j<amount;j++){const p=((t+j*2.71)%23)/23,a=j*2.399;g.globalAlpha=alpha*(1-p)*.8;g.fillStyle=j%3?'#9bd4ff':'#effaff';const xx=x+Math.cos(a)*(15+70*p),yy=y-18-110*p+85*p*p;g.fillRect(Math.round(xx/3)*3,Math.round(yy/3)*3,3,3);}g.restore();
  }
  function pool(g,e,layer){
   const warning=60,end=warning+12*7,fade=clamp((end+48-e.age)/20),active=e.age>=warning;
   if(layer==='back'){
    const pulse=1+Math.sin(e.age*.16)*.018;
    sprite(g,water[0],e.x,e.y-2,310*pulse,(active?.9:.55)*fade);
+   if(!active){g.save();g.translate(e.x,e.y-3);g.scale(1,.38);drawPixelFx(g,'whirlpool',0,0,e.age/60,2.35,'both','blue',(.2+.45*e.age/warning)*fade);g.restore();}
    // A progressive elliptical rim communicates a full second before the eruptions.
-   if(!active){g.save();g.translate(e.x,e.y-3);g.scale(1,.22);g.strokeStyle='#c1ffff';g.lineWidth=3;g.setLineDash([5,3]);g.beginPath();g.arc(0,0,149,-Math.PI/2,-Math.PI/2+TAU*e.age/warning);g.stroke();g.restore();}
+   if(!active){g.save();g.translate(e.x,e.y-3);g.scale(1,.22);g.strokeStyle='#c8e9ff';g.lineWidth=3;g.setLineDash([5,3]);g.beginPath();g.arc(0,0,149,-Math.PI/2,-Math.PI/2+TAU*e.age/warning);g.stroke();g.restore();}
   }
   if(!active)return;
   for(let i=0;i<12;i++){
@@ -45,13 +55,18 @@ export function createWaterRenderer(images){
    const front=i%2===0;if((layer==='front')!==front)continue;
    const p=age/48,env=clamp(age/3)*clamp((48-age)/10),side=i%2?1:-1;
    const ox=((i*47)%170)-85;
-   g.save();g.beginPath();g.rect(e.x-190,e.y-330,380,338);g.clip();
+   g.save();g.beginPath();g.rect(e.x-195,e.y-510,390,510);g.clip();
    // Water jets and individual sprites leave the pool, crest, dissolve and return.
    sprite(g,water[1],e.x+ox*.65,e.y-65-22*Math.sin(p*Math.PI),114,env*.52*fade,side*.17,side);
    if(i%4===0){
-    const x=e.x+ox+side*(p-.5)*110,y=e.y+55-Math.sin(p*Math.PI)*260;
-    sprite(g,runes[2],x-side*35,y+75,55,env*.35*fade,side*.5,side);
-    leaping.draw(g,Math.min(6.99,p*7),x,y,186,env*fade,side);
+    const leap=leapSample(age,i),x=e.x+ox*.35+side*Math.sin(p*Math.PI)*60,y=e.y+55-leap.height*leap.peak;
+    sprite(g,runes[2],x-side*35,y+75,65+i*3,env*.45*fade,side*.5,side);
+    leaping.draw(g,leap.pose,x,y,leap.width,env*fade,side,side*(p-.5)*.12);
+    // The launch spray stays rooted to the pool, rather than following the whale as a rigid tail.
+    if(age<16)sprite(g,water[1],e.x+ox*.35,e.y-35-age*3,125+i*7,clamp((16-age)/10)*fade,side*.1,side);
+    if(age>34){
+     const q=(age-34)/14;g.save();g.translate(e.x+ox*.35,e.y-3);g.scale(1,.24);g.globalAlpha*=Math.sin(q*Math.PI)*fade*.8;g.strokeStyle='#c6eaff';g.lineWidth=5-q*3;g.beginPath();g.arc(0,0,18+q*(80+i*4),0,TAU);g.stroke();g.restore();
+    }
 
    }else{
     const flower=i%3===0,im=flower?water[3]:water[2];
@@ -66,7 +81,7 @@ export function createWaterRenderer(images){
  }
  function orbit(g,e,layer){
   const wind=e.windTicks??20,total=wind+28,p=clamp(e.age/total),fade=clamp(e.age/3)*clamp((total-e.age)/16);
-  const a=-2.7+p*TAU*1.05,depth=Math.sin(a),front=depth>0;
+  const a=orbitAngle(e.age,wind,e.definition.behavior==='spin'),depth=Math.sin(a),front=depth>0;
   if((layer==='front')!==front)return;
   const x=e.x+Math.cos(a)*112,y=e.y-70-p*156+depth*28,w=119+depth*17;
   const yaw=(((a+Math.PI/2)/TAU*8)%8+8)%8;

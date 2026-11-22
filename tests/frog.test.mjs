@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createMatch,step,actionFor} from '../dist/core/match.js';
 import {frog} from '../dist/content/fighters/frog.js';
+import {whale} from '../dist/content/fighters/whale.js';
 import {testFighter,rules} from '../dist/content/demo.js';
 import {arenas} from '../dist/content/arenas.js';
 import {NEUTRAL} from '../dist/core/types.js';
@@ -58,7 +59,7 @@ test('post-cinematic transformation and cast trails retain their own clocks thro
  assert.deepEqual(t.caster.ascendVisual,reveal); // Still alive at three seconds, including feather drift.
  t.run(31);assert.equal(t.caster.ascendVisual,undefined);assert.equal(t.caster.frogCasts,undefined);
 });
-test('angel damage and reach are 1.5x for every combo stage and all laugh waves',()=>{
+test('angel damage is 1.5x across basic attacks and laugh waves',()=>{
  const t=setup();t.caster.ascendUntil=900;
  for(const raw of frog.fighter.actions.filter(a=>a.slot==='A')){t.caster.attack={id:raw.id,frame:0,connected:false,landed:false};const a=actionFor(t.config,t.state,0);assert.equal(a.damage,raw.damage*1.5);assert.equal(a.hitbox.w,raw.hitbox.w*1.5);assert.equal(a.hitbox.h,raw.hitbox.h*1.5);}
  t.caster.attack={id:'frog-laugh-global',frame:0,connected:false,landed:false};assert.equal(actionFor(t.config,t.state,0).entities[0].damage,37.5);
@@ -72,4 +73,41 @@ test('frog buff, global cooldown and wave hits survive snapshot replay and clear
  const t=setup(0,190);t.caster.ascendUntil=900;t.caster.energy=300;t.press('B');t.run(18);const clone=structuredClone(t.state);
  for(let i=0;i<180;i++){const a=input(i===90?['B']:[],0,i===90?-1:0);assert.deepEqual(step(t.state,[a,NEUTRAL],t.config),step(clone,[a,NEUTRAL],t.config));assert.deepEqual(t.state,clone);}
  t.caster.attack=null;t.caster.hitstun=0;t.target.hp=1;t.target.x=t.caster.x+90;t.target.y=t.caster.y;t.target.ground='floor';t.caster.attack={id:'common-jab',frame:4,connected:false,landed:false};t.state.freeze=0;t.tick();assert.equal(t.state.phase,'round-over');t.run(110);assert.equal(t.state.fighters[0].ascendUntil,undefined);assert.equal(t.state.fighters[0].frogGlobalReady,undefined);assert.equal(t.state.fighters[0].energy,0);
+});
+
+
+test('ordinary laugh and ascension can start in the air; the cinematic preserves height and fall velocity',()=>{
+ for(const source of [0,1]){
+  const t=setup(source,1200);t.press('jump');t.run(4);t.press('B');assert.equal(t.caster.attack.id,'frog-laugh');assert.equal(t.caster.ground,null);
+  let aerialWave=false;for(let i=0;i<22;i++){t.tick();aerialWave ||= (t.state.entities??[]).some(e=>e.definition.behavior==='frog-wave'&&e.y<t.config.arena.floor-65);}
+  assert.equal(aerialWave,true);assert.equal(t.caster.frogCasts[0].anchors[0].frame,16);assert.ok(t.caster.frogCasts[0].anchors[0].y<t.config.arena.floor);
+  const u=setup(source,1200);u.caster.energy=300;u.press('jump');u.run(5);u.press('ULT');assert.equal(u.caster.attack.id,'frog-ascend');const y=u.caster.y,vy=u.caster.vy,clock=u.state.arenaFrame;
+  u.run(60);assert.equal(u.caster.y,y);assert.equal(u.caster.vy,vy);assert.equal(u.state.arenaFrame,clock);assert.equal(u.caster.ascendUntil-clock,900);
+  u.tick();assert.equal(u.caster.ground,null);assert.equal(u.caster.vy,vy+1);
+ }
+});
+
+test('empowered laugh reaches twice the normal radius while basic reach and all outgoing damage retain 1.5x',()=>{
+ const near=setup(0,450);near.caster.ascendUntil=900;near.press('B');const action=actionFor(near.config,near.state,0);assert.equal(action.entities[0].hitbox.w,960);
+ assert.deepEqual(near.run(90).filter(e=>e.kind==='hit').map(e=>e.amount),[42,42,66]);
+ const far=setup(0,530);far.caster.ascendUntil=900;far.press('B');assert.equal(far.run(90).some(e=>e.kind==='hit'),false);
+});
+
+test('ascension multiplies controlled ground and aerial travel by 1.5 and restores speed on expiry',()=>{
+ for(const source of [0,1])for(const airborne of [false,true]){
+  const t=setup(source,1200);if(airborne){t.caster.ground=null;t.caster.y=400;t.caster.vy=-8;}
+  const dir=source===0?1:-1,controls=source===0?[input([],dir),NEUTRAL]:[NEUTRAL,input([],dir)],normal=airborne?frog.fighter.airSpeed:frog.fighter.run;
+  let x=t.caster.x;t.tick(...controls);assert.equal(Math.abs(t.caster.x-x),normal);
+  t.caster.ascendUntil=t.state.arenaFrame+3;x=t.caster.x;t.tick(...controls);assert.equal(Math.abs(t.caster.x-x),normal*1.5);
+  t.tick(...controls);x=t.caster.x;t.tick(...controls);assert.equal(Math.abs(t.caster.x-x),normal);
+ }
+});
+
+test('angel takes 0.7x actual melee and rice damage on either seat, without healing',()=>{
+ for(const source of [0,1])for(const projectile of [false,true]){
+  const t=setup(source,projectile?240:95);t.config.fighters[1-source]=whale.fighter;t.caster.ascendUntil=900;t.caster.energy=300;
+  const key=projectile?'B':'A',commands=source===0?[NEUTRAL,input([key])]:[input([key]),NEUTRAL];t.tick(...commands);
+  const hits=t.run(70).filter(e=>e.kind==='hit'&&e.target===undefined&&e.source===1-source);
+  assert.equal(hits.length,1);assert.equal(hits[0].amount,projectile?21:31.5);assert.ok(Math.abs(t.caster.hp-(1000-hits[0].amount))<1e-9);
+ }
 });

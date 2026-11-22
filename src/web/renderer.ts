@@ -316,6 +316,9 @@ export class Renderer {
   draw(config: MatchConfig, state: MatchState, debug: boolean, elapsed: number, shakeEnabled: boolean, focus = false, opening = 0) {
     const ctx = this.ctx;
     const { width, height } = ctx.canvas;
+    // A seek can jump across camera framing or a cinematic: redraw from a clean frame.
+    ctx.resetTransform();ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
+    ctx.clearRect(0,0,width,height);
     const [a, b] = state.fighters;
     this.effects = this.effects.filter(({ start, life }) => state.arenaFrame >= start && state.arenaFrame - start < life);
     const heights = ([0,1] as const).map(seat=>(artSizes.get(config.fighters[seat].id)??137)+(frogPowered(state.fighters[seat],state)?52:0));

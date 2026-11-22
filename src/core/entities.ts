@@ -122,6 +122,10 @@ export function spawnEntities(state: MatchState, config: MatchConfig) {
         vy: definition.velocity.y
       };
       initializeKitEntity(entity,state,config);
+      if(definition.behavior==='frog-wave'){
+        const cast=[...(fighter.frogCasts??[])].reverse().find(c=>c.id===attack.id);
+        if(cast)(cast.anchors??=[]).push({frame:attack.frame,x:entity.x,y:entity.y+65});
+      }
       (state.entities ??= []).push(entity);
     }
   }
