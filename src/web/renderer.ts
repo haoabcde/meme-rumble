@@ -8,7 +8,9 @@ import { drawHarborScenery, drawHarborLift, drawQuay } from './harbor-art.js';
 import { drawStageBackdrop, drawStageMechanism, drawStageScenery } from './stage-art.js';
 import { platformAt } from '../core/terrain.js';
 import { frameCamera, type CameraView } from './camera.js';
+import {frogPowered} from '../core/frog-kit.js';
 import {cinematicOwner} from '../core/whale-kit.js';
+import {drawFrogActor,drawFrogEffects,drawFrogIntro} from './frog-art.js';
 import {drawWhaleActor,drawWhaleEntities,drawWhaleIntro} from './whale-art.js';
 
 export const seatColors = ['#61d8ff', '#ff849e'];
@@ -316,7 +318,7 @@ export class Renderer {
     const { width, height } = ctx.canvas;
     const [a, b] = state.fighters;
     this.effects = this.effects.filter(({ start, life }) => state.arenaFrame >= start && state.arenaFrame - start < life);
-    const heights = [artSizes.get(config.fighters[0].id) ?? 137, artSizes.get(config.fighters[1].id) ?? 137];
+    const heights = ([0,1] as const).map(seat=>(artSizes.get(config.fighters[seat].id)??137)+(frogPowered(state.fighters[seat],state)?52:0));
     const camera = frameCamera(config.arena, { width, height },
       [{ x: a.x, y: a.y, height: heights[0] }, { x: b.x, y: b.y, height: heights[1] }],
       this.camera, state.phase === 'fight' && (state.freeze || cinematicOwner(state)!==undefined) ? 0 : elapsed, focus, opening);
@@ -353,6 +355,7 @@ export class Renderer {
     }
 
     drawWhaleEntities(ctx,state,config,'back');
+    drawFrogEffects(ctx,state,config,'back');
     const front = a.attack && b.hitstun ? [1, 0] as const : [0, 1] as const;
     for (const seat of front) {
       const f = state.fighters[seat];
@@ -384,6 +387,7 @@ export class Renderer {
         const flash=this.hitFlash(seat,state.arenaFrame,f.hitstun>0&&state.freeze>0);
         if(flash>0)ctx.filter=`brightness(${1+flash*.36})`;
         drawWhaleActor(ctx,f,state,seat,action);ctx.filter='none';
+      }else if(def.id==='frog'){drawFrogActor(ctx,f,state,action);
       }else{
       if (!f.hp) ctx.rotate(-Math.PI / 2.6);
       else if (f.recovery?.phase === 'down') {
@@ -426,7 +430,7 @@ export class Renderer {
       }
       ctx.restore();
 
-      if (strike && def.id!=='whale') {
+      if (strike && def.id!=='whale' && def.id!=='frog') {
         for (const hitbox of hitboxes) {
           drawSwing(ctx, f, hitbox, strike.pose, (phase - strike.startup) / strike.active, color);
         }
@@ -455,6 +459,7 @@ export class Renderer {
 
     for (const entity of state.entities ?? []) if(!entity.definition.behavior)drawEntity(ctx, entity, debug);
     drawWhaleEntities(ctx,state,config,'front');
+    drawFrogEffects(ctx,state,config,'front');
     this.drawEffects(state.arenaFrame, Boolean(config.training));
     ctx.resetTransform();
     for (const seat of [0, 1] as const) {
@@ -482,6 +487,7 @@ export class Renderer {
       this.drawPositionStrip(config.arena, [a.x, b.x], camera);
     }
     drawWhaleIntro(ctx,config,state);
+    drawFrogIntro(ctx,config,state);
   }
 
   private drawPositionStrip(arena: ArenaDefinition, fighters: [number, number], camera: CameraView) {

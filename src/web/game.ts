@@ -2,6 +2,7 @@ import { rules } from '../content/demo.js';
 import { arenas } from '../content/arenas.js';
 import { roster } from '../content/roster.js';
 import { actionFor, createMatch, step } from '../core/match.js';
+import {frogPowered} from '../core/frog-kit.js';
 import { ENERGY_PER_STOCK, MAX_ENERGY, NEUTRAL, type ActionKey, type Axis, type Duo, type FighterDefinition, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
 import { arcadeArt, arenaArt, fighterArt } from './art.js';
 import { FightAudio } from './audio.js';
@@ -186,6 +187,7 @@ function seatName(seat: Seat) {
 
 function trainingSkillHints(fighter: FighterDefinition) {
   if(fighter.id==='whale')return whaleInputHints(0);
+  if(fighter.id==='frog')return frogInputHints(0);
   const hints: string[] = [];
   if (acceptsSkillInput(fighter, 'ULT')) hints.push(keyHint(preferences, 0, ['ULT']) + ' 大招');
   if (fighter.guardCounter) hints.push(keyHint(preferences, 0, ['down']) + ' 精准防反');
@@ -199,6 +201,10 @@ function trainingSkillHints(fighter: FighterDefinition) {
     hints.push(keys.join(' + ') + ' 防反架势');
   }
   return hints.join(' · ');
+}
+
+function frogInputHints(seat:Seat){
+ return keyHint(preferences,seat,['A'])+' 五段拳脚 · '+keyHint(preferences,seat,['B'])+' 捧腹 · '+keyHint(preferences,seat,['up','B'],'＋')+' 全图冲击（2秒间隔） · '+keyHint(preferences,seat,['ULT'])+' 神了！';
 }
 
 function whaleInputHints(seat:Seat){
@@ -222,6 +228,7 @@ function footer() {
     : screen === 'title' ? confirmKey + ' 进入游戏'
     : screen === 'result' || screen === 'pause' ? upDown + ' 选择 · ' + confirmKey + ' 确认 · Esc 返回'
     : skills ? 'P1 ' + skills
+    : fighting && config.fighters[0].id==='frog' ? 'P1 '+frogInputHints(0)+(mode==='local'&&config.fighters[1].id==='frog'?'　P2 '+frogInputHints(1):'')
     : fighting && config.fighters[0].id==='whale' ? 'P1 '+whaleInputHints(0)+(mode==='local'&&config.fighters[1].id==='whale'?'　P2 '+whaleInputHints(1):'')
     : fighting ? 'P1 ' + keyHint(preferences, 0, ['A']) + ' 普攻 · ' +
         keyHint(preferences, 0, ['up', 'A'], ' + ') + ' 挑空' +
@@ -768,8 +775,8 @@ function renderHUD() {
       const stocks = Math.floor(energy / ENERGY_PER_STOCK);
       energyRows[seat].dataset.stocks = String(stocks);
       if (energyRows[seat].dataset.ready !== String(ready)) energyRows[seat].dataset.ready = String(ready);
-      text(energyLabels[seat], String(stocks));
-      energyBars[seat].parentElement!.setAttribute('aria-valuetext', '技能能量 ' + energy + ' / ' + MAX_ENERGY);
+      text(energyLabels[seat], frogPowered(fighter,state)?'强化 '+(((fighter.ascendUntil??0)-state.arenaFrame)/60).toFixed(1)+'s':String(stocks));
+      energyBars[seat].parentElement!.setAttribute('aria-valuetext', frogPowered(fighter,state)?'强化剩余 '+(((fighter.ascendUntil??0)-state.arenaFrame)/60).toFixed(1)+' 秒':'技能能量 ' + Math.floor(energy) + ' / ' + MAX_ENERGY);
     }
     const recent = lastChains[seat];
     const hits = state.fighters[seat === 0 ? 1 : 0].combo ||

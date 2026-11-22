@@ -16,7 +16,7 @@ const tail=(stage:1|2|3):ActionDefinition=>({
 const projectile=(id:string,behavior:EntityDefinition['behavior'],spawnFrame:number,sign=1):EntityDefinition=>({
  id,behavior,spawnFrame,offset:{x:behavior==='rice'?26*sign:0,y:behavior==='rice'?-92:0},
  velocity:{x:behavior==='spin'?24:behavior==='rice'?sign:0,y:0},
- lifetime:behavior==='rice'?120:behavior==='pool'?WHALE_RULES.telegraph+WHALE_RULES.ultimateHits*WHALE_RULES.hitGap+24:48,
+ lifetime:behavior==='rice'?120:behavior==='pool'?WHALE_RULES.telegraph+WHALE_RULES.ultimateHits*WHALE_RULES.hitGap+48:48,
  hitbox:behavior==='rice'?{x:-14,y:-11,w:28,h:22}:behavior==='pool'?{x:-152,y:-260,w:304,h:262}:{x:-86,y:-240,w:172,h:240},
  damage:behavior==='pool'?35:behavior==='counter'?20:30,hitstun:behavior==='rice'?0:behavior==='pool'?12:22,
  blockstun:7,guardCost:behavior==='pool'?8:20,push:behavior==='rice'?0:behavior==='pool'?0:7,lift:behavior==='spin'||behavior==='spin-up'||behavior==='counter'?12:0,

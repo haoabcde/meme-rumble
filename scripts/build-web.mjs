@@ -19,9 +19,9 @@ async function bundleEntry(entry) {
   });
   return result.outputFiles[0].text;
 }
-const [template, css, game, counterDemo, ultimateDemo, combatDemo,whaleReview] = await Promise.all([
+const [template, css, game, counterDemo, ultimateDemo, combatDemo,whaleReview,frogReview] = await Promise.all([
   readFile(new URL('index.html', root), 'utf8'), readFile(new URL('styles.css', root), 'utf8'),
-  bundleEntry('game.ts'), bundleEntry('counter-demo.ts'), bundleEntry('ultimate-demo.ts'), bundleEntry('combat-demo.ts'),bundleEntry('whale-review.ts')
+  bundleEntry('game.ts'), bundleEntry('counter-demo.ts'), bundleEntry('ultimate-demo.ts'), bundleEntry('combat-demo.ts'),bundleEntry('whale-review.ts'),bundleEntry('frog-review.ts')
 ]);
 
 function standalone(script) {
@@ -40,5 +40,6 @@ await Promise.all([
   publish('guard-counter-demo.html', standalone(counterDemo)),
   publish('ultimate-demo.html', standalone(ultimateDemo)),
   publish('combat-demo.html', standalone(combatDemo)),
+  publish('frog-review.html','<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>奶娃制作</title><body><script>'+frogReview.replace(/<\/script/gi,'<\\/script')+'</script></body></html>'),
   publish('whale-review.html','<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>大肥鱼完整接入</title><body><script>'+whaleReview.replace(/<\/script/gi,'<\\/script')+'</script></body></html>')
 ]);

@@ -3,7 +3,7 @@ import type { ActionDefinition, Box, FighterAction, HitFeedback, MatchConfig, Ma
 import { advanceKitEntity, initializeKitEntity, kitContactAllowed, kitContactBox, kitContactResolved, kitLifetime } from './whale-kit.js';
 
 export interface EntityDefinition {
-  behavior?: 'rice' | 'spin' | 'spin-up' | 'counter' | 'pool';
+  behavior?: 'rice' | 'spin' | 'spin-up' | 'counter' | 'pool' | 'frog-wave' | 'frog-global';
   id: string;
   /** Zero-based frame of the spawning action. */
   spawnFrame: number;
@@ -143,8 +143,14 @@ export function entityContacts(state: MatchState, config: MatchConfig): EntityCo
       const top = Math.max(hitbox.y, hurtbox.y);
       const bottom = Math.min(hitbox.y + hitbox.h, hurtbox.y + hurtbox.h);
       if (left >= right || top >= bottom) continue;
+      if(definition.behavior==='frog-wave'){
+        const radius=definition.hitbox.w/2;
+        const nearX=Math.max(hurtbox.x,Math.min(entity.x,hurtbox.x+hurtbox.w));
+        const nearY=Math.max(hurtbox.y,Math.min(entity.y,hurtbox.y+hurtbox.h));
+        if(Math.hypot(nearX-entity.x,nearY-entity.y)>radius)continue;
+      }
       contacts.push({
-        entity, source, target, facing:definition.behavior==='counter'?(defender.x<entity.x?-1:1):facing, x: (left + right) / 2, y: (top + bottom) / 2,
+        entity, source, target, facing:definition.behavior==='counter'||definition.behavior==='frog-wave'||definition.behavior==='frog-global'?(defender.x<(definition.behavior==='frog-global'?(entity.originX??entity.x):entity.x)?-1:1):facing, x: (left + right) / 2, y: (top + bottom) / 2,
         action: {
           id: definition.id, hitbox: definition.hitbox, feedback: definition.feedback,
           damage: definition.behavior==='rice' && entity.grounded ? 0 : definition.damage, guardCost: definition.guardCost,

@@ -140,7 +140,7 @@ test('the four selectable fighters retain the common commands, and empty signatu
   assert.deepEqual(roster.map(entry => entry.fighter.id), ['whale', 'frog', 'banana', 'gaga']);
   assert.equal(baseline.actions.length, 5);
   assert.ok(baseline.actions.every(move => move.slot === 'A'));
-  for (const { fighter } of roster.filter(entry => entry.fighter.id!=='whale')) {
+  for (const { fighter } of roster.filter(entry => !['whale','frog'].includes(entry.fighter.id))) {
     assert.deepEqual(fighter.actions.filter(m => m.slot === 'A').map(m => m.id), baseline.actions.map(m => m.id));
   }
   for (const fighter of [baseline, ...roster.map(entry => entry.fighter)]) {

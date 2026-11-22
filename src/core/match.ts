@@ -6,6 +6,7 @@ import { platformAt, platformOffset } from './terrain.js';
 import { MAX_ENERGY } from './types.js';
 import { entityContacts, resolveContactEntity, updateEntities, spawnEntities } from './entities.js';
 import {startWhale,cinematicOwner,WHALE_RULES} from './whale-kit.js';
+import {frogAction,frogCanStart,startFrog,finishAscension,tickAscension,frogPowered} from './frog-kit.js';
 
 const seats = [0, 1] as const;
 const slotPriority = ['ULT', 'C', 'B', 'A'] as const;
@@ -39,7 +40,7 @@ export function createMatch(config: MatchConfig): MatchState {
 
 export function actionFor(config: MatchConfig, state: MatchState, seat: 0 | 1) {
   const id = state.fighters[seat].attack?.id;
-  return config.fighters[seat].actions.find(action => action.id === id);
+  return frogAction(config.fighters[seat].actions.find(action => action.id === id),state.fighters[seat],state);
 }
 
 export function isActiveFrame(action: FighterAction, frame: number) {
@@ -209,6 +210,7 @@ function updateControl(
       (!action.direction || item.directions.includes(action.direction)) &&
       action.comboKeys?.every(key => item.keys?.includes(key)) !== false);
     if (!command) continue;
+    if(!frogCanStart(action,f,state)){f.buffer=f.buffer.filter(item=>item.sampledAt!==command.sampledAt);return;}
     const legacyCost = action.slot === 'ULT' ? definition.ultimateCost ?? 0 : 0;
     const cost = 'counterTo' in action ? 0 : action.energyCost ?? legacyCost;
     if ((f.energy ?? 0) < cost) {
@@ -219,6 +221,7 @@ function updateControl(
     if (cost) f.energy = (f.energy ?? 0) - cost;
     // A single accepted command consumes competing actions from the same sampled frame.
     f.buffer = f.buffer.filter(item => item.sampledAt !== command.sampledAt);
+    if(!('counterTo' in action))startFrog(action,f,state);
     startAction(f, 'counterTo' in action?action.id:startWhale(action,f,state), seat, events, action.slot === 'ULT');
     return;
   }
@@ -417,7 +420,8 @@ function collectContacts(state: MatchState, config: MatchConfig): Contact[] {
       if (attack.connectedGroups?.includes(window.group)) continue;
       for (const box of window.boxes) {
         const hitbox = worldBox(box, f.x, f.y, f.facing);
-        const hurtbox = hurtboxes.find(hurt => overlap(hitbox, hurt));
+        const hurtbox = hurtboxes.find(hurt => overlap(hitbox, hurt) && (!action.radial ||
+          Math.hypot(Math.max(hurt.x,Math.min(f.x,hurt.x+hurt.w))-f.x,Math.max(hurt.y,Math.min(f.y-65,hurt.y+hurt.h))-(f.y-65))<=action.hitbox.w/2));
         if (!hurtbox) continue;
         return [{
           source, target, group: window.group,
@@ -432,7 +436,7 @@ function collectContacts(state: MatchState, config: MatchConfig): Contact[] {
             stop: window.stop ?? action.stop,
             knockdown: window.knockdown ?? action.knockdown
           },
-          facing: f.facing, counterAction, blocked: frontal && defender.guarding,
+          facing: action.radial?(defender.x<f.x?-1:1):f.facing, counterAction, blocked: frontal && defender.guarding,
           x: (Math.max(hitbox.x, hurtbox.x) + Math.min(hitbox.x + hitbox.w, hurtbox.x + hurtbox.w)) / 2,
           y: (Math.max(hitbox.y, hurtbox.y) + Math.min(hitbox.y + hitbox.h, hurtbox.y + hurtbox.h)) / 2
         }];
@@ -487,10 +491,10 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
     defender.hp -= amount;
     if (amount > 0) {
       const attacker = state.fighters[source];
-      if (attacker.energy !== undefined && action.slot !== 'ULT') {
+      if (attacker.energy !== undefined && action.slot !== 'ULT' && !frogPowered(attacker,state)) {
         attacker.energy = Math.min(MAX_ENERGY, attacker.energy + (config.fighters[source].ultimateGain?.onHit ?? 20));
       }
-      if (defender.energy !== undefined) {
+      if (defender.energy !== undefined && !frogPowered(defender,state)) {
         defender.energy = Math.min(MAX_ENERGY, defender.energy + (config.fighters[target].ultimateGain?.onHurt ?? 10));
       }
     }
@@ -563,7 +567,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   if(cinematic!==undefined){
     // Presentation advances, simulation clocks, statuses, entities and inputs do not.
     const attack=state.fighters[cinematic].attack!;
-    if(++attack.frame===WHALE_RULES.cinematic){spawnEntities(state,config);state.fighters[cinematic].attack=null;}
+    if(++attack.frame===WHALE_RULES.cinematic){spawnEntities(state,config);finishAscension(state.fighters[cinematic],state);state.fighters[cinematic].attack=null;}
     for(const fighter of state.fighters)fighter.buffer=[];
     return events;
   }
@@ -585,6 +589,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     }
   }
   for (const seat of seats) {
+    tickAscension(state.fighters[seat],state);
     updateControl(state, config, seat, inputs[seat], events);
     if(cinematicOwner(state)!==undefined){for(const fighter of state.fighters)fighter.buffer=[];return events;}
     const fighter = state.fighters[seat];
@@ -609,7 +614,8 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   const contacts = collectContacts(state, config);
   for (const contact of entityContacts(state, config)) {
     const defender = state.fighters[contact.target];
-    const frontal = (contact.entity.x - defender.x) * defender.facing > 0;
+    const sourceX=contact.entity.definition.behavior==='frog-global'?(contact.entity.originX??contact.entity.x):contact.entity.x;
+    const frontal = (sourceX - defender.x) * defender.facing > 0;
     contacts.push({
       ...contact, entityId: contact.entity.id, group: String(contact.entity.id),
       blocked: frontal && defender.guarding,

@@ -7,6 +7,5 @@ function lineBurst(age,a){ctx.save();ctx.globalAlpha=a;for(let i=0;i<68;i++){con
 return{ intro(g,w,h,phase){if(phase>=60)return;ctx=g;const ms=120+phase*1000/60,alpha=clamp(phase/5)*clamp((60-phase)/10),p=ease(phase/13);
  g.save();g.scale(w/1280,h/720);g.globalAlpha*=alpha;g.fillStyle='#020823ee';g.fillRect(0,0,1280,720);lineBurst(ms,.65);
  const ph=655,pw=ph*images.portrait.width/images.portrait.height;g.drawImage(images.portrait,-25-(1-p)*170,95,pw,ph);
- const tw=770*(1+(1-p)*.23),th=tw*images.title.height/images.title.width,tx=493+(1-p)*155,ty=168-(1-p)*60;
- if(phase<20){g.save();g.globalAlpha*=.32;g.filter='blur(5px)';g.drawImage(images.title,tx+15,ty-8,tw+22,th+10);g.restore();}g.drawImage(images.title,tx,ty,tw,th);g.restore();}};
+ g.restore();}};
 }

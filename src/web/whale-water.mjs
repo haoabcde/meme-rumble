@@ -1,3 +1,4 @@
+import {cutGrid,createPoseMorph} from './pixel-sprites.mjs';
 // Independent pixel sprites, world-space depth layers and simulation-clock animation.
 const clamp=n=>Math.max(0,Math.min(1,n));
 const TAU=Math.PI*2;
@@ -26,11 +27,12 @@ function swim(g,im,x,y,w,phase,alpha=1,flip=1){
 }
 export function createWaterRenderer(images){
  const whales=parts(images.waterWhale),water=parts(images.waterParts),runes=parts(images.runeParts);
+ const turning=createPoseMorph(cutGrid(images.whaleTurn,4,2)),leaping=createPoseMorph(cutGrid(images.whaleLeap,4,2));
  function droplets(g,x,y,t,amount=14,alpha=1){
   g.save();for(let j=0;j<amount;j++){const p=((t+j*2.71)%23)/23,a=j*2.399;g.globalAlpha=alpha*(1-p)*.8;g.fillStyle=j%3?'#73e6e7':'#edffff';const xx=x+Math.cos(a)*(15+70*p),yy=y-18-110*p+85*p*p;g.fillRect(Math.round(xx/3)*3,Math.round(yy/3)*3,3,3);}g.restore();
  }
  function pool(g,e,layer){
-  const warning=60,end=warning+12*7,fade=clamp((end+24-e.age)/24),active=e.age>=warning;
+  const warning=60,end=warning+12*7,fade=clamp((end+48-e.age)/20),active=e.age>=warning;
   if(layer==='back'){
    const pulse=1+Math.sin(e.age*.16)*.018;
    sprite(g,water[0],e.x,e.y-2,310*pulse,(active?.9:.55)*fade);
@@ -39,9 +41,9 @@ export function createWaterRenderer(images){
   }
   if(!active)return;
   for(let i=0;i<12;i++){
-   const age=e.age-warning-i*7;if(age<0||age>32)continue;
+   const age=e.age-warning-i*7;if(age<0||age>48)continue;
    const front=i%2===0;if((layer==='front')!==front)continue;
-   const p=age/32,env=clamp(age/3)*clamp((32-age)/9),side=i%2?1:-1;
+   const p=age/48,env=clamp(age/3)*clamp((48-age)/10),side=i%2?1:-1;
    const ox=((i*47)%170)-85;
    g.save();g.beginPath();g.rect(e.x-190,e.y-330,380,338);g.clip();
    // Water jets and individual sprites leave the pool, crest, dissolve and return.
@@ -49,10 +51,8 @@ export function createWaterRenderer(images){
    if(i%4===0){
     const x=e.x+ox+side*(p-.5)*110,y=e.y+55-Math.sin(p*Math.PI)*260;
     sprite(g,runes[2],x-side*35,y+75,55,env*.35*fade,side*.5,side);
-    const crest=clamp((p-.32)/.2),returning=clamp((p-.64)/.2);
-    if(crest<1)sprite(g,whales[1],x,y,178,env*fade*(1-crest),-side*.15,side);
-    if(crest>0&&returning<1)sprite(g,whales[2],x,y,184,env*fade*crest*(1-returning),side*.2,side);
-    if(returning>0)swim(g,whales[0],x,y,190,age*.22,env*fade*returning,-side);
+    leaping.draw(g,Math.min(6.99,p*7),x,y,186,env*fade,side);
+
    }else{
     const flower=i%3===0,im=flower?water[3]:water[2];
     sprite(g,im,e.x+ox+side*p*42,e.y+20-Math.sin(p*Math.PI)*(flower?160:205),flower?63:75,env*.9*fade,side*(p-.5)*.75,side);
@@ -66,13 +66,13 @@ export function createWaterRenderer(images){
  }
  function orbit(g,e,layer){
   const wind=e.windTicks??20,total=wind+28,p=clamp(e.age/total),fade=clamp(e.age/3)*clamp((total-e.age)/16);
-  const a=-1.2+p*TAU*1.35,depth=Math.sin(a),front=depth>0;
+  const a=-2.7+p*TAU*1.05,depth=Math.sin(a),front=depth>0;
   if((layer==='front')!==front)return;
-  const x=e.x+Math.cos(a)*108,y=e.y-70-p*156+depth*28,w=92+depth*17;
-  // The three-quarter head is used on the near turn, the side view on the far turn.
-  const im=Math.abs(Math.cos(a))>.78?whales[3]:whales[0],dir=-Math.sin(a)>=0?1:-1;
+  const x=e.x+Math.cos(a)*112,y=e.y-70-p*156+depth*28,w=119+depth*17;
+  const yaw=(((a+Math.PI/2)/TAU*8)%8+8)%8;
+  const dir=-Math.sin(a)>=0?1:-1;
   sprite(g,runes[1],x-dir*35,y+6,w*.9,fade*.16,-.1,dir);
-  swim(g,im,x,y,w,e.age*.28,fade*(front?.84:.52),dir);
+  turning.draw(g,yaw,x,y,w,fade*(front?.95:.6),1,-.12*Math.cos(a));
  }
  function motion(g,f,state,action,layer){
   if(layer!=='front')return;

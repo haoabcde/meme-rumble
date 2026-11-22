@@ -72,6 +72,8 @@ interface ActionTiming {
 export interface ActionDefinition extends ActionTiming {
   /** Authored whale kit hooks; serialized state, no renderer-side combat logic. */
   whale?: 'rice' | 'rice-up' | 'spin' | 'spin-up' | 'counter' | 'eat' | 'open-source';
+  frog?: 'laugh' | 'global' | 'ascend';
+  radial?: boolean;
   chainAfter?: number;
   guardHitsToBreak?: number;
   fixedDamage?: boolean;
@@ -210,6 +212,8 @@ export interface Attack {
 export type Recovery = { phase: 'fall' } | { phase: 'down' | 'rise'; remaining: number };
 
 export interface FighterState {
+  ascendUntil?: number;
+  frogGlobalReady?: number;
 
   bindUntil?: number;
   guardChain?: { source: number; count: number; until: number };

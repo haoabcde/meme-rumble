@@ -3,8 +3,9 @@ import {motionArt} from './art.js';
 import {createUnifiedTornadoRenderer} from '../../assets/角色/防御/大肥鱼/蓝色龙卷风/旋风鲸影_统一渲染_V8.mjs';
 import {createUltimateRenderer} from './whale-ultimate.mjs';
 import portrait from '../../assets/角色/大招/大肥鱼/开源/演出分层/梁文峰_宽肩修订_V4.png';
-import title from '../../assets/角色/大招/大肥鱼/开源/演出分层/开源_递增透视字_透明_V2.png';
 import {createWaterRenderer} from './whale-water.mjs';
+import whaleTurn from '../../assets/角色/特效/大肥鱼/水鲸动作_V2/水鲸_八方向张嘴.png';
+import whaleLeap from '../../assets/角色/特效/大肥鱼/水鲸动作_V2/水鲸_抬头张嘴跃出_八帧.png';
 import waterWhale from '../../assets/角色/特效/大肥鱼/水鲸符文_V1/水鲸_四姿态.png';
 import waterParts from '../../assets/角色/特效/大肥鱼/水鲸符文_V1/水潭_水花_小鱼_花.png';
 import runeParts from '../../assets/角色/特效/大肥鱼/水鲸符文_V1/符文_弧光_冲刺_上升_星芒.png';
@@ -12,7 +13,7 @@ import runeParts from '../../assets/角色/特效/大肥鱼/水鲸符文_V1/符�
 let tornado:any,ultimate:any,water:any;
 const load=(src:string)=>{const im=new Image();im.src=src;return im.decode().then(()=>im)};
 
-void Promise.all(Object.entries({portrait,title,waterWhale,waterParts,runeParts}).map(async([k,v])=>[k,await load(v)] as const)).then(entries=>{
+void Promise.all(Object.entries({portrait,waterWhale,waterParts,runeParts,whaleTurn,whaleLeap}).map(async([k,v])=>[k,await load(v)] as const)).then(entries=>{
  const images=Object.fromEntries(entries);water=createWaterRenderer(images);tornado=createUnifiedTornadoRenderer(water.whales[0]);ultimate=createUltimateRenderer(images);
  const warmCanvas=document.createElement('canvas');const warmContext=warmCanvas.getContext('2d');
  let i=0;function warm(){for(const layer of ['back','front'])tornado.wind(warmContext,0,0,i,layer);if(++i<8)requestAnimationFrame(warm)}requestAnimationFrame(warm);
