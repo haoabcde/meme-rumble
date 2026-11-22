@@ -1,3 +1,4 @@
+import {WHALE_RULES} from '../core/whale-kit.js';
 import {cutGrid,createPoseMorph} from './pixel-sprites.mjs';
 import {drawPixelFx} from './pixel-fx.mjs';
 import {orbitAngle,leapSample} from './whale-presentation.mjs';
@@ -41,7 +42,7 @@ export function createWaterRenderer(images){
   g.save();for(let j=0;j<amount;j++){const p=((t+j*2.71)%23)/23,a=j*2.399;g.globalAlpha=alpha*(1-p)*.8;g.fillStyle=j%3?'#9bd4ff':'#effaff';const xx=x+Math.cos(a)*(15+70*p),yy=y-18-110*p+85*p*p;g.fillRect(Math.round(xx/3)*3,Math.round(yy/3)*3,3,3);}g.restore();
  }
  function pool(g,e,layer){
-  const warning=60,end=warning+12*7,fade=clamp((end+48-e.age)/20),active=e.age>=warning;
+  const warning=WHALE_RULES.telegraph,end=warning+WHALE_RULES.ultimateHits*WHALE_RULES.hitGap,fade=clamp((end+48-e.age)/20),active=e.age>=warning;
   if(layer==='back'){
    const pulse=1+Math.sin(e.age*.16)*.018;
    sprite(g,water[0],e.x,e.y-2,310*pulse,(active?.9:.55)*fade);

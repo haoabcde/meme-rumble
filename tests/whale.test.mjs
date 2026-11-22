@@ -37,10 +37,10 @@ test('rice direct hit damages and roots, floor contact only roots, airborne root
  for(const source of [0,1]){
   const t=setup(source,130);t.press('B');const ev=t.run(70);assert.equal(ev.filter(e=>e.kind==='hit').length,1);assert.equal(t.target.hp,970);
   const floor=setup(source,800);floor.press('B');floor.run(45);const e=floor.state.entities.find(e=>e.definition.behavior==='rice');assert.ok(e.grounded);
-  floor.target.x=e.x;const before=floor.target.hp;floor.tick();assert.equal(floor.target.hp,before);assert.ok(floor.target.bindUntil>floor.state.arenaFrame);
+  floor.target.x=e.x;const before=floor.target.hp;floor.tick();assert.equal(floor.target.hp,before);assert.equal(floor.target.bindUntil-floor.state.arenaFrame,72);
   const x=floor.target.x;floor.run(15,source===0?NEUTRAL:input(['jump'],1),source===0?input(['jump'],1):NEUTRAL);assert.equal(floor.target.x,x);
   const air=setup(source,800);air.press('B');air.run(10);const a=air.state.entities[0];air.target.x=a.x;air.target.y=a.y+50;air.target.ground=null;air.target.vy=-12;air.tick();
-  assert.ok(air.target.bindUntil>air.state.arenaFrame);const ax=air.target.x;air.run(6,source===0?NEUTRAL:input([],1),source===0?input([],1):NEUTRAL);assert.equal(air.target.x,ax);assert.ok(air.target.vy>0);
+  assert.equal(air.target.bindUntil-air.state.arenaFrame,72);const ax=air.target.x;air.run(6,source===0?NEUTRAL:input([],1),source===0?input([],1):NEUTRAL);assert.equal(air.target.x,ax);assert.ok(air.target.vy>0);
   const miss=setup(source,1300);miss.press('B');miss.run(135);assert.equal(miss.state.entities.length,0);
  }
 });
@@ -130,7 +130,7 @@ test('both airborne rice variants release projectiles or eat according to the sa
 });
 test('cinematic freezes world time, all actors, projectiles, root and timers; restores from snapshot',()=>{
  for(const source of [0,1]){
-  const t=setup(source,1300);t.press('B');t.run(10);t.caster.attack=null;t.caster.energy=300;t.target.bindUntil=t.state.arenaFrame+120;
+  const t=setup(source,1300);t.press('B');t.run(10);t.caster.attack=null;t.caster.energy=300;t.target.bindUntil=t.state.arenaFrame+72;
   t.target.attack={id:'test-a',frame:1,connected:false,landed:false};
   t.press('ULT');const frozen=structuredClone(t.state),clone=structuredClone(t.state);
   for(let i=0;i<59;i++){
@@ -147,12 +147,12 @@ test('cinematic freezes world time, all actors, projectiles, root and timers; re
   t.tick();assert.equal(t.state.arenaFrame,frozen.arenaFrame+1);
  }
 });
-test('pool snapshots enemy feet, telegraphs sixty playable ticks, then schedules exactly twelve equal hits',()=>{
+test('pool snapshots enemy feet, telegraphs 36 playable ticks (0.6 seconds), then schedules exactly twelve equal hits',()=>{
  for(const source of [0,1]){
   const t=setup(source,650);t.caster.energy=300;t.press('ULT');assert.equal(t.caster.energy,0);t.run(60);
   const pool=t.state.entities.find(e=>e.definition.behavior==='pool');assert.ok(pool);assert.equal(pool.x,t.target.x);assert.equal(pool.y,t.target.y);
-  const x=pool.x,y=pool.y;t.run(59);assert.equal(t.target.hp,1000);assert.equal(pool.age,59);
-  const first=t.tick();assert.equal(first.filter(e=>e.kind==='hit').length,1);assert.equal(pool.age,60);
+  const x=pool.x,y=pool.y;t.run(35);assert.equal(t.target.hp,1000);assert.equal(pool.age,35);
+  const first=t.tick();assert.equal(first.filter(e=>e.kind==='hit').length,1);assert.equal(pool.age,36);
   const hits=[...first,...t.run(120)].filter(e=>e.kind==='hit'&&e.source===source);
   assert.equal(hits.length,12);assert.ok(hits.every(e=>e.amount===35));assert.equal(t.target.hp,580);assert.equal(pool.x,x);assert.equal(pool.y,y);
   t.run(80);assert.equal(t.state.entities.length,0);
@@ -164,14 +164,25 @@ test('pool does not chase a moving opponent and missed waves cannot be banked',(
  t.run(45);t.target.x=x;const hits=t.run(60).filter(e=>e.kind==='hit');assert.ok(hits.length>0&&hits.length<12);
  const up=setup(0,650);up.config.arena.platforms=[{id:'deck',name:'deck',tier:1,left:1000,right:1600,y:600}];up.target.y=600;up.target.ground='deck';up.caster.energy=300;up.press('ULT');up.run(60);assert.equal(up.state.entities[0].y,600);
 });
-test('rice binds for two seconds and can confirm into ultimate without consuming root during the cinematic',()=>{
+test('rice binds for 72 playable ticks (1.2 seconds) and can confirm into ultimate without consuming root during the cinematic',()=>{
  for(const source of [0,1]){
   const t=setup(source,150);t.caster.energy=300;t.press('B');let hit=false;
   for(let i=0;i<25&&!hit;i++)hit=t.tick().some(e=>e.kind==='hit');assert.ok(hit);
-  assert.equal(t.target.bindUntil-t.state.arenaFrame,120);assert.equal(t.caster.attack.landed,true);
+  assert.equal(t.target.bindUntil-t.state.arenaFrame,72);assert.equal(t.caster.attack.landed,true);
   t.press('ULT');while(t.state.freeze)t.tick();t.tick();assert.equal(t.caster.attack.id,'open-source');t.run(60);
-  const e=t.state.entities.find(e=>e.definition.behavior==='pool');assert.ok(e);assert.ok(t.target.bindUntil-t.state.arenaFrame>=119);
-  t.run(59);assert.equal(e.hits,0);assert.ok(t.target.bindUntil>t.state.arenaFrame);
+  const e=t.state.entities.find(e=>e.definition.behavior==='pool');assert.ok(e);assert.ok(t.target.bindUntil-t.state.arenaFrame>=71);
+  t.run(35);assert.equal(e.hits,0);assert.ok(t.target.bindUntil>t.state.arenaFrame);
   const events=t.run(130);assert.equal(events.filter(e=>e.kind==='hit').length,12);assert.equal(t.target.hp,550);
+ }
+});
+
+
+test('rice releases horizontal movement exactly after 72 playable ticks and pauses the bind during hitstop',()=>{
+ for(const source of [0,1]){
+  const t=setup(source,130);t.press('B');let hit=false;for(let i=0;i<25&&!hit;i++)hit=t.tick().some(e=>e.kind==='hit');assert.ok(hit);
+  const until=t.target.bindUntil;assert.equal(until-t.state.arenaFrame,72);const x=t.target.x,dir=source===0?1:-1,controls=source===0?[NEUTRAL,input([],dir)]:[input([],dir),NEUTRAL];
+  t.state.freeze=6;t.run(6,...controls);assert.equal(until-t.state.arenaFrame,72);assert.equal(t.target.x,x);
+  t.run(71,...controls);assert.equal(t.target.x,x);assert.equal(until-t.state.arenaFrame,1);
+  t.tick(...controls);assert.equal(t.state.arenaFrame,until);assert.equal(t.target.x,x+dir*t.config.fighters[1-source].run);
  }
 });

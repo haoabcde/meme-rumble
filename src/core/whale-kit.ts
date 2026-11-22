@@ -2,7 +2,7 @@ import type {ActionDefinition,Box,FighterState,MatchConfig,MatchState} from './t
 import type {EntityState} from './entities.js';
 import {platformAt} from './terrain.js';
 
-export const WHALE_RULES=Object.freeze({riceLife:120,bind:120,eatChance:.2,riceSpeed:28,riceUpSpeed:32,riceRange:432,wind:20,whale:48,windSpeed:24,cinematic:60,telegraph:60,ultimateHits:12,hitGap:7});
+export const WHALE_RULES=Object.freeze({riceLife:120,bind:72,eatChance:.2,riceSpeed:28,riceUpSpeed:32,riceRange:432,wind:20,whale:48,windSpeed:24,cinematic:60,telegraph:36,ultimateHits:12,hitGap:7});
 /** All randomness lives in the snapshot, never in Math.random or the renderer. */
 export function riceRoll(state:MatchState){
  let x=state.randomState??0x6d2b79f5;
