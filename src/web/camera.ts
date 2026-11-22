@@ -46,7 +46,7 @@ export function frameDijiangImpact(
 
 export function frameCamera(
   arena: Size, viewport: Size, subjects: Duo<Subject>,
-  previous: CameraView | null, elapsed: number, focus: boolean, anchor?: Pick<Subject, 'x' | 'y'>,
+  previous: CameraView | null, elapsed: number, focus: boolean, opening = 0, anchor?: Pick<Subject, 'x' | 'y'>,
   effectEdges: ReadonlyArray<Pick<Subject, 'x' | 'y'>> = []
 ): CameraView {
   const [a, b] = subjects;
@@ -63,10 +63,12 @@ export function frameCamera(
   const fullStage = Math.max(width / arena.width, height / arena.height);
   const fit = Math.max(fullStage, Math.min(width / (right - left), (height - hud - bottom) / (feet - head)));
   const close = 1 - Math.min(1, Math.abs(a.x - b.x) / 820);
-  const preferred = Math.min(fit, 1.06 + (focus ? .26 * close : 0));
-  const ease = 1 - Math.exp(-elapsed * .2);
+  const combatZoom = Math.min(fit, 1.06 + (focus ? .26 : .09) * close);
+  const blend = opening * opening * (3 - 2 * opening);
+  const preferred = combatZoom + (Math.min(combatZoom, width / (arena.width * .56)) - combatZoom) * blend;
+  const ease = 1 - Math.exp(-elapsed * .15);
   // Pull back immediately when the previous zoom would crop a fighter.
-  const zoom = previous ? clamp(previous.zoom + (preferred - previous.zoom) * ease, fullStage, fit) : preferred;
+  const zoom = previous && !opening ? clamp(previous.zoom + (preferred - previous.zoom) * ease, fullStage, fit) : clamp(preferred, fullStage, fit);
   const visibleWidth = width / zoom;
   const visibleHeight = height / zoom;
   const maxX = Math.max(0, arena.width - visibleWidth);
@@ -74,13 +76,15 @@ export function frameCamera(
   const minX = clamp(right - visibleWidth, 0, maxX);
   const minY = clamp(feet - (height - bottom) / zoom, 0, maxY);
   const targetX = (a.x + b.x - visibleWidth) / 2;
-  const targetY = feet - height * .82 / zoom;
+  const targetY = (a.y + b.y) / 2 - height * (.79 - .04 * blend) / zoom;
   const lastX = previous ? previous.x + (width / previous.zoom - visibleWidth) / 2 : targetX;
   const lastY = previous ? previous.y + (height / previous.zoom - visibleHeight) / 2 : targetY;
 
+  const followX = clamp(lastX, targetX - 20 / zoom, targetX + 20 / zoom);
+  const followY = clamp(lastY, targetY - 44 / zoom, targetY + 44 / zoom);
   return {
-    x: clamp(lastX + (targetX - lastX) * ease, minX, clamp(left, minX, maxX)),
-    y: clamp(lastY + (targetY - lastY) * ease, minY, clamp(head - hud / zoom, minY, maxY)),
+    x: clamp(opening ? targetX : lastX + (followX - lastX) * ease, minX, clamp(left, minX, maxX)),
+    y: clamp(opening ? targetY : lastY + (followY - lastY) * ease, minY, clamp(head - hud / zoom, minY, maxY)),
     zoom
   };
 }

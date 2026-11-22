@@ -11,7 +11,7 @@ function stage(description: Description, surfaces: Surface[]): ArenaDefinition {
   const floor = Math.round(height * .827);
   const platforms = surfaces.map(([id, name, tier, left, right, rise, prop, travel]) =>
     ({ id, name, tier, left, right, y: floor - rise, prop, ...(travel && { travel }) }));
-  return { ...description, height, floor, left: 96, right: width - 96,
+  return { ...description, height, floor, left: 96, right: width - 96, artFrame: [],
     spawn: [width / 2 - 173, width / 2 + 173], platforms };
 }
 

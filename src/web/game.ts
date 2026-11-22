@@ -1,15 +1,15 @@
 import { rules } from '../content/demo.js';
 import { arenas } from '../content/arenas.js';
+import { bananaWaveTitle } from '../content/fighters/banana.js';
 import { roster } from '../content/roster.js';
-import { bananaWaveTitle } from '../content/banana.js';
-import { tierAt } from '../core/terrain.js';
-import { createMatch, step } from '../core/match.js';
-import { ENERGY_PER_BAR, MAX_ENERGY, MAX_TEARS, NEUTRAL, TEAR_UNITS_PER_POINT, type ActionKey, type Axis, type Duo, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
+import { actionFor, createMatch, step } from '../core/match.js';
+import { ENERGY_PER_STOCK, MAX_ENERGY, MAX_TEARS, NEUTRAL, TEAR_UNITS_PER_POINT, type ActionKey, type Axis, type Duo, type FighterDefinition, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
 import { arcadeArt, arenaArt, fighterArt } from './art.js';
 import { FightAudio } from './audio.js';
 import { cpuInput } from './cpu.js';
-import { previewArena, Renderer } from './renderer.js';
-import { bindingMap, installSettings, keyHint, loadPreferences, renderGuide, type Seat } from './settings.js';
+import { tierAt } from '../core/terrain.js';
+import { previewArena, recoveryLabels, Renderer } from './renderer.js';
+import { bindingMap, installSettings, keyHint, loadPreferences, renderGuide, type Control, type Seat } from './settings.js';
 
 function element<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
@@ -49,11 +49,15 @@ const routeToggle = element<HTMLButtonElement>('route-preview');
 const fullscreen = element<HTMLButtonElement>('fullscreen');
 const trainingDummy = element<HTMLSelectElement>('training-dummy');
 const trainingSpeed = element<HTMLSelectElement>('training-speed');
-const trainingEnergy = element<HTMLButtonElement>('fill-training-energy');
+const trainingPanel = element<HTMLDetailsElement>('training-panel');
 const roundLimit = element<HTMLSelectElement>('round-limit');
 const roundWins = element<HTMLSelectElement>('round-wins');
+const fillTrainingEnergy = element('fill-training-energy');
 const trainingGround = element('training-ground');
 const trainingBest = element('training-best');
+const trainingReadout = element('training-readout');
+const trainingStates = namesSuffix.map(id => element('training-state-' + id));
+const trainingInputLine = element('training-pending');
 const announcement = element('announcement');
 const readyText = document.createElement('span');
 const readyMap = document.createElement('small');
@@ -64,10 +68,13 @@ const names = namesSuffix.map(id => element('name-' + id));
 const scores = namesSuffix.map(id => element('score-' + id));
 const healthBars = namesSuffix.map(id => element('hp-' + id));
 const guardBars = namesSuffix.map(id => element('guard-' + id));
-const energyMeters = namesSuffix.map(id => element('energy-' + id));
-const energyFills = energyMeters.map(meter => [...meter.querySelectorAll('i')]);
-const energyCounts = namesSuffix.map(id => element('energy-count-' + id));
-const ultimates = namesSuffix.map(id => element('ultimate-' + id));
+const healthValues = namesSuffix.map(id => element('hp-value-' + id));
+const guardValues = namesSuffix.map(id => element('guard-value-' + id));
+const healthTrails = namesSuffix.map(id => element('hp-trail-' + id));
+const winPips = namesSuffix.map(id => element('wins-' + id));
+const energyRows = namesSuffix.map(id => element('energy-row-' + id));
+const energyBars = namesSuffix.map(id => element('energy-' + id));
+const energyLabels = namesSuffix.map(id => element('energy-label-' + id));
 const tearRows = namesSuffix.map(id => element('tears-row-' + id));
 const tearFills = namesSuffix.map(id => element('tears-' + id));
 const tearCounts = namesSuffix.map(id => element('tears-count-' + id));
@@ -84,7 +91,7 @@ const screens = Object.fromEntries(screenIds.map(id => [id, element(id + '-scree
 const config: MatchConfig = { rules, arena: arenas[0], fighters: [roster[0].fighter, roster[3].fighter] };
 const selected: Duo<number> = [0, 3];
 const confirmed: Duo<boolean> = [false, false];
-const pending: Duo<[ActionKey, Stick][]> = [[], []];
+const pending: Duo<Map<ActionKey, Stick>> = [new Map(), new Map()];
 const held = new Set<string>();
 const audio = new FightAudio();
 const renderer = new Renderer(canvas, config.arena);
@@ -94,10 +101,14 @@ const preferences = loadPreferences();
 let bindings = bindingMap(preferences);
 let state = createMatch(config);
 let roundHistory: Array<RoundResult & { round: number }> = [];
+let lastChains: Duo<{ hits: number; until: number } | null> = [null, null];
+let lifeDisplay: Duo<{ hp: number; trail: number; holdUntil: number; frame: number } | null> = [null, null];
+const trainingInputs: string[] = [];
+let trainingDownHeld = false;
 let mode: Mode = 'local';
 let screen: Screen = 'title';
 let activeSeat: Seat = 0;
-let arenaIndex = 0;
+let arenaIndex = Math.max(0, arenas.findIndex(arena => arena.id === 'harbor'));
 let routeVisible = true;
 let debug = false;
 let bestTier = 0;
@@ -114,6 +125,7 @@ const settings = installSettings(preferences, () => {
   audio.volume = preferences.volume / 100;
   audio.enableFromGesture();
   renderGuide(preferences);
+  if (screen === 'roster') renderRoster();
   footer();
 });
 audio.volume = preferences.volume / 100;
@@ -176,32 +188,44 @@ function seatName(seat: Seat) {
   return seat === 0 ? 'P1' : mode === 'cpu' ? '电脑' : mode === 'training' ? '陪练' : 'P2';
 }
 
+function trainingSkillHints(fighter: FighterDefinition) {
+  const hints: string[] = [];
+  if (acceptsSkillInput(fighter, 'ULT')) hints.push(keyHint(preferences, 0, ['ULT']) + ' 大招');
+  if (fighter.guardCounter) hints.push(keyHint(preferences, 0, ['down']) + ' 精准防反');
+  for (const move of fighter.actions) {
+    if (!('counterTo' in move) || move.linkOnly) continue;
+    const keys: string[] = [];
+    if (move.direction === 'forward') keys.push('前');
+    if (move.direction === 'back') keys.push('后');
+    if (move.direction === 'up' || move.direction === 'down') keys.push(keyHint(preferences, 0, [move.direction]));
+    keys.push(keyHint(preferences, 0, [move.slot]));
+    hints.push(keys.join(' + ') + ' 防反架势');
+  }
+  return hints.join(' · ');
+}
+
 function footer() {
   const fighting = screen === 'match' || screen === 'pause';
+  const confirmKey = keyHint(preferences, 0, ['A']);
+  const backKey = keyHint(preferences, 0, ['jump']);
+  const upDown = keyHint(preferences, 0, ['up', 'down']);
+  const skills = screen === 'match' && mode === 'training' ? trainingSkillHints(config.fighters[0]) : '';
   text(element('footer-main'), fighting ? modeNames[mode] + ' · ' + config.arena.name : 'Meme 乱斗 · 抽象之王');
   const hints = screen === 'roster'
     ? 'P1 ' + keyHint(preferences, 0, ['left', 'right', 'up', 'down'], ' ') + ' 移动 · ' +
       keyHint(preferences, 0, ['A']) + ' 确认' + (mode === 'local'
         ? '　　P2 ' + keyHint(preferences, 1, ['left', 'right', 'up', 'down'], ' ') + ' 移动 · ' +
           keyHint(preferences, 1, ['A']) + ' 确认' : '')
-    : screen === 'maps' ? '方向键换图 · Enter 进场 · Esc 返回'
-    : screen === 'menu' ? '↑ / ↓ 选模式 · Enter 确认'
-    : fighting && mode === 'training' && config.fighters[0].id === 'gaga'
-      ? 'P1 ' + keyHint(preferences, 0, ['A']) + ' × 5 连击 · ' +
-        keyHint(preferences, 0, ['up', 'A'], ' + ') + ' 挑飞 · ' + keyHint(preferences, 0, ['down', 'A'], ' + ') + ' 滑行 · ' +
-        keyHint(preferences, 0, ['jump', 'A'], ' → ') + ' 空中掷杆 · ' +
-        keyHint(preferences, 0, ['C']) + ' 炮台 · ' +
-        keyHint(preferences, 0, ['down', 'C'], ' + ') + ' 帝江号'
-    : fighting && mode === 'training' && config.fighters[0].id === 'banana'
-      ? 'P1 ' + keyHint(preferences, 0, ['B']) + ' 高压眼泪（可长按） · ' +
-        keyHint(preferences, 0, ['up', 'B'], ' + ') + ' 哭哭升龙 · ' +
-        keyHint(preferences, 0, ['C']) + ' 按住回泪 · ' +
-        keyHint(preferences, 0, ['jump', 'A'], ' → ') + ' 空中水球 · ' +
-        keyHint(preferences, 0, ['down', 'C'], ' + ') + ' ' + bananaWaveTitle + '（3 格气）'
-    : fighting ? 'P1 ' + keyHint(preferences, 0, ['jump']) + ' 跳 · ' +
-        keyHint(preferences, 0, ['down', 'jump'], ' + ') + ' 下穿' +
-        (mode === 'local' ? '　　P2 ' + keyHint(preferences, 1, ['down', 'jump'], ' + ') + ' 下穿' : '')
-    : screen === 'title' ? '桌面浏览器 · 键盘操作' : 'Esc 返回';
+    : screen === 'maps' ? upDown + ' 换图 · ' + confirmKey + ' 进场 · ' + backKey + ' 返回'
+    : screen === 'menu' ? upDown + ' 选模式 · ' + confirmKey + ' 确认'
+    : screen === 'title' ? confirmKey + ' 进入游戏'
+    : screen === 'result' || screen === 'pause' ? upDown + ' 选择 · ' + confirmKey + ' 确认 · Esc 返回'
+    : skills ? 'P1 ' + skills
+    : fighting ? 'P1 ' + keyHint(preferences, 0, ['A']) + ' 普攻 · ' +
+        keyHint(preferences, 0, ['up', 'A'], ' + ') + ' 挑空' +
+        (mode === 'local' ? '　　P2 ' + keyHint(preferences, 1, ['up', 'A'], ' + ') + ' 挑空'
+          : ' · ' + keyHint(preferences, 0, ['dash']) + ' 空中冲刺')
+    : 'Esc 返回';
   text(element('footer-detail'), hints);
 }
 
@@ -216,7 +240,7 @@ function notify(message: string) {
 function clearInputs() {
   held.clear();
   for (const seat of seats) {
-    pending[seat].length = 0;
+    pending[seat].clear();
     state.fighters[seat].buffer = [];
   }
 }
@@ -238,12 +262,15 @@ function show(next: Screen) {
   element('ui-notice').hidden = true;
   debt = 0;
   screen = next;
+  if (next !== 'match') trainingPanel.open = false;
   stage.dataset.screen = next;
   stage.dataset.phase = next === 'match' ? state.phase : next;
   for (const id of screenIds) {
     screens[id].hidden = id !== next && !(id === 'match' && next === 'pause');
   }
   screens.match.inert = next === 'pause';
+  const modeLabel = screens[next].querySelector<HTMLElement>('[data-mode-name]');
+  if (modeLabel) text(modeLabel, modeNames[mode]);
   if (next === 'roster') renderRoster();
   if (next === 'maps') {
     text(element('map-matchup'), roster[selected[0]].fighter.name + '  VS  ' + roster[selected[1]].fighter.name);
@@ -269,8 +296,12 @@ function go(next: Screen) {
 
 function selectMode(next: Mode) {
   mode = next;
-  for (const node of document.querySelectorAll<HTMLElement>('[data-mode-name]')) text(node, modeNames[mode]);
   go('roster');
+}
+
+function acceptsSkillInput(fighter: FighterDefinition, slot: 'B' | 'C' | 'ULT') {
+  return fighter.actions.some(move => move.slot === slot && (!move.linkOnly || fighter.actions.some(source =>
+    source.cancelOnHit?.includes(move.id) || source.cancelOnHit?.includes(slot))));
 }
 
 function renderRoster() {
@@ -283,7 +314,14 @@ function renderRoster() {
     const src = fighterArt[entry.fighter.id];
     if (art.getAttribute('src') !== src) art.src = src;
     text(panels[seat].querySelector('h3')!, entry.fighter.name);
-    text(panels[seat].querySelector('p')!, entry.moveSummary ?? '专属槽 1 / 2 待接入');
+    const enabledSlots = (['B', 'C'] as const).filter(slot => acceptsSkillInput(entry.fighter, slot));
+    const skills = enabledSlots.length ? ['可用专属槽 · ' + enabledSlots.join(' / ')] : [];
+    if (entry.fighter.guardCounter) skills.push('精准防反');
+    if (acceptsSkillInput(entry.fighter, 'ULT')) {
+      const cost = entry.fighter.ultimateCost ?? 0;
+      skills.push('大招 ' + keyHint(preferences, seat, ['ULT']) + (cost ? ' · 消耗 ' + cost : ' · 无消耗'));
+    }
+    text(panels[seat].querySelector('p')!, [entry.moveSummary, ...skills].filter(Boolean).join(' · ') || '专属技能待接入');
     lockButtons[seat].setAttribute('aria-pressed', String(confirmed[seat]));
     text(lockButtons[seat], confirmed[seat] ? who + ' 已确认' : '确认 ' + who);
   }
@@ -299,7 +337,7 @@ function renderRoster() {
   }
   const ready = confirmed.every(Boolean);
   pickArena.disabled = !ready;
-  text(element('roster-help'), ready ? '双方已确认，继续选图' : '正在为 ' + seatName(activeSeat) + ' 选角');
+  text(element('roster-help'), ready ? '双方已确认，按 ' + keyHint(preferences, 0, ['A']) + ' 选图' : '正在为 ' + seatName(activeSeat) + ' 选角');
   renderPreparationNav();
 }
 
@@ -329,11 +367,12 @@ function selectArena(index: number) {
   const screens = ((arena.right - arena.left) / canvas.width).toFixed(1);
   const tiers = new Set(arena.platforms.map(platform => platform.tier)).size;
   text(element('map-count'), screens + ' 屏宽 · ' + tiers + ' 层 · ' + arena.platforms.length + ' 处平台');
+  text(element('start'), mode === 'training' ? '进入训练 ›' : '开始对战 ›');
   text(element('map-description'), arena.description);
   const routeLine = element('map-route');
-  for (const side of [0, 1] as const) {
-    const names = arena.routes[side].map(id => arena.platforms.find(platform => platform.id === id)!.name);
-    text(element('map-route-' + side), names.join(' → '));
+  for (const [side, suffix] of namesSuffix.entries()) {
+    const routeNames = arena.routes[side].map(id => arena.platforms.find(platform => platform.id === id)!.name);
+    text(element('map-route-' + suffix), routeNames.join(' → '));
   }
   routeLine.hidden = !routeVisible;
   routeToggle.setAttribute('aria-pressed', String(routeVisible));
@@ -342,6 +381,8 @@ function selectArena(index: number) {
 
 function configureMatch(immediate: boolean) {
   config.arena = arenas[arenaIndex];
+  stage.dataset.mode = mode;
+  stage.dataset.arena = config.arena.id;
   config.fighters = [roster[selected[0]].fighter, roster[selected[1]].fighter];
   config.training = mode === 'training';
   config.rules = config.training ? rules : {
@@ -351,6 +392,10 @@ function configureMatch(immediate: boolean) {
   };
   state = createMatch(config);
   roundHistory = [];
+  lastChains = [null, null];
+  lifeDisplay = [null, null];
+  trainingInputs.length = 0;
+  trainingDownHeld = false;
   bestTier = 0;
   fightCueUntil = 0;
   if (immediate) state.phase = 'fight';
@@ -360,10 +405,12 @@ function configureMatch(immediate: boolean) {
     portraits[seat].src = fighterArt[def.id];
     healthBars[seat].parentElement!.setAttribute('aria-valuemax', String(def.maxHp));
     guardBars[seat].parentElement!.setAttribute('aria-valuemax', String(rules.guardMax));
+    winPips[seat].replaceChildren(...Array.from({ length: config.rules.winsToFinish }, () => document.createElement('span')));
   }
   renderer.load(config.arena);
   element('training-tools').hidden = !config.training;
-  trainingEnergy.hidden = !config.training || config.fighters[0].id !== 'banana';
+  trainingPanel.hidden = !config.training;
+  fillTrainingEnergy.hidden = !config.training;
   element('step-training').hidden = !config.training;
   element('match-tag').hidden = Boolean(config.training);
   text(element('match-tag'), config.arena.name);
@@ -437,6 +484,7 @@ function toggleDebug() {
   debug = !debug;
   debugButton.setAttribute('aria-pressed', String(debug));
   if (screen === 'match') {
+    renderHUD();
     draw(0);
     canvas.focus();
   }
@@ -471,11 +519,11 @@ element('pause').addEventListener('click', pauseMatch);
 element('restart').addEventListener('click', () => startMatch(Boolean(config.training)));
 element('rematch').addEventListener('click', () => startMatch());
 element('reset-training').addEventListener('click', () => startMatch(true));
-trainingEnergy.addEventListener('click', () => {
-  if (screen !== 'match' || !config.training || trainingEnergy.hidden || state.cutIn) return;
+fillTrainingEnergy.addEventListener('click', () => {
+  if (screen !== 'match' || !config.training) return;
+  canvas.focus();
   state.fighters[0].energy = MAX_ENERGY;
   renderHUD();
-  canvas.focus();
 });
 element('step-training').addEventListener('click', () => {
   if (screen !== 'pause' || !config.training) return;
@@ -487,6 +535,9 @@ element('step-training').addEventListener('click', () => {
 });
 trainingDummy.addEventListener('change', () => canvas.focus());
 trainingSpeed.addEventListener('change', () => canvas.focus());
+trainingPanel.addEventListener('toggle', () => {
+  if (!trainingPanel.open && screen === 'match') canvas.focus();
+});
 debugButton.addEventListener('click', toggleDebug);
 element('guide-open').addEventListener('click', () => {
   if (screen === 'match') pauseMatch();
@@ -527,9 +578,16 @@ refreshDisplayButton();
 function rosterKey(event: KeyboardEvent) {
   const binding = bindings.get(event.code);
   if (!binding || (binding.seat === 1 && mode !== 'local')) return false;
-  const { seat, control } = binding;
-  if (control === 'A') confirmSeat(seat);
-  else if (control === 'left' || control === 'right') selectFighter(seat, selected[seat] ^ 1);
+  const seat = mode === 'local' ? binding.seat : activeSeat;
+  const { control } = binding;
+  if (control === 'A') {
+    if (confirmed.every(Boolean) && document.activeElement === pickArena) go('maps');
+    else confirmSeat(seat);
+  } else if (control === 'jump') {
+    if (confirmed[seat]) confirmSeat(seat);
+    else if (mode !== 'local' && confirmed[0]) confirmSeat(0);
+    else if (binding.seat === 0) go('menu');
+  } else if (control === 'left' || control === 'right') selectFighter(seat, selected[seat] ^ 1);
   else if (control === 'up' || control === 'down') selectFighter(seat, selected[seat] ^ 2);
   else return false;
   event.preventDefault();
@@ -537,17 +595,29 @@ function rosterKey(event: KeyboardEvent) {
 }
 
 function navigationKey(event: KeyboardEvent) {
-  if (event.target instanceof HTMLSelectElement) return false;
-  const direction = event.code === 'ArrowDown' || event.code === 'ArrowRight' ? 1 :
-    event.code === 'ArrowUp' || event.code === 'ArrowLeft' ? -1 : 0;
-  if (screen === 'menu' && direction) {
-    const current = modeButtons.indexOf(document.activeElement as HTMLButtonElement);
-    modeButtons[(current + direction + modeButtons.length) % modeButtons.length].focus();
-  } else if (screen === 'maps' && direction) {
+  if (screen === 'match' || screen === 'roster' || event.target instanceof HTMLSelectElement) return false;
+  const binding = bindings.get(event.code);
+  const control = binding?.seat === 0 ? binding.control : undefined;
+  const decrease = control === 'up' || control === 'left' || event.code === 'ArrowUp' || event.code === 'ArrowLeft';
+  const increase = control === 'down' || control === 'right' || event.code === 'ArrowDown' || event.code === 'ArrowRight';
+  const direction = increase ? 1 : decrease ? -1 : 0;
+  const focused = document.activeElement;
+  if (direction && (screen === 'menu' || screen === 'pause' || screen === 'result')) {
+    const choices = screen === 'menu' ? modeButtons :
+      Array.from(screens[screen].querySelectorAll<HTMLButtonElement>('button:not([disabled]):not([hidden])'));
+    const current = choices.indexOf(focused as HTMLButtonElement);
+    choices[(current + direction + choices.length) % choices.length].focus();
+  } else if (direction && screen === 'maps') {
     selectArena((arenaIndex + direction + arenas.length) % arenas.length);
     mapButtons[arenaIndex].focus();
-  } else if (screen === 'maps' && event.code === 'Enter' && mapButtons.includes(document.activeElement as HTMLButtonElement)) {
+  } else if ((control === 'A' || event.code === 'Enter') && screen === 'maps' && mapButtons.includes(focused as HTMLButtonElement)) {
     startMatch();
+  } else if (control === 'A' && focused instanceof HTMLButtonElement && screens[screen].contains(focused)) {
+    focused.click();
+  } else if (control === 'jump' && screen === 'pause') {
+    enterMatch();
+  } else if (control === 'jump' && previousScreen[screen]) {
+    go(previousScreen[screen]!);
   } else return false;
   event.preventDefault();
   return true;
@@ -580,20 +650,15 @@ window.addEventListener('keydown', event => {
   if (held.has(event.code) || event.repeat || (binding.seat === 1 && mode !== 'local')) return;
   held.add(event.code);
   const { seat, control } = binding;
-  if ((control === 'B' || control === 'C') &&
-    !config.fighters[seat].actions.some(action => action.slot === control)) {
-    notify(seatName(seat) + ' 的专属槽 ' + (control === 'B' ? '1' : '2') + ' 待接入');
+  if ((control === 'B' || control === 'C' || control === 'ULT') &&
+      !acceptsSkillInput(config.fighters[seat], control)) {
+    if (config.fighters[seat].actions.some(action => action.comboKeys?.includes(control))) return;
+    const skill = control === 'ULT' ? '大招' : '专属槽 ' + control;
+    notify(seatName(seat) + ' 的' + skill + '待接入');
     return;
   }
-  if (control === 'down' && config.fighters[seat].id === 'banana' && [...held].some(code =>
-    bindings.get(code)?.seat === seat && bindings.get(code)?.control === 'C'
-  )) {
-    const previous = pending[seat].find(([key]) => key === 'C');
-    if (previous) previous[1] = stickFor(seat);
-    else pending[seat].push(['C', stickFor(seat)]);
-  }
-  if (control === 'A' || control === 'B' || control === 'C' || control === 'jump' || control === 'dash') {
-    pending[seat].push([control, stickFor(seat)]);
+  if (control === 'A' || control === 'B' || control === 'C' || control === 'ULT' || control === 'jump' || control === 'dash') {
+    pending[seat].set(control, stickFor(seat));
   }
 });
 window.addEventListener('keyup', event => held.delete(event.code));
@@ -610,69 +675,115 @@ function readInput(seat: Seat): InputFrame {
   const heldActions: ActionKey[] = [];
   for (const code of held) {
     const binding = bindings.get(code);
-    if (binding?.seat === seat && (binding.control === 'B' || binding.control === 'C')) {
-      heldActions.push(binding.control);
+    if (binding?.seat === seat && ['A', 'B', 'C', 'ULT', 'jump', 'dash'].includes(binding.control)) {
+      heldActions.push(binding.control as ActionKey);
     }
   }
-  const input = { ...stickFor(seat), held: heldActions, pressed: commands.map(([key]) => key),
-    sampled: commands.map(([, stick]) => stick) };
-  commands.length = 0;
+  const input = { ...stickFor(seat), held: heldActions, pressed: [...commands.keys()], sampled: Object.fromEntries(commands) };
+  commands.clear();
   return input;
 }
 
 function opponentInput(): InputFrame {
   if (mode === 'local') return readInput(1);
   if (mode === 'cpu' || trainingDummy.value === 'cpu') return cpuInput(state, config);
+  if (trainingDummy.value === 'jab' && !state.freeze && state.arenaFrame % rules.ticksPerSecond === 0) {
+    return { ...NEUTRAL, pressed: ['A'] };
+  }
   return trainingDummy.value === 'guard' ? { x: 0, y: 1, pressed: [] } : NEUTRAL;
 }
 
 function setMeter(node: HTMLElement, value: number, maximum: number) {
   const bar = 'scaleX(' + value / maximum + ')';
-  if (node.style.transform !== bar) {
-    node.style.transform = bar;
-    node.parentElement!.setAttribute('aria-valuenow', String(value));
-  }
+  if (node.style.transform !== bar) node.style.transform = bar;
+  const meter = node.parentElement!;
+  if (meter.getAttribute('aria-valuenow') !== String(value)) meter.setAttribute('aria-valuenow', String(value));
 }
 
-function setEnergyMeter(seat: Seat, energy: number) {
-  const meter = energyMeters[seat];
-  const bars = String(energy / ENERGY_PER_BAR);
-  text(energyCounts[seat], bars + ' / 3');
-  if (meter.getAttribute('aria-valuenow') === bars) return;
-  meter.setAttribute('aria-valuenow', bars);
-  for (const [index, fill] of energyFills[seat].entries()) {
-    const ratio = Math.max(0, Math.min(1, energy / ENERGY_PER_BAR - index));
-    fill.style.transform = 'scaleX(' + ratio + ')';
-    fill.parentElement!.toggleAttribute('data-full', ratio === 1);
+function trainingState(seat: Seat) {
+  const fighter = state.fighters[seat];
+  const { recovery, attack } = fighter;
+  if (recovery) {
+    return recoveryLabels[recovery.phase] + (recovery.phase === 'fall' ? '' : ' · ' + recovery.remaining + ' 帧');
   }
+  if (fighter.guardBreak) return '破防 · ' + fighter.guardBreak + ' 帧';
+  if (fighter.hitstun) return '受击 · ' + fighter.hitstun + ' 帧';
+  if (fighter.blockstun) return '格挡 · ' + fighter.blockstun + ' 帧';
+  if (fighter.pendingCounter) return '防反成立';
+  const action = actionFor(config, state, seat);
+  if (attack && action) {
+    const { frame } = attack;
+    const activeEnd = action.startup + action.active;
+    const activeLabel = 'counterTo' in action ? (fighter.ground ? '防反窗口' : '空中失效') : '有效';
+    const phase = frame < action.startup ? '起手 ' + (frame + 1) + '/' + action.startup
+      : frame < activeEnd ? activeLabel + ' ' + (frame - action.startup + 1) + '/' + action.active
+        : '收招 ' + (frame - activeEnd + 1) + '/' + action.recovery;
+    return (action.name ?? action.id) + ' · ' + phase;
+  }
+  if (fighter.dash) return '冲刺';
+  if (fighter.guarding && fighter.guardCounterLeft) return '防反窗口 · ' + fighter.guardCounterLeft + ' 帧';
+  if (fighter.guarding) return '防御';
+  if (fighter.ground) return '地面可操作';
+  return fighter.airActionUsed ? '空中机动已用' : '空中机动可用';
 }
 
 function renderHUD() {
   if (stage.dataset.phase !== state.phase) stage.dataset.phase = state.phase;
-  if (config.training) trainingEnergy.disabled = state.phase !== 'fight' || Boolean(state.cutIn);
   text(roundLabel, config.training ? '自由训练' : '第 ' + state.round + ' 回合');
-  text(timer, config.training ? '∞' : String(Math.ceil(state.remaining / rules.ticksPerSecond)).padStart(2, '0'));
+  text(timer, config.training ? '∞' : String(Math.ceil(state.remaining / config.rules.ticksPerSecond)).padStart(2, '0'));
   for (const seat of seats) {
     const fighter = state.fighters[seat];
     text(names[seat], seatName(seat) + ' · ' + config.fighters[seat].name);
     text(scores[seat], String(state.wins[seat]));
+    for (const [index, pip] of Array.from(winPips[seat].children).entries()) {
+      pip.setAttribute('data-won', String(index < state.wins[seat]));
+    }
     setMeter(healthBars[seat], fighter.hp, config.fighters[seat].maxHp);
+    const life = lifeDisplay[seat] ?? { hp: fighter.hp, trail: fighter.hp, holdUntil: 0, frame: state.frame };
+    if (fighter.hp > life.hp) life.trail = fighter.hp;
+    if (fighter.hp < life.hp || fighter.hitstun || fighter.recovery) life.holdUntil = state.frame + 18;
+    if (state.frame > life.holdUntil) {
+      life.trail = Math.max(fighter.hp, life.trail - config.fighters[seat].maxHp * .012 * Math.max(0, state.frame - life.frame));
+    }
+    healthTrails[seat].style.transform = 'scaleX(' + life.trail / config.fighters[seat].maxHp + ')';
+    life.hp = fighter.hp;
+    life.frame = state.frame;
+    lifeDisplay[seat] = life;
+    text(healthValues[seat], fighter.hp + ' / ' + config.fighters[seat].maxHp);
+    healthValues[seat].hidden = !debug;
     setMeter(guardBars[seat], fighter.guard, rules.guardMax);
-    const usesTears = fighter.tearUnits !== undefined;
-    tearRows[seat].hidden = !usesTears;
-    setEnergyMeter(seat, fighter.energy);
-    const ready = config.fighters[seat].id === 'banana' && fighter.energy >= MAX_ENERGY;
-    ultimates[seat].hidden = !ready;
-    if (ready) text(ultimates[seat], (fighter.ground ? '' : '落地后 ') +
-      keyHint(preferences, seat, ['down', 'C'], ' + ') + (fighter.ground ? ' 可用' : ''));
-    if (usesTears) {
-      const tears = Math.floor(fighter.tearUnits! / TEAR_UNITS_PER_POINT);
+    guardBars[seat].parentElement!.dataset.low = String(fighter.guard < rules.guardMax * .3);
+    guardBars[seat].parentElement!.dataset.broken = String(fighter.guardBreak > 0);
+    text(guardValues[seat], fighter.guard + ' / ' + rules.guardMax);
+    guardValues[seat].hidden = !debug;
+    const tearUnits = fighter.tearUnits;
+    tearRows[seat].hidden = tearUnits === undefined;
+    if (tearUnits !== undefined) {
+      const tears = Math.floor(tearUnits / TEAR_UNITS_PER_POINT);
       setMeter(tearFills[seat], tears, MAX_TEARS);
       text(tearCounts[seat], tears + ' / ' + MAX_TEARS);
     }
-    const hits = state.fighters[seat === 0 ? 1 : 0].combo;
+    energyRows[seat].hidden = fighter.energy === undefined;
+    if (fighter.energy !== undefined) {
+      const energy = fighter.energy ?? 0;
+      const ready = energy >= ENERGY_PER_STOCK;
+      setMeter(energyBars[seat], energy, MAX_ENERGY);
+      const stocks = Math.floor(energy / ENERGY_PER_STOCK);
+      energyRows[seat].dataset.stocks = String(stocks);
+      if (energyRows[seat].dataset.ready !== String(ready)) energyRows[seat].dataset.ready = String(ready);
+      text(energyLabels[seat], String(stocks));
+      energyBars[seat].parentElement!.setAttribute('aria-valuetext', '技能能量 ' + energy + ' / ' + MAX_ENERGY);
+    }
+    const recent = lastChains[seat];
+    const hits = state.fighters[seat === 0 ? 1 : 0].combo ||
+      (recent && state.frame < recent.until ? recent.hits : 0);
     combos[seat].hidden = hits < 2;
     if (hits >= 2) text(combos[seat], hits + ' 连击');
+  }
+  trainingReadout.hidden = !config.training || !debug;
+  if (!trainingReadout.hidden) {
+    for (const seat of seats) text(trainingStates[seat], trainingState(seat));
+    text(trainingInputLine, trainingInputs.join('   ') || '—');
   }
   if (config.training) {
     const support = state.fighters[0].ground;
@@ -680,7 +791,7 @@ function renderHUD() {
     if (platform) bestTier = Math.max(bestTier, tierAt(config.arena, platform, state.arenaFrame));
     if (trainingGround.dataset.platform !== (support ?? 'air')) trainingGround.dataset.platform = support ?? 'air';
     text(trainingGround, platform ? platform.name : support ? '地面' : '空中');
-    text(trainingBest, bestTier ? '已登第 ' + bestTier + ' 层' : '找一处低层平台起跳');
+    text(trainingBest, bestTier ? '已登第 ' + bestTier + ' 层' : '');
   }
 
   const result = state.result;
@@ -705,13 +816,44 @@ function renderHUD() {
 function tick(player: InputFrame) {
   const previous = state.phase;
   const events = step(state, [player, opponentInput()], config);
-  const shortage = events.find(event => (event.kind === 'energy-short' || event.kind === 'tears-short') &&
+  const shortage = events.find(event => (event.kind === 'ultimate-no-energy' || event.kind === 'tears-short') &&
     (event.source === 0 || mode === 'local'));
   if (shortage?.amount) notify(seatName(shortage.source) + ' 需要 ' + (shortage.kind === 'tears-short'
-    ? shortage.amount + ' 点眼泪' : shortage.amount / ENERGY_PER_BAR + ' 格气'));
+    ? shortage.amount + ' 点眼泪' : shortage.amount / ENERGY_PER_STOCK + ' 格气'));
   const blockedWave = events.find(event => event.kind === 'wave-unavailable' && (event.source === 0 || mode === 'local'));
   if (blockedWave) notify(blockedWave.requirement === 'ground' ? '落地后才能发动' + bananaWaveTitle
     : '等当前动作结束再发动' + bananaWaveTitle);
+  if (state.phase === 'ready' && previous !== 'ready') lastChains = [null, null];
+  for (const event of events) {
+    if (event.kind === 'ultimate-no-energy' && !event.amount) {
+      notify(seatName(event.source) + ' 技能能量不足');
+    }
+    if (event.kind === 'dash-no-stamina') notify(seatName(event.source) + ' 耐力不足');
+    if (event.kind === 'hit' && event.chain !== undefined) {
+      lastChains[event.source] = event.chain > 1 ? { hits: event.chain, until: state.frame + 33 } : null;
+    }
+  }
+  if (config.training && previous === 'fight') {
+    const down = player.y === 1;
+    if (down && !trainingDownHeld && !player.pressed.length) {
+      trainingInputs.push(keyHint(preferences, 0, ['down']));
+    }
+    trainingDownHeld = down;
+    for (const [index, key] of player.pressed.entries()) {
+      const sampled = player.sampled;
+      const { x, y } = (Array.isArray(sampled) ? sampled[index] :
+        (sampled as Partial<Record<ActionKey, Stick>> | undefined)?.[key]) ?? player;
+      const controls: Control[] = [];
+      if (y) controls.push(y < 0 ? 'up' : 'down');
+      if (x) controls.push(x < 0 ? 'left' : 'right');
+      for (const heldKey of player.held ?? []) {
+        if (heldKey !== key) controls.push(heldKey);
+      }
+      controls.push(key);
+      trainingInputs.push(keyHint(preferences, 0, controls, '+'));
+    }
+    if (trainingInputs.length > 4) trainingInputs.splice(0, trainingInputs.length - 4);
+  }
   if (previous === 'ready' && state.phase === 'fight') fightCueUntil = state.frame + 30;
   if (previous === 'fight' && state.phase === 'round-over' && state.result) {
     roundHistory.push({ ...state.result, round: state.round });
@@ -722,8 +864,10 @@ function tick(player: InputFrame) {
 
 function draw(elapsed: number) {
   stage.toggleAttribute('data-cinematic', Boolean(state.cutIn) || state.summon?.phase === 'cut-in');
+  const opening = state.phase === 'ready' && !config.training && !reducedMotion.matches
+    ? Math.max(0, Math.min(1, (state.phaseTicks - 18) / 74)) : 0;
   renderer.draw(config, state, debug, elapsed, preferences.shake && !reducedMotion.matches,
-    preferences.camera === 'focus' && !reducedMotion.matches, reducedMotion.matches);
+    preferences.camera === 'focus' && !reducedMotion.matches, reducedMotion.matches, opening);
 }
 
 function frame(now: number) {
@@ -752,5 +896,21 @@ function frame(now: number) {
   requestAnimationFrame(frame);
 }
 
-go('title');
+export function openPractice(practiceParams: URLSearchParams) {
+  const practiceIndex = arenas.findIndex(arena => arena.id === practiceParams.get('practice'));
+  if (practiceIndex < 0) return false;
+  mode = 'training';
+  arenaIndex = practiceIndex;
+  for (const seat of seats) {
+    const id = practiceParams.get('p' + (seat + 1));
+    const index = roster.findIndex(entry => entry.fighter.id === id);
+    if (index >= 0) selected[seat] = index;
+  }
+  confirmed.fill(true);
+  configureMatch(true);
+  enterMatch();
+  window.addEventListener('keydown', () => audio.enableFromGesture(), { once: true });
+  return true;
+}
+if (!openPractice(new URLSearchParams(location.search))) go('title');
 requestAnimationFrame(frame);

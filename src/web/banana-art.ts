@@ -1,4 +1,4 @@
-import { bananaActionIds as ids } from '../content/banana.js';
+import { bananaActionIds as ids } from '../content/fighters/banana.js';
 import type { ActionDefinition, FighterState } from '../core/types.js';
 import bananaSprites from '../../assets/fighters/banana-arcade-actions.webp';
 import bananaJetExpressions from '../../assets/fighters/banana-jet-expressions.webp';

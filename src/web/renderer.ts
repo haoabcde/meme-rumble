@@ -1,15 +1,18 @@
 import { roster } from '../content/roster.js';
-import { bananaActionIds } from '../content/banana.js';
+import { bananaActionIds } from '../content/fighters/banana.js';
 import { drawBanana } from './banana-art.js';
 import { drawBananaImpact } from './banana-hit-art.js';
 import { drawBananaWaveCutIn } from './banana-wave-art.js';
 import { bananaEffectLife, drawBananaEffect, drawBananaProjectile, drawBananaWave, isTearJet } from './banana-fx.js';
-import { gagaActionIds } from '../content/gaga.js';
-import { actionFor, worldBox } from '../core/match.js';
+import { gagaActionIds } from '../content/fighters/gaga.js';
+import { actionFor, hitRegionsFor, hurtRegionsFor, isActiveFrame, worldBox } from '../core/match.js';
+import { motionGrid } from '../content/fighter-kit.js';
+import type { EntityState } from '../core/entities.js';
+import { isAttack, type FighterAction, type FighterState } from '../core/types.js';
 import { summonFallFrames } from '../core/summon.js';
 import { turretBuildTicks } from '../core/turret.js';
 import type { ActionDefinition, ArenaDefinition, CombatEvent, MatchConfig, MatchState, Summon } from '../core/types.js';
-import { backgrounds, harborProps, harborGantry, stageKits, drawEngineeringCrate, drawGagaLaunchTrail, drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose, gagaReactionPose, sprites, type PolePose } from './art.js';
+import { backgrounds, harborProps, harborGantry, stageKits, drawEngineeringCrate, drawGagaLaunchTrail, drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose, gagaReactionPose, motionArt, sprites, type PolePose } from './art.js';
 import { frameCamera, frameDijiangLength, frameDijiangImpact, type CameraView } from './camera.js';
 import { drawGagaWalk, GagaWalk } from './gaga-walk.js';
 import { drawGagaContact, drawGagaReceive, gagaContact, type GagaContact } from './gaga-contact.js';
@@ -23,9 +26,45 @@ import { drawHarborScenery, drawHarborLift, drawQuay } from './harbor-art.js';
 import { drawStageBackdrop, drawStageMechanism, drawStageScenery } from './stage-art.js';
 
 export const seatColors = ['#61d8ff', '#ff849e'];
+export const recoveryLabels = { fall: '击倒', down: '倒地', rise: '起身' };
 const arenaColors = { dorm: '#ffc08c', court: '#8faaff', harbor: '#8de9cd', station: '#bc9bff' };
 const artSizes = new Map(roster.map(entry => [entry.fighter.id, entry.height]));
 type Point = [number, number];
+const poses = {
+  run: 0, stride: 1, jump: 2, guard: 3, windup: 4, strike: 5,
+  sweep: 6, finish: 7, rise: 8, air: 9, recover: 10, hurt: 11
+};
+
+function poseFor(fighter: FighterState, action: FighterAction | undefined, frame: number) {
+  if (!fighter.hp || fighter.hitstun || fighter.guardBreak) return poses.hurt;
+  if (fighter.recovery) return fighter.recovery.phase === 'rise' ? poses.recover : poses.hurt;
+  if (fighter.guarding) return poses.guard;
+  if (action && fighter.attack) {
+    const phase = fighter.attack.frame;
+    const keys = action.animation;
+    if (keys) {
+      for (let i = keys.length - 1; i >= 0; i--) {
+        if (phase >= keys[i].frame) return keys[i].cell;
+      }
+    }
+    if (phase < action.startup) return fighter.ground ? poses.windup : poses.jump;
+    if (isActiveFrame(action, phase)) return 'counterTo' in action ? poses.guard : poses[action.pose];
+    return fighter.ground ? poses.recover : poses.jump;
+  }
+  if (fighter.dash) return poses.run;
+  if (!fighter.ground) return poses.jump;
+  if (fighter.moving) return Math.floor(frame / 5) % 2 ? poses.run : poses.stride;
+  return undefined;
+}
+
+function drawPose(ctx: CanvasRenderingContext2D, sheet: HTMLImageElement, pose: number, height: number, offset = 0) {
+  const { cell, columns, footX, footY, referenceHeight } = motionGrid;
+  const scale = height / referenceHeight;
+  ctx.drawImage(sheet, pose % columns * cell, Math.floor(pose / columns) * cell, cell, cell,
+    offset - footX * scale, -footY * scale, cell * scale, cell * scale);
+}
+
+
 type Trail = [Point, Point, Point];
 
 const attackTrails: Partial<Record<string, Trail[]>> = {
@@ -77,6 +116,46 @@ export function paintArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition
     polygon(ctx, accent, [[x - 7, floor + 10], [x + 7, floor + 10], [x, floor + 18]]);
   }
 }
+
+function drawEntity(ctx: CanvasRenderingContext2D, entity: EntityState, debug: boolean) {
+  const { definition, owner, x, y, facing } = entity;
+  const box = worldBox(definition.hitbox, x, y, facing);
+  const centerX = box.x + box.w / 2;
+  const centerY = box.y + box.h / 2;
+  const color = definition.color ?? seatColors[owner];
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(centerX, centerY, box.w / 2, box.h / 2, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = '#181633';
+  ctx.lineWidth = 5;
+  ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = '#fff6d8';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.fillStyle = '#fff6d8';
+  ctx.beginPath();
+  ctx.ellipse(centerX - facing * box.w * .1, centerY, box.w * .18, box.h * .18, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (debug) {
+    ctx.fillStyle = '#ff536844';
+    ctx.strokeStyle = '#ff5a6e';
+    ctx.lineWidth = 2;
+    ctx.fillRect(box.x, box.y, box.w, box.h);
+    ctx.strokeRect(box.x, box.y, box.w, box.h);
+  }
+  const label = 'P' + (owner + 1);
+  ctx.font = '900 15px system-ui';
+  ctx.textAlign = 'center';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#181633';
+  ctx.strokeText(label, centerX, box.y - 5);
+  ctx.fillStyle = seatColors[owner];
+  ctx.fillText(label, centerX, box.y - 5);
+  ctx.restore();
+}
+
 
 function paintRoute(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, side: 0 | 1) {
   const route = arena.routes[side].map(id => arena.platforms.find(platform => platform.id === id)!);
@@ -225,7 +304,8 @@ export class Renderer {
       if (event.kind === 'summon-catch') {
         this.effects.push({ event, life: 14, age: 0, gagaReceives: false });
       }
-      if (['hit', 'block', 'break', 'dash', 'land', 'drop'].includes(event.kind)) {
+      if (event.kind === 'ultimate' && (event.actionId === bananaActionIds.wave || event.actionId === gagaActionIds.dijiang)) continue;
+      if (['hit', 'block', 'break', 'dash', 'land', 'drop', 'air-jump', 'knockdown', 'parry', 'ultimate'].includes(event.kind)) {
         const brief = event.kind === 'dash' || event.kind === 'land' || event.kind === 'drop';
         const cue = gagaContact(event, fighters);
         const fromBanana = fighters[event.source].id === 'banana';
@@ -240,13 +320,13 @@ export class Renderer {
       if (event.kind === 'hit' || event.kind === 'break') {
         const strength = jet ? (event.actionId === bananaActionIds.uppercut ? 13 : 8)
           : event.impact === 'heavy' ? 10 : event.impact === 'light' ? 2.5 : 4;
-        this.shake = Math.max(this.shake, strength);
+        this.shake = Math.max(this.shake, event.feedback?.shake ?? strength);
       }
     }
   }
 
   draw(config: MatchConfig, state: MatchState, debug: boolean, elapsed: number, shakeEnabled: boolean, focus = false,
-    reducedMotion = false) {
+    reducedMotion = false, opening = 0) {
     const ctx = this.ctx;
     const { width, height } = ctx.canvas;
     if (state.cutIn) {
@@ -263,7 +343,7 @@ export class Renderer {
     const jetTips = ([0, 1] as const).flatMap(seat => {
       const fighter = state.fighters[seat];
       const action = actionFor(config, state, seat);
-      if (action?.id !== bananaActionIds.pressure || !fighter.attack ||
+      if (!isAttack(action) || action.id !== bananaActionIds.pressure || !fighter.attack ||
         fighter.attack.frame >= action.startup + action.active + 7) return [];
       const box = worldBox(action.hitbox, fighter.x, fighter.y, fighter.facing);
       const tipX = fighter.facing === 1 ? box.x + box.w : box.x;
@@ -271,7 +351,7 @@ export class Renderer {
     });
     const camera = frameCamera(config.arena, { width, height },
       [{ x: a.x, y: a.y, height: heights[0] }, { x: b.x, y: b.y, height: heights[1] }],
-      this.camera, elapsed, focus, summon, jetTips);
+      this.camera, elapsed, focus, opening, summon, jetTips);
     this.camera = camera;
     const impact = this.effects.find(effect => effect.event.kind === 'summon-impact');
     const { x, y, zoom } = impact && shakeEnabled ?
@@ -349,15 +429,19 @@ export class Renderer {
       const def = config.fighters[seat];
       const sprite = sprites[def.id];
       const color = seatColors[seat];
-      const action = actionFor(config, state, seat);
+      const move = actionFor(config, state, seat);
+      const action = isAttack(move) ? move : undefined;
       const phase = f.attack?.frame ?? 0;
-      const active = action && phase >= action.startup && phase < action.startup + action.active;
-      const pose = def.id === 'gaga' && action ? gagaActionPose(action, phase, Boolean(f.ground)) : undefined;
+      const active = action && isActiveFrame(action, phase);
+      const poseCell = poseFor(f, move, state.arenaFrame);
+      const motionSheet = motionArt[def.id];
+      const authoredPose = Boolean(move?.animation?.length && motionSheet?.naturalWidth && poseCell !== undefined);
+      const pose = !authoredPose && def.id === 'gaga' && action ? gagaActionPose(action, phase, Boolean(f.ground)) : undefined;
       const reaction = def.id === 'gaga' && f.hp && !action && !f.walk && !f.dash && !f.guarding ? f.reaction : undefined;
       const hurtPose = reaction ? gagaReactionPose(reaction, f.vy) : undefined;
       const drawnPose = hurtPose ?? pose;
       const allowedToWalk = def.id === 'gaga' && f.ground && f.hp && !action &&
-        !f.guarding && !f.dash && !f.hitstun && !f.blockstun && !f.guardBreak;
+        !f.guarding && !f.dash && !f.hitstun && !f.blockstun && !f.guardBreak && !f.recovery;
       const walk = this.gagaWalks[seat];
       if (!allowedToWalk) walk.reset();
       const walkPose = allowedToWalk && !hurtPose ? walk.sample(f.walk, elapsed) : undefined;
@@ -378,7 +462,12 @@ export class Renderer {
       const height = heights[seat];
       const width = sprite?.naturalHeight ? height * sprite.naturalWidth / sprite.naturalHeight : 100;
       let yScale = drawnPose || walkPose ? 1 : 1 + stride * .035;
-      if (def.id === 'banana') yScale = 1;
+      if (f.recovery?.phase === 'down') {
+        ctx.translate(height * .40, -height * .32);
+        ctx.rotate(-1.24);
+      } else if (f.recovery?.phase === 'fall') ctx.rotate(-.25);
+      else if (f.recovery?.phase === 'rise') yScale = 1 - f.recovery.remaining * .017;
+      else if (def.id === 'banana') yScale = 1;
       else if (f.hp === 0) ctx.rotate(-Math.PI / 2.6);
       else if (f.hitstun && !hurtPose) {
         const reeling = Math.abs(f.push) >= 15;
@@ -391,13 +480,18 @@ export class Renderer {
       else if (!f.ground && !drawnPose) ctx.rotate(f.vy < 0 ? -.085 : .085);
       ctx.scale(2 - yScale, yScale);
       if (pose?.rotation) ctx.rotate(pose.rotation);
-      if (f.protection && state.frame % 6 < 3) ctx.globalAlpha = .64;
+      if (f.recovery?.phase === 'rise') ctx.globalAlpha = .83;
       if (def.id === 'banana' || drawnPose?.image || sprite?.naturalWidth) {
         ctx.shadowColor = color + 'ca';
         ctx.shadowBlur = 8;
-        if (hurtPose && reaction && reaction.elapsed < 2) ctx.filter = 'brightness(1.45) saturate(.7)';
+        const flash = this.effects.find(effect => effect.event.kind === 'hit' &&
+          effect.event.source !== seat && effect.age < 6)?.event.feedback?.flash;
+        if (flash !== undefined && f.hitstun) ctx.filter = 'brightness(' + (1 + Math.min(1, flash)) + ')';
+        else if (hurtPose && reaction && reaction.elapsed < 2) ctx.filter = 'brightness(1.45) saturate(.7)';
         else if (f.hitstun && state.freeze > 0) ctx.filter = 'brightness(1.48)';
-        if (def.id === 'banana') {
+        if (authoredPose && poseCell !== undefined) {
+          drawPose(ctx, motionSheet, poseCell, height);
+        } else if (def.id === 'banana') {
           drawBanana(ctx, f, action, state.frame, reducedMotion);
         } else if (drawnPose?.image) {
           const { image, region, scaleX, scaleY } = drawnPose;
@@ -405,6 +499,8 @@ export class Renderer {
             -region.footX * scaleX, -region.footY * scaleY, region.width * scaleX, region.height * scaleY);
         } else if (walkPose) {
           drawGagaWalk(ctx, sprite, height, walkPose);
+        } else if (def.id !== 'gaga' && motionSheet?.naturalWidth && poseCell !== undefined) {
+          drawPose(ctx, motionSheet, poseCell, height, active ? 8 : 0);
         } else {
           ctx.drawImage(sprite, -width * .51 + (active ? 9 : 0), -height, width, height);
         }
@@ -421,7 +517,7 @@ export class Renderer {
           alpha, wide: Boolean(pose?.pole) || action.impact === 'heavy' });
       }
       ctx.globalAlpha = 1;
-      if (f.guarding) {
+      if (f.guarding || (move && !isAttack(move) && isActiveFrame(move, phase))) {
         ctx.strokeStyle = '#fff2ab';
         ctx.lineWidth = 5;
         ctx.beginPath();
@@ -431,29 +527,34 @@ export class Renderer {
       ctx.restore();
 
       if (active && action && !pose && def.id !== 'banana') {
-        const hit = worldBox(action.hitbox, f.x, f.y, f.facing);
-        const tip = f.facing === 1 ? hit.x + hit.w - 6 : hit.x + 6;
-        ctx.save();
-        ctx.strokeStyle = color + 'c2';
-        ctx.lineWidth = action.slot === 'C' ? 7 : 4;
-        ctx.beginPath();
-        ctx.moveTo(tip - 42 * f.facing, hit.y + 3);
-        ctx.quadraticCurveTo(tip + 19 * f.facing, hit.y + hit.h * .52, tip - 34 * f.facing, hit.y + hit.h - 4);
-        ctx.stroke();
-        ctx.restore();
+        const [region] = hitRegionsFor(action, phase);
+        if (region) {
+          const hit = worldBox(region, f.x, f.y, f.facing);
+          const tip = f.facing === 1 ? hit.x + hit.w - 6 : hit.x + 6;
+          ctx.save();
+          ctx.strokeStyle = color + 'c2';
+          ctx.lineWidth = action.slot === 'C' ? 7 : 4;
+          ctx.beginPath();
+          ctx.moveTo(tip - 42 * f.facing, hit.y + 3);
+          ctx.quadraticCurveTo(tip + 19 * f.facing, hit.y + hit.h * .52, tip - 34 * f.facing, hit.y + hit.h - 4);
+          ctx.stroke();
+          ctx.restore();
+        }
       }
 
       if (debug) {
-        const hurt = worldBox(def.hurtbox, f.x, f.y, f.facing);
         ctx.fillStyle = '#27d7ee24';
         ctx.strokeStyle = '#4ce2e8';
         ctx.lineWidth = 2;
-        ctx.fillRect(hurt.x, hurt.y, hurt.w, hurt.h);
-        ctx.strokeRect(hurt.x, hurt.y, hurt.w, hurt.h);
+        for (const region of hurtRegionsFor(def, move, phase)) {
+          const hurt = worldBox(region, f.x, f.y, f.facing);
+          ctx.fillRect(hurt.x, hurt.y, hurt.w, hurt.h);
+          ctx.strokeRect(hurt.x, hurt.y, hurt.w, hurt.h);
+        }
         ctx.strokeStyle = '#ffc263';
         ctx.strokeRect(f.x - def.bodyWidth / 2, f.y - 82, def.bodyWidth, 82);
-        if (active && action && !action.projectile && action.channel !== 'cry') {
-          const hit = worldBox(action.hitbox, f.x, f.y, f.facing);
+        for (const region of hitRegionsFor(move, phase)) {
+          const hit = worldBox(region, f.x, f.y, f.facing);
           ctx.fillStyle = '#ff536844';
           ctx.strokeStyle = '#ff5a6e';
           ctx.fillRect(hit.x, hit.y, hit.w, hit.h);
@@ -471,7 +572,7 @@ export class Renderer {
       ctx.restore();
     }
     for (const projectile of state.projectiles) {
-      const data = config.fighters[projectile.source].actions.find(move => move.id === projectile.actionId)?.projectile;
+      const data = config.fighters[projectile.source].actions.filter(isAttack).find(move => move.id === projectile.actionId)?.projectile;
       if (!data) continue;
       if (data.kind === 'crate' && data.turret) {
         const pitch = Math.atan2(projectile.vy, Math.abs(projectile.vx)) * .20 * projectile.facing;
@@ -494,6 +595,7 @@ export class Renderer {
         ctx.strokeRect(projectile.x - halfWidth, projectile.y - data.radius, halfWidth * 2, data.radius * 2);
       }
     }
+    for (const entity of state.entities ?? []) drawEntity(ctx, entity, debug);
     for (const trail of swingTrails) {
       ctx.save();
       ctx.translate(trail.x, trail.y);
@@ -519,13 +621,22 @@ export class Renderer {
       const f = state.fighters[seat];
       if (!f.hp) continue;
       const center = (f.x - x) * zoom + dx;
-      const markerY = (f.y - heights[seat] - y) * zoom - 25;
+      const poseHeight = f.recovery?.phase === 'down' ? heights[seat] * .60 : heights[seat];
+      const markerY = (f.y - poseHeight - y) * zoom - 25;
+      const label = 'P' + (seat + 1) + (f.recovery ? ' ' + recoveryLabels[f.recovery.phase] : '');
+      const labelWidth = f.recovery ? 70 : 34;
       ctx.fillStyle = '#111333e8';
-      ctx.fillRect(center - 17, markerY, 34, 21);
+      ctx.fillRect(center - labelWidth / 2, markerY, labelWidth, 21);
       ctx.textAlign = 'center';
       ctx.font = '900 15px system-ui';
       ctx.fillStyle = seatColors[seat];
-      ctx.fillText('P' + (seat + 1), center, markerY + 15);
+      ctx.fillText(label, center, markerY + 15);
+      const { airJump, airDash } = config.fighters[seat];
+      if (!f.ground && !f.recovery && (airJump || airDash)) {
+        const dot = center + 26;
+        polygon(ctx, f.airActionUsed ? '#535c83' : seatColors[seat],
+          [[dot, markerY + 4], [dot + 6, markerY + 10], [dot, markerY + 16], [dot - 6, markerY + 10]]);
+      }
     }
     this.drawPositionStrip(config.arena, [a.x, b.x], camera);
     this.shake = Math.max(0, this.shake - elapsed);
@@ -556,7 +667,7 @@ export class Renderer {
     const ctx = this.ctx;
     for (const effect of this.effects) {
       const { event, age, life, cue } = effect;
-      const color = event.kind === 'block' ? '#84e8ff' : event.kind === 'break' ? '#ff8c88' : '#ffdfa0';
+      const color = event.kind === 'block' ? '#84e8ff' : event.kind === 'break' ? '#ff8c88' : event.feedback?.color ?? '#ffdfa0';
       ctx.save();
       ctx.globalAlpha = Math.min(1, (life - age) / 10);
       ctx.translate(event.x, event.y);
@@ -577,11 +688,18 @@ export class Renderer {
         for (let i = 0; i < 4; i++) ctx.fillRect(-21 + i * 15, -10 - i * 3, i + 5, 2);
       } else if (event.kind === 'land' && effect.bananaImpact) {
         drawBananaImpact(ctx, event, age);
-      } else if (event.kind === 'land' || event.kind === 'drop') {
-        ctx.strokeStyle = '#fbdfb7cf';
+      } else if (event.kind === 'land' || event.kind === 'drop' || event.kind === 'air-jump' ||
+        event.kind === 'knockdown' || event.kind === 'ultimate') {
+        ctx.strokeStyle = event.kind === 'air-jump' ? seatColors[event.source] : '#fbdfb7cf';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.ellipse(0, event.kind === 'drop' ? age * 1.8 : -1, 9 + age * 2.7, 3 + age * .25, 0, 0, 2 * Math.PI);
+        ctx.stroke();
+      } else if (event.kind === 'parry') {
+        ctx.strokeStyle = '#7bfcf0';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(0, 0, 15 + age * 2.2, 0, 2 * Math.PI);
         ctx.stroke();
       } else {
         if (bananaEffectLife(event)) {

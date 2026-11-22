@@ -67,7 +67,8 @@
 30. 发布、安全与维护
 31. 三人协作与实施阶段
 32. 参数总表、待验证项与风险
-33. 参考资料与术语
+33. 框架对照复查
+34. 参考资料与术语
 
 ---
 
@@ -112,7 +113,7 @@
 | 连续平局 | 第一次重赛；连续第二次平局则整场记平 |
 | 换边 | 每回合交换出生侧，玩家身份及HUD位置不变 |
 | 重置 | HP、位置、动作、临时状态、连击、生成物、输入缓存全部重置 |
-| 资源重置 | 通用耐力恢复满值，公共能量归零；其他接入项必须声明初始值 |
+| 资源重置 | 通用耐力恢复满值，技能能量归零；其他接入项必须声明初始值 |
 | 胜负锁定 | 锁定后不再产生可改变结果的伤害或资源变动 |
 | 主动退出 | 已开始的在线比赛记退出判负；本地不写入正式在线战绩 |
 | 服务器故障 | 标记无结果，不算玩家逃跑 |
@@ -195,11 +196,11 @@
 | 左/右 | A/D | ←/→ | 水平移动 |
 | 上/下修饰 | W/S | ↑/↓ | 组合指令；下方向无其他合法指令时可进入地面防御 |
 | 跳跃 | K | 小键盘2 | 公共跳跃指令 |
-| 冲刺 | L | 小键盘3 | 公共移动指令，初版不自带无敌 |
+| 冲刺 | L | 小键盘3 | 消耗耐力，位移期间可穿过对手并免受击 |
 | 动作槽A | J | 小键盘1 | 接入角色方案 |
 | 动作槽B | U | 小键盘4 | 接入角色方案 |
 | 动作槽C | I | 小键盘5 | 接入角色方案 |
-| 扩展动作槽 | O | 小键盘6 | 默认关闭；后续内容定义后启用 |
+| 大招 | O | 单引号或小键盘6 | 角色接入大招后启用，可按动作消耗技能能量 |
 | 菜单 | Esc | Esc | 本地暂停/在线菜单 |
 
 **输入规则**：
@@ -229,7 +230,8 @@
 - 默认自由状态可自动面向对手；出招、防御和冲刺中面向锁定。
 - 过身时只有到达可转向状态才能换面向，避免一帧反复转身。
 - 空中移动、地面加速、停止惯性分别配置，不能混用一个速度。
-- 公共冲刺初版没有无敌标签；是否拥有特殊移动由后续角色方案说明。
+- 公共冲刺的穿身和受击保护覆盖最后一个冲刺位移帧，下一可推进的逻辑帧恢复身体碰撞和受击判定。
+- 从空中发动的冲刺在 6 个位移帧保持高度和竖向速度，随后恢复重力。地面冲刺离开平台后正常下落。
 - 身体阻挡框防止两名地面角色长期重叠；空中是否交叉由高度与阻挡框决定。
 - 地图侧界限限制位置，地面持续承接角色；没有飞出场外直接失败。
 - 飞行、跳跃、冲刺不能把实体留在地形内部；穿透异常回退到最近合法位置并记调试信息。
@@ -327,7 +329,7 @@ HP只在合法战斗事件中变化。每次变化需记录来源、目标、基
 |---|---|---|
 | HP | 初始、上限、归零、显示、重置 | 不设计个体血量差异 |
 | 耐力 | 消耗、恢复延迟、恢复、耗尽与破防 | 公共防御和移动的消耗表 |
-| 公共能量 | 上限、分段显示、增减事件、回合重置 | 获得公式与技能成本后续提交 |
+| 技能能量 | 每格 100 点，最多三格，每回合归零 | 默认普通招式实际造成伤害时加 20 点，承伤加 10 点。B/C 技能与大招共用，消耗按动作配置 |
 | 专属资源 | 容器、HUD挂接、序列化、生命周期 | 本文件不设计资源用途和机制 |
 
 官方当前工程可核对到气、体力和辅助气等资源字段，但本项目只接入实际需要的资源；不会因为原作存在某条资源就自动增加援助角色。[R7]
@@ -336,10 +338,9 @@ HP只在合法战斗事件中变化。每次变化需记录来源、目标、基
 
 - 已接受动作开始时扣资源，不由音效或动画回调扣除。
 - 资源不足不出招、不扣成负数，并有简短失败反馈。
-- 是否中断返还资源必须在动作数据中声明；默认不返还已消耗资源。
+- 耗气动作开始时按该动作的成本扣气，中断后保留已扣除的结果。满气 300 点时施放一个 100 点动作，余 200 点。
 - 回滚重演重新计算状态，不把之前的资源变动重复记账。
-- 公共能量未配置获得/消耗规则时，仅供训练设置测试值，正式HUD不展示空壳系统。
-- 未接入完整资源规则的角色包不能进入正式对战白名单。
+- 所有角色的战斗 HUD 都显示三格气槽，自由训练可直接充到 300 点。同一个大招键可用方向或组合键选择不同动作，角色制作者填写动作、输入条件、消耗和正式表现。
 
 **验收**：同帧多次消耗不可透支；回合重置不漏资源；显示条与实际资源一致。
 
@@ -356,7 +357,7 @@ HP只在合法战斗事件中变化。每次变化需记录来源、目标、基
 - 耐力不足触发破防，进入固定的短暂可受击状态。
 - 同帧多个命中先依据帧前防御状态统一接收，再汇总耐力；不能因事件遍历先后导致其中一击随机穿透。
 - 若帧前处于有效防御，本帧所有满足防御条件的命中均按防御结算；耐力扣至0后进入破防，后续帧的攻击再按可受击状态处理。本帧不额外补算破防伤害。
-- 初版没有通用空中防御、精确弹反或抓投系统；如团队角色方案需要，须作为共享规则扩展评审，不能在单个脚本里绕过。
+- 角色可以用 `guardCounter` 接入地面精准防御，也可以给 B/C 配置有起手和收招的防反架势。两种入口都能在窗口内拦下正面攻击，再自动进入指定的反击动作。空中防御与抓投仍属于后续扩展。[防反接口与联调](docs/character-handoff.md#防反接口)
 
 **试调值**：耐力上限100；最后一次消耗后60逻辑帧再恢复；恢复20/秒；破防持续45帧，结束恢复至50。单次防御消耗由动作接入项提供。这些值不是原作还原值。
 
@@ -614,6 +615,8 @@ AI不读取玩家尚未执行的输入，也不通过隐藏属性加成伪装操
 
 本节只规定接口，不设计任何角色或技能机制。
 
+当前可运行版本的字段、素材路径、调试入口和接入示例见[角色制作交接](docs/character-handoff.md)。
+
 ### 角色包需提供
 
 - 唯一ID、版本、显示名称和资源引用。
@@ -633,7 +636,7 @@ AI不读取玩家尚未执行的输入，也不通过隐藏属性加成伪装操
 | 时间 | 启动帧、有效帧、收招帧、最大持续时间 |
 | 判定 | 攻击框轨迹、受击框、身体框调整、命中组 |
 | 命中 | 基础伤害、方向、受击类型、位移、硬直等数据引用 |
-| 资源 | 消耗、获得事件、是否允许中断返还 |
+| 资源 | 消耗和获得事件。耗气技能在动作开始时扣除成本，消耗后不返还 |
 | 转换 | 可取消窗口、命中/防御/落空分支、允许去向 |
 | 表现 | 动画、音频、特效、镜头事件引用 |
 | 生命周期 | 生成物上限、销毁条件、回合结束清理 |
@@ -982,7 +985,7 @@ C阶段上线前须依据第29节实测冻结支持的RTT/抖动范围、可接�
 | 破防硬直 | 45帧 | 试调值 |
 | 破防结束耐力 | 50 | 试调值 |
 | 默认防御削血 | 0 | 简化基线 |
-| 公共能量 | 上限可先用300作容器测试 | 获得/消耗规则待内容接入 |
+| 技能能量 | 三格共 300 点，每回合归零 | B/C 技能与大招共用，消耗可按动作配置 |
 | 命中停顿 | 3—6帧档位测试 | 表现与规则共同调校 |
 | 单段连击累计冻结 | 最多60逻辑帧 | 试调上限，防止反馈停顿过长 |
 | 连击衰减 | 每段降低0.08，最低0.35 | 本项目保护提案 |
@@ -1020,7 +1023,37 @@ C阶段上线前须依据第29节实测冻结支持的RTT/抖动范围、可接�
 | 代码合并冲突 | 三套HP和状态定义 | 单一内核、接口所有权、早集成 |
 | 假指标 | 用几局胜率宣称平衡 | 报告样本、水平分层和版本条件 |
 
-## 33｜参考资料与术语
+## 33｜框架对照复查
+
+### 官方源码与战斗画面
+
+代码核对以 5DPLAY 提交 `d51f13d` 为准。3.3 对战截图仅用于观察布局。图中双方头像和生命贴上缘，倒计时居中，体力位于生命下方，底部两侧保留三格气槽和援助区。[固定提交](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/tree/d51f13dc36cac8e7622328bf4a9afc94156fb79f) · [3.3 对战画面](https://www.jeux.org/img/games/screen/26928.jpg)
+
+| 核对项 | 5DPLAY 源码行为 |
+|---|---|
+| 地面与空中移动 | 两处方向移动读取角色 `speed`。逻辑 60 Hz、动画 30 Hz，普通跳与二段跳各等待 2、1 个动画帧才施加起跳速度，落地后恢复跳跃和空中攻击次数。角色基类初始 `speed=6`、`jumpPower=15`、`jumpTimes=2`，跳高和速度须依角色及物理单位核对。[公共时钟](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/d51f13dc36cac8e7622328bf4a9afc94156fb79f/CORE_KernelLogic/src/net/play5d/game/bvn/GameConfig.as#L52-L66) · [角色基类](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/d51f13dc36cac8e7622328bf4a9afc94156fb79f/CORE_KernelLogic/src/net/play5d/game/bvn/fighter/FighterMain.as#L60-L78) · [空中控制](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/d51f13dc36cac8e7622328bf4a9afc94156fb79f/CORE_KernelLogic/src/net/play5d/game/bvn/fighter/ctrler/mc/FighterMcAirHandler.as#L262-L346) |
+| 冲刺与方向 | 地冲消耗 20 点体力，空冲消耗 30 点并用掉剩余跳跃次数。时间轴接口 `dash()` 的默认倍率是移速 ×3，启用穿身和免受击，`dashStop()` 恢复；实际动作时长由时间轴决定。待机朝向按动画帧定期更新。[地冲](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/d51f13dc36cac8e7622328bf4a9afc94156fb79f/CORE_KernelLogic/src/net/play5d/game/bvn/fighter/ctrler/mc/FighterMcFloorHandler.as#L260-L307) · [冲刺接口](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/d51f13dc36cac8e7622328bf4a9afc94156fb79f/CORE_KernelLogic/src/net/play5d/game/bvn/fighter/ctrler/FighterMcCtrler.as#L230-L248) · [待机朝向](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/d51f13dc36cac8e7622328bf4a9afc94156fb79f/CORE_KernelLogic/src/net/play5d/game/bvn/fighter/ctrler/mc/FighterMcActionCtrl.as#L174-L183) |
+| 命中与防御表现 | 特效锚在攻击框与受击框交集的中心，可随攻击者朝向。命中与防御分开选效果。特效数据可带停顿、双轴震动、彩色闪光、慢放和声音。[命中与防御锚点](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/d51f13dc36cac8e7622328bf4a9afc94156fb79f/CORE_KernelLogic/src/net/play5d/game/bvn/ctrler/effect/EffectHitHandler.as#L101-L176) · [特效数据执行](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/d51f13dc36cac8e7622328bf4a9afc94156fb79f/CORE_KernelLogic/src/net/play5d/game/bvn/ctrler/EffectCtrl.as#L196-L249) |
+| 生命与连击 | 生命条平滑追到当前值，红色伤害尾条在受击时保留，击飞后可延迟约 1.5 秒。连击数字有首次出现、更新和收起三种动画。[生命尾条](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/d51f13dc36cac8e7622328bf4a9afc94156fb79f/CORE_KernelLogic/src/net/play5d/game/bvn/ui/HpBarLerp.as#L67-L120) · [连击显示](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/d51f13dc36cac8e7622328bf4a9afc94156fb79f/CORE_KernelLogic/src/net/play5d/game/bvn/ui/fight/HitsUI.as#L57-L81) |
+| 战斗资源 | `EnergyBar` 显示独立体力，低于 30% 闪动，超载另有状态。`QiBar` 将 `qi/100` 限制到三格并平滑更新，同时另管援助资源。本项目的三格技能能量对应气槽的读数方式。[体力条](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/d51f13dc36cac8e7622328bf4a9afc94156fb79f/CORE_KernelLogic/src/net/play5d/game/bvn/ui/fight/EnergyBar.as#L66-L85) · [气槽和援助资源](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/d51f13dc36cac8e7622328bf4a9afc94156fb79f/CORE_KernelLogic/src/net/play5d/game/bvn/ui/fight/QiBar.as#L108-L136) |
+
+### 本项目框架进度
+
+技能能量的验收覆盖命中与承伤攒气、三格气槽、按动作扣气、动作判定及训练充能。联调样例用同一个大招键演示一格、两格和三格消耗，并核对施放后保留的气量。[技能能量接入与试招](docs/character-handoff.md#技能能量) · [5DPLAY 角色资源源码](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/d51f13dc36cac8e7622328bf4a9afc94156fb79f/CORE_KernelLogic/src/net/play5d/game/bvn/fighter/FighterMain.as#L250-L293)
+
+| 框架项 | 当前能做到 | 待接入与验收 |
+|---|---|---|
+| 移动与耐力 | 地冲消耗 20 点，空冲消耗 30 点，与格挡共用耐力。两种冲刺均可穿身并免受击，保护包含最后一个位移帧。空冲的位移帧暂停重力，与二段跳共用空中移动机会，落地恢复。可行动的角色完成跨身后当帧更新朝向。[控制与移动](src/core/match.ts) · [回归用例](tests/match.test.mjs) | 本项目立即起跳，冲刺采用 8/6 个逻辑帧，耐力低于成本时拒绝冲刺，普通格挡保留生命。原作有起跳预备帧，冲刺时长由角色动作时间轴决定，耐力可透支并触发超载，普通格挡会产生擦伤。[原作耐力和超载](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/d51f13dc36cac8e7622328bf4a9afc94156fb79f/CORE_KernelLogic/src/net/play5d/game/bvn/fighter/FighterMain.as#L541-L563) · [原作格挡](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/d51f13dc36cac8e7622328bf4a9afc94156fb79f/CORE_KernelLogic/src/net/play5d/game/bvn/fighter/ctrler/mc/FighterMcHurtCtrl.as#L762-L812) |
+| 逐帧判定与多段命中 | 已接入分帧攻击框、受击框及命中分组。同组去重，后续组独立结算，双方朝向共用规则 | 已验收双段伤害、同帧互击、格挡和防反、停顿与快照恢复。[动作与状态](src/core/types.ts) · [命中结算](src/core/match.ts) |
+| 飞行道具、放置物与召唤物 | 已接入独立实体生成、归属、速度、存活帧数、单次接触、格挡、防反和复位清理 | 外观使用可调色的预设图形。角色自带实体图集、复杂召唤物行为及多次接触属于后续接入。[实体接口](src/core/entities.ts) |
+| 击打手感与演出 | 命中火花沿攻击方向自交集中心展开。轻、重命中、格挡、破防、防反有各自的形状和音色。震动按逻辑帧在两轴衰减，命中停顿期间镜头停止跟随。每段可独立配置停顿、推力与硬直。[公共特效](src/web/renderer.ts) · [公共音效](src/web/audio.ts) | 目前的声音和火花由项目生成。独立音频素材、屏幕彩闪、按招式慢动作和特效跟随目标仍需独立接入。 |
+| 战斗 HUD | 双方头像、生命、耐力和胜场贴上沿，倒计时居中。血条即时显示生命，尾条保留近期受击的损失后追平。连击从两次开始贴屏幕侧边显示，三格技能能量位于画面下缘两侧。陪练和慢放工具收在「训练设置」。[对局界面](index.html) · [读数更新](src/web/game.ts) | 生命尾条使用本项目的时间参数，胜场用菱形标记，技能能量按动作实扣。援助量表、体力超载提示与原作的计分模式另属各自的玩法范围。 |
+| 特殊战斗状态 | 有地面防御、破防、两种防反和公共倒地起身。连招支持命中后取消 | 霸体、限时无敌、受身或脱离、投技及自己的攻击被挡住或打空后的收招取消条件。普通防御是长按下方向。先按角色方案确定触发与作用范围，再验收对方状态、消耗和回合复位。[5DPLAY 角色状态源码](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/d51f13dc36cac8e7622328bf4a9afc94156fb79f/CORE_KernelLogic/src/net/play5d/game/bvn/fighter/FighterMain.as#L163-L192) |
+| 制作与复测 | 游戏内可半速、逐帧、显示判定和输入，可用链接指定角色和地图 | 缺少任意招式的独立播放入口、可保存的固定陪练输入、回放导出。应能用同一组输入重复检查同帧命中、碰撞和反馈。[5DPLAY 调试工程](https://github.com/5DPLAY-Game-Studio/OpenBleachVsNaruto#工程结构) |
+
+联机、手柄、教学和街机流程按各自章节验收。援助队伍、变身的玩法规则与每位角色的招式方案由团队定案。
+
+## 34｜参考资料与术语
 
 ### 原始来源
 

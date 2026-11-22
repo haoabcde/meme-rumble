@@ -1,25 +1,26 @@
 import { floorImpact, landingImpact, segmentBoxTime } from './projectile.js';
-import { platformAt, platformContact, platformOffset } from './terrain.js';
 import { damageTurret, deployTurret, opposingTurrets, stepTurrets, turretBox } from './turret.js';
 import { aimSummon, dijiangTip, summonArea, summonCatchRadius, summonCutInFrames, summonFallFrames,
   summonImpactFrames } from './summon.js';
-import { ENERGY_PER_BAR, MAX_ENERGY, MAX_TEARS, TEAR_UNITS_PER_POINT } from './types.js';
 import type {
-  ActionDefinition, ArenaDefinition, Attack, Box, CombatEvent, Command, Direction, Duo, FighterState,
-  InputFrame, MatchConfig, MatchState, Projectile, RoundResult, Side, Summon
+  ActionDefinition, ArenaDefinition, Attack, Box, CombatEvent, Command, Direction, Duo, FighterAction, FighterDefinition, FighterState,
+  HitWindow, InputFrame, MatchConfig, MatchState, Projectile, RoundResult, Side, Stick, Summon
 } from './types.js';
+import { platformAt, platformContact, platformOffset } from './terrain.js';
+import { isAttack, MAX_ENERGY, MAX_TEARS, TEAR_UNITS_PER_POINT } from './types.js';
+import { entityContacts, removeContactEntity, updateEntities } from './entities.js';
 
 const seats = [0, 1] as const;
-const slotPriority = ['C', 'B', 'A'] as const;
-const energyCosts = { A: 0, B: ENERGY_PER_BAR, C: MAX_ENERGY };
-const hitEnergy = 12;
-const hurtEnergy = 18;
+const slotPriority = ['ULT', 'C', 'B', 'A'] as const;
+const downFrames = 18;
+const riseFrames = 12;
+const other = (seat: 0 | 1) => seat === 0 ? 1 : 0;
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
 const buildWave = {
   id: 'turret-build-wave', damage: 45, hitstun: 18, blockstun: 12, guardCost: 12,
   push: 18, lift: 0, stop: 3, impact: 'medium'
 } as const;
-const other = (seat: 0 | 1) => seat === 0 ? 1 : 0;
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 type Position = Pick<FighterState, 'x' | 'y'>;
 const cryUnitsPerTick = 20;
 const sprayUnitsPerTick = 10;
@@ -43,14 +44,15 @@ function carriedBySummon(state: MatchState, seat: 0 | 1) {
 
 function spawn(config: MatchConfig, seat: 0 | 1, round: number): FighterState {
   const side = round % 2 ? seat : other(seat);
+  const definition = config.fighters[seat];
   return {
     x: config.arena.spawn[side], y: config.arena.floor, vy: 0, facing: side === 0 ? 1 : -1,
-    ground: 'floor', ignorePlatform: null, hp: config.fighters[seat].maxHp,
+    ground: 'floor', ignorePlatform: null, hp: definition.maxHp,
     energy: 0, slow: 0,
-    ...(config.fighters[seat].usesTears ? { tearUnits: 60 * TEAR_UNITS_PER_POINT } : {}),
+    ...(definition.usesTears ? { tearUnits: 60 * TEAR_UNITS_PER_POINT } : {}),
     guard: config.rules.guardMax, guardWait: 0, guardBreak: 0, hitstun: 0, blockstun: 0,
-    push: 0, dash: 0, guarding: false, attack: null, buffer: [], combo: 0, controlled: 0,
-    protection: 0, moving: false
+    push: 0, dash: 0, dashActive: false, airActionUsed: false, guarding: false, attack: null, buffer: [], combo: 0, controlled: 0,
+    recovery: null, moving: false
   };
 }
 
@@ -58,8 +60,8 @@ export function createMatch(config: MatchConfig): MatchState {
   return {
     frame: 0, arenaFrame: 0, remaining: config.rules.roundSeconds * config.rules.ticksPerSecond,
     freeze: 0, comboFreeze: 0, phase: 'ready', phaseTicks: 120, round: 1,
-    wins: [0, 0], draws: 0, fighters: [spawn(config, 0, 1), spawn(config, 1, 1)], projectiles: [],
-    turrets: { bolt: null, howitzer: null },
+    wins: [0, 0], draws: 0, fighters: [spawn(config, 0, 1), spawn(config, 1, 1)],
+    projectiles: [], turrets: { bolt: null, howitzer: null },
     result: null, winner: null
   };
 }
@@ -67,6 +69,27 @@ export function createMatch(config: MatchConfig): MatchState {
 export function actionFor(config: MatchConfig, state: MatchState, seat: 0 | 1) {
   const id = state.fighters[seat].attack?.id;
   return config.fighters[seat].actions.find(action => action.id === id);
+}
+
+export function isActiveFrame(action: FighterAction, frame: number) {
+  return frame >= action.startup && frame < action.startup + action.active;
+}
+
+function hitWindowsFor(action: ActionDefinition, frame: number): HitWindow[] {
+  return action.hitTimeline?.filter(window => frame >= window.from && frame < window.to) ??
+    [{ from: action.startup, to: action.startup + action.active, group: '', boxes: [action.hitbox] }];
+}
+
+export function hitRegionsFor(action: FighterAction | undefined, frame: number): Box[] {
+  if (!action || 'counterTo' in action || !isActiveFrame(action, frame)) return [];
+  return hitWindowsFor(action, frame).flatMap(window => window.boxes);
+}
+
+export function hurtRegionsFor(definition: FighterDefinition, action: FighterAction | undefined, frame: number): Box[] {
+  if (!action?.hurtTimeline || frame < 0 || frame >= action.startup + action.active + action.recovery) {
+    return [definition.hurtbox];
+  }
+  return action.hurtTimeline.flatMap(window => frame >= window.from && frame < window.to ? window.boxes : []);
 }
 
 export function worldBox(box: Box, x: number, y: number, facing: Side): Box {
@@ -81,52 +104,60 @@ function overlap(a: Box, b: Box) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
+function attackFor(config: MatchConfig, state: MatchState, seat: 0 | 1) {
+  const action = actionFor(config, state, seat);
+  return isAttack(action) ? action : undefined;
+}
+
 function queueInputs(state: MatchState, inputs: Duo<InputFrame>, config: MatchConfig) {
   for (const seat of seats) {
     if (carriedBySummon(state, seat)) continue;
     const fighter = state.fighters[seat];
     const input = inputs[seat];
-    const action = actionFor(config, state, seat);
-    fighter.buffer = fighter.buffer.filter(command => command.expires > state.frame);
-    for (const [index, key] of input.pressed.entries()) {
-      const sampled = Array.isArray(input.sampled) ? input.sampled[index] : input.sampled?.[key];
-      const { x, y } = sampled ?? input;
-      const cryToWave = action?.channel === 'cry' && key === 'C' && y === 1;
+    const action = attackFor(config, state, seat);
+    if (!input.pressed.length) continue;
+    const keys = [...new Set([...(input.held ?? []), ...input.pressed])];
+    for (const [index, pressed] of input.pressed.entries()) {
+      const sampled = input.sampled;
+      const { x, y } = (Array.isArray(sampled) ? sampled[index] :
+        (sampled as Partial<Record<Command['key'], Stick>> | undefined)?.[pressed]) ?? input;
+      const key = pressed === 'C' && y === 1 && config.fighters[seat].downSkillUltimate ? 'ULT' : pressed;
       if (action?.channel && fighter.attack!.frame < action.startup + action.active &&
-        (key === action.slot || key === 'dash') && !cryToWave) continue;
+          (key === action.slot || key === 'dash')) continue;
       const directions: Direction[] = [];
       if (y) directions.push(y === -1 ? 'up' : 'down');
       if (x) directions.push(x === fighter.facing ? 'forward' : 'back');
       fighter.buffer.push({
-        key, x, directions, down: y === 1, expires: state.frame + config.rules.inputBuffer
+        key, keys, x, directions, down: y === 1, sampledAt: state.frame, remaining: config.rules.inputBuffer
       });
     }
     bufferChain(fighter, action, config.fighters[seat].actions);
   }
 }
 
-function matchesCommand(action: ActionDefinition, command: Command, directional: boolean) {
-  return action.slot === command.key && Boolean(action.direction) === directional &&
-    (!action.direction || command.directions.includes(action.direction));
+function matchesCommand(action: FighterAction, command: Command) {
+  return action.slot === command.key &&
+    (!action.direction || command.directions.includes(action.direction)) &&
+    action.comboKeys?.every(key => command.keys?.includes(key)) !== false;
 }
 
-function bufferChain(f: FighterState, action: ActionDefinition | undefined, moves: ActionDefinition[]) {
+function bufferChain(f: FighterState, action: ActionDefinition | undefined, moves: FighterAction[]) {
   const attack = f.attack;
   if (!attack || !action?.chain || attack.frame >= action.chain.close || !f.ground) return;
   const queued = attack.queuedChain ?? [];
   const last = queued.length ? moves.find(move => move.id === queued.at(-1)) : action;
-  const directional = moves.filter(move => move.direction && move.posture !== 'air' && !move.followUpOnly);
-  let link = last?.chain;
+  const directional = moves.filter(move => move.direction && move.posture !== 'air' && !move.linkOnly);
+  let link = isAttack(last) ? last.chain : undefined;
   while (link) {
     const { actionId } = link;
     const next = moves.find(move => move.id === actionId);
     if (!next) break;
     const index = f.buffer.findIndex(command => command.key === next.slot &&
-      !directional.some(move => matchesCommand(move, command, true)));
+      !directional.some(move => matchesCommand(move, command)));
     if (index < 0) break;
     f.buffer.splice(index, 1);
     queued.push(next.id);
-    link = next.chain;
+    link = isAttack(next) ? next.chain : undefined;
   }
   if (queued.length) attack.queuedChain = queued;
 }
@@ -135,17 +166,45 @@ function emitSwing(f: FighterState, action: ActionDefinition, seat: 0 | 1, event
   events.push({ kind: 'swing', source: seat, x: f.x, y: f.y, actionId: action.id, facing: f.facing });
 }
 
-function startAttack(f: FighterState, action: ActionDefinition, seat: 0 | 1, events: CombatEvent[],
-  queuedChain?: string[]) {
-  const tearCost = action.tearCost;
-  if (tearCost !== undefined && (f.tearUnits ?? 0) < tearCost * TEAR_UNITS_PER_POINT) {
+function startKnockdown(fighter: FighterState) {
+  delete fighter.reaction;
+  fighter.recovery = { phase: 'fall' };
+  fighter.hitstun = 0;
+  fighter.blockstun = 0;
+  fighter.attack = null;
+  fighter.dash = 0;
+  fighter.guarding = false;
+  fighter.moving = false;
+  fighter.buffer = [];
+  fighter.combo = 0;
+  fighter.controlled = 0;
+}
+
+function advanceRecovery(fighter: FighterState, seat: 0 | 1, events: CombatEvent[]) {
+  const recovery = fighter.recovery;
+  if (!recovery) return false;
+  if (recovery.phase === 'fall' || --recovery.remaining > 0) return true;
+  if (recovery.phase === 'down') {
+    fighter.recovery = { phase: 'rise', remaining: riseFrames };
+    events.push({ kind: 'rise', source: seat, x: fighter.x, y: fighter.y });
+    return true;
+  }
+  fighter.recovery = null;
+  return false;
+}
+
+function startAction(f: FighterState, action: FighterAction, seat: 0 | 1, events: CombatEvent[],
+  legacyCost = 0, queuedChain?: string[]) {
+  const attack = isAttack(action) ? action : undefined;
+  const tearCost = attack?.tearCost ?? 0;
+  if (tearCost > 0 && (f.tearUnits ?? 0) < tearCost * TEAR_UNITS_PER_POINT) {
     events.push({ kind: 'tears-short', source: seat, x: f.x, y: f.y, actionId: action.id, amount: tearCost });
     return false;
   }
-  const cost = action.energyCost !== undefined ? action.energyCost * ENERGY_PER_BAR
-    : tearCost === undefined ? energyCosts[action.slot] : 0;
+  const cost = attack?.energyCost ?? legacyCost;
   if (f.energy < cost) {
-    events.push({ kind: 'energy-short', source: seat, x: f.x, y: f.y, actionId: action.id, amount: cost });
+    events.push({ kind: 'ultimate-no-energy',
+      source: seat, x: f.x, y: f.y, actionId: action.id, amount: cost });
     return false;
   }
   f.energy -= cost;
@@ -155,8 +214,10 @@ function startAttack(f: FighterState, action: ActionDefinition, seat: 0 | 1, eve
   f.guarding = false;
   f.dash = 0;
   delete f.reaction;
-  if (!action.summon && (!action.swingOnActive || action.startup <= (action.swingLead ?? 0))) {
-    emitSwing(f, action, seat, events);
+  if (action.slot === 'ULT' && !attack?.cutIn && !attack?.summon) {
+    events.push({ kind: 'ultimate', source: seat, x: f.x, y: f.y, actionId: action.id });
+  } else if (!attack?.summon && (!attack?.swingOnActive || attack.startup <= (attack.swingLead ?? 0))) {
+    events.push({ kind: 'swing', source: seat, x: f.x, y: f.y, actionId: action.id, facing: f.facing });
   }
   return true;
 }
@@ -170,7 +231,10 @@ function advanceAttack(fighter: FighterState, attack: Attack, action: ActionDefi
       addTearUnits(fighter, -sprayUnitsPerTick);
       if (fighter.tearUnits) {
         attack.sustainedFrames = (attack.sustainedFrames ?? 0) + 1;
-        if (attack.sustainedFrames % sprayHitInterval === 0) attack.connected = false;
+        if (attack.sustainedFrames % sprayHitInterval === 0) {
+          attack.connected = false;
+          delete attack.connectedGroups;
+        }
         return;
       }
     }
@@ -186,25 +250,26 @@ function summonEvent(summon: Summon, kind: CombatEvent['kind']): CombatEvent {
 function tryStartCinematic(state: MatchState, config: MatchConfig, events: CombatEvent[]) {
   const priority = state.round % 2 === 1 ? seats : [1, 0] as const;
   for (const seat of priority) {
-    const action = config.fighters[seat].actions.find(move => move.summon || move.cutIn);
+    const action = config.fighters[seat].actions.filter(isAttack).find(move => (move.summon || move.cutIn) &&
+      state.fighters[seat].buffer.some(command => matchesCommand(move, command)));
     if (!action) continue;
     const fighter = state.fighters[seat];
-    const command = fighter.buffer.find(item => matchesCommand(action, item, true));
+    const command = fighter.buffer.find(item => matchesCommand(action, item));
     if (!command) continue;
     fighter.buffer = fighter.buffer.filter(item => item !== command);
-    const canCancelCry = action.cutIn && actionFor(config, state, seat)?.channel === 'cry';
+    const canCancelCry = action.cutIn && attackFor(config, state, seat)?.channel === 'cry';
     const pendingCutIn = seats.some(source => {
-      const pending = actionFor(config, state, source)?.cutIn;
+      const pending = attackFor(config, state, source)?.cutIn;
       return pending && state.fighters[source].attack!.frame < pending.at;
     });
     if (state.summon || pendingCutIn || !fighter.ground || (fighter.attack && !canCancelCry) || fighter.dash || fighter.push ||
-      fighter.hitstun || fighter.blockstun || fighter.guardBreak || fighter.protection) {
+      fighter.hitstun || fighter.blockstun || fighter.guardBreak || fighter.recovery) {
       if (action.cutIn) events.push({ kind: 'wave-unavailable', source: seat, x: fighter.x, y: fighter.y,
         actionId: action.id, requirement: fighter.ground ? 'recovery' : 'ground' });
       continue;
     }
     const target = state.fighters[other(seat)];
-    if (!startAttack(fighter, action, seat, events)) continue;
+    if (!startAction(fighter, action, seat, events)) continue;
     const facing = target.x === fighter.x ? fighter.facing : target.x > fighter.x ? 1 : -1;
     fighter.facing = facing;
     fighter.moving = false;
@@ -220,6 +285,7 @@ function tryStartCinematic(state: MatchState, config: MatchConfig, events: Comba
       };
       events.push(summonEvent(state.summon, 'summon-start'));
     }
+    events.push({ kind: 'ultimate', source: seat, x: fighter.x, y: fighter.y, actionId: action.id });
     return true;
   }
   return false;
@@ -228,7 +294,7 @@ function tryStartCinematic(state: MatchState, config: MatchConfig, events: Comba
 function beginActionCutIn(state: MatchState, config: MatchConfig, events: CombatEvent[]) {
   for (const source of seats) {
     const fighter = state.fighters[source];
-    const action = actionFor(config, state, source);
+    const action = attackFor(config, state, source);
     if (!action?.cutIn || fighter.attack?.frame !== action.cutIn.at) continue;
     state.cutIn = { source, frame: 0, duration: action.cutIn.duration };
     for (const player of state.fighters) player.buffer = [];
@@ -238,6 +304,23 @@ function beginActionCutIn(state: MatchState, config: MatchConfig, events: Combat
   }
 }
 
+function updateGuardWindow(fighter: FighterState, input: InputFrame, windowFrames: number) {
+  if (input.y !== 1) {
+    delete fighter.guardCounterLeft;
+  } else if (!fighter.guarding || fighter.blockstun > 0) {
+    fighter.guardCounterLeft = 0;
+  } else {
+    fighter.guardCounterLeft = fighter.guardCounterLeft === undefined
+      ? windowFrames : Math.max(0, fighter.guardCounterLeft - 1);
+  }
+}
+
+function faceOpponentWhenFree(fighter: FighterState, opponent: FighterState) {
+  if (fighter.hitstun || fighter.blockstun || fighter.guardBreak || fighter.recovery ||
+      fighter.attack || fighter.dash || fighter.guarding || fighter.x === opponent.x) return;
+  fighter.facing = fighter.x < opponent.x ? 1 : -1;
+}
+
 function updateControl(
   state: MatchState, config: MatchConfig, seat: 0 | 1, input: InputFrame, events: CombatEvent[]
 ) {
@@ -245,28 +328,36 @@ function updateControl(
   const opponent = state.fighters[other(seat)];
   const definition = config.fighters[seat];
   f.moving = false;
-  for (const counter of ['hitstun', 'blockstun', 'protection', 'guardWait', 'slow'] as const) {
+  for (const counter of ['hitstun', 'blockstun', 'guardWait', 'slow'] as const) {
     if (f[counter] > 0) f[counter]--;
   }
   if (f.guardBreak > 0 && --f.guardBreak === 0) {
     f.guard = Math.ceil(config.rules.guardMax / 2);
     f.guardWait = config.rules.guardDelay;
   }
+  if (advanceRecovery(f, seat, events)) return;
 
   const locked = f.hitstun > 0 || f.blockstun > 0 || f.guardBreak > 0;
   if (locked && f.combo > 0 && ++f.controlled >= config.rules.comboControlLimit) {
-    f.hitstun = 0;
-    f.protection = 32;
-    f.attack = null;
+    startKnockdown(f);
+    f.vy = Math.max(0, f.vy);
+    return;
   }
-  if (!locked || f.protection) {
+  if (!locked) {
     f.combo = 0;
     f.controlled = 0;
   }
+  if (f.pendingCounter) {
+    const counter = definition.actions.find(action => action.id === f.pendingCounter);
+    if (counter) startAction(f, counter, seat, events);
+    delete f.pendingCounter;
+    return;
+  }
+
   if (f.reaction) {
     f.reaction.elapsed++;
     const landing = f.reaction.landedAt;
-    if (f.protection || (!f.hitstun && f.ground && (landing === undefined || f.reaction.elapsed - landing >= 5))) {
+    if ((!f.hitstun && f.ground && (landing === undefined || f.reaction.elapsed - landing >= 5))) {
       delete f.reaction;
     }
   }
@@ -274,13 +365,17 @@ function updateControl(
   let previousAction = actionFor(config, state, seat);
   if (f.attack && previousAction) {
     const oldFrame = f.attack.frame;
-    advanceAttack(f, f.attack, previousAction, input);
-    if (previousAction.swingOnActive && f.attack.frame !== oldFrame &&
-      f.attack.frame === previousAction.startup - (previousAction.swingLead ?? 0)) {
-      emitSwing(f, previousAction, seat, events);
+    if (isAttack(previousAction)) {
+      advanceAttack(f, f.attack, previousAction, input);
+      if (previousAction.swingOnActive && f.attack.frame !== oldFrame &&
+        f.attack.frame === previousAction.startup - (previousAction.swingLead ?? 0)) {
+        emitSwing(f, previousAction, seat, events);
+      }
+    } else {
+      f.attack.frame++;
     }
-    if (!previousAction.summon && !previousAction.projectile && !previousAction.channel &&
-      f.attack.frame >= previousAction.startup + previousAction.active && !f.attack.connected) {
+    const special = isAttack(previousAction) && (previousAction.summon || previousAction.projectile || previousAction.channel);
+    if (!special && f.attack.frame >= previousAction.startup + previousAction.active && !f.attack.connected) {
       events.push({ kind: 'whiff', source: seat, x: f.x, y: f.y });
       f.attack.connected = true;
     }
@@ -290,55 +385,51 @@ function updateControl(
     }
   }
 
-  if (!locked && !f.attack && !f.dash && !f.guarding && f.x !== opponent.x) {
-    f.facing = f.x < opponent.x ? 1 : -1;
-  }
-  if (locked || f.protection) {
+  faceOpponentWhenFree(f, opponent);
+  if (locked) {
     f.guarding = f.blockstun > 0 && f.guardBreak === 0 && f.hitstun === 0;
     return;
   }
 
+  const chain = isAttack(previousAction) ? previousAction.chain : undefined;
   const currentAttack = f.attack;
-  const chain = previousAction?.chain;
   if (f.ground && currentAttack && chain && currentAttack.frame >= chain.open &&
     currentAttack.frame <= chain.close && currentAttack.queuedChain?.[0] === chain.actionId) {
     const next = definition.actions.find(action => action.id === chain.actionId);
-    if (next) {
-      if (startAttack(f, next, seat, events, currentAttack.queuedChain.slice(1))) return;
-      delete currentAttack.queuedChain;
-    }
+    if (next && startAction(f, next, seat, events, 0, currentAttack.queuedChain.slice(1))) return;
+    delete currentAttack.queuedChain;
   }
-  const candidates = definition.actions.filter(action => {
-    if (action.summon || action.cutIn) return false;
-    if (action.posture !== 'any' && (action.posture === 'ground') !== Boolean(f.ground)) return false;
-    if (!currentAttack) return !action.followUpOnly;
-    return currentAttack.landed && !action.followUpOnly && previousAction?.cancelOnHit?.includes(action.slot);
-  });
-  for (const useDirection of [true, false]) {
-    for (const slot of slotPriority) {
-      const commands = f.buffer.filter(command => command.key === slot);
-      const action = candidates.find(candidate => commands.some(command => matchesCommand(candidate, command, useDirection)));
-      if (!action) continue;
-      // A single accepted command consumes competing actions from the same sampled frame.
-      const command = commands.find(item => matchesCommand(action, item, useDirection))!;
-      if (!startAttack(f, action, seat, events)) {
-        f.buffer = f.buffer.filter(item => item !== command);
-        continue;
-      }
-      if (action.channel && !isHeld(input, action.slot)) f.attack!.released = true;
-      f.buffer = f.buffer.filter(item => item !== command &&
-        (item.expires !== command.expires || (action.chain && item.key === action.slot)));
-      bufferChain(f, action, definition.actions);
-      return;
-    }
-  }
-  if (f.attack) return;
 
+  const cancels = f.attack?.landed ? previousAction?.cancelOnHit : undefined;
+  const candidates = definition.actions.filter(action =>
+    !(isAttack(action) && (action.summon || action.cutIn)) &&
+    (action.posture === 'any' || (action.posture === 'ground') === Boolean(f.ground)) &&
+    (f.attack ? cancels?.includes(action.id) || cancels?.includes(action.slot) : !action.linkOnly)
+  );
+  candidates.sort((a, b) => (b.comboKeys?.length ?? 0) - (a.comboKeys?.length ?? 0) ||
+    Number(Boolean(b.direction)) - Number(Boolean(a.direction)) ||
+    slotPriority.indexOf(a.slot) - slotPriority.indexOf(b.slot));
+  for (const action of candidates) {
+    const command = f.buffer.find(item => matchesCommand(action, item));
+    if (!command) continue;
+    const legacyCost = action.slot === 'ULT' ? definition.ultimateCost ?? 0 : 0;
+    if (!startAction(f, action, seat, events, legacyCost)) {
+      f.buffer = f.buffer.filter(item => item !== command);
+      continue;
+    }
+    const attack = isAttack(action) ? action : undefined;
+    if (attack?.channel && !isHeld(input, action.slot)) f.attack!.released = true;
+    f.buffer = f.buffer.filter(item => item !== command &&
+      (item.sampledAt !== command.sampledAt || (attack?.chain && item.key === action.slot)));
+    bufferChain(f, attack, definition.actions);
+    return;
+  }
   const jump = f.buffer.find(command => command.key === 'jump');
-  if (f.ground && jump) {
-    f.buffer = f.buffer.filter(item => item.expires !== jump.expires);
+  if (f.ground && jump && (!f.attack || (!jump.down && cancels?.includes('jump')))) {
+    f.buffer = f.buffer.filter(item => item.sampledAt !== jump.sampledAt);
     const dropping = jump.down && f.ground !== 'floor';
     if (!jump.down || dropping) {
+      f.attack = null;
       delete f.reaction;
       f.ignorePlatform = dropping ? f.ground : null;
       f.vy = dropping ? 2 : -definition.jump;
@@ -349,14 +440,34 @@ function updateControl(
       return;
     }
   }
-  const dash = f.buffer.find(command => command.key === 'dash');
-  if (dash && f.ground && !f.dash) {
-    f.buffer = f.buffer.filter(item => item.expires !== dash.expires);
-    f.facing = dash.x || f.facing;
-    f.dash = 8;
-    f.guarding = false;
-    events.push({ kind: 'dash', source: seat, x: f.x, y: f.y });
+  if (f.attack) return;
+
+  const airborne = !f.ground;
+  if (jump && airborne && !jump.down && !f.dash && !f.airActionUsed && definition.airJump) {
+    f.buffer = f.buffer.filter(item => item.sampledAt !== jump.sampledAt);
+    f.airActionUsed = true;
+    f.vy = -definition.airJump;
+    events.push({ kind: 'air-jump', source: seat, x: f.x, y: f.y });
     return;
+  }
+  const dash = f.buffer.find(command => command.key === 'dash');
+  if (dash && !f.dash && (!airborne || (definition.airDash && !f.airActionUsed))) {
+    f.buffer = f.buffer.filter(item => item.sampledAt !== dash.sampledAt);
+    const cost = config.rules.dashGuardCost?.[airborne ? 'air' : 'ground'] ?? 0;
+    if (f.guard < cost) {
+      events.push({ kind: 'dash-no-stamina', source: seat, x: f.x, y: f.y });
+    } else {
+      if (cost > 0) {
+        f.guard -= cost;
+        f.guardWait = config.rules.guardDelay;
+      }
+      f.facing = dash.x || f.facing;
+      f.dash = airborne ? 6 : 8;
+      if (airborne) f.airActionUsed = true;
+      f.guarding = false;
+      events.push({ kind: 'dash', source: seat, x: f.x, y: f.y, direction: f.facing });
+      return;
+    }
   }
   f.guarding = Boolean(f.ground && input.y === 1 && !f.dash);
   if (!f.guarding && f.guardWait === 0 && state.frame % 3 === 0) {
@@ -394,13 +505,13 @@ function motion(
   const f = state.fighters[seat];
   const definition = config.fighters[seat];
   const arena = config.arena;
-  const action = actionFor(config, state, seat);
+  const action = attackFor(config, state, seat);
   let move = 0;
   let walking = false;
   const speedFactor = f.slow && !f.push ? slowedSpeed : 1;
   if (f.push !== 0) {
     move = f.push;
-    f.push -= Math.sign(f.push);
+    f.push -= Math.sign(f.push) * Math.min(1, Math.abs(f.push));
   } else if (f.dash > 0) {
     move = definition.dash * f.facing;
     f.dash--;
@@ -412,11 +523,12 @@ function motion(
     if (frame >= action.startup && frame < action.startup + action.active) {
       move = f.facing * (action.activeAdvance ?? 0);
     }
+    if (!f.ground) move += Math.round(definition.airSpeed * (action.airControl ?? 0)) * input.x;
     if (action.channel === 'spray' && frame < action.startup + action.active) {
       move = input.x * (f.ground ? definition.run : definition.airSpeed) * spraySpeed;
       walking = Boolean(f.ground && move);
     }
-  } else if (!f.hitstun && !f.blockstun && !f.guardBreak && !f.guarding && !f.protection) {
+  } else if (!f.hitstun && !f.blockstun && !f.guardBreak && !f.guarding && !f.recovery && !f.attack) {
     move = input.x * (f.ground ? definition.run : definition.airSpeed);
     walking = Boolean(f.ground && move);
   }
@@ -425,11 +537,13 @@ function motion(
   releaseUnsupportedGround(f, arena, state.arenaFrame);
   if (f.ground) return walking;
   const previousY = f.y;
-  f.vy += 1;
-  f.y += f.vy;
+  if (!(config.rules.airDashPauseGravity && f.dashActive && f.airActionUsed)) {
+    f.vy += 1;
+    f.y += f.vy;
+  }
   const platform = landingPlatform(arena, f, { x: previousX, y: previousY }, state.arenaFrame);
   if (platform || (f.vy > 0 && f.y >= arena.floor)) {
-    if (f.vy >= 5) events.push({
+    if (f.vy >= 5 && !f.recovery) events.push({
       kind: 'land', source: seat, x: f.x, y: platform?.y ?? arena.floor,
       ...(f.reaction?.kind === 'air' ? { reaction: 'air' as const } : {})
     });
@@ -437,6 +551,7 @@ function motion(
     f.y = platform?.y ?? arena.floor;
     f.vy = 0;
     f.ignorePlatform = null;
+    f.airActionUsed = false;
     if (f.reaction?.kind === 'air') f.reaction.landedAt = f.reaction.elapsed;
   }
   return false;
@@ -444,9 +559,10 @@ function motion(
 
 function separate(state: MatchState, config: MatchConfig, previous: Duo<Position>) {
   const [a, b] = state.fighters;
+  if (config.rules.dashPassThrough && (a.dashActive || b.dashActive)) return;
   const arena = config.arena;
   const width = (config.fighters[0].bodyWidth + config.fighters[1].bodyWidth) / 2;
-  if (Math.abs(a.y - b.y) >= 82) return;
+  if (Math.abs(a.y - b.y) >= 82 || a.recovery?.phase === 'down' || b.recovery?.phase === 'down') return;
   const leftSeat = previous[0].x < previous[1].x ? 0 : previous[0].x > previous[1].x ? 1 : a.facing === 1 ? 0 : 1;
   const left = state.fighters[leftSeat];
   const right = state.fighters[other(leftSeat)];
@@ -459,18 +575,44 @@ function separate(state: MatchState, config: MatchConfig, previous: Duo<Position
 }
 
 type HitProfile = Pick<ActionDefinition, 'id' | 'damage' | 'hitstun' | 'blockstun' | 'guardCost' |
-  'push' | 'lift' | 'stop' | 'impact' | 'unblockable' | 'slow' | 'energyOnHit'>;
+  'push' | 'lift' | 'stop' | 'impact' | 'unblockable' | 'slow' | 'hitTimeline' | 'knockdown' | 'feedback'> &
+  Partial<Pick<ActionDefinition, 'slot' | 'pose'>>;
 
 interface Contact {
+  entityId?: number;
   source: 0 | 1;
   target: 0 | 1;
   action: HitProfile;
   attack?: Attack;
-  earnsEnergy?: boolean;
+  group?: string;
+  earnsTears?: boolean;
   blocked: boolean;
+  counterAction?: string;
   facing: Side;
   x: number;
   y: number;
+}
+
+function counterForContact(state: MatchState, config: MatchConfig, seat: 0 | 1) {
+  const defender = state.fighters[seat];
+  if (!defender.ground) return;
+  if (defender.guarding && defender.guardCounterLeft) return config.fighters[seat].guardCounter?.actionId;
+  const stance = actionFor(config, state, seat);
+  if (stance && 'counterTo' in stance && defender.attack && isActiveFrame(stance, defender.attack.frame)) {
+    return stance.counterTo;
+  }
+}
+
+function contactHurtboxes(state: MatchState, config: MatchConfig, seat: 0 | 1) {
+  const fighter = state.fighters[seat];
+  return hurtRegionsFor(config.fighters[seat], actionFor(config, state, seat), fighter.attack?.frame ?? 0)
+    .map(box => worldBox(box, fighter.x, fighter.y, fighter.facing));
+}
+
+function protectedFromHit(state: MatchState, config: MatchConfig, seat: 0 | 1) {
+  const fighter = state.fighters[seat];
+  return Boolean(fighter.recovery || (config.rules.dashInvulnerable && fighter.dashActive) ||
+    carriedBySummon(state, seat));
 }
 
 function collectContacts(state: MatchState, config: MatchConfig, events: CombatEvent[]): Contact[] {
@@ -480,24 +622,45 @@ function collectContacts(state: MatchState, config: MatchConfig, events: CombatE
     const defender = state.fighters[target];
     const action = actionFor(config, state, source);
     const attack = f.attack;
-    if (!action || action.summon || action.projectile || action.channel === 'cry' || !attack || attack.frame < action.startup ||
-      attack.frame >= action.startup + action.active) return [];
-    const hitbox = worldBox(action.hitbox, f.x, f.y, f.facing);
+    if (!isAttack(action) || !attack || !isActiveFrame(action, attack.frame)) return [];
+    const windows = hitWindowsFor(action, attack.frame);
     for (const turret of opposingTurrets(state, source)) {
-      if (attack.hitTurrets?.includes(turret.kind) || !overlap(hitbox, turretBox(turret))) continue;
+      if (attack.hitTurrets?.includes(turret.kind) || !windows.some(window => window.boxes.some(box =>
+        overlap(worldBox(box, f.x, f.y, f.facing), turretBox(turret))))) continue;
       (attack.hitTurrets ??= []).push(turret.kind);
       damageTurret(state, turret.kind, events);
     }
-    if (attack.connected || defender.protection || carriedBySummon(state, target)) return [];
-    const hurtbox = worldBox(config.fighters[target].hurtbox, defender.x, defender.y, defender.facing);
-    if (!overlap(hitbox, hurtbox)) return [];
-    const facing: Side = defender.x === f.x ? f.facing : defender.x > f.x ? 1 : -1;
-    return [{
-      source, target, action, attack, earnsEnergy: action.slot === 'A', facing,
-      blocked: !action.unblockable && defender.guarding && defender.facing === -facing,
-      x: (Math.max(hitbox.x, hurtbox.x) + Math.min(hitbox.x + hitbox.w, hurtbox.x + hurtbox.w)) / 2,
-      y: (Math.max(hitbox.y, hurtbox.y) + Math.min(hitbox.y + hitbox.h, hurtbox.y + hurtbox.h)) / 2
-    }];
+    if ((attack.connected && !attack.connectedGroups) || protectedFromHit(state, config, target)) return [];
+    const hurtboxes = contactHurtboxes(state, config, target);
+    const facing = defender.x === f.x ? f.facing : defender.x > f.x ? 1 : -1;
+    const frontal = !action.unblockable && defender.facing === -facing;
+    const counterAction = frontal ? counterForContact(state, config, target) : undefined;
+    for (const window of windows) {
+      if (attack.connectedGroups?.includes(window.group)) continue;
+      for (const box of window.boxes) {
+        const hitbox = worldBox(box, f.x, f.y, f.facing);
+        const hurtbox = hurtboxes.find(hurt => overlap(hitbox, hurt));
+        if (!hurtbox) continue;
+        return [{
+          source, target, attack, group: window.group, earnsTears: action.slot === 'A',
+          action: {
+            ...action,
+            damage: window.damage ?? action.damage,
+            hitstun: window.hitstun ?? action.hitstun,
+            blockstun: window.blockstun ?? action.blockstun,
+            guardCost: window.guardCost ?? action.guardCost,
+            push: window.push ?? action.push,
+            lift: window.lift ?? action.lift,
+            stop: window.stop ?? action.stop,
+            knockdown: window.knockdown ?? action.knockdown
+          },
+          facing, counterAction, blocked: frontal && defender.guarding,
+          x: (Math.max(hitbox.x, hurtbox.x) + Math.min(hitbox.x + hitbox.w, hurtbox.x + hurtbox.w)) / 2,
+          y: (Math.max(hitbox.y, hurtbox.y) + Math.min(hitbox.y + hitbox.h, hurtbox.y + hurtbox.h)) / 2
+        }];
+      }
+    }
+    return [];
   });
 }
 
@@ -514,13 +677,13 @@ function advanceSummon(state: MatchState, config: MatchConfig, previous: Duo<Pos
   const target = other(source);
   const defender = state.fighters[target];
   const tip = dijiangTip(summon, summon.frame / summonFallFrames);
-  if (!summon.carry && defender.y < y) {
+  if (!summon.carry && defender.y < y && !protectedFromHit(state, config, target)) {
     const from = dijiangTip(summon, (summon.frame - 1) / summonFallFrames);
     // Test the sweep in the defender's moving frame of reference.
     from.x += defender.x - previous[target].x;
     from.y += defender.y - previous[target].y;
-    const hurtbox = worldBox(config.fighters[target].hurtbox, defender.x, defender.y, defender.facing);
-    if (segmentBoxTime(from, tip, hurtbox, summonCatchRadius) !== undefined) {
+    if (contactHurtboxes(state, config, target).some(box =>
+      segmentBoxTime(from, tip, box, summonCatchRadius) !== undefined)) {
       summon.carry = { x: defender.x, y: defender.y, frame: summon.frame };
       defender.ground = null;
       defender.ignorePlatform = null;
@@ -558,8 +721,8 @@ function advanceSummon(state: MatchState, config: MatchConfig, previous: Duo<Pos
   summon.phase = 'impact';
   summon.frame = 0;
   events.push(summonEvent(summon, 'summon-impact'));
-  const action = config.fighters[source].actions.find(move => move.id === actionId);
-  if (!action || (defender.ground && defender.ground !== 'floor') ||
+  const action = config.fighters[source].actions.filter(isAttack).find(move => move.id === actionId);
+  if (!action || (!carried && protectedFromHit(state, config, target)) || (defender.ground && defender.ground !== 'floor') ||
     Math.abs(defender.x - x) > summonArea.halfWidth ||
     defender.y < y - summonArea.above || defender.y > y + summonArea.below) return;
   const facing = defender.x === x ? summon.facing : defender.x > x ? 1 : -1;
@@ -580,15 +743,20 @@ function collectBlastContact(state: MatchState, config: MatchConfig, event: Comb
   const { source, x, y, radius = 0 } = event;
   const target = other(source);
   const defender = state.fighters[target];
-  if (defender.protection || carriedBySummon(state, target)) return;
+  if (protectedFromHit(state, config, target)) return;
   const centerY = blastCenterY(event);
-  const point = closestPoint(worldBox(config.fighters[target].hurtbox, defender.x, defender.y, defender.facing), x, centerY);
   const grenade = event.kind === 'grenade-impact';
-  const distance = Math.hypot((grenade ? defender.x : point.x) - x, point.y - centerY);
+  const candidates = contactHurtboxes(state, config, target).map(box => {
+    const point = closestPoint(box, x, centerY);
+    return { point, distance: Math.hypot((grenade ? defender.x : point.x) - x, point.y - centerY) };
+  });
+  candidates.sort((a, b) => a.distance - b.distance);
+  const { point, distance } = candidates[0] ?? { point: { x, y }, distance: Infinity };
   if (distance >= radius) return;
   const facing = defender.x === x ? event.facing ?? 1 : defender.x > x ? 1 : -1;
   contacts.push({
-    source, target, facing, ...point, earnsEnergy: grenade || event.kind === 'tear-splash',
+    source, target, facing, ...point, earnsTears: event.kind === 'tear-splash',
+    counterAction: !action.unblockable && defender.facing === -facing ? counterForContact(state, config, target) : undefined,
     blocked: !action.unblockable && defender.guarding && defender.facing === -facing,
     action: grenade ? { ...action, damage: Math.round(action.damage * (1 - .8 * distance / radius)) } : action
   });
@@ -619,20 +787,25 @@ function advanceProjectile(state: MatchState, config: MatchConfig, projectile: P
   const travel = impact?.time ?? 1;
   const target = other(source);
   const defender = state.fighters[target];
-  const hurtbox = worldBox(config.fighters[target].hurtbox, defender.x, defender.y, defender.facing);
-  const hitTime = kind === 'grenade' || projectile.connected || defender.protection || carriedBySummon(state, target) ? undefined
-    : segmentBoxTime(projectile, next, hurtbox, radius, halfWidth);
+  let hit: { box: Box; time: number } | undefined;
+  if (kind !== 'grenade' && !projectile.connected && !protectedFromHit(state, config, target)) {
+    for (const box of contactHurtboxes(state, config, target)) {
+      const time = segmentBoxTime(projectile, next, box, radius, halfWidth);
+      if (time !== undefined && (!hit || time < hit.time)) hit = { box, time };
+    }
+  }
   const crossedTurrets = explodesOnLanding ? [] : opposingTurrets(state, source)
     .filter(tower => !projectile.hitTurrets?.includes(tower.kind))
     .map(tower => ({ tower, time: segmentBoxTime(projectile, next, turretBox(tower), radius, halfWidth) ?? Infinity }))
     .sort((a, b) => a.time - b.time);
   for (const { tower, time } of crossedTurrets) {
-    if (time > travel || (disappearsOnHit && time > (hitTime ?? 1))) break;
+    if (time > travel || (disappearsOnHit && time > (hit?.time ?? 1))) break;
     (projectile.hitTurrets ??= []).push(tower.kind);
     damageTurret(state, tower.kind, events);
     if (disappearsOnHit) return false;
   }
-  if (hitTime !== undefined && hitTime <= travel) {
+  if (hit && hit.time <= travel) {
+    const { box: hurtbox, time: hitTime } = hit;
     const contact = closestPoint(hurtbox, projectile.x + (next.x - projectile.x) * hitTime,
       projectile.y + (next.y - projectile.y) * hitTime);
     if (kind === 'tear') {
@@ -642,7 +815,8 @@ function advanceProjectile(state: MatchState, config: MatchConfig, projectile: P
     }
     projectile.connected = true;
     contacts.push({
-      source, target, action, facing, earnsEnergy: action.slot === 'A' || kind === 'bolt',
+      source, target, action, facing, earnsTears: action.slot === 'A',
+      counterAction: !action.unblockable && defender.facing === -facing ? counterForContact(state, config, target) : undefined,
       blocked: !action.unblockable && defender.guarding && defender.facing === -facing,
       ...contact
     });
@@ -673,7 +847,7 @@ function advanceProjectile(state: MatchState, config: MatchConfig, projectile: P
 
 function moveProjectiles(state: MatchState, config: MatchConfig, contacts: Contact[], events: CombatEvent[]) {
   state.projectiles = state.projectiles.filter(projectile => {
-    const action = config.fighters[projectile.source].actions.find(move => move.id === projectile.actionId);
+    const action = config.fighters[projectile.source].actions.filter(isAttack).find(move => move.id === projectile.actionId);
     if (!action?.projectile) return false;
     const flies = advanceProjectile(state, config, projectile, action,
       projectile.x + projectile.vx, projectile.y + projectile.vy, contacts, events);
@@ -686,9 +860,10 @@ function moveProjectiles(state: MatchState, config: MatchConfig, contacts: Conta
   });
   for (const source of seats) {
     const fighter = state.fighters[source];
-    const action = actionFor(config, state, source);
+    const action = attackFor(config, state, source);
     const throwData = action?.projectile;
-    if (!action || !throwData || fighter.attack?.frame !== action.startup) continue;
+    if (!action || !throwData || fighter.attack?.frame !== action.startup || fighter.attack.projectileSpawned) continue;
+    fighter.attack.projectileSpawned = true;
     const { facing } = fighter;
     const projectile: Projectile = {
       actionId: action.id, source, facing, connected: false,
@@ -709,45 +884,57 @@ function moveProjectiles(state: MatchState, config: MatchConfig, contacts: Conta
 }
 
 function settle(state: MatchState, config: MatchConfig, contacts: Contact[], events: CombatEvent[]) {
-  for (const { attack, blocked } of contacts) {
+  for (const contact of contacts) {
+    if (contact.entityId !== undefined) {
+      removeContactEntity(state, contact.entityId);
+      continue;
+    }
+    const attack = contact.attack;
     if (!attack) continue;
     attack.connected = true;
-    attack.landed = !blocked;
+    if (contact.action.hitTimeline) (attack.connectedGroups ??= []).push(contact.group!);
+    attack.landed ||= !contact.blocked && !contact.counterAction;
   }
   let maxStop = 0;
-  for (const { source, target, action, blocked, facing, x, y, earnsEnergy } of contacts) {
+  for (const { source, target, action, blocked, counterAction, facing, x, y, earnsTears } of contacts) {
     const defender = state.fighters[target];
-    defender.attack = null;
     defender.dash = 0;
+    if (defender.guardCounterLeft !== undefined) defender.guardCounterLeft = 0;
+    maxStop = Math.max(maxStop, Math.min(blocked || counterAction ? 3 : 6, action.stop));
+    if (counterAction) {
+      defender.pendingCounter = counterAction;
+      events.push({ kind: 'parry', source: target, x, y, direction: defender.facing });
+      continue;
+    }
+    defender.attack = null;
     if (blocked) {
       delete defender.reaction;
       defender.guard = Math.max(0, defender.guard - action.guardCost);
       defender.guardWait = config.rules.guardDelay;
       defender.push = Math.sign(facing) * Math.ceil(action.push / 2);
       defender.blockstun = action.blockstun;
-      events.push({ kind: 'block', source, x, y, actionId: action.id, facing });
-      if (defender.guard === 0) {
+      events.push({ kind: 'block', source, x, y, direction: facing, facing, actionId: action.id, ...(action.feedback && { feedback: action.feedback }) });
+      if (defender.guard === 0 && defender.guardBreak === 0) {
         defender.guardBreak = config.rules.guardBreak;
         defender.guarding = false;
-        events.push({ kind: 'break', source, x, y });
+        events.push({ kind: 'break', source, x, y, direction: facing });
       }
-      maxStop = Math.max(maxStop, Math.min(3, action.stop));
       continue;
     }
     const amount = Math.min(defender.hp, Math.floor(action.damage * Math.max(35, 100 - 8 * defender.combo) / 100));
     defender.hp -= amount;
     if (amount > 0) {
-      defender.energy = Math.min(MAX_ENERGY, defender.energy + hurtEnergy);
-      addTearUnits(defender, 5 * TEAR_UNITS_PER_POINT);
-      if (earnsEnergy || action.energyOnHit) {
-        const attacker = state.fighters[source];
-        attacker.energy = Math.min(MAX_ENERGY, attacker.energy + hitEnergy);
-        if (earnsEnergy) addTearUnits(attacker, 8 * TEAR_UNITS_PER_POINT);
+      const attacker = state.fighters[source];
+      if (action.slot && action.slot !== 'ULT') {
+        attacker.energy = Math.min(MAX_ENERGY, attacker.energy + (config.fighters[source].ultimateGain?.onHit ?? 20));
       }
+      defender.energy = Math.min(MAX_ENERGY, defender.energy + (config.fighters[target].ultimateGain?.onHurt ?? 10));
+      addTearUnits(defender, 5 * TEAR_UNITS_PER_POINT);
+      if (earnsTears) addTearUnits(attacker, 8 * TEAR_UNITS_PER_POINT);
       if (action.slow) defender.slow = Math.max(defender.slow, action.slow);
     }
     if (config.training && defender.hp === 0) defender.hp = config.fighters[target].maxHp;
-    defender.combo++;
+    const chain = ++defender.combo;
     defender.hitstun = action.hitstun;
     defender.blockstun = 0;
     defender.guarding = false;
@@ -756,14 +943,17 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
       defender.ground = null;
       defender.vy = -action.lift;
     }
-    defender.reaction = {
-      kind: !defender.ground ? 'air' : action.impact === 'heavy' || action.push >= 12 ? 'heavy' : 'light',
-      elapsed: 0, facing: facing === 1 ? -1 : 1
-    };
-    const impact = action.impact ? { impact: action.impact } : {};
-    events.push({ kind: 'hit', source, x, y, amount, actionId: action.id, facing,
-      reaction: defender.reaction.kind, ...impact });
-    maxStop = Math.max(maxStop, Math.min(6, action.stop));
+    const heavy = action.impact === 'heavy' || action.pose === 'rise' || action.pose === 'finish';
+    const reaction = !defender.ground ? 'air' : heavy || action.push >= 12 ? 'heavy' : 'light';
+    defender.reaction = { kind: reaction, elapsed: 0, facing: facing === 1 ? -1 : 1 };
+    if (action.knockdown) startKnockdown(defender);
+    events.push({
+      kind: 'hit', source, x, y, amount, chain, direction: facing, facing, actionId: action.id, reaction,
+      impact: action.impact, heavy, ...(action.feedback && { feedback: action.feedback })
+    });
+  }
+  for (const fighter of state.fighters) {
+    if (fighter.hitstun > 0 || fighter.recovery) delete fighter.pendingCounter;
   }
   state.freeze = Math.min(maxStop, 60 - state.comboFreeze);
   state.comboFreeze += state.freeze;
@@ -774,6 +964,8 @@ function rampToNextRound(state: MatchState, config: MatchConfig) {
   state.arenaFrame = 0;
   state.remaining = config.rules.roundSeconds * config.rules.ticksPerSecond;
   state.fighters = [spawn(config, 0, state.round), spawn(config, 1, state.round)];
+  delete state.entities;
+  delete state.nextEntityId;
   state.projectiles = [];
   state.turrets = { bolt: null, howitzer: null };
   delete state.summon;
@@ -832,6 +1024,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     state.freeze--;
     return events;
   }
+
   if (tryStartCinematic(state, config, events)) return events;
 
   const [a, b] = state.fighters;
@@ -858,18 +1051,38 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     if (carriedBySummon(state, seat)) continue;
     updateControl(state, config, seat, inputs[seat], events);
     const fighter = state.fighters[seat];
-    if (fighter.attack?.frame === 0 && !fighter.attack.released && actionFor(config, state, seat)?.channel === 'cry') {
+    if (fighter.attack?.frame === 0 && !fighter.attack.released && attackFor(config, state, seat)?.channel === 'cry') {
       addTearUnits(fighter, cryUnitsPerTick);
     }
+    const guardCounter = config.fighters[seat].guardCounter;
+    if (guardCounter) updateGuardWindow(fighter, inputs[seat], guardCounter.windowFrames);
+    // A queued command gets its full lifetime in playable frames, through hitstop.
+    fighter.buffer = fighter.buffer.filter(command => --command.remaining > 0);
   }
   if (state.fighters.every(fighter => fighter.combo === 0 && fighter.blockstun === 0)) {
     state.comboFreeze = 0;
   }
-  const walking = seats.map(seat => !carriedBySummon(state, seat) && motion(state, config, seat, inputs[seat], events));
+  const walking = seats.map(seat => {
+    const fighter = state.fighters[seat];
+    fighter.dashActive = fighter.dash > 0;
+    return !carriedBySummon(state, seat) && motion(state, config, seat, inputs[seat], events);
+  });
   if (!seats.some(seat => carriedBySummon(state, seat))) separate(state, config, previous);
   for (const fighter of state.fighters) releaseUnsupportedGround(fighter, config.arena, state.arenaFrame);
+  for (const seat of seats) faceOpponentWhenFree(state.fighters[seat], state.fighters[other(seat)]);
   const summonContact = advanceSummon(state, config, previous, events);
+  updateEntities(state, config);
   const contacts = collectContacts(state, config, events);
+  for (const contact of entityContacts(state, config)) {
+    if (carriedBySummon(state, contact.target)) continue;
+    const defender = state.fighters[contact.target];
+    const frontal = (contact.entity.x - defender.x) * defender.facing > 0;
+    contacts.push({
+      ...contact, entityId: contact.entity.id,
+      blocked: frontal && defender.guarding,
+      counterAction: frontal ? counterForContact(state, config, contact.target) : undefined
+    });
+  }
   const beforeTurrets = events.length;
   stepTurrets(state, config, events);
   for (const event of events.slice(beforeTurrets)) {
@@ -878,6 +1091,18 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   moveProjectiles(state, config, contacts, events);
   if (summonContact) contacts.push(summonContact);
   settle(state, config, contacts, events);
+  for (const seat of seats) {
+    const fighter = state.fighters[seat];
+    if (!fighter.recovery) continue;
+    if (!fighter.ground) {
+      if (fighter.recovery.phase !== 'fall') fighter.recovery = { phase: 'fall' };
+    } else if (fighter.recovery.phase === 'fall') {
+      fighter.recovery = { phase: 'down', remaining: downFrames };
+      fighter.push = 0;
+      events.push({ kind: 'knockdown', source: seat, x: fighter.x, y: fighter.y });
+    }
+  }
+
   for (const seat of seats) {
     const f = state.fighters[seat];
     const delta = f.x - walkStart[seat];
@@ -909,13 +1134,13 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   for (const seat of seats) {
     const fighter = state.fighters[seat];
     fighter.buffer = [];
-    if (actionFor(config, state, seat)?.channel) fighter.attack = null;
+    if (attackFor(config, state, seat)?.channel) fighter.attack = null;
   }
   state.projectiles = [];
   state.turrets = { bolt: null, howitzer: null };
   delete state.summon;
   delete state.cutIn;
-  state.freeze = 0;
+  delete state.entities;
   state.phase = 'round-over';
   state.phaseTicks = 105;
   return events;

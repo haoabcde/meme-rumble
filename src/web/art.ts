@@ -1,8 +1,4 @@
 import arcade from '../../assets/ui/arcade.webp';
-import whale from '../../assets/fighters/whale.webp';
-import frog from '../../assets/fighters/frog-v2.webp';
-import banana from '../../assets/fighters/banana-reference-portrait.webp';
-import gaga from '../../assets/fighters/gaga-arcade.webp';
 import gagaActions from '../../assets/fighters/gaga-actions.webp';
 import gagaCombo from '../../assets/fighters/gaga-basic-combo.webp';
 import gagaFinish from '../../assets/fighters/gaga-combo-finish.webp';
@@ -23,13 +19,15 @@ import station from '../../assets/arenas/station-bg.webp';
 import dormKit from '../../assets/arenas/dorm-kit.webp';
 import courtKit from '../../assets/arenas/court-kit.webp';
 import stationKit from '../../assets/arenas/station-kit.webp';
+import { roster } from '../content/roster.js';
 import type { ActionDefinition, ArenaDefinition, HitReaction, Projectile, ProjectileDefinition, Turret, TurretKind } from '../core/types.js';
 import { turretFrame } from '../core/turret.js';
 import { summonAtlas } from './dijiang.js';
-import { gagaActionIds } from '../content/gaga.js';
+import { gagaActionIds } from '../content/fighters/gaga.js';
 
 export const arcadeArt = arcade;
-export const fighterArt: Record<string, string> = { whale, frog, banana, gaga };
+declare const __FIGHTER_IMAGES__: Record<string, string>;
+export const fighterArt = Object.fromEntries(roster.map(({ fighter, art }) => [fighter.id, __FIGHTER_IMAGES__[art.portrait]]));
 export const arenaArt: Record<ArenaDefinition['theme'], string> = { dorm, court, harbor, station };
 
 function loadImages(sources: Record<string, string>) {
@@ -41,6 +39,8 @@ function loadImages(sources: Record<string, string>) {
 }
 
 export const sprites = loadImages(fighterArt);
+export const motionArt = loadImages(Object.fromEntries(roster.map(({ fighter, art }) =>
+  [fighter.id, __FIGHTER_IMAGES__[art.motion]])));
 export const backgrounds = loadImages(arenaArt);
 export const { dockProps: harborProps, gantry: harborGantry } = loadImages({ dockProps, gantry });
 export const stageKits = loadImages({ dorm: dormKit, court: courtKit, station: stationKit });

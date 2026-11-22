@@ -1,5 +1,5 @@
 import type { Box, CombatEvent, Projectile, ProjectileDefinition } from '../core/types.js';
-import { bananaActionIds } from '../content/banana.js';
+import { bananaActionIds } from '../content/fighters/banana.js';
 import { drawPixelEffect } from './pixelfx.js';
 
 type Point = { x: number; y: number };

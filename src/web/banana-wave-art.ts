@@ -1,4 +1,4 @@
-import { bananaWaveTitle } from '../content/banana.js';
+import { bananaWaveTitle } from '../content/fighters/banana.js';
 import type { CutIn } from '../core/types.js';
 import sprites from '../../assets/fighters/banana-wave-actions.webp';
 import expressions from '../../assets/fighters/banana-wave-expressions.webp';

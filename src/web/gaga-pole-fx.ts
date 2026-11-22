@@ -1,4 +1,4 @@
-import { gagaActionIds } from '../content/gaga.js';
+import { gagaActionIds } from '../content/fighters/gaga.js';
 import type { CombatEvent } from '../core/types.js';
 
 export type PoleSwing = 'sweep' | 'reverse' | 'launch';

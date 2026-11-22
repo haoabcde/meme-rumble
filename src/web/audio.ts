@@ -1,6 +1,6 @@
-import type { CombatEvent, EventKind, MatchConfig } from '../core/types.js';
-import { gagaActionIds } from '../content/gaga.js';
-import { bananaActionIds } from '../content/banana.js';
+import type { CombatEvent, EventKind, HitFeedback, MatchConfig } from '../core/types.js';
+import { gagaActionIds } from '../content/fighters/gaga.js';
+import { bananaActionIds } from '../content/fighters/banana.js';
 import { gagaContact, type GagaContact } from './gaga-contact.js';
 import { poleSwingFor, type PoleSwing } from './gaga-pole-fx.js';
 
@@ -69,6 +69,12 @@ const bananaEvents: Partial<Record<EventKind, BananaSound>> = {
   'wave-cut-in': { tone: [300, 64, .62, 'triangle', .21], transient: [820, .51, .23], cry: [.64, .13] }
 };
 
+const hitTones: Record<NonNullable<HitFeedback['sound']>, Tone> = {
+  light: [202, 76, .085, 'triangle', .16],
+  heavy: [133, 39, .18, 'triangle', .27],
+  sharp: [440, 138, .075, 'sawtooth', .11]
+};
+
 const tones: Partial<Record<EventKind, Tone>> = {
   swing: [340, 130, .065, 'triangle', .045],
   hit: [144, 42, .15, 'sawtooth', .16],
@@ -89,6 +95,11 @@ const tones: Partial<Record<EventKind, Tone>> = {
   'summon-drop': [238, 62, .59, 'sawtooth', .14],
   'summon-catch': [270, 89, .12, 'triangle', .28],
   'summon-impact': [104, 36, .64, 'triangle', .53],
+  'air-jump': [298, 562, .09, 'triangle', .052],
+  parry: [740, 1480, .12, 'sine', .16],
+  knockdown: [128, 42, .114, 'triangle', .14],
+  rise: [192, 310, .071, 'sine', .044],
+  ultimate: [260, 540, .17, 'triangle', .12],
   ko: [121, 44, .42, 'triangle', .14]
 };
 
@@ -143,6 +154,15 @@ export class FightAudio {
         this.playWind(ctx, wind, ctx.currentTime);
         continue;
       }
+      if (event.kind === 'hit' && event.feedback?.sound) {
+        const key = 'hit:' + event.feedback.sound;
+        if (!bananaCues.has(key)) {
+          bananaCues.add(key);
+          this.playTone(ctx, hitTones[event.feedback.sound], ctx.currentTime);
+        }
+        continue;
+      }
+      if (event.kind === 'ultimate' && (event.actionId === bananaActionIds.wave || event.actionId === gagaActionIds.dijiang)) continue;
       const cue = gagaContact(event, fighters);
       if (!cues.get(event.kind) || cue === 'heavy') cues.set(event.kind, cue);
     }

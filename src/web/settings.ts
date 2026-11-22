@@ -13,16 +13,17 @@ export interface Preferences {
 
 const storageKey = 'meme-rumble-settings-v1';
 const defaults: Duo<Bindings> = [
-  { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', jump: 'KeyK', dash: 'KeyL', A: 'KeyJ', B: 'KeyU', C: 'KeyI' },
+  { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', jump: 'KeyK', dash: 'KeyL', A: 'KeyJ', B: 'KeyU', C: 'KeyI', ULT: 'KeyO' },
   { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown',
-    jump: 'ShiftRight', dash: 'Enter', A: 'Comma', B: 'Period', C: 'Slash' }
+    jump: 'ShiftRight', dash: 'Enter', A: 'Comma', B: 'Period', C: 'Slash', ULT: 'Quote' }
 ];
-const aliases: Partial<Bindings> = { jump: 'Numpad2', dash: 'Numpad3', A: 'Numpad1', B: 'Numpad4', C: 'Numpad5' };
+const aliases: Partial<Bindings> = { jump: 'Numpad2', dash: 'Numpad3', A: 'Numpad1', B: 'Numpad4', C: 'Numpad5', ULT: 'Numpad6' };
 const seats = [0, 1] as const;
-const controls: Control[] = ['left', 'right', 'up', 'down', 'jump', 'dash', 'A', 'B', 'C'];
+const legacyControls: Control[] = ['left', 'right', 'up', 'down', 'jump', 'dash', 'A', 'B', 'C'];
+const controls: Control[] = [...legacyControls, 'ULT'];
 const namedControls: Record<Control, string> = {
   left: '向左', right: '向右', up: '向上', down: '向下 / 防御',
-  jump: '跳跃', dash: '冲刺', A: '基础攻击', B: '专属槽 1', C: '专属槽 2'
+  jump: '跳跃', dash: '冲刺', A: '基础攻击', B: '专属槽 B', C: '专属槽 C', ULT: '大招'
 };
 const namedKeys: Record<string, string> = {
   ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓',
@@ -57,11 +58,31 @@ export function loadPreferences(): Preferences {
     }
     if (typeof value.shake === 'boolean') fresh.shake = value.shake;
     if (value.camera === 'focus') fresh.camera = value.camera;
-    const keys = seats.flatMap(seat => controls.map(action => value.bindings?.[seat]?.[action]));
+    const keys = seats.flatMap(seat => legacyControls.map(action => value.bindings?.[seat]?.[action]));
     if (keys.every(bindable) && new Set(keys).size === keys.length) {
-      fresh.bindings = seats.map(seat =>
-        Object.fromEntries(controls.map(action => [action, value.bindings![seat][action]]))
-      ) as Duo<Bindings>;
+      const used = new Set(keys);
+      const retained = new Set<Seat>();
+      for (const seat of seats) {
+        for (const control of legacyControls) {
+          fresh.bindings[seat][control] = value.bindings![seat][control];
+        }
+        const saved = value.bindings?.[seat]?.ULT;
+        if (bindable(saved) && !used.has(saved)) {
+          fresh.bindings[seat].ULT = saved;
+          used.add(saved);
+          retained.add(seat);
+        }
+      }
+      const available = ['KeyP', 'BracketRight',
+        ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(letter => 'Key' + letter)];
+      for (const seat of seats) {
+        if (retained.has(seat)) continue;
+        if (used.has(fresh.bindings[seat].ULT)) {
+          const fallback = [defaults[seat].ULT, ...available].find(code => bindable(code) && !used.has(code))!;
+          fresh.bindings[seat].ULT = fallback;
+        }
+        used.add(fresh.bindings[seat].ULT);
+      }
     }
   } catch {
     // Local file and private browsing can disable storage. Preferences then apply for the session.
@@ -92,24 +113,17 @@ function element<T extends HTMLElement>(id: string): T {
 }
 
 export function renderGuide(preferences: Preferences) {
+  const ultimateAlias = bindingMap(preferences).get('Numpad6');
   const guideRows = [
     { title: '左右移动', controls: ['left', 'right'] },
-    { title: '跳跃 / 冲刺', controls: ['jump', 'dash'] },
+    { title: '跳跃 / 二段跳', controls: ['jump'] },
+    { title: '地面 / 空中冲刺', controls: ['dash'] },
     { title: '下穿平台', controls: ['down', 'jump'], join: ' + ' },
     { title: '防御', controls: ['down'] },
-    { title: '基础攻击', controls: ['A'] },
-    { title: '姑姑嘎嘎 · 突进挑飞', controls: ['up', 'A'], join: ' + ' },
-    { title: '姑姑嘎嘎 · 肚皮滑行', controls: ['down', 'A'], join: ' + ' },
-    { title: '香蕉猫 · 高压眼泪（20 点，长按额外每秒 10 点）', controls: ['B'] },
-    { title: '姑姑嘎嘎 · 地面铳械塔 / 空中榴弹炮（1 格气）', controls: ['C'] },
-    { title: '姑姑嘎嘎 · 帝江号（地面，3 格气）', controls: ['down', 'C'], join: ' + ' },
-    { title: '香蕉猫 · 地面四连击（连续按四次）', controls: ['A'] },
-    { title: '香蕉猫 · 蕉尖挑飞', controls: ['up', 'A'], join: ' + ' },
-    { title: '香蕉猫 · 泪水滑铲', controls: ['down', 'A'], join: ' + ' },
-    { title: '香蕉猫 · 空中水球（10 点）', controls: ['jump', 'A'], join: ' → ' },
-    { title: '香蕉猫 · ' + bananaWaveTitle + '（地面，3 格气）', controls: ['down', 'C'], join: ' + ' },
-    { title: '香蕉猫 · 哭哭升龙（35 点）', controls: ['up', 'B'], join: ' + ' },
-    { title: '香蕉猫 · 按住哭泣回泪（每秒 20 点）', controls: ['C'] }
+    { title: '普攻 / 空中攻击', controls: ['A'] },
+    { title: '地面挑空', controls: ['up', 'A'], join: ' + ' },
+    { title: '角色专属槽 B / C', controls: ['B', 'C'] },
+    { title: '大招', controls: ['ULT'] }
   ] as const;
   for (const seat of seats) {
     const list = element(seat === 0 ? 'guide-one' : 'guide-two');
@@ -125,6 +139,12 @@ export function renderGuide(preferences: Preferences) {
         key.textContent = keyLabel(preferences.bindings[seat][control]);
         keys.append(key);
       });
+      if (seat === 1 && row.controls[0] === 'ULT' && ultimateAlias?.seat === 1 && ultimateAlias.control === 'ULT' &&
+          preferences.bindings[1].ULT === defaults[1].ULT) {
+        const alias = document.createElement('kbd');
+        alias.textContent = keyLabel('Numpad6');
+        keys.append(' / ', alias);
+      }
       pair.append(label, keys);
       list.append(pair);
     }
@@ -234,4 +254,3 @@ export function installSettings(preferences: Preferences, changed: () => void) {
 export function keyHint(preferences: Preferences, seat: Seat, controlsToShow: Control[], divider = ' / ') {
   return controlsToShow.map(control => keyLabel(preferences.bindings[seat][control])).join(divider);
 }
-import { bananaWaveTitle } from '../content/banana.js';

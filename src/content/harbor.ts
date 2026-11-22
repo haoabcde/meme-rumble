@@ -12,6 +12,7 @@ export const harbor: ArenaDefinition = {
   terrain: '渡船码头 · 横移吊盘',
   description: '三段栈桥可以连续横跳。两翼货柜通往龙门吊检修廊，在廊边可跳上往返中路的吊盘。',
   routes: [['loading', 'gangway', 'west-cabin', 'west-gallery'], ['east-loading', 'overpass', 'east-cabin', 'east-gallery']],
+  artFrame: [],
   platforms: [
     deck('boat-bow', '渡船顶棚', 1, 155, 575, 88, 'ferry'),
     deck('west-shed', '船坞候船室', 2, 460, 936, 211, 'office'),

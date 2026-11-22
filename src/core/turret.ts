@@ -1,4 +1,4 @@
-import { turretKinds, type CombatEvent, type MatchConfig, type MatchState, type Side, type Turret, type TurretKind } from './types.js';
+import { isAttack, turretKinds, type CombatEvent, type MatchConfig, type MatchState, type Side, type Turret, type TurretKind } from './types.js';
 
 export const turretBuildTicks = 20;
 const buildWaveRadius = 112;
@@ -65,7 +65,7 @@ export function stepTurrets(state: MatchState, config: MatchConfig, events: Comb
     }
     if (readyAge <= 0 || readyAge % (turretIntervalSeconds * ticksPerSecond) !== 0) continue;
     const projectileKind = kind === 'bolt' ? 'bolt' : 'grenade';
-    const shot = config.fighters[source].actions.find(move => move.projectile?.kind === projectileKind);
+    const shot = config.fighters[source].actions.filter(isAttack).find(move => move.projectile?.kind === projectileKind);
     const data = shot?.projectile;
     if (!shot || !data) continue;
     const x = turret.x + Math.min(Math.abs(dx) * .5, data.x) * turret.facing;
