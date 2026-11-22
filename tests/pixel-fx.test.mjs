@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createPixelSimulation,selectedEffects,FEATHER_WHITE} from '../src/web/pixel-fx.mjs';
+import {createPixelSimulation,selectedEffects} from '../src/web/pixel-fx.mjs';
+import {holyFanSample} from '../src/web/holy-fan.mjs';
 
 test('all selected library effects render their full timelines with the demo actor hidden',()=>{
  for(const name of Object.keys(selectedEffects)){
@@ -17,8 +18,23 @@ test('all selected library effects render their full timelines with the demo act
   assert.ok(visible,name+' must retain visible effects without its demo actor');
  }
 });
-test('feather bursts and pillar feathers use a white ramp independently of gold light',()=>{
- assert.deepEqual(createPixelSimulation('feather',true).fx.options.palette,FEATHER_WHITE);
- assert.deepEqual(createPixelSimulation('pillar',true).fx.options.featherPalette,FEATHER_WHITE);
- assert.notDeepEqual(createPixelSimulation('pillar',true).fx.options.palette,FEATHER_WHITE);
+test('feathers retain the original warm gold-white material and warm glow',()=>{
+ const feather=createPixelSimulation('feather',true).fx.options;
+ assert.equal(feather.glow,'#fff0c0');assert.equal(feather.palette.at(-1),'#ffffff');
+ assert.notEqual(feather.palette[3].slice(1,3),feather.palette[3].slice(5,7));
+ assert.equal(createPixelSimulation('pillar',true).fx.options.featherPalette,undefined);
+});
+test('all seven moving holy shafts span the full map without stretching the sun',()=>{
+ for(const [foot,height]of [[2024,2448],[300,1100]]){
+  const a=holyFanSample(1,foot,height),b=holyFanSample(1.3,foot,height);
+  assert.equal(a.shafts.length,7);assert.equal(a.alpha,1);
+  assert.ok(new Set(a.shafts.map(s=>s.topX)).size===7);
+  for(let i=0;i<7;i++){
+   assert.ok(a.shafts[i].top< -height);assert.equal(a.shafts[i].bottom,foot);
+   assert.notEqual(a.shafts[i].topX,b.shafts[i].topX);
+   assert.ok(a.shafts[i].topWidth>0&&Number.isFinite(a.shafts[i].topX));
+  }
+ }
+ assert.equal(holyFanSample(0,2024,2448).alpha,0);
+ assert.equal(holyFanSample(3,2024,2448).alpha,0);
 });

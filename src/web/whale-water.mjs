@@ -91,21 +91,25 @@ export function createWaterRenderer(images){
  }
  function motion(g,f,state,action,layer){
   if(layer!=='front')return;
+  // Author all trails in the correct right-facing space, then mirror the complete transform.
+  // Mirroring just the sprite after a world-space rotation reversed the left-facing slash angle.
+  g.save();g.translate(Math.round(f.x),Math.round(f.y));g.scale(f.facing,1);
   const ev=f.poseEvent,age=ev?state.arenaFrame-ev.tick:999;
-  if(ev?.kind==='dash'&&age<15)sprite(g,runes[1],f.x-f.facing*58,f.y-65,188,clamp((15-age)/10)*.62,0,f.facing);
-  if((ev?.kind==='jump'||ev?.kind==='air-jump')&&age<15){sprite(g,water[1],f.x-f.facing*13,f.y+22,59,clamp((15-age)/10)*.48,.15,f.facing);sprite(g,runes[2],f.x,f.y+10,39,clamp((15-age)/10)*.35);droplets(g,f.x,f.y+14,age,8,.5);}
-  if(!f.attack||!action)return;
+  if(ev?.kind==='dash'&&age<15)sprite(g,runes[1],-58,-65,188,clamp((15-age)/10)*.62);
+  if((ev?.kind==='jump'||ev?.kind==='air-jump')&&age<15){sprite(g,water[1],-13,22,59,clamp((15-age)/10)*.48,.15);sprite(g,runes[2],0,10,39,clamp((15-age)/10)*.35);droplets(g,0,14,age,8,.5);}
+  if(!f.attack||!action){g.restore();return;}
   const frame=f.attack.frame;
   if(action.slot==='A'){
-   const p=(frame-action.startup+2)/11;if(p<0||p>1)return;
+   const p=(frame-action.startup+2)/11;if(p<0||p>1){g.restore();return;}
    const finish=action.id==='common-finish';
-   sprite(g,runes[0],f.x+f.facing*80,f.y-(finish?118:74),finish?200:172,Math.sin(p*Math.PI)*.7,finish?-.6:(action.id==='common-sweep'?.22:-.18),f.facing);
-   sprite(g,water[1],f.x+f.facing*59,f.y-(finish?120:72),finish?102:82,Math.sin(p*Math.PI)*.3,finish?-.3:Math.PI/2,f.facing);
-   droplets(g,f.x+f.facing*108,f.y-80,frame,8,.5);
+   sprite(g,runes[0],80,-(finish?118:74),finish?200:172,Math.sin(p*Math.PI)*.7,finish?-.6:(action.id==='common-sweep'?.22:-.18));
+   sprite(g,water[1],59,-(finish?120:72),finish?102:82,Math.sin(p*Math.PI)*.3,finish?-.3:Math.PI/2);
+   droplets(g,108,-80,frame,8,.5);
   }
   if(action.whale==='rice'||action.whale==='rice-up'){
-   const p=(frame-8)/9;if(p>=0&&p<1)sprite(g,runes[1],f.x+f.facing*40,f.y-94,75,(1-p)*.32,action.whale==='rice-up'?-Math.PI/3:.2,f.facing);
+   const p=(frame-8)/9;if(p>=0&&p<1)sprite(g,runes[1],40,-94,75,(1-p)*.32,action.whale==='rice-up'?-Math.PI/3:.2);
   }
+  g.restore();
  }
  return{whales,pool,orbit,motion};
 }

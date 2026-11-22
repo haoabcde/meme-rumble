@@ -21,7 +21,7 @@ const frac = (x) => x - Math.floor(x);
 
 export function create(o) {
   const C = fit(o.palette, 8), N = Math.max(3, o.shafts | 0), R = new Rng(o.seed), mid = (N - 1) / 2;
-  const WING = o.featherPalette ? fit(o.featherPalette, 6) : [C[2], C[3], C[4], C[5], C[6], WHITE];
+  const WING = [C[2], C[3], C[4], C[5], C[6], WHITE];
   const ps = new Particles({ rng: R, ground: () => 0, sparks: [WHITE, C[6], C[5], C[3]] });
   const lights = new Lights(), feathers = new Feathers(R, 0);
   // the shafts: spread angle, how fast each widens, how bright, its pulse offset
@@ -187,7 +187,7 @@ export function create(o) {
       lights.update(dt);
     },
     drawBack(p) {
-      fan(p);
+      if (o.fan !== false) fan(p);
       sigil(p, true);
       feathers.draw(p, WING, "back");
       ps.draw(p, "back");
