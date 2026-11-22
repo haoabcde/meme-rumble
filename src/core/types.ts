@@ -213,6 +213,9 @@ export type Recovery = { phase: 'fall' } | { phase: 'down' | 'rise'; remaining: 
 
 export interface FighterState {
   ascendUntil?: number;
+  /** Presentation clocks use arena time, independent of interruptible hit poses. */
+  ascendVisual?: { tick: number; x: number; y: number };
+  frogCasts?: { id: string; tick: number; x: number; y: number; facing: Side; powered: boolean; startup: number }[];
   frogGlobalReady?: number;
 
   bindUntil?: number;

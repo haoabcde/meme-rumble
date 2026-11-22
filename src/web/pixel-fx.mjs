@@ -6,7 +6,11 @@ import * as pillar from '../../assets/特效库/PixelFX/src/fx/holy/holy-pillar.
 import * as halo from '../../assets/特效库/PixelFX/src/fx/holy/halo.js';
 import * as feather from '../../assets/特效库/PixelFX/src/fx/holy/feather-burst.js';
 import * as rays from '../../assets/特效库/PixelFX/src/fx/weather/god-rays.js';
-export const selectedEffects={blunt,burst,uppercut,pillar,halo,feather,rays};
+import * as thrust from '../../assets/特效库/PixelFX/src/fx/melee/thrust.js';
+import * as spark from '../../assets/特效库/PixelFX/src/fx/impacts/hit-spark.js';
+import * as smite from '../../assets/特效库/PixelFX/src/fx/holy/smite.js';
+import * as sun from '../../assets/特效库/PixelFX/src/fx/holy/sunburst.js';
+export const selectedEffects={blunt,burst,uppercut,pillar,halo,feather,rays,thrust,spark,smite,sun};
 export const GOLD=['#342032','#75402e','#b46c26','#e6a53a','#ffcf62','#ffeaa4','#fff8d8','#ffffff'];
 const stores=new Map();
 export function pixelFrame(name,seconds,layer='both',gold=false){

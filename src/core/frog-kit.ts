@@ -14,13 +14,19 @@ export function frogCanStart(action:FighterAction,f:FighterState,state:MatchStat
 }
 export function startFrog(action:ActionDefinition,f:FighterState,state:MatchState){
  if(action.frog==='global')f.frogGlobalReady=state.arenaFrame+FROG_RULES.globalCooldown;
+ if(action.slot==='A'||action.frog==='laugh'||action.frog==='global'){
+  (f.frogCasts??=[]).push({id:action.id,tick:state.arenaFrame,x:f.x,y:f.y,facing:f.facing,powered:frogPowered(f,state),startup:action.startup});
+ }
 }
 export function finishAscension(f:FighterState,state:MatchState){
  if(f.attack?.id!=='frog-ascend')return;
  f.ascendUntil=state.arenaFrame+FROG_RULES.buffTicks;f.energy=300;
+ f.ascendVisual={tick:state.arenaFrame,x:f.x,y:f.y};
  f.poseEvent={kind:'ascend',tick:state.arenaFrame};
 }
 export function tickAscension(f:FighterState,state:MatchState){
+ if(f.ascendVisual&&state.arenaFrame-f.ascendVisual.tick>220)delete f.ascendVisual;
+ if(f.frogCasts?.length){f.frogCasts=f.frogCasts.filter(c=>state.arenaFrame-c.tick<210);if(!f.frogCasts.length)delete f.frogCasts;}
  if(f.ascendUntil===undefined)return;
  const remaining=Math.max(0,f.ascendUntil-state.arenaFrame);
  f.energy=300*remaining/FROG_RULES.buffTicks;

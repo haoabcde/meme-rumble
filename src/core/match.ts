@@ -221,7 +221,7 @@ function updateControl(
     if (cost) f.energy = (f.energy ?? 0) - cost;
     // A single accepted command consumes competing actions from the same sampled frame.
     f.buffer = f.buffer.filter(item => item.sampledAt !== command.sampledAt);
-    if(!('counterTo' in action))startFrog(action,f,state);
+    if(definition.id==='frog'&&!('counterTo' in action))startFrog(action,f,state);
     startAction(f, 'counterTo' in action?action.id:startWhale(action,f,state), seat, events, action.slot === 'ULT');
     return;
   }

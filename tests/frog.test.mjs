@@ -39,10 +39,24 @@ test('global wave hits once across the complete map and upper platforms, with a 
 test('ascension freezes battle during its cinematic and grants exactly 900 playable ticks without healing',()=>{
  const t=setup(0,1200);t.caster.energy=300;t.caster.hp=612;t.press('ULT');assert.equal(t.caster.energy,0);const time=t.state.arenaFrame,remaining=t.state.remaining;
  t.run(59,input(['A','jump','dash'],1),input(['A'], -1));assert.equal(t.state.arenaFrame,time);assert.equal(t.state.remaining,remaining);assert.equal(t.caster.hp,612);
+ assert.equal(t.caster.ascendVisual,undefined);assert.equal(t.caster.ascendUntil,undefined);
  t.tick();assert.equal(t.caster.attack,null);assert.equal(t.caster.ascendUntil-time,900);assert.equal(t.caster.energy,300);
+ assert.deepEqual(t.caster.ascendVisual,{tick:time,x:t.caster.x,y:t.caster.y});
  t.run(450);assert.equal(t.caster.energy,150);const before=t.caster.ascendUntil;t.press('ULT');assert.equal(t.caster.attack,null);assert.equal(t.caster.ascendUntil,before);
  t.state.freeze=8;const age=t.state.arenaFrame,energy=t.caster.energy;t.run(8);assert.equal(t.state.arenaFrame,age);assert.equal(t.caster.energy,energy);
  t.run(449);assert.equal(t.caster.ascendUntil,undefined);assert.equal(t.caster.energy,0);assert.equal(t.caster.hp,612);
+});
+
+test('post-cinematic transformation and cast trails retain their own clocks through hits, hitstop and replay',()=>{
+ const t=setup(0,1200);t.caster.energy=300;t.press('ULT');t.run(60);
+ const reveal=structuredClone(t.caster.ascendVisual);t.press('A');const cast=structuredClone(t.caster.frogCasts[0]);
+ assert.equal(cast.powered,true);assert.equal(cast.id,'common-jab');assert.equal(cast.tick,reveal.tick+1);
+ t.caster.poseEvent={kind:'hurt',tick:t.state.arenaFrame};t.caster.hitstun=10;
+ t.state.freeze=6;const frozen=structuredClone(t.state);t.run(6);
+ assert.equal(t.state.arenaFrame,frozen.arenaFrame);assert.deepEqual(t.caster.ascendVisual,reveal);assert.deepEqual(t.caster.frogCasts,[cast]);
+ const replay=structuredClone(t.state);for(let i=0;i<190;i++){assert.deepEqual(t.tick(),step(replay,[NEUTRAL,NEUTRAL],t.config));assert.deepEqual(t.state,replay);}
+ assert.deepEqual(t.caster.ascendVisual,reveal); // Still alive at three seconds, including feather drift.
+ t.run(31);assert.equal(t.caster.ascendVisual,undefined);assert.equal(t.caster.frogCasts,undefined);
 });
 test('angel damage and reach are 1.5x for every combo stage and all laugh waves',()=>{
  const t=setup();t.caster.ascendUntil=900;
