@@ -61,6 +61,52 @@ test('projectile spawns once, mirrors facing, and hits after the cast ends', () 
   }
 });
 
+test('entities can juggle after hitstun expires, and landing protection starts on the contact frame', () => {
+  const airborneHit = {
+    ...entity, offset: { x: 55, y: -180 }, lifetime: 60,
+    hitbox: { x: 0, y: -40, w: 20, h: 180 }, push: 0, hitstun: 2
+  };
+  const trailingHit = { ...airborneHit, id: 'trailing-hit', velocity: { x: 6, y: 0 } };
+  const atGround = {
+    ...entity, id: 'landing-probe', offset: { x: 240, y: -5 }, velocity: { x: 0, y: 0 },
+    lifetime: 100, hitbox: { x: 0, y: 0, w: 20, h: 5 }, push: 0
+  };
+  for (const source of [0, 1]) {
+    const { state, tick } = fixture([airborneHit, trailingHit, atGround], 240, source);
+    const target = 1 - source;
+    const defender = state.fighters[target];
+    const jump = { ...NEUTRAL, pressed: ['jump'] };
+    const nextEvent = kind => {
+      for (let frame = 0; frame < 60; frame++) {
+        const event = tick().find(event => event.kind === kind);
+        if (event) return event;
+      }
+      assert.fail('Expected ' + kind);
+    };
+    assert.ok((target === 0 ? tick(jump) : tick(NEUTRAL, jump)).some(event => event.kind === 'jump'));
+    assert.equal(nextEvent('hit').chain, 1);
+    assert.equal(defender.ground, null);
+    const stunDuration = state.freeze + airborneHit.hitstun;
+    for (let frame = 0; frame < stunDuration; frame++) tick();
+    assert.equal(defender.hitstun, 0);
+    assert.equal(defender.combo, 1);
+    assert.equal(nextEvent('hit').chain, 2);
+    assert.equal(defender.ground, null);
+    assert.ok(defender.vy > 0, 'the trailing projectile hits during descent');
+    const hp = defender.hp;
+
+    assert.equal(nextEvent('knockdown').source, target);
+    assert.equal(defender.ground, 'floor');
+    assert.equal(defender.hp, hp);
+    assert.deepEqual(state.entities.map(current => current.definition.id), ['landing-probe']);
+    assert.equal(nextEvent('rise').source, target);
+    assert.equal(defender.hp, hp);
+    assert.equal(nextEvent('hit').chain, 1);
+    assert.equal(defender.recovery, null);
+    assert.equal(defender.hp, hp - atGround.damage);
+  }
+});
+
 test('a stationary summon keeps its spawn position and is consumed by a block', () => {
   const summon = { ...entity, offset: { x: 100, y: -60 }, velocity: { x: 0, y: 0 } };
   const { state, tick } = fixture([summon], 160);

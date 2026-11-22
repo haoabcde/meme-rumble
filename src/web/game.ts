@@ -702,6 +702,7 @@ function trainingState(seat: Seat) {
   if (recovery) {
     return recoveryLabels[recovery.phase] + (recovery.phase === 'fall' ? '' : ' · ' + recovery.remaining + ' 帧');
   }
+  if (fighter.launched) return '击飞 · 等待落地';
   if (fighter.guardBreak) return '破防 · ' + fighter.guardBreak + ' 帧';
   if (fighter.hitstun) return '受击 · ' + fighter.hitstun + ' 帧';
   if (fighter.blockstun) return '格挡 · ' + fighter.blockstun + ' 帧';
@@ -737,7 +738,9 @@ function renderHUD() {
     setMeter(healthBars[seat], fighter.hp, config.fighters[seat].maxHp);
     const life = lifeDisplay[seat] ?? { hp: fighter.hp, trail: fighter.hp, holdUntil: 0, frame: state.frame };
     if (fighter.hp > life.hp) life.trail = fighter.hp;
-    if (fighter.hp < life.hp || fighter.hitstun || fighter.recovery) life.holdUntil = state.frame + 18;
+    if (fighter.hp < life.hp || (state.phase === 'fight' && (fighter.hitstun || fighter.recovery))) {
+      life.holdUntil = state.frame + 18;
+    }
     if (state.frame > life.holdUntil) {
       life.trail = Math.max(fighter.hp, life.trail - config.fighters[seat].maxHp * .012 * Math.max(0, state.frame - life.frame));
     }

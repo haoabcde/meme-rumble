@@ -172,6 +172,10 @@ export interface Ruleset {
   airDashPauseGravity?: boolean;
   inputBuffer: number;
   comboControlLimit: number;
+  /** Positive number of playable ticks spent down before starting to rise. */
+  knockdownFrames?: number;
+  /** Positive number of playable ticks spent rising before control returns. */
+  riseFrames?: number;
 }
 
 export interface MatchConfig {
@@ -215,6 +219,8 @@ export interface FighterState {
   guardWait: number;
   guardBreak: number;
   hitstun: number;
+  /** Airborne hit reaction that locks control until landing and allows follow-up hits. */
+  launched?: boolean;
   blockstun: number;
   push: number;
   dash: number;
@@ -272,6 +278,8 @@ export interface MatchState {
 }
 
 export const TICK_RATE = 60;
+export const DEFAULT_KNOCKDOWN_FRAMES = 30;
+export const DEFAULT_RISE_FRAMES = 18;
 export const ENERGY_PER_STOCK = 100;
 export const MAX_ENERGY = 3 * ENERGY_PER_STOCK;
 export const NEUTRAL: InputFrame = { x: 0, y: 0, pressed: [] };
