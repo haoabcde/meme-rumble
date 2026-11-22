@@ -126,8 +126,8 @@ export interface FighterDefinition {
   hurtbox: Box;
   bodyWidth: number;
   actions: FighterAction[];
-  /** A fresh grounded guard can turn a frontal contact into this fighter's named action. */
-  guardCounter?: { windowFrames: number; actionId: string };
+  /** Frontal ground guard counter. whileGuarding opts into held guard instead of a fresh-press window. */
+  guardCounter?: { windowFrames: number; actionId: string; whileGuarding?: boolean };
   ultimateCost?: number;
   ultimateGain?: UltimateGain;
 }
@@ -208,7 +208,7 @@ export interface Attack {
 export type Recovery = { phase: 'fall' } | { phase: 'down' | 'rise'; remaining: number };
 
 export interface FighterState {
-  whale?: { riceCount: number; lastRice: number; spinReady: number };
+  whale?: { riceCount: number; lastRice: number };
   bindUntil?: number;
   guardChain?: { source: number; count: number; until: number };
   jumpCount?: number;

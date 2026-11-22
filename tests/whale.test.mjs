@@ -5,6 +5,7 @@ import {whale} from '../dist/content/fighters/whale.js';
 import {rules,testFighter} from '../dist/content/demo.js';
 import {arenas} from '../dist/content/arenas.js';
 import {NEUTRAL} from '../dist/core/types.js';
+import {contactMouthBlend} from '../src/web/whale-ultimate.mjs';
 const input=(pressed=[],x=0,y=0)=>({pressed,x,y});
 function setup(source=0,sep=320){
  const arena={...arenas[0],width:2200,height:1000,left:100,right:2100,floor:800,spawn:[600,600+sep],platforms:[]};
@@ -32,11 +33,11 @@ test('tail requires two actual blocks before normal third contact; a lone third 
   const ev=alone.run(7,...guard);assert.equal(alone.target.hp,1000);assert.equal(ev.some(e=>e.kind==='break'),false);
  }
 });
-test('rice normal/up share five-throw greed and a 90-playable-tick reset; counter rice does not increment',()=>{
+test('rice normal/up share five-throw greed and reset at exactly 24 playable ticks',()=>{
  const t=setup(0,1300);
  for(let i=0;i<5;i++){t.press('B',i%2?-1:0);t.run(20);}
  assert.equal(t.caster.whale.riceCount,5);t.press('B');assert.equal(t.caster.attack.id,'whale-eat');
- t.run(30);t.press('B');assert.equal(t.caster.attack.id,'whale-eat');t.run(91);t.press('B');assert.equal(t.caster.attack.id,'rice');
+ t.run(22);t.press('B');assert.equal(t.caster.attack.id,'whale-eat');t.run(23);t.press('B');assert.equal(t.caster.attack.id,'rice');
  assert.equal(t.caster.whale.riceCount,1);
 });
 test('rice direct hit damages and roots, floor contact only roots, airborne root drops vertically, and rice expires',()=>{
@@ -81,11 +82,48 @@ test('rice rides a moving platform and expires without being restored by a round
  t.config.training=false;t.target.hp=1;t.caster.attack={id:'common-jab',frame:5,connected:false,landed:false};t.target.x=t.caster.x+90;t.tick();assert.equal(t.state.phase,'round-over');assert.equal(t.state.entities,undefined);
  t.run(110);assert.equal(t.state.fighters[0].whale,undefined);assert.equal(t.state.fighters[0].bindUntil,undefined);assert.equal(t.state.fighters[0].energy,0);
 });
-test('ultimate pays 300 once, slows on first contact and delivers eight equal hits after cast ends',()=>{
+test('ultimate delivers twelve equal hits, then accelerates onwards without a thirteenth hit or early despawn',()=>{
  for(const source of [0,1]){
   const t=setup(source,650);t.press('ULT');assert.equal(t.caster.attack,null);t.caster.energy=300;t.press('ULT');assert.equal(t.caster.energy,0);
-  const ev=t.run(220),hits=ev.filter(e=>e.kind==='hit'&&e.source===source);assert.equal(hits.length,8,JSON.stringify(hits));assert.ok(hits.every(e=>e.amount===35));assert.equal(t.target.hp,720);assert.equal(t.caster.energy,0);assert.equal(t.caster.attack,null);
+  const hits=[];for(let i=0;i<220&&hits.length<12;i++)hits.push(...t.tick().filter(e=>e.kind==='hit'&&e.source===source));
+  assert.equal(hits.length,12);assert.ok(hits.every(e=>e.amount===35));assert.equal(t.target.hp,580);assert.equal(t.caster.energy,0);assert.equal(t.caster.attack,null);
+  const e=t.state.entities.find(e=>e.definition.behavior==='orca');assert.ok(e);assert.equal(e.hits,12);assert.equal(e.endingAge,undefined);assert.equal(Math.abs(e.vx),32);
+  const x=e.x,tick=t.state.arenaFrame;t.run(5);assert.equal(Math.abs(e.x-x),32*(t.state.arenaFrame-tick));assert.equal(t.target.hp,580);assert.ok(t.state.entities.some(v=>v.id===e.id));
+  t.run(180);assert.equal(t.state.entities.length,0);
  }
+});
+test('rice has no apex: normal descends straight to six body widths, up follows a faster 60-degree line',()=>{
+ for(const source of [0,1]){
+  const t=setup(source,1300),x=t.caster.x,sign=t.caster.facing;t.press('B');t.run(8);const e=t.state.entities[0],vx=e.vx,vy=e.vy;
+  assert.equal(Math.abs(vx),28);assert.ok(vy>0);for(let i=0;i<8;i++){t.tick();assert.equal(e.vx,vx);assert.equal(e.vy,vy);}
+  t.run(12);assert.ok(e.grounded);assert.ok(Math.abs(e.x-(x+sign*432))<1e-7);
+  const up=setup(source,1300);up.press('B',-1);up.run(8);const u=up.state.entities[0],ux=u.vx,uy=u.vy;
+  assert.ok(Math.abs(Math.atan2(-uy,Math.abs(ux))*180/Math.PI-60)<1e-7);assert.ok(Math.hypot(ux,uy)>Math.hypot(vx,vy));
+  for(let i=0;i<12;i++){up.tick();assert.equal(u.vx,ux);assert.equal(u.vy,uy);}
+ }
+});
+test('holding the basin well beyond four ticks counters later melee and remote contacts on either seat',()=>{
+ for(const source of [0,1])for(const remote of [false,true]){
+  const t=setup(source,remote?240:95),enemy=1-source,guard=source===0?[input([],0,1),NEUTRAL]:[NEUTRAL,input([],0,1)];t.run(60,...guard);
+  assert.equal(t.caster.guardCounterLeft,0);
+  if(remote){const orb={id:'orb',spawnFrame:0,offset:{x:190,y:-80},velocity:{x:0,y:0},lifetime:10,hitbox:{x:-25,y:-25,w:50,h:50},damage:50,hitstun:10,blockstun:8,guardCost:10,push:2,lift:0,stop:2};
+   t.config.fighters[enemy]={...testFighter,actions:[{...testFighter.actions[0],id:'cast',entities:[orb],hitTimeline:[]}]};t.target.attack={id:'cast',frame:-1,connected:false,landed:false};
+  }else t.target.attack={id:'test-a',frame:4,connected:false,landed:false};
+  const events=t.tick(...guard);assert.ok(events.some(e=>e.kind==='parry'&&e.source===source));assert.equal(t.caster.hp,1000);assert.equal(t.caster.guard,100);
+  t.run(8,...guard);assert.ok(t.state.entities.some(e=>e.definition.behavior==='counter'));
+ }
+});
+test('both skill-two variants can be cast back-to-back as soon as their action recovery ends',()=>{
+ for(const source of [0,1]){
+  const t=setup(source,1000);
+  for(const up of [false,true,false,true]){const time=t.state.arenaFrame;t.press('C',up?-1:0);assert.equal(t.caster.attack.id,up?'tornado-up':'tornado');for(let i=0;i<40&&t.caster.attack;i++)t.tick();assert.equal(t.caster.attack,null);assert.ok(t.state.arenaFrame-time<40);}
+ }
+});
+test('orca is fast whenever out of contact and its mouth opens only in response to actual contact',()=>{
+ const t=setup(0,1300);t.caster.energy=300;t.press('ULT');t.run(64);const e=t.state.entities[0];assert.equal(Math.abs(e.vx),32);assert.equal(contactMouthBlend({...e,age:180}),0);
+ const x=e.x;t.run(5);assert.equal(e.x-x,160);assert.equal(contactMouthBlend(e),0);
+ t.target.x=e.x+205;for(let i=0;i<4;i++)t.tick();assert.ok((e.hits??0)>0);assert.equal(Math.abs(e.vx),3.8);assert.ok(contactMouthBlend(e)>.9);
+ t.target.x=2050;t.target.y=300;t.target.ground=null;t.target.vy=0;t.run(16);assert.equal(Math.abs(e.vx),32);assert.equal(contactMouthBlend(e),0);
 });
 test('orca contacts forward dashes and single jumps, but second-jump apex can clear it',()=>{
  for(const source of [0,1]){

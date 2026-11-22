@@ -215,6 +215,7 @@ export function defineFighter(spec: FighterPackage): RosterEntry {
     }
   }
   if (guardCounter) {
+    if(guardCounter.whileGuarding!==undefined&&typeof guardCounter.whileGuarding!=='boolean')throw Error(id+' 的持续防反开关须为布尔值');
     if (!Number.isSafeInteger(guardCounter.windowFrames) || guardCounter.windowFrames < 1) {
       throw Error(id + ' 的防反窗口须为正整数帧');
     }

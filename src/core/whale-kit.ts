@@ -2,17 +2,15 @@ import type {ActionDefinition,Box,FighterState,MatchConfig,MatchState} from './t
 import type {EntityState} from './entities.js';
 import {platformAt} from './terrain.js';
 
-export const WHALE_RULES=Object.freeze({riceLife:120,bind:60,greed:5,greedReset:90,wind:20,whale:48,windSpeed:24,spinCooldown:180,ultimateHits:8,hitGap:7});
-export function kit(f:FighterState){return f.whale??={riceCount:0,lastRice:-1000,spinReady:0};}
-export function canStartWhale(action:ActionDefinition,f:FighterState,state:MatchState){return !action.whale?.startsWith('spin')||state.arenaFrame>=kit(f).spinReady;}
+export const WHALE_RULES=Object.freeze({riceLife:120,bind:60,greed:5,greedReset:24,riceSpeed:28,riceUpSpeed:32,riceRange:432,wind:20,whale:48,windSpeed:24,orcaSpeed:32,orcaBiteSpeed:3.8,ultimateHits:12,hitGap:7});
+export function kit(f:FighterState){return f.whale??={riceCount:0,lastRice:-1000};}
 export function startWhale(action:ActionDefinition,f:FighterState,state:MatchState){
  if(!action.whale)return action.id;
  const k=kit(f),now=state.arenaFrame;
  if(action.whale==='rice'||action.whale==='rice-up'){
-  if(now-k.lastRice>=90)k.riceCount=0;k.lastRice=now;
-  if(k.riceCount>=5)return 'whale-eat';k.riceCount++;
+  if(now-k.lastRice>=WHALE_RULES.greedReset)k.riceCount=0;k.lastRice=now;
+  if(k.riceCount>=WHALE_RULES.greed)return 'whale-eat';k.riceCount++;
  }
- if(action.whale?.startsWith('spin'))k.spinReady=now+180;
  return action.id;
 }
 export function kitLifetime(e:EntityState){return e.endingAge??(e.windTicks!==undefined?e.windTicks+28:e.definition.lifetime);}
@@ -24,9 +22,11 @@ export function initializeKitEntity(e:EntityState,state:MatchState,config:MatchC
  // The disc is at the nose on the spawn tick, not at the body's centre.
  if(b==='orca')e.originX=e.x+e.facing*202.5;
  if(b==='rice'){
-  const duration=e.definition.id.includes('up')?50:32;
-  const distance=72*(duration===50?3.7:2)-26;
-  e.vx=e.facing*Math.sign(e.definition.velocity.x||1)*distance/duration;e.vy=(86-.5*.75*duration*duration)/duration;
+  const up=e.definition.id.includes('up'),sign=e.facing*Math.sign(e.definition.velocity.x||1);
+  // No arc: normal flies straight from the pocket to six body widths away.
+  // Up throws remain on a 60-degree ray; neither throw accelerates under gravity.
+  e.vx=sign*(up?WHALE_RULES.riceUpSpeed*.5:WHALE_RULES.riceSpeed);
+  e.vy=up?-WHALE_RULES.riceUpSpeed*Math.sin(Math.PI/3):87/(WHALE_RULES.riceRange-26)*WHALE_RULES.riceSpeed;
  }
 }
 export function advanceKitEntity(e:EntityState,state:MatchState,config:MatchConfig){
@@ -35,13 +35,16 @@ export function advanceKitEntity(e:EntityState,state:MatchState,config:MatchConf
   if(e.grounded){if(e.support&&e.support!=='floor'){
    const raw=config.arena.platforms.find(p=>p.id===e.support);if(raw){const now=platformAt(raw,state.arenaFrame),prev=platformAt(raw,state.arenaFrame-1);e.x+=now.left-prev.left;e.y+=now.y-prev.y;}
   }return true;}
-  e.x+=e.vx;e.y+=e.vy+.375;e.vy+=.75;
+  e.x+=e.vx;e.y+=e.vy;
   if(e.vy>0){let floor=config.arena.floor-5,support='floor';for(const raw of config.arena.platforms){const p=platformAt(raw,state.arenaFrame);if(e.x>=p.left&&e.x<=p.right&&(e.previousY??e.y)<=p.y-5&&e.y>=p.y-5&&p.y-5<floor){floor=p.y-5;support=p.id;}}
-   if((e.previousY??e.y)<=floor&&e.y>=floor){e.grounded=true;e.support=support;e.y=floor;e.vx=e.vy=0;}}
+   if((e.previousY??e.y)<=floor&&e.y>=floor){const portion=(floor-(e.previousY??e.y))/e.vy;e.x=(e.previousX??e.x)+e.vx*portion;e.grounded=true;e.support=support;e.y=floor;e.vx=e.vy=0;}}
+  if(e.x<config.arena.left-64||e.x>config.arena.right+64||e.y< -64)e.endingAge=e.age;
   return true;
  }
  if(b==='spin'){if(e.age<(e.windTicks??20))e.x+=e.vx;return true;}
  if(b==='spin-up'||b==='counter')return true;
+ const biting=(e.hits??0)<WHALE_RULES.ultimateHits&&e.lastContactAge!==undefined&&e.age-e.lastContactAge<=WHALE_RULES.hitGap+1;
+ e.vx=e.facing*(biting?WHALE_RULES.orcaBiteSpeed:WHALE_RULES.orcaSpeed);
  e.x+=e.vx;
  if(e.x<config.arena.left-400||e.x>config.arena.right+400)e.endingAge=e.age;
  return true;
@@ -50,7 +53,7 @@ export function kitContactAllowed(e:EntityState,f:FighterState,target:number){
  const b=e.definition.behavior;if(!b)return true;
  if(e.age>=(e.endingAge??Infinity)||e.age<(e.nextHitAge??0))return false;
  if(b==='orca'){
-  if((e.hits??0)>=8)return false;
+  if((e.hits??0)>=WHALE_RULES.ultimateHits)return false;
   return !(f.jumpCount===2&&f.secondApex&&f.y<e.y-90);
  }
  if(e.hitSeats?.includes(target))return false;
@@ -76,9 +79,10 @@ export function kitContactResolved(e:EntityState,state:MatchState,target:0|1,blo
   return false;
  }
  if(b==='orca'){
-  if(countered){e.hits=8;e.endingAge=e.age+8;return true;}
-  e.vx=e.facing*3.8;e.nextHitAge=e.age+7;
-  if(e.hits>=8)e.endingAge=e.age+12;
+  if(countered){e.hits=WHALE_RULES.ultimateHits;e.endingAge=e.age+8;return true;}
+  e.lastContactAge=e.age;e.firstContactAge??=e.age;
+  e.vx=e.facing*(e.hits>=WHALE_RULES.ultimateHits?WHALE_RULES.orcaSpeed:WHALE_RULES.orcaBiteSpeed);
+  e.nextHitAge=e.age+WHALE_RULES.hitGap;
  }
  return true;
 }

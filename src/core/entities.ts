@@ -36,6 +36,8 @@ export interface EntityState {
   nextHitAge?: number;
   hitSeats?: number[];
   endingAge?: number;
+  firstContactAge?: number;
+  lastContactAge?: number;
   id: number;
   owner: 0 | 1;
   slot: Slot;

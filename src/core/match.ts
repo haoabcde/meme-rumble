@@ -5,7 +5,7 @@ import type {
 import { platformAt, platformOffset } from './terrain.js';
 import { MAX_ENERGY } from './types.js';
 import { entityContacts, resolveContactEntity, updateEntities } from './entities.js';
-import {canStartWhale,startWhale} from './whale-kit.js';
+import {startWhale} from './whale-kit.js';
 
 const seats = [0, 1] as const;
 const slotPriority = ['ULT', 'C', 'B', 'A'] as const;
@@ -204,7 +204,6 @@ function updateControl(
     Number(Boolean(b.direction)) - Number(Boolean(a.direction)) ||
     slotPriority.indexOf(a.slot) - slotPriority.indexOf(b.slot));
   for (const action of candidates) {
-    if(!('counterTo' in action)&&!canStartWhale(action,f,state))continue;
     const command = f.buffer.find(item => item.key === action.slot &&
       (!action.direction || item.directions.includes(action.direction)) &&
       action.comboKeys?.every(key => item.keys?.includes(key)) !== false);
@@ -391,7 +390,8 @@ interface Contact {
 function counterForContact(state: MatchState, config: MatchConfig, seat: 0 | 1) {
   const defender = state.fighters[seat];
   if (!defender.ground) return;
-  if (defender.guarding && defender.guardCounterLeft) return config.fighters[seat].guardCounter?.actionId;
+  const counter=config.fighters[seat].guardCounter;
+  if (defender.guarding && (counter?.whileGuarding || defender.guardCounterLeft)) return counter?.actionId;
   const stance = actionFor(config, state, seat);
   if (stance && 'counterTo' in stance && defender.attack && isActiveFrame(stance, defender.attack.frame)) {
     return stance.counterTo;

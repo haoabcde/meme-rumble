@@ -318,7 +318,7 @@ function renderRoster() {
     text(panels[seat].querySelector('h3')!, entry.fighter.name);
     const enabledSlots = (['B', 'C'] as const).filter(slot => acceptsSkillInput(entry.fighter, slot));
     const skills = enabledSlots.length ? ['可用专属槽 · ' + enabledSlots.join(' / ')] : [];
-    if (entry.fighter.guardCounter) skills.push('精准防反');
+    if (entry.fighter.guardCounter) skills.push(entry.fighter.guardCounter.whileGuarding?'铁盆防反':'精准防反');
     if (acceptsSkillInput(entry.fighter, 'ULT')) {
       const cost = entry.fighter.ultimateCost ?? 0;
       skills.push('大招 ' + keyHint(preferences, seat, ['ULT']) + (cost ? ' · 消耗 ' + cost : ' · 无消耗'));
@@ -723,6 +723,7 @@ function trainingState(seat: Seat) {
     return (action.name ?? action.id) + ' · ' + phase;
   }
   if (fighter.dash) return '冲刺';
+  if(fighter.guarding&&config.fighters[seat].guardCounter?.whileGuarding)return '铁盆防御 · 受击触发防反';
   if (fighter.guarding && fighter.guardCounterLeft) return '防反窗口 · ' + fighter.guardCounterLeft + ' 帧';
   if (fighter.guarding) return '防御';
   if (fighter.ground) return '地面可操作';

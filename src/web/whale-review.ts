@@ -11,7 +11,7 @@ document.body.innerHTML=`<main><h1>大肥鱼 · 完整接入试玩</h1><p>此页
 const style=document.createElement('style');style.textContent=`*{box-sizing:border-box}body{margin:0;background:#091321;color:#d8eafa;font:14px/1.6 'Microsoft YaHei',sans-serif}main{max-width:1250px;padding:18px 20px;margin:auto}h1{font-size:24px;margin:0}p{color:#a9bfd2;margin:7px 0 12px}nav,.bar{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}button,a,select{font:inherit;border:1px solid #375772;border-radius:6px;padding:6px 10px;background:#172e45;color:#dfedfa;text-decoration:none;cursor:pointer}button[aria-pressed=true]{border-color:#8edfff;background:#245774}canvas{display:block;width:100%;height:auto;border:1px solid #34506b;border-radius:8px;image-rendering:pixelated}label{display:flex;align-items:center;gap:6px}.hint{font-size:12px;color:#9bb4c9}#stats{color:#b4e5ff;min-height:24px}`;document.head.append(style);
 const $=<T extends HTMLElement>(s:string)=>document.querySelector<T>(s)!;
 const canvas=$<HTMLCanvasElement>('#arena'),renderer=new Renderer(canvas,arenas[2]);
-const scenes=[['tail','三段普攻','三段均45伤害，第三段上挑；每段向前小移。'],['guard','两段格挡后破防','前两次实际格挡零伤害、轻推；第二次破防，后续命中才有正常效果。'],['counter','旋风防反','精准防御后原地成风，双侧饭团；风柱20帧，鲸影48帧。'],['rice','米饭直投','直接命中30伤害、粘住1秒；地面米饭只束缚。'],['rice-up','↑＋技能1','高抛距离更远，与普通投掷共用贪吃计数。'],['step-rice','踩中米饭','饭团落地后敌人走入，只束缚不扣血。'],['greed','五投后误吃','连续五次投掷后继续使用会吃掉；间隔1.5秒重置。'],['spin','技能2高速推进','大肥鱼原地成风；风柱独立快速远行，命中后继续推进。'],['spin-up','↑＋技能2定点','简单抬手，在敌人横坐标与自身高度生成；风柱与防反同形同寿命。'],['ult','开源！八段冲锋','梁文峰与开源文字同时登场；薄法阵召唤虎鲸，首次接触减速，八段伤害与击退。'],['jump','基础移动与二段跳','跑动、起跳、二段跳、落地和冲刺；使用同一套公共动作图集。']] as const;
+const scenes=[['tail','三段普攻','三段均45伤害，第三段上挑；每段向前小移。'],['guard','两段格挡后破防','前两次实际格挡零伤害、轻推；第二次破防，后续命中才有正常效果。'],['counter','旋风防反','持续按住防御受击后原地成风，双侧饭团；风柱20帧，鲸影48帧。'],['rice','米饭直投','直接命中30伤害、粘住1秒；地面米饭只束缚。'],['rice-up','↑＋技能1','以约60°直线快速对空投掷，与普通投掷共用贪吃计数。'],['step-rice','踩中米饭','饭团落地后敌人走入，只束缚不扣血。'],['greed','五投后误吃','连续五次投掷后继续使用会吃掉；间隔0.4秒重置。'],['spin','技能2高速推进','大肥鱼原地成风；风柱独立快速远行，命中后继续推进。'],['spin-up','↑＋技能2定点','简单抬手，在敌人横坐标与自身高度生成；风柱与防反同形同寿命。'],['ult','开源！十二段冲锋','梁文峰与开源文字同时登场；薄法阵召唤虎鲸，仅接触时张嘴减速，最多12段伤害与击退；打满后重新加速，持续前行至出场。'],['jump','基础移动与二段跳','跑动、起跳、二段跳、落地和冲刺；使用同一套公共动作图集。'],['spin-chain','技能2连续释放','普通→强化→普通；收招后可以立刻再出，没有额外冷却。']] as const;
 let scene:string='tail',mirror=false,paused=false,debug=false,speed=1,clock=0,loopTick=0,hitCount=0,damage=0,seen=new Set<string>();
 let history:any[]=[];
 let config:MatchConfig,state:ReturnType<typeof createMatch>;
@@ -19,7 +19,7 @@ function reset(){
  config={rules,arena:arenas[2],fighters:mirror?[roster[2].fighter,whale.fighter]:[whale.fighter,roster[2].fighter],training:false};
  state=createMatch(config);state.phase='fight';state.phaseTicks=0;
  const caster=state.fighters[mirror?1:0],target=state.fighters[mirror?0:1],d=mirror?-1:1;
- const distance=scene==='ult'?650:scene==='spin'?600:scene==='spin-up'?380:scene==='rice-up'?265:scene==='step-rice'?450:scene==='greed'?900:scene==='rice'?150:scene==='jump'?650:105;
+ const distance=scene==='ult'?650:(scene==='spin'||scene==='spin-chain')?600:scene==='spin-up'?380:scene==='rice-up'?150:scene==='step-rice'?600:scene==='greed'?900:scene==='rice'?150:scene==='jump'?650:105;
  caster.x=mirror?2500:1900;target.x=caster.x+d*distance;caster.facing=d;target.facing=d===1?-1:1;caster.energy=300;
  clock=0;loopTick=0;hitCount=0;damage=0;seen.clear();history=[];renderer.load(config.arena);saveSnapshot();
  $('#notes').textContent=scenes.find(s=>s[0]===scene)![2];
@@ -35,11 +35,13 @@ function inputs():[InputFrame,InputFrame]{
   if(scene==='tail'||scene==='guard')caster=trigger(4,'A')??trigger(18,'A')??trigger(32,'A')??NEUTRAL;
   if(scene==='guard')target={...NEUTRAL,y:1};
   if(scene==='rice'||scene==='rice-up'||scene==='step-rice')caster=trigger(8,'B',scene==='rice-up'?-1:0)??NEUTRAL;
+  if(scene==='rice-up')target=trigger(4,'jump')??trigger(18,'jump')??NEUTRAL;
+  if(scene==='spin-chain')caster=trigger(8,'C')??trigger(44,'C',-1)??trigger(80,'C')??NEUTRAL;
   if(scene==='step-rice'&&loopTick>=55)target={...NEUTRAL,x:mirror?1:-1};
-  if(scene==='greed')for(const n of [4,24,44,64,84,104,124,245]){const p=trigger(n,'B');if(p){caster=p;break;}}
+  if(scene==='greed')for(const n of [4,24,44,64,84,104,124,160]){const p=trigger(n,'B');if(p){caster=p;break;}}
   if(scene==='spin'||scene==='spin-up')caster=trigger(8,'C',scene==='spin-up'?-1:0)??NEUTRAL;
   if(scene==='ult')caster=trigger(4,'ULT')??NEUTRAL;
-  if(scene==='counter'){target=trigger(14,'A')??NEUTRAL;if(loopTick>=18&&loopTick<30)caster={...NEUTRAL,y:1};}
+  if(scene==='counter'){target=trigger(14,'A')??NEUTRAL;if(loopTick<60)caster={...NEUTRAL,y:1};}
   if(scene==='jump'){caster={...NEUTRAL,x:loopTick<22?(mirror?-1:1):0};caster=trigger(24,'jump')??trigger(43,'jump')??trigger(105,'dash')??caster;}
   loopTick++;
  }

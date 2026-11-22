@@ -1,4 +1,10 @@
 // Reuses the approved V7 flexible-body mesh, expression blend and thin logo portal.
+export function contactMouthBlend(e){
+ if(e?.firstContactAge===undefined||e.lastContactAge===undefined)return 0;
+ const smooth=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);};
+ const interval=Math.max(1,(e.nextHitAge??e.lastContactAge+7)-e.lastContactAge);
+ return smooth((e.age-e.firstContactAge+1)/3)*(1-smooth((e.age-e.lastContactAge-interval)/6));
+}
 export function createUltimateRenderer(images){
 let ctx,entity;const SIZE=.75,START=1130,PORTAL={x:180,y:200,ry:115};
 const clamp=x=>Math.max(0,Math.min(1,x)),smooth=x=>{x=clamp(x);return x*x*(3-2*x)},ease=x=>1-Math.pow(1-clamp(x),3);
@@ -8,7 +14,7 @@ const body=document.createElement('canvas'),disc=document.createElement('canvas'
 const bg=body.getContext('2d'),dg=disc.getContext('2d');
 function motion(ms){return{x:PORTAL.x+(entity.x-entity.originX)*entity.facing,y:PORTAL.y+3*Math.sin(ms*.006)}}
 function normalise(im){const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(im,0,0);const p=g.getImageData(0,0,c.width,c.height).data;let x0=c.width,y0=c.height,x1=0,y1=0;for(let y=0;y<c.height;y++)for(let x=0;x<c.width;x++)if(p[(y*c.width+x)*4+3]>100){x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y)}const out=document.createElement('canvas');out.width=512;out.height=256;const og=out.getContext('2d');og.imageSmoothingEnabled=false;og.drawImage(im,x0,y0,x1-x0+1,y1-y0+1,2,2,508,252);return out}
-function faceTexture(ms){fg.clearRect(0,0,512,256);fg.drawImage(textures.fierce,0,0);fg.clearRect(330,0,182,256);fg.save();fg.beginPath();fg.rect(330,0,182,256);fg.clip();fg.drawImage(textures.calm,0,0);fg.globalAlpha=smooth((ms-1130)/120);fg.drawImage(textures.alert,0,0);fg.globalAlpha=smooth((ms-1230)/170);fg.drawImage(textures.fierce,0,0);fg.restore();return face}
+function faceTexture(ms){fg.clearRect(0,0,512,256);fg.drawImage(textures.fierce,0,0);fg.clearRect(330,0,182,256);fg.save();fg.beginPath();fg.rect(330,0,182,256);fg.clip();fg.drawImage(textures.calm,0,0);const bite=contactMouthBlend(entity);fg.globalAlpha=Math.min(1,bite*2);fg.drawImage(textures.alert,0,0);fg.globalAlpha=bite;fg.drawImage(textures.fierce,0,0);fg.restore();return face}
 function spine(u,ms){const amp=(3+17*Math.pow(1-u,1.8))*smooth((ms-START)/150);return [(-270+540*u)*SIZE,Math.sin(ms*.011-u*5.5)*amp]}
 function vertex(u,v,ms){const p=spine(u,ms),a=spine(Math.max(0,u-.004),ms),b=spine(Math.min(1,u+.004),ms),dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy)||1;const offset=(v-.50)*262*SIZE;return [p[0]-dy/len*offset,p[1]+dx/len*offset]}
 function triangle(im,s,d,g=ctx){const sx1=s[1][0]-s[0][0],sy1=s[1][1]-s[0][1],sx2=s[2][0]-s[0][0],sy2=s[2][1]-s[0][1],dx1=d[1][0]-d[0][0],dy1=d[1][1]-d[0][1],dx2=d[2][0]-d[0][0],dy2=d[2][1]-d[0][1],det=sx1*sy2-sx2*sy1;if(Math.abs(det)<.001)return;const a=(dx1*sy2-dx2*sy1)/det,b=(dy1*sy2-dy2*sy1)/det,c=(dx2*sx1-dx1*sx2)/det,e=(dy2*sx1-dy1*sx2)/det;g.save();const mx=(d[0][0]+d[1][0]+d[2][0])/3,my=(d[0][1]+d[1][1]+d[2][1])/3;g.beginPath();for(let j=0;j<3;j++){const xx=d[j][0]+(d[j][0]-mx)*.008,yy=d[j][1]+(d[j][1]-my)*.008;j?g.lineTo(xx,yy):g.moveTo(xx,yy)}g.closePath();g.clip();g.transform(a,b,c,e,d[0][0]-a*s[0][0]-c*s[0][1],d[0][1]-b*s[0][0]-e*s[0][1]);g.drawImage(im,0,0);g.restore()}
