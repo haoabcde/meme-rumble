@@ -5,6 +5,7 @@ import {orbitSample,eruptionSample,ERUPTIONS} from './whale-presentation.mjs';
 import {createSchoolRenderer} from './water-school.mjs';
 import {drawWaterFrame} from './water-flow.mjs';
 import {POOL,poolMouth,clipFootprint,clipEmergence} from './water-pool.mjs';
+import {studySurface,studyBreach} from './water-study.mjs';
 // Independent pixel sprites, world-space depth layers and simulation-clock animation.
 const clamp=n=>Math.max(0,Math.min(1,n));
 const TAU=Math.PI*2;
@@ -79,7 +80,7 @@ function waterWhale(g,morph,pose,x,y,width,alpha,rotation,flow){
  g.save();g.imageSmoothingEnabled=false;g.globalAlpha*=alpha;g.translate(x,y);g.rotate(rotation);g.scale(width/200,width/200);
  drawWaterFrame(g,morph.frame(pose),flow);g.restore();
 }
-export function createWaterRenderer(images){
+export function createWaterRenderer(images,{preview=false}={}){
  const whales=parts(images.waterWhale).map(im=>paleWater(im)),water=parts(images.waterParts).map(im=>paleWater(im)),runes=parts(images.runeParts).map(im=>paleWater(im));
  const school=createSchoolRenderer(images.fishSchool,im=>ultimateWater(im,'fish'));
  const turning=createPoseMorph(cutGrid(images.whaleTurn,4,2).map(im=>paleWater(im)));
@@ -93,6 +94,7 @@ export function createWaterRenderer(images){
   g.save();g.imageSmoothingEnabled=false;g.globalAlpha*=clamp(alpha);g.drawImage(im,x-w/2,y-h/2,w,h);g.restore();
  }
  function opening(g,e,spec,mouth,age,front,fade){
+  if(preview){studyBreach(g,e,spec,mouth,age,front,fade,patch,poolParts);return;}
   if(age< -8||age>26)return;
   const last=spec.width>500,x=e.x+mouth.x,y=e.y+mouth.y,w=mouth.width;
   if(!front&&age<3){
@@ -120,6 +122,8 @@ export function createWaterRenderer(images){
   const age=e.age+subframe,warning=WHALE_RULES.telegraph;
   const end=warning+WHALE_RULES.ultimateHits*WHALE_RULES.hitGap,fade=clamp((end+48-age)/20),active=e.age>=warning;
   if(layer==='back'){
+   if(preview){studySurface(g,e,age,fade,poolParts[0]);}
+   else{
    g.save();clipFootprint(g,e.x,e.y);
    const lake=g.createRadialGradient(e.x,e.y,5,e.x,e.y,170);
    lake.addColorStop(0,'#315b79ed');lake.addColorStop(.65,'#6ba9cbe0');lake.addColorStop(1,'#b2e9f6c0');
@@ -140,6 +144,7 @@ export function createWaterRenderer(images){
    }
    g.restore();
    patch(g,poolParts[1],e.x,e.y-24,POOL.rx*2,32,fade*.85);
+   }
   }
   if(active)for(const i of depthOrder){
    const spec=ERUPTIONS[i],localAge=age-warning-spec.at,front=spec.depth>=0;
@@ -160,12 +165,12 @@ export function createWaterRenderer(images){
     g.restore();
    }
    opening(g,e,spec,mouth,localAge,true,fade);
-   if(localAge>=0&&localAge<28){
+   if(!preview&&localAge>=0&&localAge<28){
     g.save();clipFootprint(g,e.x,e.y);
     surfaceRing(g,e.x+mouth.x,e.y+mouth.y,mouth.width*.5+localAge*1.7,6+localAge*.28,clamp((28-localAge)/20)*fade*.78);
     g.restore();
    }
-   if(last&&localAge>=0&&localAge<28){
+   if(!preview&&last&&localAge>=0&&localAge<28){
     g.save();clipFootprint(g,e.x,e.y);
     for(let k=0;k<3;k++){
      const t=localAge-k*4;if(t<0)continue;
@@ -173,7 +178,7 @@ export function createWaterRenderer(images){
     }g.restore();
    }
   }
-  if(layer==='front'){
+  if(layer==='front'&&!preview){
    patch(g,poolParts[2],e.x,e.y+20,POOL.rx*2,44,fade*.86);
   }
  }

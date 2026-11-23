@@ -226,6 +226,15 @@ test('warp destinations respect walls and empty air; empowered warps retain rune
  const p=setup(0,90);p.caster.ascendUntil=900;p.caster.energy=300;p.tick(hold(['C']));const before=p.caster.energy;
  p.target.attack={id:'test-a',frame:4,connected:false,landed:false};p.tick(hold());assert.equal(p.caster.frogWarps[0].powered,true);assert.equal(p.caster.ascendUntil,900);assert.ok(p.caster.energy<before);
 });
+test('burrow seal settles at the real emergence position after body separation, then stays at that landing point',()=>{
+ for(const source of [0,1]){
+  const t=setup(source,700);t.caster.ascendUntil=900;t.press('C',-1);
+  t.run(6);const w=t.caster.frogWarps[0];
+  assert.equal(w.toX,t.caster.x);assert.equal(w.toY,t.caster.y);
+  assert.notEqual(w.toX,t.target.x);
+  const settled=w.toX;t.run(20);assert.equal(w.toX,settled);
+ }
+});
 
 test('empowered reactive warp automatically casts skill one once after reappearing; proactive warp does not',()=>{
  for(const source of [0,1]){

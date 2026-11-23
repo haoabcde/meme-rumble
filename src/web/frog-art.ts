@@ -4,12 +4,14 @@ import {cutGrid} from './pixel-sprites.mjs';
 import {drawPixelFx} from './pixel-fx.mjs';
 import {holyFanSample} from './holy-fan.mjs';
 import {drawWarp,setWarpArt} from './frog-warp.mjs';
+import {drawTeleport,setTeleportArt} from './frog-teleport.mjs';
 import {drawHeldStars,setStarArt} from './frog-stars.mjs';
 import {drawRuneGuard,setGuardArt} from './frog-guard.mjs';
 import crouchSource from '../../assets/角色/技能/奶蛙/二技能/调皮下蹲_像素姿态_V1.png';
 import thinkingSource from '../../assets/角色/常态/奶蛙/托腮思考_像素姿态_V1.png';
 import spiralSource from '../../assets/角色/特效/奶蛙/传送_V2/金色旋涡_常态与符文.png';
 import discSource from '../../assets/角色/特效/奶蛙/传送_V2/钻出法阵_常态与符文.png';
+import teleportSource from '../../assets/角色/技能/奶蛙/二技能/金色瞬移_V4/符文法阵与金色拖尾_双部件.png';
 import starSource from '../../assets/角色/技能/奶蛙/二技能/星图传送_V3/金色星点连线_像素母版.png';
 import guardSource from '../../assets/角色/防御/奶蛙/神圣符文_V1/立体符文牌与几何印记_八枚.png';
 import moveSource from '../../assets/角色/技能/奶娃/拳脚与捧腹_八姿态.png';
@@ -24,6 +26,7 @@ void load(thinkingSource).then(im=>thinking=cutGrid(im,1,1)[0]);
 void load(starSource).then(im=>setStarArt(im));
 void Promise.all([load(spiralSource),load(discSource)]).then(([s,d])=>setWarpArt(cutGrid(s,2,1),cutGrid(d,2,1)));
 void load(guardSource).then(im=>setGuardArt(cutGrid(im,4,2)));
+void load(teleportSource).then(im=>setTeleportArt(cutGrid(im,2,1)));
 const clamp=(n:number)=>Math.max(0,Math.min(1,n));
 function actorImage(g:CanvasRenderingContext2D,im:HTMLCanvasElement,h:number,y=0){const w=h*im.width/im.height;g.drawImage(im,-w/2,y-h,w,h);}
 function goldMotif(g:CanvasRenderingContext2D,index:number,x:number,y:number,w:number,alpha:number,angle=0,squash=1){
@@ -152,7 +155,8 @@ export function drawFrogEffects(g:CanvasRenderingContext2D,state:MatchState,conf
   drawCastEffects(g,f,state,config,layer);
   for(const w of f.frogWarps??[]){
    const age=state.arenaFrame-w.tick;
-   drawWarp(g,w.fromX,w.fromY-70,age,w.powered,layer);
+   if(w.powered)drawTeleport(g,w,age,layer);
+   else drawWarp(g,w.fromX,w.fromY-70,age,false,layer);
    drawWarp(g,w.toX,w.toY-2,age,w.powered,layer,true);
    if(w.powered)drawPixelFx(g,'feather',w.fromX,w.fromY-80,age/60,1.8,layer,true,.95);
    if(w.powered&&layer==='back'&&age<34){

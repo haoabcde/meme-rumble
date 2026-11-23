@@ -6,6 +6,7 @@ import {arenas} from '../content/arenas.js';
 import {rules} from '../content/demo.js';
 import {Renderer} from './renderer.js';
 import {cinematicOwner,WHALE_RULES} from '../core/whale-kit.js';
+import {drawWhaleWaterStudy} from './whale-art.js';
 
 document.title='大肥鱼 · 完整接入试玩';
 document.body.innerHTML=`<main><h1>大肥鱼 · 完整接入试玩</h1><p>此页使用正式战斗逻辑、角色包和渲染器。点击场景查看实际命中；自由操作请进入训练场。</p><nav id="cases"></nav><canvas id="arena" width="1280" height="720" tabindex="0" aria-label="大肥鱼实际对战场景"></canvas><div class="bar"><button id="pause">暂停</button><button id="restart">重播场景</button><button id="step">前进一帧</button><button id="mirror">方向：右</button><label>速度 <select id="speed" aria-label="演示速度"><option value="1">正常</option><option value=".5">0.5×</option><option value=".25">0.25×</option></select></label><button id="debug">判定框：关</button><a href="/?practice=harbor&p1=whale&p2=banana&silent=1">自由训练 · 大肥鱼</a><a href="/?silent=1">标题与本地双人</a></div><label>场景进度 <input id="seek" aria-label="实战场景进度" type="range" min="0" max="320" value="0" style="flex:1"></label><p id="stats" role="status"></p><p id="notes"></p><p class="hint">P1：A/D移动，W向上组合，S即时戴盆防御，K跳跃，L冲刺，J普攻，U技能1，I技能2，O大招。O消耗三格，训练设置可以充气。数值为首轮接入版。</p></main>`;
@@ -15,6 +16,12 @@ const canvas=$<HTMLCanvasElement>('#arena'),renderer=new Renderer(canvas,arenas[
 const scenes=[['tail','三段普攻','三段均45伤害，第三段上挑；每段向前小移。'],['guard','两段格挡后破防','前两次实际格挡零伤害、轻推；第二次破防，后续命中才有正常效果。'],['counter','旋风防反','持续按住防御受击后原地成风，每隔45°向八个方向发射饭团；风柱20帧，鲸影48帧。'],['rice','米饭直投','直接命中30伤害、粘住1.2秒；地面米饭只束缚。'],['rice-up','↑＋技能1','以约60°直线快速对空投掷，普通/上投、地面/空中每次独立20%概率偷吃。'],['step-rice','踩中米饭','饭团落地后敌人走入，只束缚不扣血。'],['greed','随机偷吃','每次独立20%概率偷吃，没有连续投掷计数或冷却。'],['spin','技能2高速推进','大肥鱼原地成风；风柱独立快速远行，命中后继续推进；鲸影与上＋技能二共用48帧姿态、旋转与升高节奏，长距离推进时循环。'],['spin-up','↑＋技能2定点','简单抬手，在敌人横坐标与自身高度生成；风柱与防反同形同寿命。'],['ult','水潭十二段','梁文峰演出时整个战场静止；演出结束即在敌人脚下生成固定水潭，完整预警0.6秒。水潭分前后沿，大小鲸鱼从前后不同的破水口游出，水膜和卷浪遮住水下部分，带鱼群以不超过30°的角度冲出画面；最后巨鲸从潭心垂直冲出，根部水花和水面冲击环限定在潭内，第12段额外击飞。梁文峰演出保留；共12段，每段35伤害。'],['ult-dodge','水潭预警走避','预警期可离开水潭；水潭不追踪，未处于范围内就不会受到伤害。'],['rice-ult','米饭接水潭','先用米饭束缚1.2秒，再接大招。演出不消耗束缚时间，预警0.6秒后开始十二段攻击。'],['air-rice','空中投饭','跳跃中也能普通投掷或上投；独立20%概率偷吃。'],['jump','基础移动与二段跳','跑动、起跳、二段跳、落地和冲刺；使用同一套公共动作图集。'],['spin-chain','技能2连续释放','普通→强化→普通；收招后可以立刻再出，没有额外冷却。']] as const;
 let scene:string='tail',mirror=false,paused=false,debug=false,speed=1,clock=0,loopTick=0,hitCount=0,damage=0,seen=new Set<string>();
 const requestedScene=new URLSearchParams(location.search).get('scene');
+const waterStudy=new URLSearchParams(location.search).has('waterpreview');
+if(waterStudy){document.title='大肥鱼 · 水体材质优化方案 V12';$('h1').textContent='大肥鱼 · 水体材质优化方案 V12';$('h1').nextElementSibling!.textContent='待确认的效果组合：PixelFX 流动泡沫水纹＋双向卷浪、白沫和飞溅＋已有破水水膜与鲸鱼。正式游戏水潭仍保留上一版。';}
+let closeUp=false;
+if(waterStudy){
+ const button=document.createElement('button');button.id='water-closeup';button.textContent='水体近景';button.onclick=()=>{closeUp=!closeUp;button.textContent=closeUp?'返回实战':'水体近景';draw()};$('.bar').append(button);
+}
 if(scenes.some(s=>s[0]===requestedScene))scene=requestedScene!;
 // Optional review-only telemetry; the game UI and default preview stay unchanged.
 const flowCheck=new URLSearchParams(location.search).has('flowcheck');
@@ -74,6 +81,7 @@ function draw(){renderer.draw(config,state,debug,paused?0:1,false,true,0,paused?
  const ctx=canvas.getContext('2d')!;ctx.resetTransform();ctx.fillStyle='#071427df';ctx.fillRect(0,0,1280,63);ctx.font='bold 20px Microsoft YaHei';ctx.fillStyle='#c8edff';ctx.textAlign='left';ctx.fillText('大肥鱼  HP '+caster.hp+' / 气 '+(caster.energy??0),24,38);ctx.textAlign='right';ctx.fillStyle='#ffd5c9';ctx.fillText('陪练  HP '+target.hp,1256,38);ctx.textAlign='center';ctx.fillStyle='#e6f5ff';ctx.fillText(hitCount+' 段 · 累计 '+damage,640,38);
  $<HTMLInputElement>('#seek').value=String(state.frame);
  $('#stats').textContent=`${paused?'已暂停':'播放中'} · ${(state.arenaFrame/60).toFixed(2)}s · ${hitCount}次实际命中 / ${damage}伤害 · 场上实体${state.entities?.length??0} · ${cinematicOwner(state)!==undefined?'梁文峰演出 · 战斗时间静止':state.entities?.some(e=>e.definition.behavior==='pool'&&e.age<WHALE_RULES.telegraph)?'水潭预警 · '+((WHALE_RULES.telegraph-state.entities.find(e=>e.definition.behavior==='pool')!.age)/60).toFixed(2)+'s':caster.attack?.id??'待机'}${(target.bindUntil??0)>state.arenaFrame?' · 敌人被米饭粘住':''}`;
+ if(closeUp)drawWhaleWaterStudy(ctx,state.entities?.find(e=>e.definition.behavior==='pool')?.age);
 }
 $<HTMLInputElement>('#seek').oninput=e=>{const target=Number((e.target as HTMLInputElement).value);paused=true;$('#pause').textContent='播放';if(!history[target]){const last=history[history.length-1];state=structuredClone(last.state);loopTick=last.loopTick;hitCount=last.hitCount;damage=last.damage;seen=new Set(last.seen);while(state.frame<target)advance();}const point=history[target];state=structuredClone(point.state);loopTick=point.loopTick;hitCount=point.hitCount;damage=point.damage;seen=new Set(point.seen);draw();};
 $('#pause').onclick=()=>{paused=!paused;$('#pause').textContent=paused?'播放':'暂停';draw()};$('#restart').onclick=()=>reset();$('#step').onclick=()=>{paused=true;$('#pause').textContent='播放';advance();draw()};

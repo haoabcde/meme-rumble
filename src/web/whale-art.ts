@@ -18,7 +18,7 @@ let tornado:any,ultimate:any,water:any;
 const load=(src:string)=>{const im=new Image();im.src=src;return im.decode().then(()=>im)};
 
 void Promise.all(Object.entries({portrait,waterWhale,waterParts,runeParts,whaleTurn,whaleLeap,fishSchool,poolParts}).map(async([k,v])=>[k,await load(v)] as const)).then(entries=>{
- const images=Object.fromEntries(entries);water=createWaterRenderer(images);tornado=createUnifiedTornadoRenderer(water.whales[0]);ultimate=createUltimateRenderer(images,water);
+ const images=Object.fromEntries(entries);water=createWaterRenderer(images,{preview:new URLSearchParams(location.search).has('waterpreview')});tornado=createUnifiedTornadoRenderer(water.whales[0]);ultimate=createUltimateRenderer(images,water);
  const warmCanvas=document.createElement('canvas');const warmContext=warmCanvas.getContext('2d');
  let i=0;function warm(){for(const layer of ['back','front'])tornado.wind(warmContext,0,0,i,layer);if(++i<8)requestAnimationFrame(warm)}requestAnimationFrame(warm);
 }).catch(e=>console.error('大肥鱼特效素材加载失败',e));
@@ -72,4 +72,16 @@ export function drawWhaleEntities(ctx:CanvasRenderingContext2D,state:MatchState,
 export function drawWhaleIntro(ctx:CanvasRenderingContext2D,config:MatchConfig,state:MatchState,fraction=0){
  if(!ultimate)return;
  for(const seat of [0,1] as const){const f=state.fighters[seat];if(config.fighters[seat].id==='whale'&&f.attack?.id==='open-source')ultimate.intro(ctx,ctx.canvas.width,ctx.canvas.height,f.attack.frame+waterSubframe(fraction,state.freeze));}
+}
+// Review-only close-up uses exactly the same material, timeline and depth masks as the arena.
+let studyFrame:HTMLCanvasElement|undefined,studyAge:number|undefined=Number.NaN;
+export function drawWhaleWaterStudy(ctx:CanvasRenderingContext2D,age:number|undefined){
+ if(!water)return false;
+ if(!studyFrame||studyFrame.width!==ctx.canvas.width||studyFrame.height!==ctx.canvas.height){studyFrame=document.createElement('canvas');studyFrame.width=ctx.canvas.width;studyFrame.height=ctx.canvas.height;studyAge=Number.NaN;}
+ if(age!==studyAge){
+  const g=studyFrame.getContext('2d')!;g.fillStyle='#0b1726';g.fillRect(0,0,studyFrame.width,studyFrame.height);
+  if(age!==undefined){g.save();g.translate(studyFrame.width/2,studyFrame.height*.81);g.scale(2,2);const e={x:0,y:0,age};water.pool(g,e,'back');water.pool(g,e,'front');g.restore();}
+  studyAge=age;
+ }
+ ctx.drawImage(studyFrame,0,0);return true;
 }

@@ -55,6 +55,11 @@ export function finishAscension(f:FighterState,state:MatchState){
  f.ascendVisual={tick:state.arenaFrame,x:f.x,y:f.y};
  f.poseEvent={kind:'ascend',tick:state.arenaFrame};
 }
+/** At emergence, retain the real landing point after body separation for presentation/replays. */
+export function settleFrogWarp(f:FighterState,state:MatchState){
+ const w=f.frogWarps?.at(-1);
+ if(w?.kind==='burrow'&&state.arenaFrame-w.tick===FROG_RULES.warpHidden){w.toX=f.x;w.toY=f.y;}
+}
 export function tickAscension(f:FighterState,state:MatchState){
  if(f.frogWarps?.length){f.frogWarps=f.frogWarps.filter(w=>state.arenaFrame-w.tick<150);if(!f.frogWarps.length)delete f.frogWarps;}
  if(f.ascendVisual&&state.arenaFrame-f.ascendVisual.tick>220)delete f.ascendVisual;

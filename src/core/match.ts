@@ -6,7 +6,7 @@ import { platformAt, platformOffset } from './terrain.js';
 import { MAX_ENERGY } from './types.js';
 import { entityContacts, resolveContactEntity, updateEntities, spawnEntities } from './entities.js';
 import {startWhale,cinematicOwner,WHALE_RULES} from './whale-kit.js';
-import {frogAction,frogCanStart,startFrog,finishAscension,tickAscension,frogPowered,frogCrouching,warpFrog,FROG_RULES} from './frog-kit.js';
+import {frogAction,frogCanStart,startFrog,finishAscension,tickAscension,frogPowered,frogCrouching,warpFrog,settleFrogWarp,FROG_RULES} from './frog-kit.js';
 
 const seats = [0, 1] as const;
 const slotPriority = ['ULT', 'C', 'B', 'A'] as const;
@@ -643,6 +643,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     motion(state, config, seat, inputs[seat], events);
   }
   separate(state, config, previous);
+  for(const fighter of state.fighters)settleFrogWarp(fighter,state);
   for (const fighter of state.fighters) releaseUnsupportedGround(fighter, config.arena, state.arenaFrame);
   // Keep the next input sample and the visible facing aligned after crossing sides.
   for (const seat of seats) faceOpponentWhenFree(state.fighters[seat], state.fighters[other(seat)]);
