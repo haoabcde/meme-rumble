@@ -2,6 +2,7 @@ import type { FighterAudioBank } from '../content/fighter-kit.js';
 import { actionFor } from '../core/match.js';
 import { frogPowered } from '../core/frog-kit.js';
 import { WHALE_RULES } from '../core/whale-kit.js';
+import {sampleLevel,soundTarget,calibratedGain} from './audio-levels.js';
 import type { ActionAudioCue, Attack, CombatEvent, Duo, EventKind, FighterAction, HitFeedback, MatchConfig, MatchState } from '../core/types.js';
 
 type Tone = [number, number, number, OscillatorType, number];
@@ -54,6 +55,7 @@ export class FightAudio {
   private banks: Duo<FighterAudioBank | undefined> = [undefined, undefined];
   private sources: EmbeddedAudio = {};
   private buffers = new Map<string, AudioBuffer | undefined>();
+  private levels = new Map<string,{peak:number;rms:number}>();
   private reported = new Set<string>();
   private playing = new Set<Playback>();
   private actions: Duo<TrackedAction | undefined> = [undefined, undefined];
@@ -103,6 +105,7 @@ export class FightAudio {
     if (this.sources !== sources) {
       this.sources = sources;
       this.buffers = new Map();
+      this.levels.clear();
       this.reported.clear();
     }
     if (banks.some(bank => bank && Object.keys(bank).length)) this.ensureContext();
@@ -156,7 +159,10 @@ export class FightAudio {
       if (!payload) throw new Error('Expected a base64 audio data URL');
       const bytes = Uint8Array.from(atob(payload), character => character.charCodeAt(0));
       const buffer = await context.decodeAudioData(bytes.buffer);
-      if (buffers === this.buffers) buffers.set(src, buffer);
+      if (buffers === this.buffers) {
+        buffers.set(src, buffer);
+        this.levels.set(src,sampleLevel(Array.from({length:buffer.numberOfChannels},(_,i)=>buffer.getChannelData(i))));
+      }
     } catch (error) {
       if (buffers === this.buffers) this.report('Unable to preload ' + src, error);
     }
@@ -175,7 +181,10 @@ export class FightAudio {
     this.voice = this.context.createGain();
     this.sfx.connect(this.output);
     this.voice.connect(this.output);
-    this.output.connect(this.context.destination);
+    const compressor=this.context.createDynamicsCompressor();
+    compressor.threshold.value=-6;compressor.knee.value=6;compressor.ratio.value=12;
+    compressor.attack.value=.003;compressor.release.value=.18;
+    this.output.connect(compressor).connect(this.context.destination);
     this.updateVolume();
   }
 
@@ -288,7 +297,9 @@ export class FightAudio {
     }
     const source = context.createBufferSource();
     const gain = context.createGain();
-    gain.gain.value = level(clip.volume) * level(cue.volume);
+    const target=soundTarget(clipId),stats=this.levels.get(clip.src);
+    gain.gain.value = level(clip.volume) * level(cue.volume) *
+      (target!==undefined&&stats?calibratedGain(stats,target):1);
     source.buffer = buffer;
     source.connect(gain).connect(bus);
     source.start();

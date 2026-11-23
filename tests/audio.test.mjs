@@ -57,6 +57,8 @@ class FakeAudioContext {
     return Object.assign(new FakeNode(), { gain: new FakeParam() });
   }
 
+  createDynamicsCompressor(){return Object.assign(new FakeNode(),Object.fromEntries(['threshold','knee','ratio','attack','release'].map(k=>[k,new FakeParam()])));}
+
   createBiquadFilter() {
     return Object.assign(new FakeNode(), { frequency: new FakeParam(), Q: new FakeParam() });
   }

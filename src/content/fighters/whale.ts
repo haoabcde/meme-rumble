@@ -47,7 +47,7 @@ const ult:ActionDefinition={...spin(),id:'open-source',name:'开源！',slot:'UL
  animation:[{frame:0,cell:76},{frame:22,cell:77}],entities:[projectile('open-source-pool','pool',60)]};
 const {slot:_slot,energyCost:_energy,...ultimateMove}=ult;
 export const whale=defineFighter({id:'whale',name:'大肥鱼',accent:'#75a9ff',height:144,art:{portrait:'大肥鱼/常态.webp',motion:'大肥鱼/完整动作.webp'},
- audio:Object.fromEntries(Object.entries({'tail-swing':'尾击挥风','tail-hit':'尾击命中','event-block':'铁盆格挡','event-parry':'铁盆触发','rice-throw':'米饭掷出','rice-hit':'米饭黏住',eat:'偷吃米饭',wind:'蓝色旋风',summon:'召唤潮鸣','pool-warning':'水潭预警','water-hit':'水鲸破水','pool-breach':'水鲸破水','pool-final':'巨鲸冲天'}).map(([id,name])=>[id,{src:'assets/audio/whale/'+name+'.wav',volume:id==='water-hit'?.45:.85}])),
+ audio:Object.fromEntries(Object.entries({'tail-swing':'尾击挥风','tail-hit':'尾击命中','event-block':'铁盆格挡','event-parry':'铁盆触发','rice-throw':'米饭掷出','rice-hit':'米饭黏住',eat:'偷吃米饭',wind:'蓝色旋风',summon:'召唤潮鸣','pool-warning':'水潭预警','water-hit':'水鲸破水','pool-breach':'水鲸破水','pool-final':'巨鲸冲天'}).map(([id,name])=>[id,{src:'assets/audio/whale/'+name+'.wav',volume:id==='water-hit'?.5:1}])),
  stats:{run:7,airSpeed:8,jump:18,airJump:14,dash:24,airDash:true,hurtbox:{x:-27,y:-140,w:54,h:140},bodyWidth:72},
  commonMoves:[tail(1),tail(2),tail(3),{...tail(1),id:'common-air',name:'空中尾击',posture:'air',advance:0,linkOnly:false,chainAfter:undefined,cancelOnHit:[],airControl:.35}],
  guardCounter:{windowFrames:4,actionId:'whale-counter',whileGuarding:true},
