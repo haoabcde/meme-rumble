@@ -1,5 +1,6 @@
 import type { FighterAudioBank } from '../content/fighter-kit.js';
 import { actionFor } from '../core/match.js';
+import { frogPowered } from '../core/frog-kit.js';
 import type { ActionAudioCue, Attack, CombatEvent, Duo, EventKind, FighterAction, HitFeedback, MatchConfig, MatchState } from '../core/types.js';
 
 type Tone = [number, number, number, OscillatorType, number];
@@ -185,9 +186,15 @@ export class FightAudio {
     if (this.round !== undefined && this.round !== state.round) this.stopAll();
     this.round = state.round;
     for (const seat of seats) this.updateAction(config, state, seat);
+    const silentVoices = seats.filter(seat => config.fighters[seat]?.id === 'frog' &&
+      (frogPowered(state.fighters[seat], state) || state.fighters[seat].attack?.id === 'frog-ascend'));
+    for (const playback of this.playing) {
+      if (playback.voiceSeat !== undefined && silentVoices.includes(playback.voiceSeat)) this.stop(playback);
+    }
     for (const { source, actionAudio } of events) {
       if (!actionAudio) continue;
       const { attack, cue } = actionAudio;
+      if (cue.channel === 'voice' && silentVoices.includes(source)) continue;
       if (cue.stopOnInterrupt === false) this.playClip(source, cue);
       else if (state.fighters[source].attack === attack) this.playClip(source, cue, attack);
     }

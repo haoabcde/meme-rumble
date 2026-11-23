@@ -367,3 +367,20 @@ test('random voice cue plays exactly one of four clips and does not change comba
   assert.deepEqual(fixture.state,before);
   assert.ok(context.clips.slice(0,3).every(clip=>clip.stopped));
 });
+
+
+test('frog transformation and buff silence only its voice, stop prior dialogue and retain sfx',async t=>{
+ const {audio,context}=audioFixture(t,[bank,bank],sources);await finishPreload(context);
+ const config={rules,arena:arenas[0],training:true,fighters:[{...testFighter,id:'frog'},testFighter]};
+ const state=createMatch(config);state.phase='fight';
+ const cue={frame:0,clip:'opening',channel:'voice',stopOnInterrupt:false};
+ const event=(source=0,c=cue)=>({kind:'action-audio',source,x:0,y:0,actionAudio:{attack:{},cue:c}});
+ audio.update(config,state,[event()]);assert.equal(context.clips.length,1);
+ state.fighters[0].attack={id:'frog-ascend',frame:0,connected:false,landed:false};
+ audio.update(config,state,[event()]);assert.equal(context.clips.length,1);assert.equal(context.clips[0].stopped,true);
+ state.fighters[0].attack=null;state.fighters[0].ascendUntil=state.arenaFrame+900;
+ audio.update(config,state,[event(),event(1),event(0,{...cue,channel:'sfx'})]);
+ assert.equal(context.clips.length,3,'opponent voice and frog effect remain audible');
+ delete state.fighters[0].ascendUntil;
+ audio.update(config,state,[event()]);assert.equal(context.clips.length,4,'normal form voice resumes');
+});

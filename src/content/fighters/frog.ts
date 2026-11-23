@@ -33,7 +33,7 @@ const slip=(mode:'crouch'|'burrow'|'evade'):ActionDefinition&{slot:'C'}=>({
  hitbox:{x:0,y:0,w:1,h:1},damage:0,hitstun:0,blockstun:0,guardCost:0,push:0,lift:0,stop:0,advance:0,pose:'rise'
 });
 export const frog=defineFighter({id:'frog',name:'奶蛙',accent:'#ffcf54',height:130,art:{portrait:'frog-v2.webp',motion:'frog-motion.webp'},
- audio:{laugh:{src:'assets/audio/frog/捧腹大笑.wav'},ha:{src:'assets/audio/frog/哈.wav'},...Object.fromEntries([1,2,3,4].map(i=>['skill2-'+i,{src:'assets/audio/frog/二技能_语音'+i+'.wav'}]))},
+ audio:{laugh:{src:'assets/audio/frog/捧腹大笑_V2.wav'},ha:{src:'assets/audio/frog/哈.wav'},...Object.fromEntries([1,2,3,4].map(i=>['skill2-'+i,{src:'assets/audio/frog/二技能_语音'+i+'.wav'}]))},
  stats:{bodyWidth:80,hurtbox:{x:-32,y:-128,w:64,h:128}},
  commonMoves:[...Array.from({length:5},(_,i)=>combo(i+1)),{...combo(3),id:'common-air',name:'空中踢腿',posture:'air',linkOnly:false,advance:0,chainAfter:undefined,cancelOnHit:[],airControl:.5}],
  signatureMoves:[laugh(),laugh(true),slip('crouch'),slip('burrow'),slip('evade')],ultimate:{cost:300,move:{id:'frog-ascend',name:'神了！',frog:'ascend',posture:'any',startup:60,active:1,recovery:0,hitTimeline:[],hitbox:{x:0,y:0,w:1,h:1},damage:0,hitstun:0,blockstun:0,guardCost:0,push:0,lift:0,stop:0,advance:0,pose:'rise'}}
