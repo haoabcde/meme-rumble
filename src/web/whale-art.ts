@@ -18,7 +18,7 @@ let tornado:any,ultimate:any,water:any;
 const load=(src:string)=>{const im=new Image();im.src=src;return im.decode().then(()=>im)};
 
 void Promise.all(Object.entries({portrait,waterWhale,waterParts,runeParts,whaleTurn,whaleLeap,fishSchool,poolParts}).map(async([k,v])=>[k,await load(v)] as const)).then(entries=>{
- const images=Object.fromEntries(entries);water=createWaterRenderer(images,{preview:new URLSearchParams(location.search).has('waterpreview')});tornado=createUnifiedTornadoRenderer(water.whales[0]);ultimate=createUltimateRenderer(images,water);
+ const images=Object.fromEntries(entries);water=createWaterRenderer(images,{preview:true});tornado=createUnifiedTornadoRenderer(water.whales[0]);ultimate=createUltimateRenderer(images,water);
  const warmCanvas=document.createElement('canvas');const warmContext=warmCanvas.getContext('2d');
  let i=0;function warm(){for(const layer of ['back','front'])tornado.wind(warmContext,0,0,i,layer);if(++i<8)requestAnimationFrame(warm)}requestAnimationFrame(warm);
 }).catch(e=>console.error('大肥鱼特效素材加载失败',e));

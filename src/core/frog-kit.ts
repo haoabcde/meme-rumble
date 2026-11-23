@@ -9,9 +9,9 @@ export function frogAction(action:FighterAction|undefined,f:FighterState,state:M
  const reach='frog' in action&&action.frog==='laugh'?FROG_RULES.poweredLaughRange:1.5;
  const damage=action.frog==='laugh'||action.frog==='global'?FROG_RULES.poweredLaughDamage:1.5;
  const scaleDamage=(n:number)=>Math.round(n*damage*1000)/1000;
- return {...action,damage:scaleDamage(action.damage),hitbox:frogBox(action.hitbox,1.5),
+ return {...action,audioTimeline:action.audioTimeline?.map(c=>c.channel==='sfx'?{...c,clip:['wave','global-wave'].includes(c.clip)?'holy-wave':c.clip}:c),feedback:action.feedback?{...action.feedback,audio:{clip:'holy-hit'}}:action.feedback,damage:scaleDamage(action.damage),hitbox:frogBox(action.hitbox,1.5),
   hitTimeline:action.hitTimeline?.map(w=>({...w,boxes:w.boxes.map(b=>frogBox(b,1.5)),...(w.damage!==undefined?{damage:scaleDamage(w.damage)}:{})})),
-  entities:action.entities?.map(e=>({...e,damage:scaleDamage(e.damage),hitbox:e.behavior==='frog-global'?e.hitbox:{x:e.hitbox.x*reach,y:e.hitbox.y*reach,w:e.hitbox.w*reach,h:e.hitbox.h*reach}}))};
+  entities:action.entities?.map(e=>({...e,feedback:e.feedback?{...e.feedback,audio:{clip:'holy-hit'}}:e.feedback,damage:scaleDamage(e.damage),hitbox:e.behavior==='frog-global'?e.hitbox:{x:e.hitbox.x*reach,y:e.hitbox.y*reach,w:e.hitbox.w*reach,h:e.hitbox.h*reach}}))};
 }
 export function frogCanStart(action:FighterAction,f:FighterState,state:MatchState){
  if(!('frog' in action))return true;

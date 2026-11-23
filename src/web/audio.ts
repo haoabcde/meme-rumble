@@ -1,6 +1,7 @@
 import type { FighterAudioBank } from '../content/fighter-kit.js';
 import { actionFor } from '../core/match.js';
 import { frogPowered } from '../core/frog-kit.js';
+import { WHALE_RULES } from '../core/whale-kit.js';
 import type { ActionAudioCue, Attack, CombatEvent, Duo, EventKind, FighterAction, HitFeedback, MatchConfig, MatchState } from '../core/types.js';
 
 type Tone = [number, number, number, OscillatorType, number];
@@ -62,6 +63,8 @@ export class FightAudio {
   private soundVolume = .7;
   private effectVolume = 1;
   private dialogueVolume = 1;
+  private entityAges = new Map<number, number>();
+  private lastPhase: MatchState['phase'] | undefined;
 
   get enabled() { return this.soundEnabled; }
   set enabled(value: boolean) {
@@ -109,6 +112,8 @@ export class FightAudio {
     for (const playback of this.playing) this.stop(playback);
     this.actions = [undefined, undefined];
     this.round = undefined;
+    this.entityAges.clear();
+    this.lastPhase = undefined;
   }
 
   setPaused(value: boolean) {
@@ -185,6 +190,10 @@ export class FightAudio {
   update(config: MatchConfig, state: MatchState, events: readonly CombatEvent[]) {
     if (this.round !== undefined && this.round !== state.round) this.stopAll();
     this.round = state.round;
+    if (state.phase === 'ready' && this.lastPhase !== 'ready') {
+      for (const seat of seats) this.playNamed(seat, 'event-entry');
+    }
+    this.lastPhase = state.phase;
     for (const seat of seats) this.updateAction(config, state, seat);
     const silentVoices = seats.filter(seat => config.fighters[seat]?.id === 'frog' &&
       (frogPowered(state.fighters[seat], state) || state.fighters[seat].attack?.id === 'frog-ascend'));
@@ -198,7 +207,32 @@ export class FightAudio {
       if (cue.stopOnInterrupt === false) this.playClip(source, cue);
       else if (state.fighters[source].attack === attack) this.playClip(source, cue, attack);
     }
+    this.updateEntities(state);
     this.play(events);
+  }
+
+  private playNamed(seat: Seat, clip: string) {
+    if (!this.banks[seat]?.[clip]) return false;
+    return this.playClip(seat, {clip, channel:'sfx'});
+  }
+
+  private updateEntities(state: MatchState) {
+    const live = new Set<number>();
+    for (const entity of state.entities ?? []) {
+      if (entity.definition.behavior !== 'pool') continue;
+      live.add(entity.id);
+      const previous = this.entityAges.get(entity.id);
+      // Repeated render updates and hitstop never replay a splash.
+      if (previous !== entity.age) {
+        if (previous === undefined && entity.age <= 1) this.playNamed(entity.owner, 'pool-warning');
+        const wave = (entity.age - WHALE_RULES.telegraph) / WHALE_RULES.hitGap;
+        if (Number.isInteger(wave) && wave >= 0 && wave < WHALE_RULES.ultimateHits) {
+          this.playNamed(entity.owner, wave === WHALE_RULES.ultimateHits - 1 ? 'pool-final' : 'pool-breach');
+        }
+        this.entityAges.set(entity.id,entity.age);
+      }
+    }
+    for (const id of this.entityAges.keys()) if (!live.has(id)) this.entityAges.delete(id);
   }
 
   private updateAction(config: MatchConfig, state: MatchState, seat: Seat) {
@@ -278,8 +312,12 @@ export class FightAudio {
     const sounds = new Map<string, CombatEvent>();
     for (const event of events) {
       if (event.kind === 'action-audio') continue;
+      // Block and break source is the attacker; defensive foley belongs to the other seat.
+      if ((event.kind === 'block' || event.kind === 'break') &&
+        this.playNamed(event.source === 0 ? 1 : 0, 'event-' + event.kind)) continue;
       const impact = event.kind === 'hit' || event.kind === 'block' ? event.feedback?.audio : undefined;
       if (impact && this.playClip(event.source, impact)) continue;
+      if (this.playNamed(event.source, 'event-' + event.kind)) continue;
       const preset = event.kind === 'hit' ? event.feedback?.sound ?? (event.heavy ? 'heavy' : 'light') : undefined;
       const key = preset ? 'hit-' + preset : event.kind;
       if (event.heavy || !sounds.has(key)) sounds.set(key, event);

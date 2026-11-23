@@ -685,7 +685,9 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   if(cinematic!==undefined){
     // Presentation advances, simulation clocks, statuses, entities and inputs do not.
     const attack=state.fighters[cinematic].attack!;
-    if(++attack.frame===WHALE_RULES.cinematic){spawnEntities(state,config);finishAscension(state.fighters[cinematic],state);state.fighters[cinematic].attack=null;}
+    attack.frame++;
+    for(const cue of actionFor(config,state,cinematic)?.audioTimeline??[])if(cue.frame===attack.frame)events.push({kind:'action-audio',source:cinematic,x:state.fighters[cinematic].x,y:state.fighters[cinematic].y,actionAudio:{attack,cue}});
+    if(attack.frame===WHALE_RULES.cinematic){spawnEntities(state,config);finishAscension(state.fighters[cinematic],state);state.fighters[cinematic].attack=null;}
     for(const fighter of state.fighters)fighter.buffer=[];
     return events;
   }

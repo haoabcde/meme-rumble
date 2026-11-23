@@ -295,3 +295,11 @@ test('frog voice mapping follows skill activation and holding C emits only one r
  }
  const burrow=setup(0,1200);assert.equal(burrow.press('C',-1).find(e=>e.kind==='action-audio').actionAudio.cue.clip,'skill2-1');
 });
+
+
+test('ascension sound is emitted at cinematic end once, after simulation pause, without voice',()=>{
+ const t=setup(0,1200);t.caster.energy=300;t.press('ULT');const world=t.state.arenaFrame;
+ const events=t.run(60).filter(e=>e.kind==='action-audio');
+ assert.deepEqual(events.map(e=>[e.actionAudio.cue.clip,e.actionAudio.cue.channel]),[['ascension','sfx']]);assert.equal(t.state.arenaFrame,world);
+ assert.equal(t.run(4).filter(e=>e.kind==='action-audio').length,0);
+});

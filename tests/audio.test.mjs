@@ -384,3 +384,16 @@ test('frog transformation and buff silence only its voice, stop prior dialogue a
  delete state.fighters[0].ascendUntil;
  audio.update(config,state,[event()]);assert.equal(context.clips.length,4,'normal form voice resumes');
 });
+
+
+test('pool sounds follow entity age once through hitstop, ending with a distinct giant breach',async t=>{
+ const poolBank={'pool-warning':{src:'open.wav'},'pool-breach':{src:'active.wav'},'pool-final':{src:'impact.wav'}};
+ const {audio,context}=audioFixture(t,[poolBank,undefined],sources);await finishPreload(context);
+ const config={fighters:[testFighter,testFighter]},entity={id:7,owner:0,definition:{behavior:'pool'},age:0};
+ const state={round:1,phase:'fight',arenaFrame:0,fighters:[{attack:null},{attack:null}],entities:[entity]};
+ audio.update(config,state,[]);audio.update(config,state,[]);assert.deepEqual(markers(context),[1]);
+ entity.age=35;audio.update(config,state,[]);assert.equal(context.clips.length,1);
+ for(let i=0;i<12;i++){entity.age=36+i*7;audio.update(config,state,[]);audio.update(config,state,[]);}
+ assert.deepEqual(markers(context),[1,...Array(11).fill(2),3]);
+ audio.stopAll();audio.update(config,state,[]);assert.equal(context.clips.length,14);
+});
