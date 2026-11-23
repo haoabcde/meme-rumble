@@ -4,6 +4,8 @@ import {createUnifiedTornadoRenderer} from '../../assets/角色/防御/大肥鱼
 import {createUltimateRenderer} from './whale-ultimate.mjs';
 import portrait from '../../assets/角色/大招/大肥鱼/开源/演出分层/梁文峰_宽肩修订_V4.png';
 import {createWaterRenderer} from './whale-water.mjs';
+import {waterSubframe} from './whale-presentation.mjs';
+import {cinematicOwner} from '../core/whale-kit.js';
 import whaleTurn from '../../assets/角色/特效/大肥鱼/水鲸动作_V2/水鲸_八方向张嘴.png';
 import whaleLeap from '../../assets/角色/特效/大肥鱼/水鲸动作_V2/水鲸_抬头张嘴跃出_八帧.png';
 import waterWhale from '../../assets/角色/特效/大肥鱼/水鲸符文_V1/水鲸_四姿态.png';
@@ -53,11 +55,12 @@ function riceBlob(ctx:CanvasRenderingContext2D,x:number,y:number,r=14){
  for(let i=0;i<17;i++){const a=i*2.399,rr=Math.sqrt(i/17)*r*.8;ctx.fillStyle=i%4?'#f8fbff':'#dce9f4';ctx.fillRect(Math.round(Math.cos(a)*rr/2)*2-3,Math.round((Math.sin(a)*rr*.5-3)/2)*2,5,3);}
  ctx.restore();
 }
-export function drawWhaleEntities(ctx:CanvasRenderingContext2D,state:MatchState,config:MatchConfig,layer:'back'|'front'){
+export function drawWhaleEntities(ctx:CanvasRenderingContext2D,state:MatchState,config:MatchConfig,layer:'back'|'front',fraction=0){
+ const subframe=waterSubframe(fraction,state.freeze,cinematicOwner(state)!==undefined);
  for(const e of state.entities??[]){const b=e.definition.behavior;if(!b)continue;
   if(b==='spin'||b==='spin-up'||b==='counter'){tornado?.wind(ctx,e.x,e.y,e.age,layer,e.windTicks??20);water?.orbit(ctx,e,layer);}
   if(layer==='front'&&b==='rice')riceBlob(ctx,e.x,e.y);
-  if(b==='pool')water?.pool(ctx,e,layer);
+  if(b==='pool')water?.pool(ctx,e,layer,subframe);
  }
  for(const seat of [0,1] as const){const f=state.fighters[seat],a=config.fighters[seat].actions.find(a=>a.id===f.attack?.id),age=f.attack?.frame??0;
   if(a&&'whale' in a&&a.whale==='spin'&&age<12)tornado?.formation(ctx,{x:f.x,y:f.y},age,layer);
@@ -65,7 +68,7 @@ export function drawWhaleEntities(ctx:CanvasRenderingContext2D,state:MatchState,
   if(layer==='front'&&(f.bindUntil??0)>state.arenaFrame)riceBlob(ctx,f.x,f.y-3,21);
  }
 }
-export function drawWhaleIntro(ctx:CanvasRenderingContext2D,config:MatchConfig,state:MatchState){
+export function drawWhaleIntro(ctx:CanvasRenderingContext2D,config:MatchConfig,state:MatchState,fraction=0){
  if(!ultimate)return;
- for(const seat of [0,1] as const){const f=state.fighters[seat];if(config.fighters[seat].id==='whale'&&f.attack?.id==='open-source')ultimate.intro(ctx,ctx.canvas.width,ctx.canvas.height,f.attack.frame);}
+ for(const seat of [0,1] as const){const f=state.fighters[seat];if(config.fighters[seat].id==='whale'&&f.attack?.id==='open-source')ultimate.intro(ctx,ctx.canvas.width,ctx.canvas.height,f.attack.frame+waterSubframe(fraction,state.freeze));}
 }

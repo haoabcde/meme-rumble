@@ -313,7 +313,7 @@ export class Renderer {
     }
   }
 
-  draw(config: MatchConfig, state: MatchState, debug: boolean, elapsed: number, shakeEnabled: boolean, focus = false, opening = 0) {
+  draw(config: MatchConfig, state: MatchState, debug: boolean, elapsed: number, shakeEnabled: boolean, focus = false, opening = 0, presentationFraction = 0) {
     const ctx = this.ctx;
     const { width, height } = ctx.canvas;
     // A seek can jump across camera framing or a cinematic: redraw from a clean frame.
@@ -357,7 +357,7 @@ export class Renderer {
       ctx.setLineDash([]);
     }
 
-    drawWhaleEntities(ctx,state,config,'back');
+    drawWhaleEntities(ctx,state,config,'back',presentationFraction);
     drawFrogEffects(ctx,state,config,'back');
     const front = a.attack && b.hitstun ? [1, 0] as const : [0, 1] as const;
     for (const seat of front) {
@@ -461,7 +461,7 @@ export class Renderer {
     }
 
     for (const entity of state.entities ?? []) if(!entity.definition.behavior)drawEntity(ctx, entity, debug);
-    drawWhaleEntities(ctx,state,config,'front');
+    drawWhaleEntities(ctx,state,config,'front',presentationFraction);
     drawFrogEffects(ctx,state,config,'front');
     this.drawEffects(state.arenaFrame, Boolean(config.training));
     ctx.resetTransform();
@@ -489,7 +489,7 @@ export class Renderer {
     if (debug || Math.abs(a.x - b.x) > width / zoom * .7) {
       this.drawPositionStrip(config.arena, [a.x, b.x], camera);
     }
-    drawWhaleIntro(ctx,config,state);
+    drawWhaleIntro(ctx,config,state,presentationFraction);
     drawFrogIntro(ctx,config,state);
   }
 

@@ -1,4 +1,8 @@
 const clamp=n=>Math.max(0,Math.min(1,n));
+// Only presentation samples between simulation ticks; pause/seek/hitstop remain exact.
+export function waterSubframe(fraction,freeze=0,cinematic=false){
+ return freeze||cinematic?0:clamp(Number.isFinite(fraction)?fraction:0);
+}
 export function orbitAngle(age){
  return -2.7+clamp(age/48)*1.05*Math.PI*2;
 }
@@ -19,7 +23,7 @@ export function eruptionSample(age,index){
  const spec=ERUPTIONS[index],a=spec.degrees*Math.PI/180,speed=index===11?49:33+(index*7%11);
  const distance=speed*(Math.max(0,age)-5*(1-Math.exp(-Math.max(0,age)/5)));
  const sway=index===11?0:Math.sin(age*.19+index)*6*clamp(age/10);
- const pose=clamp(age/8)*2.7+.12*Math.sin(age*.3);
+ const pose=2.7*(1-Math.exp(-Math.max(0,age)/6))+.13*Math.sin(age*.25)*clamp(age/7);
  return{...spec,age,x:spec.offset+Math.sin(a)*distance+Math.cos(a)*sway,
   y:spec.width*.42-Math.cos(a)*distance,angle:-Math.PI/2+a,pose:Math.max(0,pose),
   rotation:-Math.PI/2+a+Math.min(.9,Math.max(0,pose)*.3),alpha:clamp(age/3),speed};

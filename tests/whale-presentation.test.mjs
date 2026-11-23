@@ -1,6 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {orbitAngle,orbitSample,eruptionSample,ERUPTIONS} from '../src/web/whale-presentation.mjs';
+import {orbitAngle,orbitSample,eruptionSample,ERUPTIONS,waterSubframe} from '../src/web/whale-presentation.mjs';
+import {waterSpine} from '../src/web/water-flow.mjs';
+
+test('subtick water presentation is continuous while hitstop and cinematics keep the pool still',()=>{
+ for(const fraction of [0,.25,.5,.75]){
+  assert.equal(waterSubframe(fraction),fraction);
+  assert.equal(waterSubframe(fraction,1),0);
+  assert.equal(waterSubframe(fraction,0,true),0);
+ }
+ for(let i=0;i<12;i++)for(let frame=0;frame<40;frame++){
+  const samples=[0,.25,.5,.75,1].map(t=>eruptionSample(frame+t,i));
+  for(let j=1;j<samples.length;j++)assert.ok(samples[j].y<samples[j-1].y);
+ }
+ assert.equal(waterSubframe(NaN),0);
+});
+
+test('water whale keeps swimming after opening its mouth, with a steadier head than tail',()=>{
+ const tail=[],head=[];
+ for(let i=0;i<240;i++){
+  const phase=i/240*Math.PI*2;
+  tail.push(waterSpine(phase,.1));head.push(waterSpine(phase,.9));
+  assert.ok(Math.abs(waterSpine(phase+.001,.1)-waterSpine(phase,.1))<.01);
+ }
+ assert.ok(Math.max(...tail)>4);
+ assert.ok(Math.max(...head)<.2);
+ assert.ok(new Set(Array.from({length:60},(_,i)=>eruptionSample(12+i/4,0).pose)).size>50);
+});
 test('travelling and stationary tornado whales share shape, rise and speed, repeating only on long journeys',()=>{
  for(const wind of [60,110,240])for(let age=0;age<48;age++)assert.deepEqual(orbitSample(age,wind,true),orbitSample(age,20,false));
  for(let age=0;age<48;age++)assert.deepEqual(orbitSample(age+48,240,true),orbitSample(age,20,false));

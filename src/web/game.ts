@@ -861,7 +861,7 @@ function draw(elapsed: number) {
   const opening = state.phase === 'ready' && !config.training && !reducedMotion.matches
     ? Math.max(0, Math.min(1, (state.phaseTicks - 18) / 74)) : 0;
   renderer.draw(config, state, debug, elapsed, preferences.shake && !reducedMotion.matches,
-    preferences.camera === 'focus' && !reducedMotion.matches, opening);
+    preferences.camera === 'focus' && !reducedMotion.matches, opening, debt / (1000 / rules.ticksPerSecond));
 }
 
 function frame(now: number) {
