@@ -3,7 +3,7 @@ import { arenas } from '../content/arenas.js';
 import { roster } from '../content/roster.js';
 import { actionFor, createMatch, step } from '../core/match.js';
 import { ENERGY_PER_STOCK, MAX_ENERGY, NEUTRAL, type ActionKey, type Axis, type Duo, type FighterDefinition, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
-import { arcadeArt, arenaArt, fighterArt } from './art.js';
+import { arcadeArt, comicArt, arenaArt, fighterArt } from './art.js';
 import { FightAudio } from './audio.js';
 import { cpuInput } from './cpu.js';
 import { tierAt } from '../core/terrain.js';
@@ -106,7 +106,7 @@ let trainingDownHeld = false;
 let mode: Mode = 'local';
 let screen: Screen = 'title';
 let activeSeat: Seat = 0;
-let arenaIndex = Math.max(0, arenas.findIndex(arena => arena.id === 'harbor'));
+let arenaIndex = Math.max(0, arenas.findIndex(arena => arena.id === 'broadcast-ring'));
 let routeVisible = true;
 let debug = false;
 let bestTier = 0;
@@ -134,7 +134,8 @@ audio.voiceVolume = preferences.voiceVolume / 100;
 renderGuide(preferences);
 
 stage.style.setProperty('--arcade-art', 'url("' + arcadeArt + '")');
-element<HTMLImageElement>('menu-backdrop').src = arenaArt.station;
+stage.style.setProperty('--comic-art', 'url("' + comicArt + '")');
+element<HTMLImageElement>('menu-backdrop').src = arenaArt.broadcast;
 element<HTMLImageElement>('menu-feature').src = fighterArt.gaga;
 
 const tiles = roster.map((entry, index) => {

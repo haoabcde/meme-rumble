@@ -12,7 +12,7 @@ import { frameCamera, type CameraView } from './camera.js';
 
 export const seatColors = ['#61d8ff', '#ff849e'];
 export const recoveryLabels = { fall: '击倒', down: '倒地', rise: '起身' };
-const arenaColors = { dorm: '#ffc08c', court: '#8faaff', harbor: '#8de9cd', station: '#bc9bff' };
+const arenaColors = { dorm: '#ffc08c', court: '#8faaff', harbor: '#8de9cd', station: '#bc9bff', broadcast: '#f05aaa' };
 const tierColors = ['#6adfff', '#ffdd87', '#edacff', '#c1ebad'];
 const artSizes = new Map(roster.map(entry => [entry.fighter.id, entry.height]));
 const harborLayers = { backdrop: drawQuay, scenery: drawHarborScenery, mechanism: drawHarborLift };
@@ -199,7 +199,8 @@ export function paintArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition
   ctx.fillRect(0, 0, width, height);
   if (!arena.artFrame.length) {
     const layers = layersFor(arena);
-    layers.backdrop(ctx, arena, arena.width / 2);
+    if (arena.theme === 'broadcast') drawStageBackdrop(ctx, arena, arena.width / 2, true);
+    else layers.backdrop(ctx, arena, arena.width / 2);
     layers.scenery(ctx, arena);
   } else if (image.naturalWidth) drawStageArt(ctx, arena, image);
 

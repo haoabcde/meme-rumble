@@ -152,7 +152,8 @@ export interface Platform {
   prop?: 'container' | 'trailer' | 'catwalk' | 'ferry' | 'pallet' | 'office' | 'bridge' | 'gallery' |
     'planter' | 'sunroom' | 'skywalk' | 'penthouse' | 'water-tank' | 'laundry' |
     'bench-seat' | 'shelter' | 'bleachers' | 'press-box' | 'scoreboard' | 'camera-deck' |
-    'transformer' | 'control-room' | 'conduit' | 'inductor' | 'elevator' | 'stair';
+    'transformer' | 'control-room' | 'conduit' | 'inductor' | 'elevator' | 'stair' |
+    'audience-step' | 'audience-deck' | 'broadcast-booth' | 'lighting-bridge' | 'led-screen' | 'show-lift';
   travel?: { axis?: 'x' | 'y'; distance: number; period: number; dwell: number; phase: number };
 }
 
@@ -163,7 +164,7 @@ export interface ArenaDefinition {
   terrain: string;
   // A ground-to-top route from each side of the opening.
   routes: Duo<string[]>;
-  theme: 'dorm' | 'court' | 'harbor' | 'station';
+  theme: 'dorm' | 'court' | 'harbor' | 'station' | 'broadcast';
   artFrame: { sourceY: number; worldY: number }[];
   width: number;
   height: number;

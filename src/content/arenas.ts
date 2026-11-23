@@ -86,4 +86,30 @@ const station = stage({
   ['east-stair', '东侧接线台', 1, 3656, 4190, 100, 'stair']
 ]);
 
-export const arenas: ArenaDefinition[] = [dorm, court, harbor, station];
+const broadcast = stage({
+  id: 'broadcast-ring', name: '直播擂台', theme: 'broadcast', width: 4480,
+  terrain: '中央擂台 · 看台登高 · 升降转场',
+  description: '擂台贯通两侧观众席，从转播间屋顶登上灯桥和大屏。中央升降台连通地面与高位，两侧都可换线追击。',
+  routes: [['home-stage', 'home-stand', 'home-booth', 'screen'], ['away-stage', 'away-stand', 'away-booth', 'screen']]
+}, [
+  ['west-step', '西侧入场台', 1, 185, 690, 111, 'audience-step'],
+  ['west-deck', '西侧应援看台', 2, 545, 1072, 237, 'audience-deck'],
+  ['west-entry', '西侧舞台台阶', 1, 820, 1270, 119, 'audience-step'],
+  ['west-lights', '西侧聚光灯桥', 3, 929, 1292, 365, 'lighting-bridge'],
+  ['west-audience', '主场观众席', 2, 1114, 1590, 249, 'audience-deck'],
+  ['home-stage', '主场入场台', 1, 1460, 1925, 130, 'audience-step'],
+  ['home-stand', '主场高看台', 2, 1545, 1985, 261, 'audience-deck'],
+  ['home-booth', '主场转播间', 3, 1770, 2180, 394, 'broadcast-booth'],
+  ['screen', '中央大屏顶', 4, 1970, 2510, 527, 'led-screen'],
+  ['away-booth', '客场转播间', 3, 2310, 2720, 395, 'broadcast-booth'],
+  ['away-stand', '客场高看台', 2, 2490, 2930, 261, 'audience-deck'],
+  ['away-stage', '客场入场台', 1, 2554, 3020, 131, 'audience-step'],
+  ['east-audience', '客场观众席', 2, 2990, 3490, 249, 'audience-deck'],
+  ['east-entry', '东侧舞台台阶', 1, 3250, 3685, 119, 'audience-step'],
+  ['east-lights', '东侧聚光灯桥', 3, 3400, 3780, 366, 'lighting-bridge'],
+  ['east-deck', '东侧应援看台', 2, 3500, 4005, 235, 'audience-deck'],
+  ['east-step', '东侧入场台', 1, 3710, 4285, 111, 'audience-step'],
+  ['show-lift', '中央升降舞台', 1, 2130, 2350, 61, 'show-lift', { axis: 'y', distance: -465, period: 480, dwell: 52, phase: 0 }]
+]);
+
+export const arenas: ArenaDefinition[] = [dorm, court, harbor, station, broadcast];

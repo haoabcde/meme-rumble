@@ -9,6 +9,13 @@ interface Sprite {
   lip: [number, number, number];
   posts: number[];
 }
+
+// Broadcast pieces use their native 1536px atlas; the shared painter uses a 900px reference.
+function broadcastPiece(box: Sprite['box'], lip: Sprite['lip'], posts: number[]): Sprite {
+  const scale = 900 / 1536;
+  return { box: box.map(n => n * scale) as Sprite['box'],
+    lip: lip.map(n => n * scale) as Sprite['lip'], posts: posts.map(n => n * scale) };
+}
 // Coordinates in the 900 by 600 reference view of each high-resolution sheet.
 const pieces: Partial<Record<Prop, Sprite>> = {
   planter:       { box: [18, 54, 422, 131], lip: [22, 435, 103], posts: [57, 384] },
@@ -28,21 +35,48 @@ const pieces: Partial<Record<Prop, Sprite>> = {
   conduit:       { box: [8, 249, 499, 148], lip: [23, 493, 284], posts: [30, 480] },
   inductor:      { box: [530, 215, 313, 189], lip: [535, 837, 253], posts: [659, 712] },
   elevator:      { box: [21, 431, 422, 152], lip: [28, 435, 524], posts: [] },
-  stair:         { box: [484, 424, 394, 162], lip: [490, 727, 487], posts: [509, 704] }
+  stair:         { box: [484, 424, 394, 162], lip: [490, 727, 487], posts: [509, 704] },
+  'audience-step': broadcastPiece([48,184,686,106], [62,718,209], [83,700]),
+  'audience-deck': broadcastPiece([791,95,712,206], [805,1489,119], [818,1474]),
+  'broadcast-booth': broadcastPiece([38,386,696,236], [51,719,405], [72,694]),
+  'lighting-bridge': broadcastPiece([784,393,727,200], [799,1496,406], [817,1479]),
+  'led-screen': broadcastPiece([38,686,696,319], [57,715,699], [158,607]),
+  'show-lift': broadcastPiece([803,682,686,298], [885,1411,911], [])
 };
 const tones = {
   dorm: { sky: '#8e7b99', haze: '#c29296', edge: '#634c51', post: '#695b58', trim: '#a08c79', horizon: 578, feet: 624, parallax: .2 },
   court: { sky: '#0c1e38', haze: '#20375b', edge: '#22283c', post: '#364154', trim: '#687182', horizon: 611, feet: 658, parallax: 0 },
-  station: { sky: '#393662', haze: '#68558c', edge: '#38384c', post: '#3c4056', trim: '#787b93', horizon: 615, feet: 648, parallax: .32 }
+  station: { sky: '#393662', haze: '#68558c', edge: '#38384c', post: '#3c4056', trim: '#787b93', horizon: 615, feet: 648, parallax: .32 },
+  broadcast: { sky: '#140b2b', haze: '#392351', edge: '#21183b', post: '#38235e', trim: '#a562d0', horizon: 740, feet: 790, parallax: .08 }
 };
 
-export function drawStageBackdrop(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, center: number) {
+export function drawStageBackdrop(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, center: number, overview = false) {
   const { floor, width, height } = arena;
   const style = tones[arena.theme as CampusTheme];
   const img = backgrounds[arena.theme];
   ctx.fillStyle = style.sky;
   ctx.fillRect(0, 0, width, height);
   if (!img.naturalWidth) return;
+  if (arena.theme === 'broadcast') {
+    // Keep the audience at readable scale in the combat camera; extend the two wings without duplicating the host screen.
+    const imageWidth = overview ? width : 1400;
+    const scale = imageWidth / img.naturalWidth;
+    const top = floor - img.naturalHeight * .8374 * scale;
+    const x = (width - imageWidth) / 2 + (center - width / 2) * style.parallax;
+    const wing = imageWidth / 4;
+    for (let left = x - wing; left > -wing; left -= wing) {
+      ctx.drawImage(img, 0, 0, img.naturalWidth / 4, img.naturalHeight, left, top, wing, img.naturalHeight * scale);
+    }
+    for (let right = x + imageWidth; right < width; right += wing) {
+      ctx.drawImage(img, img.naturalWidth * .75, 0, img.naturalWidth / 4, img.naturalHeight,
+        right, top, wing, img.naturalHeight * scale);
+    }
+    ctx.drawImage(img, x, top, imageWidth, img.naturalHeight * scale);
+    const edge = top + img.naturalHeight * scale;
+    ctx.fillStyle = style.edge;
+    ctx.fillRect(0, edge, width, height - edge);
+    return;
+  }
   const scale = width / img.naturalWidth;
   const top = floor - style.feet * scale;
   const seam = top + style.horizon * scale;
@@ -52,7 +86,7 @@ export function drawStageBackdrop(ctx: CanvasRenderingContext2D, arena: ArenaDef
     0, seam, width, (img.naturalHeight - style.horizon) * scale);
   const gradient = ctx.createLinearGradient(0, 0, 0, top + 180);
   gradient.addColorStop(0, style.sky);
-  gradient.addColorStop(top / (top + 180), style.haze);
+  gradient.addColorStop(Math.max(0, Math.min(1, top / (top + 180))), style.haze);
   gradient.addColorStop(1, style.haze + '00');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, top + 180);
@@ -186,7 +220,11 @@ export function drawStageMechanism(ctx: CanvasRenderingContext2D, arena: ArenaDe
   const board = arena.platforms.find(p => p.prop === 'scoreboard');
   if (board) boardDisplay(ctx, board, state, config);
   const lift = arena.platforms.find(p => p.prop === 'elevator');
-  if (!lift) return;
+  if (!lift) {
+    const showLift = arena.platforms.find(p => p.prop === 'show-lift');
+    if (showLift) drawPiece(ctx, arena, platformAt(showLift, frame));
+    return;
+  }
   const p = platformAt(lift, frame);
   const shaft = arena.floor - 642;
   ctx.fillStyle = '#383948';

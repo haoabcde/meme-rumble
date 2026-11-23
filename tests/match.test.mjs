@@ -770,7 +770,7 @@ test('walking off a ledge clears its support and lands on the next reachable tie
 });
 
 for (const arena of arenas) {
-  test(arena.name + ' · P2 can also reach the upper platform from the right side', () => {
+  test(arena.name + ' · P2 can climb and drop through each tier on the right side', () => {
     const settings = trainingOn(arena);
     const state = begin(settings);
     const floor = { ...arena, id: 'floor', y: arena.floor };
@@ -779,6 +779,12 @@ for (const arena of arenas) {
       alignOverlapping(state, path[i - 1], path[i], settings, 1);
       landAfter(state, input(['jump']), settings, 1);
       assert.equal(state.fighters[1].ground, path[i].id);
+    }
+    for (let i = path.length - 1; i > 0; i--) {
+      alignOverlapping(state, path[i], path[i - 1], settings, 1);
+      assert.deepEqual(landAfter(state, input(['jump'], 0, 1), settings, 1).map(event => event.kind), ['drop']);
+      assert.equal(state.fighters[1].ground, path[i - 1].id);
+      assert.equal(state.fighters[1].y, path[i - 1].y);
     }
   });
 }
@@ -844,7 +850,7 @@ test('the station towers have separate upper bays with a reachable middle crossi
   assert.equal(fighter.ground, 'relay-right');
 });
 
-test('every expanded floor is traversable and both players can reach their own edge', () => {
+test('both players can traverse every expanded floor in either direction', () => {
   for (const arena of arenas) {
     const settings = trainingOn(arena);
     const state = begin(settings);
@@ -856,8 +862,12 @@ test('every expanded floor is traversable and both players can reach their own e
     assert.deepEqual(state.fighters.map(fighter => [fighter.x, fighter.ground]),
       [[arena.left, 'floor'], [arena.right, 'floor']]);
     stepFor(state, frames, [input([], 1), input([], 1)], settings);
-    assert.equal(b.x, arena.right);
-    assert.equal(a.x, arena.right - settings.fighters[0].bodyWidth);
+    const { bodyWidth } = settings.fighters[0];
+    assert.deepEqual(state.fighters.map(fighter => [fighter.x, fighter.ground]),
+      [[arena.right - bodyWidth, 'floor'], [arena.right, 'floor']]);
+    stepFor(state, frames, [input([], -1), input([], -1)], settings);
+    assert.deepEqual(state.fighters.map(fighter => [fighter.x, fighter.ground]),
+      [[arena.left, 'floor'], [arena.left + bodyWidth, 'floor']]);
   }
 });
 
@@ -1155,6 +1165,40 @@ test('either opening seat can board the station lift and step off onto its own t
     landAfter(state, input(['jump'], outward), settings, seat, outward);
     assert.equal(f.ground, seat === 0 ? 'coil-left' : 'coil-right');
   }
+});
+
+test('both broadcast fighters can board the show lift from spawn and jump onto the screen together', () => {
+  const settings = trainingOn(arenas.find(arena => arena.id === 'broadcast-ring'));
+  const lift = settings.arena.platforms.find(platform => platform.id === 'show-lift');
+  const screen = settings.arena.platforms.find(platform => platform.id === 'screen');
+  const state = begin(settings);
+  const stops = [lift.left + 28, lift.right - 28];
+  for (let frame = 0; frame < 45; frame++) {
+    step(state, state.fighters.map((fighter, seat) => {
+      const remaining = stops[seat] - fighter.x;
+      const axis = Math.abs(remaining) >= settings.fighters[seat].airSpeed ? Math.sign(remaining) : 0;
+      return input(frame === 0 ? ['jump'] : [], axis);
+    }), settings);
+    if (state.fighters.every(fighter => fighter.ground)) break;
+  }
+  assert.deepEqual(state.fighters.map(fighter => fighter.ground), [lift.id, lift.id]);
+  const boarded = state.fighters.map(fighter => ({ x: fighter.x, y: fighter.y }));
+  const rideFrames = lift.travel.period / 2 - state.arenaFrame;
+  for (let frame = 0; frame < rideFrames; frame++) {
+    step(state, [NEUTRAL, NEUTRAL], settings);
+    assert.deepEqual(state.fighters.map(fighter => fighter.ground), [lift.id, lift.id]);
+  }
+  for (const [seat, fighter] of state.fighters.entries()) {
+    assert.equal(fighter.x, boarded[seat].x);
+    assert.ok(boarded[seat].y - fighter.y >= 400);
+    assert.ok(Math.abs(fighter.y - screen.y) <= 5);
+  }
+
+  const events = step(state, [input(['jump']), input(['jump'])], settings);
+  assert.deepEqual(events.map(event => event.kind), ['jump', 'jump']);
+  stepFor(state, 40, [NEUTRAL, NEUTRAL], settings);
+  assert.deepEqual(state.fighters.map(fighter => [fighter.ground, fighter.y]),
+    [[screen.id, screen.y], [screen.id, screen.y]]);
 });
 
 test('the computer can approach an opponent occupying either upper route from the opening floor on every map', () => {
