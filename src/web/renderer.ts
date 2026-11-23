@@ -576,13 +576,6 @@ export class Renderer {
           (event.kind === 'knockdown' ? 22 : 9) + age * 2.7, 3 + age * .25, 0, 0, 2 * Math.PI);
         ctx.stroke();
       } else if (event.kind === 'parry') {
-        ctx.textAlign = 'center';
-        ctx.font = '900 22px system-ui';
-        ctx.strokeStyle = '#242039';
-        ctx.lineWidth = 4;
-        ctx.strokeText('防反', 0, -47 - age);
-        ctx.fillStyle = '#ffe399';
-        ctx.fillText('防反', 0, -47 - age);
         const radius = 12 + age * 1.8;
         polygon(ctx, '#ffe399', [[0, -radius], [4, -4], [radius, 0], [4, 4],
           [0, radius], [-4, 4], [-radius, 0], [-4, -4]]);
