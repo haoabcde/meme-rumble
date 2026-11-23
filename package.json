@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node scripts/serve-web.mjs",
     "build": "tsc && node scripts/build-web.mjs",
-    "test": "npm run build && node --test tests/*.test.mjs"
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "package:characters": "npm run build && node scripts/package-characters.mjs"
   },
   "devDependencies": {
     "esbuild": "0.25.12",

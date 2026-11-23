@@ -36,6 +36,7 @@ interface UltimateMove {
 }
 
 export interface FighterPackage {
+  commonMoves?: ActionDefinition[];
   id: string;
   name: string;
   accent: string;
@@ -173,6 +174,8 @@ function validateAudioTimeline(where: string, timeline: ActionAudioCue[] | undef
   if (!Array.isArray(timeline)) throw Error(where + ' 的 audioTimeline 须为数组');
   for (const [index, cue] of timeline.entries()) {
     if (!validAudioReference(cue, audio) || !Number.isInteger(cue.frame) || cue.frame < 0 || cue.frame >= duration ||
+      (cue.variants !== undefined && (!Array.isArray(cue.variants) || !cue.variants.length ||
+        !cue.variants.every(clip => validAudioReference({clip}, audio)))) ||
       (cue.channel !== undefined && !['sfx', 'voice'].includes(cue.channel)) ||
       (cue.stopOnInterrupt !== undefined && typeof cue.stopOnInterrupt !== 'boolean')) {
       throw Error(where + ' 的 audioTimeline[' + index + '] 帧、音频引用、音量、声道或打断设置无效');
@@ -262,7 +265,7 @@ export function defineFighter(spec: FighterPackage): RosterEntry {
     if (!commonActions.some(move => move.id === source)) throw Error(id + ' / commonAudio 找不到公共动作 ' + source);
     if (!override || typeof override !== 'object') throw Error(id + ' / commonAudio.' + source + ' 的音频配置无效');
   }
-  const shared = commonActions.map(move => {
+  const shared = (spec.commonMoves ?? commonActions).map(move => {
     const extra = extraCancels[move.id];
     const override = commonAudio[move.id];
     if (!extra && !override) return move;
@@ -298,6 +301,7 @@ export function defineFighter(spec: FighterPackage): RosterEntry {
     }
   }
   if (guardCounter) {
+    if(guardCounter.whileGuarding!==undefined&&typeof guardCounter.whileGuarding!=='boolean')throw Error(id+' 的持续防反开关须为布尔值');
     if (!Number.isSafeInteger(guardCounter.windowFrames) || guardCounter.windowFrames < 1) {
       throw Error(id + ' 的防反窗口须为正整数帧');
     }

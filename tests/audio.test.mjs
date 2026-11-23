@@ -40,6 +40,7 @@ class FakeSource extends FakeNode {
   }
 
   stop(time) {
+    this.stopTime=time;
     if (time === undefined) this.stopped = true;
   }
 }
@@ -55,6 +56,8 @@ class FakeAudioContext {
   createGain() {
     return Object.assign(new FakeNode(), { gain: new FakeParam() });
   }
+
+  createDynamicsCompressor(){return Object.assign(new FakeNode(),Object.fromEntries(['threshold','knee','ratio','attack','release'].map(k=>[k,new FakeParam()])));}
 
   createBiquadFilter() {
     return Object.assign(new FakeNode(), { frequency: new FakeParam(), Q: new FakeParam() });
@@ -346,4 +349,68 @@ test('a replaced audio bank ignores old decode results and reports unusable audi
   assert.equal(warn.mock.callCount(), 3, 'the missing asset, decoder error, and unknown clip each produce one warning');
   audio.configure([bank, undefined], { 'open.wav': sourceData(4), 'active.wav': sourceData(5), 'impact.wav': sourceData(6) });
   assert.ok(context.played.every(source => source.stopped));
+});
+
+
+test('random voice cue plays exactly one of four clips and does not change combat state', async t => {
+  const pool=Object.fromEntries([1,2,3,4].map(i=>['line'+i,{src:'line'+i+'.wav'}]));
+  const embedded=Object.fromEntries([1,2,3,4].map(i=>['line'+i+'.wav',sourceData(i)]));
+  const {audio,context}=audioFixture(t,[pool,undefined],embedded);
+  await finishPreload(context);
+  const cue={frame:0,clip:'line1',variants:['line2','line3','line4'],channel:'voice',stopOnInterrupt:false};
+  const probe={...move,audioTimeline:[cue]};
+  const fixture=matchFixture(audio,[probe]);
+  const before=structuredClone(fixture.state);
+  const oldRandom=Math.random;t.after(()=>Math.random=oldRandom);
+  for(const roll of [0,.26,.51,.76]){
+    Math.random=()=>roll;
+    audio.update({fighters:[]}, {round:1,fighters:[{attack:null},{attack:null}]},[{kind:'action-audio',source:0,x:0,y:0,actionAudio:{attack:{},cue}}]);
+  }
+  assert.deepEqual(markers(context),[1,2,3,4]);
+  assert.deepEqual(fixture.state,before);
+  assert.ok(context.clips.slice(0,3).every(clip=>clip.stopped));
+});
+
+
+test('frog transformation and buff silence only its voice, stop prior dialogue and retain sfx',async t=>{
+ const {audio,context}=audioFixture(t,[bank,bank],sources);await finishPreload(context);
+ const config={rules,arena:arenas[0],training:true,fighters:[{...testFighter,id:'frog'},testFighter]};
+ const state=createMatch(config);state.phase='fight';
+ const cue={frame:0,clip:'opening',channel:'voice',stopOnInterrupt:false};
+ const event=(source=0,c=cue)=>({kind:'action-audio',source,x:0,y:0,actionAudio:{attack:{},cue:c}});
+ audio.update(config,state,[event()]);assert.equal(context.clips.length,1);
+ state.fighters[0].attack={id:'frog-ascend',frame:0,connected:false,landed:false};
+ audio.update(config,state,[event()]);assert.equal(context.clips.length,1);assert.equal(context.clips[0].stopped,true);
+ state.fighters[0].attack=null;state.fighters[0].ascendUntil=state.arenaFrame+900;
+ audio.update(config,state,[event(),event(1),event(0,{...cue,channel:'sfx'})]);
+ assert.equal(context.clips.length,3,'opponent voice and frog effect remain audible');
+ delete state.fighters[0].ascendUntil;
+ audio.update(config,state,[event()]);assert.equal(context.clips.length,4,'normal form voice resumes');
+});
+
+
+test('pool sounds follow entity age once through hitstop, ending with a distinct giant breach',async t=>{
+ const poolBank={'pool-warning':{src:'open.wav'},'pool-breach':{src:'active.wav'},'pool-final':{src:'impact.wav'}};
+ const {audio,context}=audioFixture(t,[poolBank,undefined],sources);await finishPreload(context);
+ const config={fighters:[testFighter,testFighter]},entity={id:7,owner:0,definition:{behavior:'pool'},age:0};
+ const state={round:1,phase:'fight',arenaFrame:0,fighters:[{attack:null},{attack:null}],entities:[entity]};
+ audio.update(config,state,[]);audio.update(config,state,[]);assert.deepEqual(markers(context),[1]);
+ entity.age=35;audio.update(config,state,[]);assert.equal(context.clips.length,1);
+ for(let i=0;i<12;i++){entity.age=36+i*7;audio.update(config,state,[]);audio.update(config,state,[]);}
+ assert.deepEqual(markers(context),[1,...Array(11).fill(2),3]);
+ audio.stopAll();audio.update(config,state,[]);assert.equal(context.clips.length,14);
+});
+
+test('frog ultimate music survives transformation and attacks, fades at buff end and clears on reset',async t=>{
+ const musicBank={'ultimate-bgm':{src:'open.wav'},active:{src:'active.wav'}};
+ const {audio,context}=audioFixture(t,[musicBank,undefined],sources);await finishPreload(context);
+ const config={rules,arena:arenas[0],fighters:[{...testFighter,id:'frog'},testFighter]};const state=createMatch(config);state.phase='fight';
+ const f=state.fighters[0];f.attack={id:'frog-ascend',frame:0,connected:false,landed:false};
+ audio.update(config,state,[{kind:'action-audio',source:0,x:0,y:0,actionAudio:{attack:f.attack,cue:{frame:0,clip:'ultimate-bgm',channel:'sfx',stopOnInterrupt:false}}}]);
+ const music=context.clips[0];assert.ok(music);f.attack=null;f.ascendUntil=900;
+ audio.update(config,state,[]);assert.equal(music.stopTime,undefined);
+ audio.update(config,state,[{kind:'action-audio',source:0,x:0,y:0,actionAudio:{attack:{},cue:{frame:0,clip:'active',channel:'sfx',stopOnInterrupt:false}}}]);
+ assert.equal(music.stopTime,undefined,'skill sound must not replace BGM');
+ state.arenaFrame=900;audio.update(config,state,[]);assert.equal(music.stopTime,context.currentTime+.3);
+ audio.stopAll();assert.equal(music.stopped,true);
 });

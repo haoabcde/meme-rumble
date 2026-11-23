@@ -1,8 +1,31 @@
 # Meme 乱斗 · 抽象之王
 
-用桌面浏览器打开单文件即可离线游玩，程序、界面和地图都已内嵌。[下载游戏](https://github.com/haoabcde/meme-rumble/releases/latest/download/meme-rumble.html)
+## 直接下载游玩：大肥鱼＋奶蛙角色试玩版
 
-从源码运行时，在仓库目录执行 `npm ci` 和 `npm run build`，再打开 `dist/index.html`。也可执行 `npm start`，通过[本机试玩入口](http://127.0.0.1:4182/)进入游戏。下表的训练链接使用这个本机服务。
+本角色分支已接入两位角色的完整招式、奶蛙出场与胜负动作、最终水潭、技能配音、专属音效和大招BGM。
+
+**不需要安装开发工具。** 下载下面的成品：
+
+- [下载角色试玩版 ZIP（推荐）](https://github.com/haoabcde/meme-rumble/releases/download/characters-preview-20261123/meme-rumble-characters.zip)：解压后，用桌面版 Chrome 或 Edge 双击“开始游戏.html”。
+- [下载角色试玩版单文件 HTML](https://github.com/haoabcde/meme-rumble/releases/download/characters-preview-20261123/meme-rumble-characters.html)：下载到电脑后直接打开。
+- [查看这一版的发布说明](https://github.com/haoabcde/meme-rumble/releases/tag/characters-preview-20261123)。私有仓库的下载需要先登录有权限的 GitHub 账号。
+
+游戏程序、界面、地图、角色和声音均已内嵌，打开后可离线游玩。先点击页面或按一次键解锁声音。支持同机双人、人机和自由训练；目前没有跨电脑联机。
+
+**“Code → Download ZIP”下载的是源码，不是上面的成品。根目录的 `index.html` 不能直接游玩。** GitHub 的 `releases/latest` 当前仍指向队长发布的框架版，和本角色试玩版是不同发布；请使用上面的明确版本链接。
+
+## 从源码构建
+
+下载源码时请先切到本角色分支 `feat/whale-integrated-20261122`，或下载[本分支源码ZIP](https://github.com/haoabcde/meme-rumble/archive/refs/heads/feat/whale-integrated-20261122.zip)。需要 Node.js 20 或更新版本，在解压后的仓库目录依次执行：
+
+```sh
+npm ci
+npm run build
+```
+
+然后打开 **`dist/index.html`**，可以单独把这个文件发给其他人。也可以执行 `npm start`，访问终端显示的本机地址（默认 <http://127.0.0.1:4182/>）。要重新生成可分发的 HTML 和 ZIP，执行 `npm run package:characters`，成品在 `output/角色试玩版/`。
+
+大肥鱼接入记录见[说明](docs/大肥鱼完整接入.md)，最新角色收尾记录见[制作与验收](docs/角色收尾_V19制作与验收.md)。构建后的 `dist/frog-review.html` 和 `dist/whale-review.html` 提供分动作预览。
 
 负责角色的队友从这里开始。文档列出了四个独立的配置入口、最小接入示例、动作图集规格和实机验收方法。[角色制作交接](docs/character-handoff.md)
 
@@ -11,7 +34,7 @@
 ## 进入对战
 
 1. 从标题页进入本地双人、人机对战或自由训练。
-2. 双方各选一位并确认。四位可选角色是 DeepSeek 鲸鱼娘、奶蛙、香蕉猫、姑姑嘎嘎。双方可以使用同一角色。
+2. 双方各选一位并确认。四位可选角色是大肥鱼（DeepSeek 拟人）、奶蛙、香蕉猫、姑姑嘎嘎。双方可以使用同一角色。
 3. 选地图。默认场地是直播擂台。点「登台路线」可查看双方从开局点到高台的走法。标准局为每回合 60 秒、先赢两回合，可在选图页调整。
 4. VS 开场会显示阵容、场地和规则。结算页逐回合记录结果，支持保留规则与阵容再战，也可以换人、换图或返回模式。
 

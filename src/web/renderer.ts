@@ -9,6 +9,10 @@ import { drawHarborScenery, drawHarborLift, drawQuay } from './harbor-art.js';
 import { drawStageBackdrop, drawStageMechanism, drawStageScenery } from './stage-art.js';
 import { platformAt } from '../core/terrain.js';
 import { frameCamera, type CameraView } from './camera.js';
+import {frogPowered} from '../core/frog-kit.js';
+import {cinematicOwner} from '../core/whale-kit.js';
+import {drawFrogActor,drawFrogEffects,drawFrogIntro} from './frog-art.js';
+import {drawWhaleActor,drawWhaleEntities,drawWhaleIntro} from './whale-art.js';
 
 export const seatColors = ['#61d8ff', '#ff849e'];
 export const recoveryLabels = { fall: '击倒', down: '倒地', rise: '起身' };
@@ -357,18 +361,21 @@ export class Renderer {
     }
   }
 
-  draw(config: MatchConfig, state: MatchState, debug: boolean, elapsed: number, shakeEnabled: boolean, focus = false, opening = 0) {
+  draw(config: MatchConfig, state: MatchState, debug: boolean, elapsed: number, shakeEnabled: boolean, focus = false, opening = 0, presentationFraction = 0) {
     const ctx = this.ctx;
     const { width, height } = ctx.canvas;
+    // A seek can jump across camera framing or a cinematic: redraw from a clean frame.
+    ctx.resetTransform();ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
+    ctx.clearRect(0,0,width,height);
     const [a, b] = state.fighters;
-    this.effects = this.effects.filter(({ start, life }) => state.frame >= start && state.frame - start < life);
-    const heights = [artSizes.get(config.fighters[0].id) ?? 137, artSizes.get(config.fighters[1].id) ?? 137];
+    this.effects = this.effects.filter(({ start, life }) => state.arenaFrame >= start && state.arenaFrame - start < life);
+    const heights = ([0,1] as const).map(seat=>(artSizes.get(config.fighters[seat].id)??137)+(frogPowered(state.fighters[seat],state)?52:0));
     const camera = frameCamera(config.arena, { width, height },
       [{ x: a.x, y: a.y, height: heights[0] }, { x: b.x, y: b.y, height: heights[1] }],
-      this.camera, state.freeze ? 0 : elapsed, focus, opening);
+      this.camera, state.phase === 'fight' && (state.freeze || cinematicOwner(state)!==undefined) ? 0 : elapsed, focus, opening);
     this.camera = camera;
     const { x, y, zoom } = camera;
-    const [shakeX, shakeY] = shakeEnabled ? this.shakeOffset(state.frame) : [0, 0];
+    const [shakeX, shakeY] = shakeEnabled ? this.shakeOffset(state.arenaFrame) : [0, 0];
     const dx = Math.min(x * zoom, Math.max(width - (config.arena.width - x) * zoom, shakeX));
     const dy = Math.min(y * zoom, Math.max(height - (config.arena.height - y) * zoom, shakeY));
     ctx.setTransform(zoom, 0, 0, zoom, -x * zoom + dx, -y * zoom + dy);
@@ -398,6 +405,8 @@ export class Renderer {
       ctx.setLineDash([]);
     }
 
+    drawWhaleEntities(ctx,state,config,'back',presentationFraction);
+    drawFrogEffects(ctx,state,config,'back');
     const riseFrames = recoveryDuration(config.rules.riseFrames, DEFAULT_RISE_FRAMES);
     const front = a.attack && b.hitstun ? [1, 0] as const : [0, 1] as const;
     for (const seat of front) {
@@ -429,6 +438,12 @@ export class Renderer {
       ctx.save();
       ctx.translate(f.x, f.y);
       ctx.scale(f.facing, 1);
+      if(def.id==='whale'){
+        const flash=this.hitFlash(seat,state.arenaFrame,f.hitstun>0&&state.freeze>0);
+        if(flash>0)ctx.filter=`brightness(${1+flash*.36})`;
+        drawWhaleActor(ctx,f,state,seat,action);ctx.filter='none';
+      }else if(def.id==='frog'){drawFrogActor(ctx,f,state,action,seat);
+      }else{
       const spriteWidth = sprite?.naturalWidth ? height * sprite.naturalWidth / sprite.naturalHeight : 0;
       if (tilt && pose !== undefined) {
         const bottom = sheet?.naturalWidth
@@ -450,7 +465,7 @@ export class Renderer {
       if (f.recovery?.phase === 'rise') ctx.globalAlpha = .83;
       ctx.shadowColor = color + 'ae';
       ctx.shadowBlur = 9;
-      const flash = this.hitFlash(seat, state.frame, f.hitstun > 0 && state.freeze > 0);
+      const flash = this.hitFlash(seat, state.arenaFrame, f.hitstun > 0 && state.freeze > 0);
       if (flash > 0) ctx.filter = `brightness(${1 + flash * .36})`;
       if (sheet?.naturalWidth && pose !== undefined) {
         drawPose(ctx, sheet, pose, height, strike && hitboxes.length && !strike.animation?.length ? 8 : 0);
@@ -468,9 +483,10 @@ export class Renderer {
         ctx.ellipse(15, -60, 48, 56, 0, -1.33, 1.32);
         ctx.stroke();
       }
+      }
       ctx.restore();
 
-      if (strike) {
+      if (strike && def.id!=='whale' && def.id!=='frog') {
         for (const hitbox of hitboxes) {
           drawSwing(ctx, f, hitbox, strike.pose, (phase - strike.startup) / strike.active, color);
         }
@@ -499,8 +515,10 @@ export class Renderer {
       }
     }
 
-    for (const entity of state.entities ?? []) drawEntity(ctx, entity, debug);
-    this.drawEffects(state.frame, Boolean(config.training));
+    for (const entity of state.entities ?? []) if(!entity.definition.behavior)drawEntity(ctx, entity, debug);
+    drawWhaleEntities(ctx,state,config,'front',presentationFraction);
+    drawFrogEffects(ctx,state,config,'front');
+    this.drawEffects(state.arenaFrame, Boolean(config.training));
     ctx.resetTransform();
     for (const seat of [0, 1] as const) {
       const f = state.fighters[seat];
@@ -526,6 +544,8 @@ export class Renderer {
     if (debug || Math.abs(a.x - b.x) > width / zoom * .7) {
       this.drawPositionStrip(config.arena, [a.x, b.x], camera);
     }
+    drawWhaleIntro(ctx,config,state,presentationFraction);
+    drawFrogIntro(ctx,config,state);
   }
 
   private drawPositionStrip(arena: ArenaDefinition, fighters: [number, number], camera: CameraView) {
@@ -611,13 +631,6 @@ export class Renderer {
           (event.kind === 'knockdown' ? 22 : 9) + age * 2.7, 3 + age * .25, 0, 0, 2 * Math.PI);
         ctx.stroke();
       } else if (event.kind === 'parry') {
-        ctx.textAlign = 'center';
-        ctx.font = '900 22px system-ui';
-        ctx.strokeStyle = '#242039';
-        ctx.lineWidth = 4;
-        ctx.strokeText('防反', 0, -47 - age);
-        ctx.fillStyle = '#ffe399';
-        ctx.fillText('防反', 0, -47 - age);
         const radius = 12 + age * 1.8;
         polygon(ctx, '#ffe399', [[0, -radius], [4, -4], [radius, 0], [4, 4],
           [0, radius], [-4, 4], [-radius, 0], [-4, -4]]);
@@ -634,6 +647,10 @@ export class Renderer {
         ctx.beginPath();
         ctx.arc(-8, 0, radius * .73, -.97, .97);
         ctx.stroke();
+      } else if (event.feedback?.shape === 'ring') {
+        ctx.strokeStyle = '#fff2cf';
+        ctx.lineWidth = 3;
+        ctx.beginPath();ctx.arc(0, 0, 10 + age * 1.7, 0, Math.PI * 2);ctx.stroke();
       } else {
         const heavy = event.heavy || event.kind === 'break';
         if (heavy) {

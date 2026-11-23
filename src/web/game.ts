@@ -2,6 +2,7 @@ import { rules } from '../content/demo.js';
 import { arenas } from '../content/arenas.js';
 import { roster } from '../content/roster.js';
 import { actionFor, createMatch, step } from '../core/match.js';
+import {frogPowered} from '../core/frog-kit.js';
 import { ENERGY_PER_STOCK, MAX_ENERGY, NEUTRAL, type ActionKey, type Axis, type Duo, type FighterDefinition, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
 import { arcadeArt, comicArt, arenaArt, fighterArt } from './art.js';
 import { FightAudio } from './audio.js';
@@ -120,7 +121,7 @@ let windowFit = false;
 const settings = installSettings(preferences, () => {
   clearInputs();
   bindings = bindingMap(preferences);
-  audio.volume = preferences.volume / 100;
+  audio.volume = new URLSearchParams(location.search).has('silent') ? 0 : preferences.volume / 100;
   audio.sfxVolume = preferences.sfxVolume / 100;
   audio.voiceVolume = preferences.voiceVolume / 100;
   audio.enableFromGesture();
@@ -128,7 +129,7 @@ const settings = installSettings(preferences, () => {
   if (screen === 'roster') renderRoster();
   footer();
 });
-audio.volume = preferences.volume / 100;
+audio.volume = new URLSearchParams(location.search).has('silent') ? 0 : preferences.volume / 100;
 audio.sfxVolume = preferences.sfxVolume / 100;
 audio.voiceVolume = preferences.voiceVolume / 100;
 renderGuide(preferences);
@@ -192,6 +193,8 @@ function seatName(seat: Seat) {
 }
 
 function trainingSkillHints(fighter: FighterDefinition) {
+  if(fighter.id==='whale')return whaleInputHints(0);
+  if(fighter.id==='frog')return frogInputHints(0);
   const hints: string[] = [];
   if (acceptsSkillInput(fighter, 'ULT')) hints.push(keyHint(preferences, 0, ['ULT']) + ' 大招');
   if (fighter.guardCounter) hints.push(keyHint(preferences, 0, ['down']) + ' 精准防反');
@@ -205,6 +208,14 @@ function trainingSkillHints(fighter: FighterDefinition) {
     hints.push(keys.join(' + ') + ' 防反架势');
   }
   return hints.join(' · ');
+}
+
+function frogInputHints(seat:Seat){
+ return keyHint(preferences,seat,['A'])+' 五段拳脚 · '+keyHint(preferences,seat,['B'])+' 捧腹 · '+keyHint(preferences,seat,['up','B'],'＋')+' 全图冲击 · 按住'+keyHint(preferences,seat,['C'])+' 下蹲绕背 · '+keyHint(preferences,seat,['up','C'],'＋')+' 脚下钻出 · '+keyHint(preferences,seat,['ULT'])+' 天使变身';
+}
+
+function whaleInputHints(seat:Seat){
+  return keyHint(preferences,seat,['A'])+' 三段尾击 · '+keyHint(preferences,seat,['B'])+' 米饭 · '+keyHint(preferences,seat,['C'])+' 旋风 · '+keyHint(preferences,seat,['ULT'])+' 开源！';
 }
 
 function footer() {
@@ -224,9 +235,11 @@ function footer() {
     : screen === 'title' ? confirmKey + ' 进入游戏'
     : screen === 'result' || screen === 'pause' ? upDown + ' 选择 · ' + confirmKey + ' 确认 · Esc 返回'
     : skills ? 'P1 ' + skills
+    : fighting && config.fighters[0].id==='frog' ? 'P1 '+frogInputHints(0)+(mode==='local'&&config.fighters[1].id==='frog'?'　P2 '+frogInputHints(1):'')
+    : fighting && config.fighters[0].id==='whale' ? 'P1 '+whaleInputHints(0)+(mode==='local'&&config.fighters[1].id==='whale'?'　P2 '+whaleInputHints(1):'')
     : fighting ? 'P1 ' + keyHint(preferences, 0, ['A']) + ' 普攻 · ' +
         keyHint(preferences, 0, ['up', 'A'], ' + ') + ' 挑空' +
-        (mode === 'local' ? '　　P2 ' + keyHint(preferences, 1, ['up', 'A'], ' + ') + ' 挑空'
+        (mode === 'local' ? (config.fighters[1].id==='whale'?'　P2 '+whaleInputHints(1):'　　P2 ' + keyHint(preferences, 1, ['up', 'A'], ' + ') + ' 挑空')
           : ' · ' + keyHint(preferences, 0, ['dash']) + ' 空中冲刺')
     : 'Esc 返回';
   text(element('footer-detail'), hints);
@@ -321,7 +334,7 @@ function renderRoster() {
     text(panels[seat].querySelector('h3')!, entry.fighter.name);
     const enabledSlots = (['B', 'C'] as const).filter(slot => acceptsSkillInput(entry.fighter, slot));
     const skills = enabledSlots.length ? ['可用专属槽 · ' + enabledSlots.join(' / ')] : [];
-    if (entry.fighter.guardCounter) skills.push('精准防反');
+    if (entry.fighter.guardCounter) skills.push(entry.fighter.guardCounter.whileGuarding?'铁盆防反':'精准防反');
     if (acceptsSkillInput(entry.fighter, 'ULT')) {
       const cost = entry.fighter.ultimateCost ?? 0;
       skills.push('大招 ' + keyHint(preferences, seat, ['ULT']) + (cost ? ' · 消耗 ' + cost : ' · 无消耗'));
@@ -385,6 +398,7 @@ function selectArena(index: number) {
 }
 
 function configureMatch(immediate: boolean) {
+  config.randomSeed = crypto.getRandomValues(new Uint32Array(1))[0] || 1;
   audio.configure([roster[selected[0]].audio, roster[selected[1]].audio], __FIGHTER_AUDIO__);
   config.arena = arenas[arenaIndex];
   stage.dataset.mode = mode;
@@ -729,6 +743,7 @@ function trainingState(seat: Seat) {
     return (action.name ?? action.id) + ' · ' + phase;
   }
   if (fighter.dash) return '冲刺';
+  if(fighter.guarding&&config.fighters[seat].guardCounter?.whileGuarding)return '铁盆防御 · 受击触发防反';
   if (fighter.guarding && fighter.guardCounterLeft) return '防反窗口 · ' + fighter.guardCounterLeft + ' 帧';
   if (fighter.guarding) return '防御';
   if (fighter.ground) return '地面可操作';
@@ -774,8 +789,8 @@ function renderHUD() {
       const stocks = Math.floor(energy / ENERGY_PER_STOCK);
       energyRows[seat].dataset.stocks = String(stocks);
       if (energyRows[seat].dataset.ready !== String(ready)) energyRows[seat].dataset.ready = String(ready);
-      text(energyLabels[seat], String(stocks));
-      energyBars[seat].parentElement!.setAttribute('aria-valuetext', '技能能量 ' + energy + ' / ' + MAX_ENERGY);
+      text(energyLabels[seat], frogPowered(fighter,state)?'强化 '+(((fighter.ascendUntil??0)-state.arenaFrame)/60).toFixed(1)+'s':String(stocks));
+      energyBars[seat].parentElement!.setAttribute('aria-valuetext', frogPowered(fighter,state)?'强化剩余 '+(((fighter.ascendUntil??0)-state.arenaFrame)/60).toFixed(1)+' 秒':'技能能量 ' + Math.floor(energy) + ' / ' + MAX_ENERGY);
     }
     const recent = lastChains[seat];
     const hits = state.fighters[seat === 0 ? 1 : 0].combo ||
@@ -852,7 +867,7 @@ function tick(player: InputFrame) {
   if (previous === 'fight' && state.phase === 'round-over' && state.result) {
     roundHistory.push({ ...state.result, round: state.round });
   }
-  renderer.add(events, state.frame);
+  renderer.add(events, state.arenaFrame);
   audio.update(config, state, events);
 }
 
@@ -860,7 +875,7 @@ function draw(elapsed: number) {
   const opening = state.phase === 'ready' && !config.training && !reducedMotion.matches
     ? Math.max(0, Math.min(1, (state.phaseTicks - 18) / 74)) : 0;
   renderer.draw(config, state, debug, elapsed, preferences.shake && !reducedMotion.matches,
-    preferences.camera === 'focus' && !reducedMotion.matches, opening);
+    preferences.camera === 'focus' && !reducedMotion.matches, opening, debt / (1000 / rules.ticksPerSecond));
 }
 
 function frame(now: number) {

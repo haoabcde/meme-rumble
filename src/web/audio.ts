@@ -1,5 +1,8 @@
 import type { FighterAudioBank } from '../content/fighter-kit.js';
 import { actionFor } from '../core/match.js';
+import { frogPowered } from '../core/frog-kit.js';
+import { WHALE_RULES } from '../core/whale-kit.js';
+import {sampleLevel,soundTarget,calibratedGain} from './audio-levels.js';
 import type { ActionAudioCue, Attack, CombatEvent, Duo, EventKind, FighterAction, HitFeedback, MatchConfig, MatchState } from '../core/types.js';
 
 type Tone = [number, number, number, OscillatorType, number];
@@ -10,6 +13,7 @@ type Playback = {
   source: AudioScheduledSourceNode;
   gain: GainNode;
   voiceSeat?: Seat;
+  musicSeat?: Seat;
   interruptibleAttack?: Attack;
 };
 type TrackedAction = { attack: Attack; action: FighterAction };
@@ -51,6 +55,7 @@ export class FightAudio {
   private banks: Duo<FighterAudioBank | undefined> = [undefined, undefined];
   private sources: EmbeddedAudio = {};
   private buffers = new Map<string, AudioBuffer | undefined>();
+  private levels = new Map<string,{peak:number;rms:number}>();
   private reported = new Set<string>();
   private playing = new Set<Playback>();
   private actions: Duo<TrackedAction | undefined> = [undefined, undefined];
@@ -61,6 +66,8 @@ export class FightAudio {
   private soundVolume = .7;
   private effectVolume = 1;
   private dialogueVolume = 1;
+  private entityAges = new Map<number, number>();
+  private lastPhase: MatchState['phase'] | undefined;
 
   get enabled() { return this.soundEnabled; }
   set enabled(value: boolean) {
@@ -98,6 +105,7 @@ export class FightAudio {
     if (this.sources !== sources) {
       this.sources = sources;
       this.buffers = new Map();
+      this.levels.clear();
       this.reported.clear();
     }
     if (banks.some(bank => bank && Object.keys(bank).length)) this.ensureContext();
@@ -108,6 +116,8 @@ export class FightAudio {
     for (const playback of this.playing) this.stop(playback);
     this.actions = [undefined, undefined];
     this.round = undefined;
+    this.entityAges.clear();
+    this.lastPhase = undefined;
   }
 
   setPaused(value: boolean) {
@@ -149,7 +159,10 @@ export class FightAudio {
       if (!payload) throw new Error('Expected a base64 audio data URL');
       const bytes = Uint8Array.from(atob(payload), character => character.charCodeAt(0));
       const buffer = await context.decodeAudioData(bytes.buffer);
-      if (buffers === this.buffers) buffers.set(src, buffer);
+      if (buffers === this.buffers) {
+        buffers.set(src, buffer);
+        this.levels.set(src,sampleLevel(Array.from({length:buffer.numberOfChannels},(_,i)=>buffer.getChannelData(i))));
+      }
     } catch (error) {
       if (buffers === this.buffers) this.report('Unable to preload ' + src, error);
     }
@@ -168,7 +181,10 @@ export class FightAudio {
     this.voice = this.context.createGain();
     this.sfx.connect(this.output);
     this.voice.connect(this.output);
-    this.output.connect(this.context.destination);
+    const compressor=this.context.createDynamicsCompressor();
+    compressor.threshold.value=-6;compressor.knee.value=6;compressor.ratio.value=12;
+    compressor.attack.value=.003;compressor.release.value=.18;
+    this.output.connect(compressor).connect(this.context.destination);
     this.updateVolume();
   }
 
@@ -184,14 +200,52 @@ export class FightAudio {
   update(config: MatchConfig, state: MatchState, events: readonly CombatEvent[]) {
     if (this.round !== undefined && this.round !== state.round) this.stopAll();
     this.round = state.round;
+    if (state.phase === 'ready' && this.lastPhase !== 'ready') {
+      for (const seat of seats) this.playNamed(seat, 'event-entry');
+    }
+    this.lastPhase = state.phase;
     for (const seat of seats) this.updateAction(config, state, seat);
+    const silentVoices = seats.filter(seat => config.fighters[seat]?.id === 'frog' &&
+      (frogPowered(state.fighters[seat], state) || state.fighters[seat].attack?.id === 'frog-ascend'));
+    for (const playback of this.playing) {
+      if (playback.voiceSeat !== undefined && silentVoices.includes(playback.voiceSeat)) this.stop(playback);
+      if (playback.musicSeat !== undefined && !silentVoices.includes(playback.musicSeat)) {
+        this.fadeMusic(playback);
+      }
+    }
     for (const { source, actionAudio } of events) {
       if (!actionAudio) continue;
       const { attack, cue } = actionAudio;
+      if (cue.channel === 'voice' && silentVoices.includes(source)) continue;
       if (cue.stopOnInterrupt === false) this.playClip(source, cue);
       else if (state.fighters[source].attack === attack) this.playClip(source, cue, attack);
     }
+    this.updateEntities(state);
     this.play(events);
+  }
+
+  private playNamed(seat: Seat, clip: string) {
+    if (!this.banks[seat]?.[clip]) return false;
+    return this.playClip(seat, {clip, channel:'sfx'});
+  }
+
+  private updateEntities(state: MatchState) {
+    const live = new Set<number>();
+    for (const entity of state.entities ?? []) {
+      if (entity.definition.behavior !== 'pool') continue;
+      live.add(entity.id);
+      const previous = this.entityAges.get(entity.id);
+      // Repeated render updates and hitstop never replay a splash.
+      if (previous !== entity.age) {
+        if (previous === undefined && entity.age <= 1) this.playNamed(entity.owner, 'pool-warning');
+        const wave = (entity.age - WHALE_RULES.telegraph) / WHALE_RULES.hitGap;
+        if (Number.isInteger(wave) && wave >= 0 && wave < WHALE_RULES.ultimateHits) {
+          this.playNamed(entity.owner, wave === WHALE_RULES.ultimateHits - 1 ? 'pool-final' : 'pool-breach');
+        }
+        this.entityAges.set(entity.id,entity.age);
+      }
+    }
+    for (const id of this.entityAges.keys()) if (!live.has(id)) this.entityAges.delete(id);
   }
 
   private updateAction(config: MatchConfig, state: MatchState, seat: Seat) {
@@ -220,8 +274,11 @@ export class FightAudio {
     const voice = cue.channel === 'voice';
     const bus = voice ? this.voice : this.sfx;
     if (!context || !bus || !this.canPlay()) return false;
+    const variants = 'variants' in cue ? (cue as ActionAudioCue).variants : undefined;
+    const candidates = [cue.clip, ...(variants ?? [])];
+    const clipId = candidates[Math.min(candidates.length - 1, Math.floor(Math.random() * candidates.length))];
     const bank = this.banks[seat];
-    const clip = bank && Object.hasOwn(bank, cue.clip) ? bank[cue.clip] : undefined;
+    const clip = bank && Object.hasOwn(bank, clipId) ? bank[clipId] : undefined;
     if (!clip) {
       this.report('Unknown clip on player ' + (seat + 1) + ': ' + cue.clip);
       return false;
@@ -234,13 +291,20 @@ export class FightAudio {
         if (playback.voiceSeat === seat) this.stop(playback);
       }
     }
+    const music=cue.clip==='ultimate-bgm';
+    if(music)for(const playback of this.playing){
+      if(playback.musicSeat!==undefined)this.fadeMusic(playback);
+    }
     const source = context.createBufferSource();
     const gain = context.createGain();
-    gain.gain.value = level(clip.volume) * level(cue.volume);
+    const target=soundTarget(clipId),stats=this.levels.get(clip.src);
+    gain.gain.value = level(clip.volume) * level(cue.volume) *
+      (target!==undefined&&stats?calibratedGain(stats,target):1) *
+      (clipId==='ultimate-bgm'?10**(7/20):1);
     source.buffer = buffer;
     source.connect(gain).connect(bus);
     source.start();
-    this.track({ source, gain, voiceSeat: voice ? seat : undefined, interruptibleAttack });
+    this.track({ source, gain, voiceSeat: voice ? seat : undefined, musicSeat: music ? seat : undefined, interruptibleAttack });
     return true;
   }
 
@@ -261,6 +325,14 @@ export class FightAudio {
     this.release(playback);
   }
 
+  private fadeMusic(playback: Playback) {
+    const now=this.context!.currentTime;
+    playback.musicSeat=undefined;
+    playback.gain.gain.setValueAtTime(playback.gain.gain.value,now);
+    playback.gain.gain.linearRampToValueAtTime(0,now+.3);
+    playback.source.stop(now+.3);
+  }
+
   private play(events: readonly CombatEvent[]) {
     const ctx = this.context;
     const output = this.sfx;
@@ -268,8 +340,13 @@ export class FightAudio {
     const sounds = new Map<string, CombatEvent>();
     for (const event of events) {
       if (event.kind === 'action-audio') continue;
+      if (event.kind === 'ultimate' && this.banks[event.source]?.['ultimate-bgm']) continue;
+      // Block and break source is the attacker; defensive foley belongs to the other seat.
+      if ((event.kind === 'block' || event.kind === 'break') &&
+        this.playNamed(event.source === 0 ? 1 : 0, 'event-' + event.kind)) continue;
       const impact = event.kind === 'hit' || event.kind === 'block' ? event.feedback?.audio : undefined;
       if (impact && this.playClip(event.source, impact)) continue;
+      if (this.playNamed(event.source, 'event-' + event.kind)) continue;
       const preset = event.kind === 'hit' ? event.feedback?.sound ?? (event.heavy ? 'heavy' : 'light') : undefined;
       const key = preset ? 'hit-' + preset : event.kind;
       if (event.heavy || !sounds.has(key)) sounds.set(key, event);

@@ -57,12 +57,14 @@ test('offline fighter audio checks logical paths and rejects symbolic links outs
   const outside = join(directory, 'external');
   await mkdir(outside);
   await writeFile(join(outside, 'line.wav'), wav);
-  await symlink(join(outside, 'line.wav'), join(directory, 'assets/audio/link.wav'), 'file');
-  await symlink(outside, join(directory, 'assets/audio/escape'), 'dir');
-  for (const src of ['assets/audio/link.wav', 'assets/audio/escape/line.wav']) {
+  let fileLink=true;
+  try { await symlink(join(outside, 'line.wav'), join(directory, 'assets/audio/link.wav'), 'file'); }
+  catch(error){if(process.platform!=='win32'||error.code!=='EPERM')throw error;fileLink=false;t.diagnostic('File symlink privilege unavailable; directory escape checked via Windows junction.');}
+  await symlink(outside, join(directory, 'assets/audio/escape'), process.platform==='win32'?'junction':'dir');
+  for (const src of [...(fileLink?['assets/audio/link.wav']:[]), 'assets/audio/escape/line.wav']) {
     await assert.rejects(embedFighterAudio([fighter('fixture', src)], directory), /fixture.*素材解析后须位于/);
   }
   await rm(join(directory, 'assets/audio'), { recursive: true });
-  await symlink(outside, join(directory, 'assets/audio'), 'dir');
+  await symlink(outside, join(directory, 'assets/audio'), process.platform==='win32'?'junction':'dir');
   await assert.rejects(embedFighterAudio([fighter('fixture', 'assets/audio/line.wav')], directory), /fixture.*不能重定向/);
 });

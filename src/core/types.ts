@@ -50,6 +50,7 @@ export interface AudioClipRef {
 }
 
 export interface HitFeedback {
+  shape?: 'ring';
   color?: string;
   shake?: number;
   flash?: number;
@@ -60,6 +61,8 @@ export interface HitFeedback {
 
 export interface ActionAudioCue extends AudioClipRef {
   frame: number;
+  /** Presentation-only random choice, including clip as the first candidate. */
+  variants?: string[];
   channel?: 'sfx' | 'voice';
   stopOnInterrupt?: boolean;
 }
@@ -85,6 +88,13 @@ interface ActionTiming {
 }
 
 export interface ActionDefinition extends ActionTiming {
+  /** Authored whale kit hooks; serialized state, no renderer-side combat logic. */
+  whale?: 'rice' | 'rice-up' | 'spin' | 'spin-up' | 'counter' | 'eat' | 'open-source';
+  frog?: 'laugh' | 'global' | 'ascend' | 'crouch' | 'burrow' | 'evade';
+  radial?: boolean;
+  chainAfter?: number;
+  guardHitsToBreak?: number;
+  fixedDamage?: boolean;
   hitbox: Box;
   /** Skill energy paid once when the action starts. */
   energyCost?: number;
@@ -136,8 +146,8 @@ export interface FighterDefinition {
   hurtbox: Box;
   bodyWidth: number;
   actions: FighterAction[];
-  /** A fresh grounded guard can turn a frontal contact into this fighter's named action. */
-  guardCounter?: { windowFrames: number; actionId: string };
+  /** Frontal ground guard counter. whileGuarding opts into held guard instead of a fresh-press window. */
+  guardCounter?: { windowFrames: number; actionId: string; whileGuarding?: boolean };
   ultimateCost?: number;
   ultimateGain?: UltimateGain;
 }
@@ -199,6 +209,8 @@ export interface MatchConfig {
   arena: ArenaDefinition;
   fighters: Duo<FighterDefinition>;
   training?: boolean;
+  /** Serialized deterministic rice chance; peers must share the seed. */
+  randomSeed?: number;
 }
 
 export interface Command {
@@ -223,6 +235,22 @@ export interface Attack {
 export type Recovery = { phase: 'fall' } | { phase: 'down' | 'rise'; remaining: number };
 
 export interface FighterState {
+  ascendUntil?: number;
+  /** Presentation clocks use arena time, independent of interruptible hit poses. */
+  ascendVisual?: { tick: number; x: number; y: number };
+  ascendEndVisual?: { tick: number; x: number; y: number };
+  frogCasts?: { id: string; tick: number; x: number; y: number; facing: Side; powered: boolean; startup: number; anchors?: {frame:number;x:number;y:number}[] }[];
+  frogWarps?: {tick:number;fromX:number;fromY:number;toX:number;toY:number;powered:boolean;kind:'behind'|'burrow'}[];
+  /** Empowered dodge presentation follows the real dash endpoint, including walls and platforms. */
+  frogDodge?: {tick:number;fromX:number;fromY:number;toX:number;toY:number;arrivedAt?:number};
+  frogFollowup?: boolean;
+
+  bindUntil?: number;
+  guardChain?: { source: number; count: number; until: number };
+  jumpCount?: number;
+  secondApex?: boolean;
+  jumpOriginY?: number;
+  poseEvent?: { kind: string; tick: number };
   x: number;
   y: number;
   vy: number;
@@ -293,6 +321,7 @@ export interface MatchState {
   winner: 0 | 1 | null;
   entities?: EntityState[];
   nextEntityId?: number;
+  randomState?: number;
 }
 
 export const TICK_RATE = 60;

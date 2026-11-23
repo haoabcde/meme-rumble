@@ -4,7 +4,9 @@ import type {
 } from './types.js';
 import { platformAt, platformOffset } from './terrain.js';
 import { DEFAULT_KNOCKDOWN_FRAMES, DEFAULT_RISE_FRAMES, MAX_ENERGY, NEUTRAL } from './types.js';
-import { entityContacts, removeContactEntity, updateEntities } from './entities.js';
+import { entityContacts, resolveContactEntity, updateEntities, spawnEntities } from './entities.js';
+import {startWhale,cinematicOwner,WHALE_RULES} from './whale-kit.js';
+import {frogAction,frogCanStart,startFrog,finishAscension,tickAscension,frogPowered,frogCrouching,warpFrog,settleFrogWarp,startFrogDodge,FROG_RULES} from './frog-kit.js';
 
 const seats = [0, 1] as const;
 const slotPriority = ['ULT', 'C', 'B', 'A'] as const;
@@ -28,6 +30,7 @@ function spawn(config: MatchConfig, seat: 0 | 1, round: number): FighterState {
 
 export function createMatch(config: MatchConfig): MatchState {
   return {
+    randomState: (config.randomSeed ?? 0x6d2b79f5) >>> 0 || 1,
     frame: 0, arenaFrame: 0, remaining: config.rules.roundSeconds * config.rules.ticksPerSecond,
     freeze: 0, comboFreeze: 0, phase: 'ready', phaseTicks: 120, round: 1,
     wins: [0, 0], draws: 0, fighters: [spawn(config, 0, 1), spawn(config, 1, 1)],
@@ -37,7 +40,7 @@ export function createMatch(config: MatchConfig): MatchState {
 
 export function actionFor(config: MatchConfig, state: MatchState, seat: 0 | 1) {
   const id = state.fighters[seat].attack?.id;
-  return config.fighters[seat].actions.find(action => action.id === id);
+  return frogAction(config.fighters[seat].actions.find(action => action.id === id),state.fighters[seat],state);
 }
 
 export function isActiveFrame(action: FighterAction, frame: number) {
@@ -93,6 +96,7 @@ function queueInputs(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
 
 function cancelControl(fighter: FighterState) {
   fighter.attack = null;
+  delete fighter.frogFollowup;
   fighter.dash = 0;
   fighter.dashActive = false;
   fighter.guarding = false;
@@ -169,7 +173,9 @@ function updateControl(
   const f = state.fighters[seat];
   const opponent = state.fighters[other(seat)];
   const definition = config.fighters[seat];
+  const wasMoving=f.moving;
   f.moving = false;
+  if(f.hp<=0){f.attack=null;f.guarding=false;f.dash=0;return;}
   for (const counter of ['hitstun', 'blockstun', 'guardWait'] as const) {
     if (f[counter] > 0) f[counter]--;
   }
@@ -197,6 +203,10 @@ function updateControl(
   }
 
   let previousAction = actionFor(config, state, seat);
+  if(f.attack?.id==='frog-crouch'){
+    if(!locked&&f.ground&&input.held?.includes('C')){f.push=0;f.guarding=false;return;}
+    f.attack=null;previousAction=undefined;
+  }
   if (f.attack && previousAction) {
     f.attack.frame++;
     if (f.attack.frame >= previousAction.startup + previousAction.active && !f.attack.connected) {
@@ -209,13 +219,22 @@ function updateControl(
     }
   }
 
+  if(f.frogFollowup){
+    if(locked||!frogPowered(f,state)){delete f.frogFollowup;}
+    else if(!f.attack||(f.attack.id==='frog-evade'&&f.attack.frame>=12)){
+      delete f.frogFollowup;
+      const laugh=definition.actions.find(a=>'frog' in a&&a.frog==='laugh') as ActionDefinition;
+      f.buffer=[];startFrog(laugh,f,state,config,seat);startAction(f,laugh.id,seat,events);return;
+    }
+  }
+
   faceOpponentWhenFree(f, opponent);
   if (locked) {
     f.guarding = f.blockstun > 0 && f.guardBreak === 0 && f.hitstun === 0;
     return;
   }
 
-  const cancels = f.attack?.landed ? previousAction?.cancelOnHit : undefined;
+  const cancels = f.attack && (f.attack.landed || (previousAction && 'chainAfter' in previousAction && previousAction.chainAfter!==undefined && f.attack.frame>=previousAction.chainAfter)) ? previousAction?.cancelOnHit : undefined;
   const candidates = definition.actions.filter(action =>
     (action.posture === 'any' || (action.posture === 'ground') === Boolean(f.ground)) &&
     (f.attack ? cancels?.includes(action.id) || cancels?.includes(action.slot) : !action.linkOnly)
@@ -228,6 +247,7 @@ function updateControl(
       (!action.direction || item.directions.includes(action.direction)) &&
       action.comboKeys?.every(key => item.keys?.includes(key)) !== false);
     if (!command) continue;
+    if(!frogCanStart(action,f,state)){f.buffer=f.buffer.filter(item=>item.sampledAt!==command.sampledAt);return;}
     const legacyCost = action.slot === 'ULT' ? definition.ultimateCost ?? 0 : 0;
     const cost = 'counterTo' in action ? 0 : action.energyCost ?? legacyCost;
     if ((f.energy ?? 0) < cost) {
@@ -238,10 +258,12 @@ function updateControl(
     if (cost) f.energy = (f.energy ?? 0) - cost;
     // A single accepted command consumes competing actions from the same sampled frame.
     f.buffer = f.buffer.filter(item => item.sampledAt !== command.sampledAt);
-    startAction(f, action.id, seat, events, action.slot === 'ULT');
+    if(definition.id==='frog'&&!('counterTo' in action))startFrog(action,f,state,config,seat);
+    startAction(f, 'counterTo' in action?action.id:startWhale(action,f,state), seat, events, action.slot === 'ULT');
     return;
   }
-  const jump = f.buffer.find(command => command.key === 'jump');
+  const bound=(f.bindUntil??0)>state.arenaFrame;
+  const jump = !bound && f.buffer.find(command => command.key === 'jump');
   if (f.ground && jump && (!f.attack || (!jump.down && cancels?.includes('jump')))) {
     f.buffer = f.buffer.filter(item => item.sampledAt !== jump.sampledAt);
     const dropping = jump.down && f.ground !== 'floor';
@@ -249,6 +271,7 @@ function updateControl(
       f.attack = null;
       f.ignorePlatform = dropping ? f.ground : null;
       f.vy = dropping ? 2 : -definition.jump;
+      f.jumpCount=dropping?0:1;f.secondApex=false;f.jumpOriginY=f.y;
       events.push({ kind: dropping ? 'drop' : 'jump', source: seat, x: f.x, y: f.y });
       f.ground = null;
       f.guarding = false;
@@ -263,10 +286,11 @@ function updateControl(
     f.buffer = f.buffer.filter(item => item.sampledAt !== jump.sampledAt);
     f.airActionUsed = true;
     f.vy = -definition.airJump;
+    f.jumpCount=2;f.secondApex=false;
     events.push({ kind: 'air-jump', source: seat, x: f.x, y: f.y });
     return;
   }
-  const dash = f.buffer.find(command => command.key === 'dash');
+  const dash = !bound && f.buffer.find(command => command.key === 'dash');
   if (dash && !f.dash && (!airborne || (definition.airDash && !f.airActionUsed))) {
     f.buffer = f.buffer.filter(item => item.sampledAt !== dash.sampledAt);
     const cost = config.rules.dashGuardCost?.[airborne ? 'air' : 'ground'] ?? 0;
@@ -279,6 +303,7 @@ function updateControl(
       }
       f.facing = dash.x || f.facing;
       f.dash = airborne ? 6 : 8;
+      if(definition.id==='frog')startFrogDodge(f,state);
       if (airborne) f.airActionUsed = true;
       f.guarding = false;
       events.push({ kind: 'dash', source: seat, x: f.x, y: f.y, direction: f.facing });
@@ -290,6 +315,7 @@ function updateControl(
     f.guard = Math.min(config.rules.guardMax, f.guard + 1);
   }
   f.moving = !f.guarding && Boolean(input.x || f.dash);
+  if(wasMoving&&!f.moving)f.poseEvent={kind:'brake',tick:state.arenaFrame};
 }
 
 function releaseUnsupportedGround(fighter: FighterState, arena: ArenaDefinition, frame: number) {
@@ -335,22 +361,29 @@ function motion(
   const definition = config.fighters[seat];
   const arena = config.arena;
   const action = actionFor(config, state, seat);
+  const speedScale=frogPowered(f,state)?FROG_RULES.poweredSpeed:1;
+  // Airborne laughter holds the caster, but interruption or rice binding still releases them.
+  if (!f.ground && action && 'frog' in action && (action.frog==='laugh'||action.frog==='global') &&
+      !f.hitstun && !f.recovery && (f.bindUntil??0)<=state.arenaFrame) {
+    f.vy=0;f.push=0;f.moving=false;return;
+  }
   let move = 0;
   if (f.push !== 0) {
     move = f.push;
     f.push -= Math.sign(f.push) * Math.min(1, Math.abs(f.push));
   } else if (f.dash > 0) {
-    move = definition.dash * f.facing;
+    move = definition.dash * f.facing * (definition.id==='frog'&&frogPowered(f,state)?2:1);
     f.dash--;
   } else if (f.attack && action) {
     if (!('counterTo' in action)) {
       move = f.attack.frame < action.startup ? f.facing * action.advance : 0;
-      if (!f.ground) move += Math.round(definition.airSpeed * (action.airControl ?? 0)) * input.x;
+      if (!f.ground) move += Math.round(definition.airSpeed * (action.airControl ?? 0)) * speedScale * input.x;
     }
   } else if (!f.hitstun && !f.launched && !f.blockstun && !f.guardBreak && !f.guarding && !f.recovery) {
-    move = input.x * (f.ground ? definition.run : definition.airSpeed);
+    move = input.x * (f.ground ? definition.run : definition.airSpeed) * speedScale;
   }
   const previousX = f.x;
+  if((f.bindUntil??0)>state.arenaFrame){move=0;f.push=0;f.moving=false;if(!f.ground)f.vy=Math.max(6,f.vy);}
   f.x = clamp(f.x + move, arena.left, arena.right);
   releaseUnsupportedGround(f, arena, state.arenaFrame);
   if (f.ground) return;
@@ -359,6 +392,7 @@ function motion(
   if (!(config.rules.airDashPauseGravity && f.dashActive && f.airActionUsed)) {
     f.vy += 1;
     f.y += f.vy;
+    if(f.jumpCount===2&&Math.abs(f.vy)<=1)f.secondApex=true;
   }
   const platform = landingPlatform(arena, f, previousX, previousY, state.arenaFrame);
   if (platform || (f.vy > 0 && f.y >= arena.floor)) {
@@ -370,12 +404,14 @@ function motion(
     f.vy = 0;
     f.ignorePlatform = null;
     f.airActionUsed = false;
+    f.jumpCount=0;f.secondApex=false;
     if (f.launched || f.recovery?.phase === 'fall') landKnockdown(f, seat, config.rules, events);
   }
 }
 
 function separate(state: MatchState, config: MatchConfig, previous: Duo<number>, waking: Duo<boolean>) {
   const [a, b] = state.fighters;
+  if([a,b].some(f=>f.attack?.id==='frog-burrow'&&f.attack.frame<FROG_RULES.warpHidden))return;
   if (config.rules.dashPassThrough && (a.dashActive || b.dashActive)) return;
   const arena = config.arena;
   const width = (config.fighters[0].bodyWidth + config.fighters[1].bodyWidth) / 2;
@@ -418,7 +454,8 @@ interface Contact {
 function counterForContact(state: MatchState, config: MatchConfig, seat: 0 | 1) {
   const defender = state.fighters[seat];
   if (!defender.ground) return;
-  if (defender.guarding && defender.guardCounterLeft) return config.fighters[seat].guardCounter?.actionId;
+  const counter=config.fighters[seat].guardCounter;
+  if (defender.guarding && (counter?.whileGuarding || defender.guardCounterLeft)) return counter?.actionId;
   const stance = actionFor(config, state, seat);
   if (stance && 'counterTo' in stance && defender.attack && isActiveFrame(stance, defender.attack.frame)) {
     return stance.counterTo;
@@ -443,7 +480,8 @@ function collectContacts(state: MatchState, config: MatchConfig): Contact[] {
       if (attack.connectedGroups?.includes(window.group)) continue;
       for (const box of window.boxes) {
         const hitbox = worldBox(box, f.x, f.y, f.facing);
-        const hurtbox = hurtboxes.find(hurt => overlap(hitbox, hurt));
+        const hurtbox = hurtboxes.find(hurt => overlap(hitbox, hurt) && (!action.radial ||
+          Math.hypot(Math.max(hurt.x,Math.min(f.x,hurt.x+hurt.w))-f.x,Math.max(hurt.y,Math.min(f.y-65,hurt.y+hurt.h))-(f.y-65))<=action.hitbox.w/2));
         if (!hurtbox) continue;
         return [{
           source, target, group: window.group,
@@ -458,7 +496,7 @@ function collectContacts(state: MatchState, config: MatchConfig): Contact[] {
             stop: window.stop ?? action.stop,
             knockdown: window.knockdown ?? action.knockdown
           },
-          facing: f.facing, counterAction, blocked: frontal && defender.guarding,
+          facing: action.radial?(defender.x<f.x?-1:1):f.facing, counterAction, blocked: frontal && defender.guarding,
           x: (Math.max(hitbox.x, hurtbox.x) + Math.min(hitbox.x + hitbox.w, hurtbox.x + hurtbox.w)) / 2,
           y: (Math.max(hitbox.y, hurtbox.y) + Math.min(hitbox.y + hitbox.h, hurtbox.y + hurtbox.h)) / 2
         }];
@@ -469,19 +507,31 @@ function collectContacts(state: MatchState, config: MatchConfig): Contact[] {
 }
 
 function settle(state: MatchState, config: MatchConfig, contacts: Contact[], events: CombatEvent[]) {
+  const evaded=new Set<0|1>();
+  for(const contact of contacts){
+    const {target,source}=contact,defender=state.fighters[target];
+    if(!evaded.has(target)&&config.fighters[target].id==='frog'&&frogCrouching(defender)){
+      warpFrog(state,config,target,source,'behind');evaded.add(target);
+      events.push({kind:'parry',source:target,x:contact.x,y:contact.y,direction:defender.facing});
+    }
+  }
   for (const contact of contacts) {
     if (contact.entityId !== undefined) {
-      removeContactEntity(state, contact.entityId);
       continue;
     }
     const attack = state.fighters[contact.source].attack!;
     attack.connected = true;
     if (contact.action.hitTimeline) (attack.connectedGroups ??= []).push(contact.group);
-    attack.landed ||= !contact.blocked && !contact.counterAction;
+    attack.landed ||= !evaded.has(contact.target)&&((!contact.blocked && !contact.counterAction) || Boolean(contact.action.guardHitsToBreak && contact.blocked && !contact.counterAction));
   }
   let maxStop = 0;
-  for (const { source, target, action, blocked, counterAction, facing, x, y } of contacts) {
+  for (const { source, target, action, blocked, counterAction, facing, x, y,entityId } of contacts) {
     const defender = state.fighters[target];
+    if(evaded.has(target)){
+      if(entityId!==undefined)resolveContactEntity(state,entityId,target,false,true);
+      continue;
+    }
+    if(entityId!==undefined)resolveContactEntity(state,entityId,target,blocked,Boolean(counterAction));
     defender.dash = 0;
     if (defender.guardCounterLeft !== undefined) defender.guardCounterLeft = 0;
     maxStop = Math.max(maxStop, Math.min(blocked || counterAction ? 3 : 6, action.stop));
@@ -491,10 +541,16 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
       continue;
     }
     defender.attack = null;
+    delete defender.frogFollowup;
     if (blocked) {
-      defender.guard = Math.max(0, defender.guard - action.guardCost);
+      if(action.guardHitsToBreak){
+        const previous=defender.guardChain;
+        const count=previous?.source===source&&previous.until>=state.arenaFrame?previous.count+1:1;
+        defender.guardChain={source,count,until:state.arenaFrame+90};
+        defender.guard=count>=action.guardHitsToBreak?0:Math.max(1,defender.guard-action.guardCost);
+      }else defender.guard = Math.max(0, defender.guard - action.guardCost);
       defender.guardWait = config.rules.guardDelay;
-      defender.push = Math.sign(facing) * Math.ceil(action.push / 2);
+      defender.push = Math.sign(facing) * (action.guardHitsToBreak?1.15:Math.ceil(action.push / 2));
       defender.blockstun = action.blockstun;
       events.push({ kind: 'block', source, x, y, direction: facing, ...(action.feedback && { feedback: action.feedback }) });
       if (defender.guard === 0 && defender.guardBreak === 0) {
@@ -504,20 +560,23 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
       }
       continue;
     }
-    const amount = Math.min(defender.hp, Math.floor(action.damage * Math.max(35, 100 - 8 * defender.combo) / 100));
-    defender.hp -= amount;
+    const rawDamage=action.fixedDamage?action.damage:Math.floor(action.damage * Math.max(35, 100 - 8 * defender.combo) / 100);
+    const resisted=frogPowered(defender,state);
+    const amount = Math.min(defender.hp,resisted?Math.round(rawDamage*FROG_RULES.incomingDamage*1000)/1000:rawDamage);
+    defender.hp = Math.round((defender.hp-amount)*1000)/1000;
     if (amount > 0) {
       const attacker = state.fighters[source];
-      if (attacker.energy !== undefined && action.slot !== 'ULT') {
+      if (attacker.energy !== undefined && action.slot !== 'ULT' && !frogPowered(attacker,state)) {
         attacker.energy = Math.min(MAX_ENERGY, attacker.energy + (config.fighters[source].ultimateGain?.onHit ?? 20));
       }
-      if (defender.energy !== undefined) {
+      if (defender.energy !== undefined && !frogPowered(defender,state)) {
         defender.energy = Math.min(MAX_ENERGY, defender.energy + (config.fighters[target].ultimateGain?.onHurt ?? 10));
       }
     }
     if (config.training && defender.hp === 0) defender.hp = config.fighters[target].maxHp;
     const chain = ++defender.combo;
     defender.hitstun = action.hitstun;
+    defender.poseEvent={kind:action.lift?'launch':action.damage>=80?'heavy':'hurt',tick:state.arenaFrame};
     defender.blockstun = 0;
     defender.guarding = false;
     defender.moving = false;
@@ -622,6 +681,16 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     return events;
   }
 
+  const cinematic=cinematicOwner(state);
+  if(cinematic!==undefined){
+    // Presentation advances, simulation clocks, statuses, entities and inputs do not.
+    const attack=state.fighters[cinematic].attack!;
+    attack.frame++;
+    for(const cue of actionFor(config,state,cinematic)?.audioTimeline??[])if(cue.frame===attack.frame)events.push({kind:'action-audio',source:cinematic,x:state.fighters[cinematic].x,y:state.fighters[cinematic].y,actionAudio:{attack,cue}});
+    if(attack.frame===WHALE_RULES.cinematic){spawnEntities(state,config);finishAscension(state.fighters[cinematic],state);state.fighters[cinematic].attack=null;}
+    for(const fighter of state.fighters)fighter.buffer=[];
+    return events;
+  }
   queueInputs(state, inputs, config);
   if (state.freeze > 0) {
     state.freeze--;
@@ -632,7 +701,9 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   const waking: Duo<boolean> = [false, false];
   advanceArena(state, config);
   for (const seat of seats) {
+
     const fighter = state.fighters[seat];
+    tickAscension(fighter,state);
     const lastAttack = fighter.attack;
     const lastFrame = lastAttack?.frame;
     const wasRising = fighter.recovery?.phase === 'rise';
@@ -647,6 +718,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
       }
     }
     waking[seat] = wasRising && !fighter.recovery;
+    if(cinematicOwner(state)!==undefined){for(const fighter of state.fighters)fighter.buffer=[];return events;}
     const guardCounter = config.fighters[seat].guardCounter;
     if (guardCounter) updateGuardWindow(fighter, inputs[seat], guardCounter.windowFrames);
     // A queued command gets its full lifetime in playable frames, through hitstop.
@@ -661,6 +733,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     motion(state, config, seat, inputs[seat], events);
   }
   separate(state, config, previous, waking);
+  for(const fighter of state.fighters)settleFrogWarp(fighter,state);
   for (const fighter of state.fighters) releaseUnsupportedGround(fighter, config.arena, state.arenaFrame);
   // Keep the next input sample and the visible facing aligned after crossing sides.
   for (const seat of seats) faceOpponentWhenFree(state.fighters[seat], state.fighters[other(seat)]);
@@ -668,7 +741,8 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   const contacts = collectContacts(state, config);
   for (const contact of entityContacts(state, config)) {
     const defender = state.fighters[contact.target];
-    const frontal = (contact.entity.x - defender.x) * defender.facing > 0;
+    const sourceX=contact.entity.definition.behavior==='frog-global'?(contact.entity.originX??contact.entity.x):contact.entity.x;
+    const frontal = (sourceX - defender.x) * defender.facing > 0;
     contacts.push({
       ...contact, entityId: contact.entity.id, group: String(contact.entity.id),
       blocked: frontal && defender.guarding,
@@ -686,6 +760,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     }
   }
 
+  for(const event of events)if(['jump','air-jump','land','dash','knockdown','rise'].includes(event.kind))state.fighters[event.source].poseEvent={kind:event.kind,tick:state.arenaFrame};
   if (config.training) return events;
   state.remaining--;
   const result = roundResult(state, config);
@@ -702,6 +777,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   }
   for (const fighter of state.fighters) fighter.buffer = [];
   state.phase = 'round-over';
+  delete state.entities;
   state.phaseTicks = 105;
   return events;
 }
