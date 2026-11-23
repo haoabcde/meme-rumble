@@ -1,4 +1,4 @@
-import normalGuardSource from '../../assets/角色/防御/奶蛙/护腹站姿_V4/双手护腹_同常态像素.png';
+import normalGuardSource from '../../assets/角色/防御/奶蛙/护腹站姿_V5/常态比例_双手护腹.png';
 import type {FighterAction,FighterState,MatchConfig,MatchState} from '../core/types.js';
 import {frogPowered,FROG_RULES,frogCrouching} from '../core/frog-kit.js';
 import {cutGrid} from './pixel-sprites.mjs';
@@ -245,3 +245,5 @@ function drawCastEffects(g:CanvasRenderingContext2D,f:FighterState,state:MatchSt
 }
 
 export function frogGoldFrame(index:number){return gold[index];}
+// Review uses the same trimmed sprites and height as the live actor renderer.
+export function frogBodyComparison(){return [moves[0],normalGuard];}
