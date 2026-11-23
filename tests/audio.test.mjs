@@ -40,6 +40,7 @@ class FakeSource extends FakeNode {
   }
 
   stop(time) {
+    this.stopTime=time;
     if (time === undefined) this.stopped = true;
   }
 }
@@ -396,4 +397,18 @@ test('pool sounds follow entity age once through hitstop, ending with a distinct
  for(let i=0;i<12;i++){entity.age=36+i*7;audio.update(config,state,[]);audio.update(config,state,[]);}
  assert.deepEqual(markers(context),[1,...Array(11).fill(2),3]);
  audio.stopAll();audio.update(config,state,[]);assert.equal(context.clips.length,14);
+});
+
+test('frog ultimate music survives transformation and attacks, fades at buff end and clears on reset',async t=>{
+ const musicBank={'ultimate-bgm':{src:'open.wav'},active:{src:'active.wav'}};
+ const {audio,context}=audioFixture(t,[musicBank,undefined],sources);await finishPreload(context);
+ const config={rules,arena:arenas[0],fighters:[{...testFighter,id:'frog'},testFighter]};const state=createMatch(config);state.phase='fight';
+ const f=state.fighters[0];f.attack={id:'frog-ascend',frame:0,connected:false,landed:false};
+ audio.update(config,state,[{kind:'action-audio',source:0,x:0,y:0,actionAudio:{attack:f.attack,cue:{frame:0,clip:'ultimate-bgm',channel:'sfx',stopOnInterrupt:false}}}]);
+ const music=context.clips[0];assert.ok(music);f.attack=null;f.ascendUntil=900;
+ audio.update(config,state,[]);assert.equal(music.stopTime,undefined);
+ audio.update(config,state,[{kind:'action-audio',source:0,x:0,y:0,actionAudio:{attack:{},cue:{frame:0,clip:'active',channel:'sfx',stopOnInterrupt:false}}}]);
+ assert.equal(music.stopTime,undefined,'skill sound must not replace BGM');
+ state.arenaFrame=900;audio.update(config,state,[]);assert.equal(music.stopTime,context.currentTime+.3);
+ audio.stopAll();assert.equal(music.stopped,true);
 });

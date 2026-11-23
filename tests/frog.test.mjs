@@ -297,9 +297,9 @@ test('frog voice mapping follows skill activation and holding C emits only one r
 });
 
 
-test('ascension sound is emitted at cinematic end once, after simulation pause, without voice',()=>{
- const t=setup(0,1200);t.caster.energy=300;t.press('ULT');const world=t.state.arenaFrame;
- const events=t.run(60).filter(e=>e.kind==='action-audio');
- assert.deepEqual(events.map(e=>[e.actionAudio.cue.clip,e.actionAudio.cue.channel]),[['ascension','sfx']]);assert.equal(t.state.arenaFrame,world);
- assert.equal(t.run(4).filter(e=>e.kind==='action-audio').length,0);
+test('frog ultimate starts its BGM at frame zero with no old transformation sound',()=>{
+ const t=setup(0,1200);t.caster.energy=300;const opening=t.press('ULT').filter(e=>e.kind==='action-audio');const world=t.state.arenaFrame;
+ assert.deepEqual(opening.map(e=>[e.actionAudio.cue.clip,e.actionAudio.cue.channel]),[['ultimate-bgm','sfx']]);
+ assert.equal(t.run(60).filter(e=>e.kind==='action-audio').length,0);assert.equal(t.state.arenaFrame,world);
+ assert.equal(frog.audio.ascension,undefined);
 });

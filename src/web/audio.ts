@@ -12,6 +12,7 @@ type Playback = {
   source: AudioScheduledSourceNode;
   gain: GainNode;
   voiceSeat?: Seat;
+  musicSeat?: Seat;
   interruptibleAttack?: Attack;
 };
 type TrackedAction = { attack: Attack; action: FighterAction };
@@ -199,6 +200,9 @@ export class FightAudio {
       (frogPowered(state.fighters[seat], state) || state.fighters[seat].attack?.id === 'frog-ascend'));
     for (const playback of this.playing) {
       if (playback.voiceSeat !== undefined && silentVoices.includes(playback.voiceSeat)) this.stop(playback);
+      if (playback.musicSeat !== undefined && !silentVoices.includes(playback.musicSeat)) {
+        this.fadeMusic(playback);
+      }
     }
     for (const { source, actionAudio } of events) {
       if (!actionAudio) continue;
@@ -278,13 +282,17 @@ export class FightAudio {
         if (playback.voiceSeat === seat) this.stop(playback);
       }
     }
+    const music=cue.clip==='ultimate-bgm';
+    if(music)for(const playback of this.playing){
+      if(playback.musicSeat!==undefined)this.fadeMusic(playback);
+    }
     const source = context.createBufferSource();
     const gain = context.createGain();
     gain.gain.value = level(clip.volume) * level(cue.volume);
     source.buffer = buffer;
     source.connect(gain).connect(bus);
     source.start();
-    this.track({ source, gain, voiceSeat: voice ? seat : undefined, interruptibleAttack });
+    this.track({ source, gain, voiceSeat: voice ? seat : undefined, musicSeat: music ? seat : undefined, interruptibleAttack });
     return true;
   }
 
@@ -305,6 +313,14 @@ export class FightAudio {
     this.release(playback);
   }
 
+  private fadeMusic(playback: Playback) {
+    const now=this.context!.currentTime;
+    playback.musicSeat=undefined;
+    playback.gain.gain.setValueAtTime(playback.gain.gain.value,now);
+    playback.gain.gain.linearRampToValueAtTime(0,now+.3);
+    playback.source.stop(now+.3);
+  }
+
   private play(events: readonly CombatEvent[]) {
     const ctx = this.context;
     const output = this.sfx;
@@ -312,6 +328,7 @@ export class FightAudio {
     const sounds = new Map<string, CombatEvent>();
     for (const event of events) {
       if (event.kind === 'action-audio') continue;
+      if (event.kind === 'ultimate' && this.banks[event.source]?.['ultimate-bgm']) continue;
       // Block and break source is the attacker; defensive foley belongs to the other seat.
       if ((event.kind === 'block' || event.kind === 'break') &&
         this.playNamed(event.source === 0 ? 1 : 0, 'event-' + event.kind)) continue;
