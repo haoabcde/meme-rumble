@@ -11,12 +11,13 @@ import whaleLeap from '../../assets/角色/特效/大肥鱼/水鲸动作_V2/水�
 import waterWhale from '../../assets/角色/特效/大肥鱼/水鲸符文_V1/水鲸_四姿态.png';
 import waterParts from '../../assets/角色/特效/大肥鱼/水鲸符文_V1/水潭_水花_小鱼_花.png';
 import runeParts from '../../assets/角色/特效/大肥鱼/水鲸符文_V1/符文_弧光_冲刺_上升_星芒.png';
+import poolParts from '../../assets/角色/大招/大肥鱼/纵深水潭_V11/水面_前后沿_水膜_破水_八部件.png';
 import fishSchool from '../../assets/角色/特效/大肥鱼/水鲸鱼群_V3/流光水鱼_独立鱼身与长尾.png';
 
 let tornado:any,ultimate:any,water:any;
 const load=(src:string)=>{const im=new Image();im.src=src;return im.decode().then(()=>im)};
 
-void Promise.all(Object.entries({portrait,waterWhale,waterParts,runeParts,whaleTurn,whaleLeap,fishSchool}).map(async([k,v])=>[k,await load(v)] as const)).then(entries=>{
+void Promise.all(Object.entries({portrait,waterWhale,waterParts,runeParts,whaleTurn,whaleLeap,fishSchool,poolParts}).map(async([k,v])=>[k,await load(v)] as const)).then(entries=>{
  const images=Object.fromEntries(entries);water=createWaterRenderer(images);tornado=createUnifiedTornadoRenderer(water.whales[0]);ultimate=createUltimateRenderer(images,water);
  const warmCanvas=document.createElement('canvas');const warmContext=warmCanvas.getContext('2d');
  let i=0;function warm(){for(const layer of ['back','front'])tornado.wind(warmContext,0,0,i,layer);if(++i<8)requestAnimationFrame(warm)}requestAnimationFrame(warm);

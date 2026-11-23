@@ -2,7 +2,7 @@ import type {ActionDefinition,Box,FighterState,MatchConfig,MatchState} from './t
 import type {EntityState} from './entities.js';
 import {platformAt} from './terrain.js';
 
-export const WHALE_RULES=Object.freeze({riceLife:120,bind:72,eatChance:.2,riceSpeed:28,riceUpSpeed:32,riceRange:432,wind:20,whale:48,windSpeed:24,cinematic:60,telegraph:36,ultimateHits:12,hitGap:7});
+export const WHALE_RULES=Object.freeze({riceLife:120,bind:72,eatChance:.2,riceSpeed:28,riceUpSpeed:32,riceRange:432,wind:20,whale:48,windSpeed:24,cinematic:60,telegraph:36,ultimateHits:12,hitGap:7,finalLift:18});
 /** All randomness lives in the snapshot, never in Math.random or the renderer. */
 export function riceRoll(state:MatchState){
  let x=state.randomState??0x6d2b79f5;
@@ -72,6 +72,10 @@ export function kitContactBox(e:EntityState,f:FighterState,box:Box):Box{
  const dx=(e.previousX??e.x)-e.x;box={...box,x:box.x+Math.min(0,dx),w:box.w+Math.abs(dx)};
 
  return box;
+}
+/** Only the last scheduled wave launches; it adds no thirteenth damage contact. */
+export function kitContactLift(e:EntityState){
+ return e.definition.behavior==='pool'&&Math.floor((e.age-WHALE_RULES.telegraph)/WHALE_RULES.hitGap)===WHALE_RULES.ultimateHits-1?WHALE_RULES.finalLift:e.definition.lift;
 }
 export function kitContactResolved(e:EntityState,state:MatchState,target:0|1,blocked:boolean,countered:boolean){
  const b=e.definition.behavior;if(!b)return false;

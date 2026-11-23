@@ -4,6 +4,7 @@ import {drawPixelFx} from './pixel-fx.mjs';
 import {orbitSample,eruptionSample,ERUPTIONS} from './whale-presentation.mjs';
 import {createSchoolRenderer} from './water-school.mjs';
 import {drawWaterFrame} from './water-flow.mjs';
+import {POOL,poolMouth,clipFootprint,clipEmergence} from './water-pool.mjs';
 // Independent pixel sprites, world-space depth layers and simulation-clock animation.
 const clamp=n=>Math.max(0,Math.min(1,n));
 const TAU=Math.PI*2;
@@ -83,58 +84,97 @@ export function createWaterRenderer(images){
  const school=createSchoolRenderer(images.fishSchool,im=>ultimateWater(im,'fish'));
  const turning=createPoseMorph(cutGrid(images.whaleTurn,4,2).map(im=>paleWater(im)));
  const introWhale=createPoseMorph(cutGrid(images.whaleTurn,4,2).map(im=>ultimateWater(im)),{steps:24,maxCache:196}),leaping=createPoseMorph(cutGrid(images.whaleLeap,4,2).map(im=>ultimateWater(im)),{steps:24,maxCache:80});
- const poolWater=parts(images.waterParts).map(im=>ultimateWater(im,'pool')),poolRunes=parts(images.runeParts).map(im=>ultimateWater(im));
+ const poolParts=cutGrid(images.poolParts,4,2).map(im=>ultimateWater(im,'pool'));
+ const depthOrder=ERUPTIONS.map((_,i)=>i).sort((a,b)=>ERUPTIONS[a].depth-ERUPTIONS[b].depth);
  function droplets(g,x,y,t,amount=14,alpha=1){
   g.save();for(let j=0;j<amount;j++){const p=((t+j*2.71)%23)/23,a=j*2.399;g.globalAlpha=alpha*(1-p)*.8;g.fillStyle=j%3?'#9bd4ff':'#effaff';const xx=x+Math.cos(a)*(15+70*p),yy=y-18-110*p+85*p*p;g.fillRect(Math.round(xx/3)*3,Math.round(yy/3)*3,3,3);}g.restore();
  }
- function pool(g,e,layer,subframe=0){
-  const age=e.age+subframe;
-  const water=poolWater,runes=poolRunes;
-  const warning=WHALE_RULES.telegraph,end=warning+WHALE_RULES.ultimateHits*WHALE_RULES.hitGap,fade=clamp((end+48-age)/20),active=e.age>=warning;
-  if(layer==='back'){
-   const pulse=1+Math.sin(age*.16)*.018;
-   g.save();g.translate(e.x,e.y-2);g.scale(1,.22);
-   const lake=g.createRadialGradient(0,0,8,0,0,150);lake.addColorStop(0,'#315b79a6');lake.addColorStop(.65,'#81bed536');lake.addColorStop(1,'#d8f6ff00');
-   g.globalAlpha=fade*(active?.6:.35);g.fillStyle=lake;g.beginPath();g.arc(0,0,150,0,TAU);g.fill();g.restore();
-   sprite(g,water[0],e.x,e.y-2,310*pulse,(active?.87:.55)*fade);
-   // Continuous outward water motion, independent of the twelve damage contacts.
-   g.save();g.translate(e.x,e.y-2);g.scale(1,.22);
-   for(let k=0;k<3;k++){
-    const p=((age+k*12)%36)/36;g.globalAlpha=fade*Math.sin(p*Math.PI)*(active?.32:.18);
-    g.strokeStyle=k%2?'#e2f6ff':'#a9dceb';g.lineWidth=2.4*(1-p)+.6;
-    g.beginPath();g.ellipse(0,0,28+p*126,24+p*120,age*.008,0,TAU);g.stroke();
-   }g.restore();
-   if(!active){g.save();g.translate(e.x,e.y-3);g.scale(1,.38);drawPixelFx(g,'whirlpool',0,0,age/60,2.35,'both','ice',(.2+.4*age/warning)*fade);g.restore();}
-   // A progressive elliptical rim communicates the existing 0.6-second warning.
-   if(!active){g.save();g.translate(e.x,e.y-3);g.scale(1,.22);g.strokeStyle='#c8e9ff';g.lineWidth=3;g.setLineDash([5,3]);g.beginPath();g.arc(0,0,149,-Math.PI/2,-Math.PI/2+TAU*age/warning);g.stroke();g.restore();}
+ function patch(g,im,x,y,w,h,alpha){
+  g.save();g.imageSmoothingEnabled=false;g.globalAlpha*=clamp(alpha);g.drawImage(im,x-w/2,y-h/2,w,h);g.restore();
+ }
+ function opening(g,e,spec,mouth,age,front,fade){
+  if(age< -8||age>26)return;
+  const last=spec.width>500,x=e.x+mouth.x,y=e.y+mouth.y,w=mouth.width;
+  if(!front&&age<3){
+   const grow=clamp((age+8)/8),h=w*.35*grow;
+   patch(g,poolParts[3],x,y-h/2+2,w*(.4+.6*grow),h,clamp((3-age)/5)*fade*.72);
   }
-  if(!active)return;
-  for(let i=0;i<ERUPTIONS.length;i++){
-   const age=e.age+subframe-warning-ERUPTIONS[i].at;if(age<0||age>76)continue;
-   const front=i%2===0||i===11;if((layer==='front')!==front)continue;
-   const whale=eruptionSample(age,i),last=i===11;
-   if(whale.y< -2100)continue;
-   g.save();g.beginPath();g.rect(e.x-2600,e.y-4600,5200,4600);g.clip();
-   const path=lag=>{const t=age-lag/whale.speed;if(t<0)return null;const p=eruptionSample(t,i);return{x:e.x+p.x,y:e.y+p.y,angle:p.angle};};
-   school(g,path,age,last?1.8:Math.max(.8,whale.width/210),fade*(last?1:.85),last?4:2);
-   const x=e.x+whale.x,y=e.y+whale.y;
-   waterWhale(g,leaping,whale.pose,x,y,whale.width,whale.alpha*fade,whale.rotation,age*.28+i*.83);
-   whaleLight(g,leaping,whale.pose,x,y,whale.width,whale.alpha*fade*(last?.45:.25),whale.rotation,age*.28+i*.83);
-   if(age<18){
-    sprite(g,water[1],e.x+whale.offset,e.y-35-age*4,last?360:135+whale.width*.3,clamp((18-age)/12)*fade,0);
-    droplets(g,e.x+whale.offset,e.y-4,age+i*3,last?34:14,fade);
+  if(age<0)return;
+  g.save();clipEmergence(g,e.x,e.y,spec.depth);
+  const p=clamp(age/7),alpha=clamp((25-age)/16)*fade;
+  if(!front){
+   const h=(last?170:80)*(.5+.5*p);
+   patch(g,poolParts[6],x,y-h/2+3,w*(last?.9:.67),h,alpha*.65);
+   patch(g,poolParts[4],x-w*.22,y-h*.42,w*.45,h*.85,alpha*.42);
+  }else{
+   const h=(last?135:62)*(.55+.45*p);
+   patch(g,poolParts[5],x+w*.2,y-h*.4,w*.42,h,alpha*.58);
+   droplets(g,x,y,age+spec.offset,last?22:8,alpha*.65);
+  }
+  g.restore();
+ }
+ function surfaceRing(g,x,y,rx,ry,alpha,color='#d6f3ff',width=2){
+  g.save();g.globalAlpha=alpha;g.strokeStyle=color;g.lineWidth=width;g.beginPath();g.ellipse(x,y,rx,ry,0,0,TAU);g.stroke();g.restore();
+ }
+ function pool(g,e,layer,subframe=0){
+  const age=e.age+subframe,warning=WHALE_RULES.telegraph;
+  const end=warning+WHALE_RULES.ultimateHits*WHALE_RULES.hitGap,fade=clamp((end+48-age)/20),active=e.age>=warning;
+  if(layer==='back'){
+   g.save();clipFootprint(g,e.x,e.y);
+   const lake=g.createRadialGradient(e.x,e.y,5,e.x,e.y,170);
+   lake.addColorStop(0,'#315b79ed');lake.addColorStop(.65,'#6ba9cbe0');lake.addColorStop(1,'#b2e9f6c0');
+   g.globalAlpha=fade*(active?.88:.65);g.fillStyle=lake;g.fillRect(e.x-POOL.rx,e.y-POOL.ry,POOL.rx*2,POOL.ry*2);
+   patch(g,poolParts[0],e.x,e.y,POOL.rx*2,POOL.ry*2,fade*.88);
+   // Surface rings and final pressure waves remain inside the exact pool footprint.
+   for(let k=0;k<3;k++){
+    const p=((age+k*12)%36)/36;
+    surfaceRing(g,e.x,e.y,20+p*132,5+p*37,fade*Math.sin(p*Math.PI)*.45,k%2?'#e3f7ff':'#95d1e5',1.5);
    }
-   if(last&&age<32){
-    drawPixelFx(g,'wave',e.x,e.y,.2+age/60*2,3.2,layer,'ice',clamp((32-age)/16)*.5);
-    for(let k=0;k<3;k++){
-     const t=age-k*4;if(t<0)continue;g.save();g.translate(e.x,e.y-2);g.scale(1,.22);g.globalAlpha=clamp((26-t)/20)*fade*.9;g.strokeStyle=k%2?'#effcff':'#9ed5e8';g.lineWidth=6-k;g.beginPath();g.arc(0,0,24+t*9,0,TAU);g.stroke();g.restore();
+   if(!active){
+    const progress=age/warning;
+    surfaceRing(g,e.x,e.y,POOL.rx-3,POOL.ry-2,fade*.62,'#ceeefd',2);
+    for(let j=0;j<3;j++){
+     const a=j*2.1+age*.035;
+     sprite(g,whales[0],e.x+Math.cos(a)*65*(1-progress*.4),e.y+Math.sin(a)*19,48,.12*fade,a*.15);
     }
    }
    g.restore();
+   patch(g,poolParts[1],e.x,e.y-24,POOL.rx*2,32,fade*.85);
+  }
+  if(active)for(const i of depthOrder){
+   const spec=ERUPTIONS[i],localAge=age-warning-spec.at,front=spec.depth>=0;
+   if((layer==='front')!==front||localAge< -8||localAge>76)continue;
+   const mouth=poolMouth(spec),whale=eruptionSample(Math.max(0,localAge),i),last=i===11;
+   opening(g,e,spec,mouth,localAge,false,fade);
+   if(localAge>=0&&whale.y> -2100){
+    g.save();clipEmergence(g,e.x,e.y,spec.depth);
+    const path=lag=>{
+     const t=localAge-lag/whale.speed;if(t<0)return null;const p=eruptionSample(t,i);
+     return{x:e.x+p.x,y:e.y+mouth.y+p.y,angle:p.angle};
+    };
+    const material=fade*(.88+spec.depth*.2);
+    school(g,path,localAge,last?1.65:Math.max(.72,whale.width/220),material*(last?.95:.78),last?4:2);
+    const x=e.x+whale.x,y=e.y+mouth.y+whale.y,flow=localAge*.28+i*.83;
+    waterWhale(g,leaping,whale.pose,x,y,whale.width,whale.alpha*material,whale.rotation,flow);
+    whaleLight(g,leaping,whale.pose,x,y,whale.width,whale.alpha*material*(last?.45:.25),whale.rotation,flow);
+    g.restore();
+   }
+   opening(g,e,spec,mouth,localAge,true,fade);
+   if(localAge>=0&&localAge<28){
+    g.save();clipFootprint(g,e.x,e.y);
+    surfaceRing(g,e.x+mouth.x,e.y+mouth.y,mouth.width*.5+localAge*1.7,6+localAge*.28,clamp((28-localAge)/20)*fade*.78);
+    g.restore();
+   }
+   if(last&&localAge>=0&&localAge<28){
+    g.save();clipFootprint(g,e.x,e.y);
+    for(let k=0;k<3;k++){
+     const t=localAge-k*4;if(t<0)continue;
+     surfaceRing(g,e.x,e.y,24+t*8,7+t*2.2,clamp((26-t)/20)*fade*.9,k%2?'#edfaff':'#9ed5e8',4-k);
+    }g.restore();
+   }
   }
   if(layer==='front'){
-   sprite(g,water[0],e.x,e.y+2,314,.12*fade);droplets(g,e.x,e.y,age,18,fade*.7);
-   if(e.lastContactAge!==undefined&&age-e.lastContactAge<5)sprite(g,runes[3],e.x,e.y-75,68,clamp((5-age+e.lastContactAge)/5)*.4);
+   patch(g,poolParts[2],e.x,e.y+20,POOL.rx*2,44,fade*.86);
   }
  }
  function orbit(g,e,layer){

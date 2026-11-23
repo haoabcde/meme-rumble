@@ -2,6 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {orbitAngle,orbitSample,eruptionSample,ERUPTIONS,waterSubframe} from '../src/web/whale-presentation.mjs';
 import {waterSpine} from '../src/web/water-flow.mjs';
+import {POOL,poolMouth,poolCutY} from '../src/web/water-pool.mjs';
+
+test('pool openings occupy front and rear depth and all root widths fit the elliptical footprint',()=>{
+ assert.ok(new Set(ERUPTIONS.map(e=>poolMouth(e).y.toFixed(1))).size>=6);
+ assert.ok(ERUPTIONS.some(e=>e.depth<0)&&ERUPTIONS.some(e=>e.depth>0));
+ for(const spec of ERUPTIONS){
+  const m=poolMouth(spec);
+  for(const x of [m.x-m.width/2,m.x,m.x+m.width/2])assert.ok((x/POOL.rx)**2+(m.y/POOL.ry)**2<=1);
+ }
+ assert.ok(poolCutY(0,.4)>poolCutY(0,-.4));
+ assert.ok(poolCutY(130,.4)<poolCutY(0,.4));
+});
 
 test('subtick water presentation is continuous while hitstop and cinematics keep the pool still',()=>{
  for(const fraction of [0,.25,.5,.75]){

@@ -20,6 +20,23 @@ test('authored whale owns three equal tail stages and an independent three-stock
  const f=whale.fighter;assert.equal(f.ultimateCost,300);assert.equal(f.actions.find(a=>a.id==='open-source').slot,'ULT');
  assert.deepEqual(f.actions.filter(a=>['common-jab','common-sweep','common-finish'].includes(a.id)).map(a=>a.damage),[45,45,45]);
 });
+
+test('only the final pool wave launches, retaining twelve equal damage contacts on both seats',()=>{
+ for(const source of [0,1]){
+  const t=setup(source,500);t.caster.energy=300;t.press('ULT');let hits=0;
+  for(let frame=0;frame<250&&hits<12;frame++){
+   const events=t.tick();
+   for(const event of events.filter(e=>e.kind==='hit'&&e.source===source)){
+    hits++;assert.equal(event.amount,35);
+    if(hits<12){assert.equal(t.target.vy,0);assert.ok(t.target.ground);}
+    else{assert.equal(t.target.vy,-18);assert.equal(t.target.ground,null);assert.equal(t.target.poseEvent.kind,'launch');}
+   }
+  }
+  assert.equal(hits,12);assert.equal(t.target.hp,580);
+  const y=t.target.y;t.run(10);assert.ok(t.target.y<y);
+  t.run(50);assert.equal(t.target.hp,580);
+ }
+});
 test('tail requires two actual blocks before normal third contact; a lone third stage cannot bypass guard',()=>{
  for(const source of [0,1]){
   const t=setup(source,110),guard=source===0?[NEUTRAL,input([],0,1)]:[input([],0,1),NEUTRAL];t.run(12,...guard);

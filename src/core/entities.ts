@@ -1,6 +1,6 @@
 import { actionFor, hurtRegionsFor, worldBox } from './match.js';
 import type { ActionDefinition, Box, FighterAction, HitFeedback, MatchConfig, MatchState, Side, Slot } from './types.js';
-import { advanceKitEntity, initializeKitEntity, kitContactAllowed, kitContactBox, kitContactResolved, kitLifetime } from './whale-kit.js';
+import { advanceKitEntity, initializeKitEntity, kitContactAllowed, kitContactBox, kitContactResolved, kitLifetime, kitContactLift } from './whale-kit.js';
 
 export interface EntityDefinition {
   behavior?: 'rice' | 'spin' | 'spin-up' | 'counter' | 'pool' | 'frog-wave' | 'frog-global';
@@ -161,7 +161,7 @@ export function entityContacts(state: MatchState, config: MatchConfig): EntityCo
           id: definition.id, hitbox: definition.hitbox, feedback: definition.feedback,
           damage: definition.behavior==='rice' && entity.grounded ? 0 : definition.damage, guardCost: definition.guardCost,
           fixedDamage: Boolean(definition.behavior),
-          push: definition.push, lift: definition.lift, hitstun: definition.hitstun,
+          push: definition.push, lift: kitContactLift(entity), hitstun: definition.hitstun,
           blockstun: definition.blockstun, stop: definition.stop,
           slot: entity.slot, posture: 'any', startup: 0, active: 1, recovery: 0, advance: 0, pose: 'strike'
         }
