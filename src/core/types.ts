@@ -44,12 +44,27 @@ export interface HitWindow extends BoxWindow {
   knockdown?: boolean;
 }
 
+export interface AudioClipRef {
+  clip: string;
+  volume?: number;
+}
+
 export interface HitFeedback {
   shape?: 'ring';
   color?: string;
   shake?: number;
   flash?: number;
   sound?: 'light' | 'heavy' | 'sharp';
+  /** Optional impact clip from the attacking fighter's audio bank. */
+  audio?: AudioClipRef;
+}
+
+export interface ActionAudioCue extends AudioClipRef {
+  frame: number;
+  /** Presentation-only random choice, including clip as the first candidate. */
+  variants?: string[];
+  channel?: 'sfx' | 'voice';
+  stopOnInterrupt?: boolean;
 }
 
 interface ActionTiming {
@@ -66,6 +81,8 @@ interface ActionTiming {
   linkOnly?: boolean;
   /** Hold each sprite cell from its zero-based action frame until the next key. */
   animation?: { frame: number; cell: number }[];
+  /** Play clips once at their zero-based action frames. */
+  audioTimeline?: ActionAudioCue[];
   /** Gaps and empty boxes leave the fighter without a hurt region. */
   hurtTimeline?: BoxWindow[];
 }
@@ -180,6 +197,10 @@ export interface Ruleset {
   airDashPauseGravity?: boolean;
   inputBuffer: number;
   comboControlLimit: number;
+  /** Positive number of playable ticks spent down before starting to rise. */
+  knockdownFrames?: number;
+  /** Positive number of playable ticks spent rising before control returns. */
+  riseFrames?: number;
 }
 
 export interface MatchConfig {
@@ -241,6 +262,8 @@ export interface FighterState {
   guardWait: number;
   guardBreak: number;
   hitstun: number;
+  /** Airborne hit reaction that locks control until landing and allows follow-up hits. */
+  launched?: boolean;
   blockstun: number;
   push: number;
   dash: number;
@@ -261,7 +284,7 @@ export interface FighterState {
 }
 
 export type EventKind = 'swing' | 'ultimate' | 'ultimate-no-energy' | 'hit' | 'block' | 'parry' | 'break' | 'whiff' | 'dash' | 'dash-no-stamina' | 'jump' | 'air-jump' |
-  'drop' | 'land' | 'knockdown' | 'rise' | 'ko';
+  'drop' | 'land' | 'knockdown' | 'rise' | 'ko' | 'action-audio';
 export interface CombatEvent {
   kind: EventKind;
   source: 0 | 1;
@@ -272,6 +295,8 @@ export interface CombatEvent {
   direction?: Side;
   heavy?: boolean;
   feedback?: HitFeedback;
+  /** The attack identity survives removal from the fighter during this tick's contact resolution. */
+  actionAudio?: { attack: Attack; cue: ActionAudioCue };
 }
 
 export interface RoundResult {
@@ -299,6 +324,8 @@ export interface MatchState {
 }
 
 export const TICK_RATE = 60;
+export const DEFAULT_KNOCKDOWN_FRAMES = 30;
+export const DEFAULT_RISE_FRAMES = 18;
 export const ENERGY_PER_STOCK = 100;
 export const MAX_ENERGY = 3 * ENERGY_PER_STOCK;
 export const NEUTRAL: InputFrame = { x: 0, y: 0, pressed: [] };

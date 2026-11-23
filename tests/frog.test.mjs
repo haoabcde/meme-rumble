@@ -37,6 +37,8 @@ test('global wave hits once across the complete map and upper platforms, and can
  for(const source of [0,1]){const t=setup(source,2800);t.target.y=320;t.target.ground='high';t.config.arena.platforms=[{id:'high',name:'high',tier:4,left:t.target.x-120,right:t.target.x+120,y:320}];t.press('B',-1);assert.equal(t.caster.attack.id,'frog-laugh-global');assert.equal(t.run(30).some(e=>e.kind==='hit'),false);
   const hits=t.run(30).filter(e=>e.kind==='hit');assert.equal(hits.length,1);assert.equal(hits[0].amount,25);
   t.press('B',-1);assert.equal(t.caster.attack.id,'frog-laugh-global');
+  // The new launch recovery protects the fallen target, but does not add a cast cooldown.
+  Object.assign(t.target,{recovery:null,launched:false,hitstun:0,ground:'high',y:320,vy:0});
   assert.equal(t.run(60).filter(e=>e.kind==='hit').length,1);
  }
 });
@@ -90,7 +92,7 @@ test('buff does not change the hurtbox, platform movement or jump budget and can
 test('frog buff, casts and wave hits survive snapshot replay and clear at round reset',()=>{
  const t=setup(0,190);t.caster.ascendUntil=900;t.caster.energy=300;t.press('B');t.run(18);const clone=structuredClone(t.state);
  for(let i=0;i<180;i++){const a=input(i===90?['B']:[],0,i===90?-1:0);assert.deepEqual(step(t.state,[a,NEUTRAL],t.config),step(clone,[a,NEUTRAL],t.config));assert.deepEqual(t.state,clone);}
- t.caster.attack=null;t.caster.hitstun=0;t.target.hp=1;t.target.x=t.caster.x+90;t.target.y=t.caster.y;t.target.ground='floor';t.caster.attack={id:'common-jab',frame:4,connected:false,landed:false};t.state.freeze=0;t.tick();assert.equal(t.state.phase,'round-over');t.run(110);assert.equal(t.state.fighters[0].ascendUntil,undefined);assert.equal(t.state.fighters[0].energy,0);
+ t.caster.attack=null;t.caster.hitstun=0;t.target.hp=1;t.target.x=t.caster.x+90;t.target.y=t.caster.y;t.target.ground='floor';Object.assign(t.target,{recovery:null,launched:false,hitstun:0,vy:0});t.caster.attack={id:'common-jab',frame:4,connected:false,landed:false};t.state.freeze=0;t.tick();assert.equal(t.state.phase,'round-over');t.run(110);assert.equal(t.state.fighters[0].ascendUntil,undefined);assert.equal(t.state.fighters[0].energy,0);
 });
 
 
@@ -280,4 +282,16 @@ test('interruption or buff expiry cancels the automatic laugh without leaking it
   if(!expire){t.caster.attack=null;t.caster.hitstun=3;}
   t.run(80);assert.equal(t.caster.frogFollowup,undefined);assert.equal(t.caster.frogCasts,undefined);
  }
+});
+
+
+test('frog voice mapping follows skill activation and holding C emits only one random cue',()=>{
+ const ordinary=setup(0,1200);const b=ordinary.press('B').filter(e=>e.kind==='action-audio');assert.equal(b.length,1);assert.equal(b[0].actionAudio.cue.clip,'laugh');
+ const up=setup(0,1200);assert.equal(up.press('B',-1).find(e=>e.kind==='action-audio').actionAudio.cue.clip,'ha');
+ for(const source of [0,1]){
+  const t=setup(source,1200);const frames=[];
+  for(let i=0;i<40;i++){const h=hold(i===0?['C']:[]);frames.push(...t.tick(source===0?h:NEUTRAL,source===1?h:NEUTRAL));}
+  const cues=frames.filter(e=>e.kind==='action-audio');assert.equal(cues.length,1);assert.deepEqual([cues[0].actionAudio.cue.clip,...cues[0].actionAudio.cue.variants],['skill2-1','skill2-2','skill2-3','skill2-4']);
+ }
+ const burrow=setup(0,1200);assert.equal(burrow.press('C',-1).find(e=>e.kind==='action-audio').actionAudio.cue.clip,'skill2-1');
 });

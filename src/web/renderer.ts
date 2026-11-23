@@ -1,7 +1,8 @@
 import { roster } from '../content/roster.js';
 import { motionGrid } from '../content/fighter-kit.js';
-import { actionFor, hitRegionsFor, hurtRegionsFor, isActiveFrame, worldBox } from '../core/match.js';
+import { actionFor, hitRegionsFor, hurtRegionsFor, isActiveFrame, recoveryDuration, worldBox } from '../core/match.js';
 import type { EntityState } from '../core/entities.js';
+import { DEFAULT_RISE_FRAMES } from '../core/types.js';
 import type { ActionDefinition, ArenaDefinition, Box, CombatEvent, FighterAction, FighterState, MatchConfig, MatchState } from '../core/types.js';
 import { backgrounds, harborProps, harborGantry, motionArt, sprites, stageKits } from './art.js';
 import { drawHarborScenery, drawHarborLift, drawQuay } from './harbor-art.js';
@@ -28,9 +29,10 @@ const poses = {
   sweep: 6, finish: 7, rise: 8, air: 9, recover: 10, hurt: 11
 };
 
-function poseFor(fighter: FighterState, action: FighterAction | undefined, frame: number) {
-  if (!fighter.hp || fighter.hitstun || fighter.guardBreak) return poses.hurt;
-  if (fighter.recovery) return fighter.recovery.phase === 'rise' ? poses.recover : poses.hurt;
+function poseFor(fighter: FighterState, action: FighterAction | undefined, frame: number, getUp: number) {
+  if (!fighter.hp) return poses.hurt;
+  if (fighter.recovery) return getUp >= .42 ? poses.recover : poses.hurt;
+  if (fighter.hitstun || fighter.launched || fighter.guardBreak) return poses.hurt;
   if (fighter.guarding) return poses.guard;
   if (action && fighter.attack) {
     const phase = fighter.attack.frame;
@@ -55,6 +57,51 @@ function drawPose(ctx: CanvasRenderingContext2D, sheet: HTMLImageElement, pose: 
   const scale = height / referenceHeight;
   ctx.drawImage(sheet, pose % columns * cell, Math.floor(pose / columns) * cell, cell, cell,
     offset - footX * scale, -footY * scale, cell * scale, cell * scale);
+}
+
+const poseContours = new WeakMap<HTMLImageElement, Map<number, Point[]>>();
+
+function poseGroundOffset(sheet: HTMLImageElement, pose: number, angle: number, height: number) {
+  const { cell, columns, footX, footY, referenceHeight } = motionGrid;
+  let contours = poseContours.get(sheet);
+  if (!contours) {
+    contours = new Map();
+    poseContours.set(sheet, contours);
+  }
+  let contour = contours.get(pose);
+  if (!contour) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = cell;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(sheet, pose % columns * cell, Math.floor(pose / columns) * cell, cell, cell, 0, 0, cell, cell);
+    const pixels = ctx.getImageData(0, 0, cell, cell).data;
+    contour = [];
+    // Keep the lowest opaque pixel in each column. All of these tilts are between flat and upright.
+    for (let x = 0; x < cell; x++) {
+      for (let y = cell - 1; y >= 0; y--) {
+        if (pixels[(y * cell + x) * 4 + 3] < 128) continue;
+        contour.push([x + .5 - footX, y + .5 - footY]);
+        break;
+      }
+    }
+    contours.set(pose, contour);
+  }
+  const sine = Math.sin(angle);
+  const cosine = Math.cos(angle);
+  const bottom = contour.reduce((max, [x, y]) => Math.max(max, sine * x + cosine * y), -Infinity);
+  return contour.length ? bottom * height / referenceHeight : 0;
+}
+
+function recoveryTilt(fighter: FighterState, getUp: number, gap: number, height: number) {
+  const flat = -Math.PI / 2;
+  if (fighter.recovery?.phase === 'down' || (!fighter.hp && fighter.ground)) return flat;
+  if (fighter.recovery?.phase === 'rise') return flat * (1 - getUp) ** 2;
+  if (fighter.launched || fighter.recovery?.phase === 'fall' || !fighter.hp) {
+    const airborne = -.52 - .38 * Math.min(1, Math.max(0, (fighter.vy + 8) / 20));
+    const landing = fighter.vy <= 0 ? 0 : Math.max(0, 1 - Math.max(0, gap) / (height * .72));
+    return airborne + (flat - airborne) * landing;
+  }
+  return 0;
 }
 
 function polygon(ctx: CanvasRenderingContext2D, color: string, points: Point[]) {
@@ -359,6 +406,7 @@ export class Renderer {
 
     drawWhaleEntities(ctx,state,config,'back',presentationFraction);
     drawFrogEffects(ctx,state,config,'back');
+    const riseFrames = recoveryDuration(config.rules.riseFrames, DEFAULT_RISE_FRAMES);
     const front = a.attack && b.hitstun ? [1, 0] as const : [0, 1] as const;
     for (const seat of front) {
       const f = state.fighters[seat];
@@ -370,36 +418,41 @@ export class Renderer {
       const phase = f.attack?.frame ?? 0;
       const active = action && isActiveFrame(action, phase) ? action : undefined;
       const strike = active && !('counterTo' in active) ? active : undefined;
-      const hitboxes = strike ? hitRegionsFor(strike, phase) : [];
+      const hitboxes = strike && (state.phase === 'fight' || state.freeze > 0) ? hitRegionsFor(strike, phase) : [];
       const stance = active && 'counterTo' in active && f.ground;
-      const pose = poseFor(f, action, state.arenaFrame);
+      const height = heights[seat];
+      const getUp = f.recovery?.phase === 'rise' ? (riseFrames - f.recovery.remaining) / Math.max(1, riseFrames - 1) : 0;
+      const pose = poseFor(f, action, state.arenaFrame, getUp);
       const ground = decks.reduce((y, platform) =>
         f.x >= platform.left && f.x <= platform.right && platform.y >= f.y && platform.id !== f.ignorePlatform
           ? Math.min(y, platform.y) : y,
         config.arena.floor);
+      const tilt = recoveryTilt(f, getUp, ground - f.y, height);
+      const recline = -Math.sin(tilt);
       ctx.fillStyle = '#08091cc9';
       ctx.beginPath();
-      ctx.ellipse(f.x, ground + 3, f.ground ? 39 : 23, f.ground ? 8 : 5, 0, 0, Math.PI * 2);
+      ctx.ellipse(f.x, ground + 3, f.ground ? 39 + recline * 22 : 23, f.ground ? 8 : 5, 0, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.save();
       ctx.translate(f.x, f.y);
       ctx.scale(f.facing, 1);
-      const height = heights[seat];
       if(def.id==='whale'){
         const flash=this.hitFlash(seat,state.arenaFrame,f.hitstun>0&&state.freeze>0);
         if(flash>0)ctx.filter=`brightness(${1+flash*.36})`;
         drawWhaleActor(ctx,f,state,seat,action);ctx.filter='none';
       }else if(def.id==='frog'){drawFrogActor(ctx,f,state,action);
       }else{
-      if (!f.hp) ctx.rotate(-Math.PI / 2.6);
-      else if (f.recovery?.phase === 'down') {
-        ctx.translate(height * .40, -height * .32);
-        ctx.rotate(-1.24);
-      } else if (f.recovery?.phase === 'fall') {
-        ctx.rotate(-.25);
-      } else if (f.recovery?.phase === 'rise') {
-        ctx.scale(1, 1 - f.recovery.remaining * .017);
+      const spriteWidth = sprite?.naturalWidth ? height * sprite.naturalWidth / sprite.naturalHeight : 0;
+      if (tilt && pose !== undefined) {
+        const bottom = sheet?.naturalWidth
+          ? poseGroundOffset(sheet, pose, tilt, height)
+          : spriteWidth * .51 * recline;
+        // The standing hurt art keeps limbs spread. Settle that silhouette toward the surface as it lies flat.
+        const postureHeight = 1 - .44 * recline ** 4;
+        ctx.translate(height * .43 * recline, -bottom * postureHeight);
+        ctx.scale(1, postureHeight);
+        ctx.rotate(tilt);
       }
       if (f.dash && sheet?.naturalWidth && pose !== undefined) {
         ctx.globalAlpha = .18;
@@ -415,8 +468,7 @@ export class Renderer {
       if (flash > 0) ctx.filter = `brightness(${1 + flash * .36})`;
       if (sheet?.naturalWidth && pose !== undefined) {
         drawPose(ctx, sheet, pose, height, strike && hitboxes.length && !strike.animation?.length ? 8 : 0);
-      } else if (sprite?.naturalWidth) {
-        const spriteWidth = height * sprite.naturalWidth / sprite.naturalHeight;
+      } else if (spriteWidth) {
         const breathe = pose === undefined ? Math.sin(state.arenaFrame * .10) * 1.4 : 0;
         ctx.drawImage(sprite, -spriteWidth * .51, -height - breathe, spriteWidth, height + breathe);
       }
@@ -440,13 +492,15 @@ export class Renderer {
       }
 
       if (debug) {
-        ctx.fillStyle = '#27d7ee24';
-        ctx.strokeStyle = '#4ce2e8';
         ctx.lineWidth = 2;
-        for (const region of hurtRegionsFor(def, action, phase)) {
-          const hurt = worldBox(region, f.x, f.y, f.facing);
-          ctx.fillRect(hurt.x, hurt.y, hurt.w, hurt.h);
-          ctx.strokeRect(hurt.x, hurt.y, hurt.w, hurt.h);
+        if (f.hp && !f.recovery) {
+          ctx.fillStyle = '#27d7ee24';
+          ctx.strokeStyle = '#4ce2e8';
+          for (const region of hurtRegionsFor(def, action, phase)) {
+            const hurt = worldBox(region, f.x, f.y, f.facing);
+            ctx.fillRect(hurt.x, hurt.y, hurt.w, hurt.h);
+            ctx.strokeRect(hurt.x, hurt.y, hurt.w, hurt.h);
+          }
         }
         ctx.strokeStyle = '#ffc263';
         ctx.strokeRect(f.x - def.bodyWidth / 2, f.y - 82, def.bodyWidth, 82);
@@ -480,7 +534,7 @@ export class Renderer {
       ctx.font = '900 15px system-ui';
       ctx.fillStyle = seatColors[seat];
       ctx.fillText(label, center, markerY + 15);
-      if (!f.ground && !f.recovery && (def.airJump || def.airDash)) {
+      if (!f.ground && !f.launched && !f.recovery && (def.airJump || def.airDash)) {
         const dot = center + 26;
         polygon(ctx, f.airActionUsed ? '#535c83' : seatColors[seat],
           [[dot, markerY + 4], [dot + 6, markerY + 10], [dot, markerY + 16], [dot - 6, markerY + 10]]);

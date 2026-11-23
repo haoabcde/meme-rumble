@@ -66,11 +66,19 @@ signatureMoves: [
 | `startup`、`active`、`recovery` | 固定 60 Hz，从动作帧 0 计数。例如 5 / 3 / 13 表示第 0–4 帧起手、第 5–7 帧有效、第 8–20 帧收招。 |
 | `hitbox`、`stats.hurtbox`、`stats.bodyWidth` | 攻击框与受击框均为 `{ x, y, w, h }`。原点在脚底，按朝右填写，右方为正 X，上方为负 Y。引擎负责换边镜像。身体宽度另行决定双方接近时的推挤距离。 |
 | `damage`、`hitstun`、`blockstun`、`guardCost` | 分别为基础伤害、命中硬直帧、防御硬直帧、防御耐力消耗。连击伤害按公共规则衰减。 |
-| `advance`、`push`、`lift`、`stop` | 起手每帧向前的位移、命中时的水平推速、向上击飞的初速度、命中停顿帧。可选 `knockdown` 开启倒地，`airControl` 配置空中出招时的水平控制比例。 |
+| `advance`、`push`、`lift`、`stop` | 起手每帧向前的位移、命中时的水平推速、向上击飞的初速度、命中停顿帧。正数 `lift` 启动可追击的击飞，落地后倒地；`knockdown: true` 启动带保护的强制倒地。`airControl` 配置主动空中出招时的水平控制比例，不允许在受击时控制。 |
 | `cancelOnHit`、`linkOnly` | 命中后可转入列出的动作 ID 或槽位。`'jump'` 允许地面命中后跳追。`linkOnly: true` 的动作可以作为连招或防反的后续动作。要让公共直拳接到本角色的动作，在角色包顶层加 `extraCancels: { 'common-jab': ['你的动作ID'] }`。防住和打空会照常收招。 |
 | `pose`、`animation` | `pose` 选择公共表现类型 `'strike'`、`'sweep'`、`'finish'`、`'rise'` 或 `'air'`。可选 `animation` 按动作帧指定图集画格，每个画格保持到下一个关键帧。命中时机由上面的有效帧与攻击框决定。 |
 
 人机陪练目前主要演练公共动作。专属技能的主动使用可在自由训练和本地双人中核对。[完整动作类型](../src/core/types.ts) · [输入与命中实现](../src/core/match.ts)
+
+### 击飞与倒地
+
+普通地面命中由 `hitstun` 决定硬直。正数 `lift` 或空中受击会进入 `launched` 状态：即使命中硬直倒计时结束，也不能移动、防御、跳跃、冲刺或出招，直到实际落到平台或地面。此时仍能被近战和独立实体追击，新命中会重新结算推力、硬直与连击。
+
+落地后依次经过倒地和起身，公共默认分别为 30、18 个可推进逻辑帧，约 0.8 秒；由公共规则 `knockdownFrames`、`riseFrames` 调整。两阶段不能操作，并有受击保护。命中停顿和暂停不会偷跑倒地计时。显式 `knockdown: true` 及连击上限保护从空中下落时就禁止追加命中，适合结束连段。
+
+联调时在自由训练按 **H**，用 **W＋J** 挑空后观察“击飞 → 倒地 → 起身 → 可操作”，也可暂停后逐帧查看。倒地和起身期间输入不能提前使角色行动；临近结束时的按键仍遵循公共输入缓冲规则。角色负责人继续填写自己的招式、击飞力度和正式受击动画。
 
 ### 逐帧判定、组合输入与命中表现
 
@@ -82,13 +90,51 @@ signatureMoves: [
 | `feedback` | 可选。命中表现支持 `color` 特效色、`shake` 抖动幅度、`flash` 命中闪亮强度（显示范围 0–1）和 `sound` 预设（`'light'`、`'heavy'`、`'sharp'`）。 |
 | `entities` | 可选。基于 `spawnFrame` 在出招时独立生成，使用自身的坐标偏移、速度、存活帧数、攻击框、命中参数和表现。速度为每逻辑帧的世界单位，横向坐标和速度随生成时朝向镜像，速度为零可用于驻留实体。实体可以在施放动作结束后命中，对手首次接触后消失，也会在到期、换回合和训练复位时清除。实体随命中停顿暂停。当前判定对象是对手的受击框，实体接触也可被格挡或防反。外观使用引擎预设图形，可用 `color` 调色。 |
 
-构建后打开战斗接口联调页。默认按 **U** 检查两段判定，按 **I** 生成独立实体，同时按 **U＋I** 或按住 **U** 后再按 **I** 检查组合输入。用 **H** 检查框和当前帧，需要看清区间边缘时使用暂停后的「前进一帧」。[下载离线联调页](https://github.com/haoabcde/meme-rumble/releases/download/combat-framework-v1/combat-demo.html) · [本机联调页](http://127.0.0.1:4182/combat-demo.html) · [样例配置](../src/web/combat-demo.ts) · [独立实体类型](../src/core/entities.ts)
+构建后打开战斗接口联调页。默认按 **U** 检查两段判定，按 **I** 生成独立实体，同时按 **U＋I** 或按住 **U** 后再按 **I** 检查组合输入。用 **H** 检查框和当前帧，需要看清区间边缘时使用暂停后的「前进一帧」。[下载离线联调页](https://github.com/haoabcde/meme-rumble/releases/latest/download/combat-demo.html) · [本机联调页](http://127.0.0.1:4182/combat-demo.html) · [样例配置](../src/web/combat-demo.ts) · [独立实体类型](../src/core/entities.ts)
+
+## 音效与角色语音
+
+声音放在 `assets/audio/` 下，在角色包顶层的 `audio` 登记。文件由角色负责人提供；框架不会替角色生成笑声或台词。支持 WAV、MP3、Ogg 和 WebM，具体编码需当前浏览器能够解码。构建时按引用内嵌到离线 HTML，不需要联网加载。单文件上限 8 MiB，每份打包音频总量上限 32 MiB。
+
+```ts
+audio: {
+  laugh: { src: 'assets/audio/frog/laugh.mp3', volume: .8 },
+  impact: { src: 'assets/audio/frog/impact.wav' }
+},
+commonAudio: {
+  'common-jab': { hit: { clip: 'impact', volume: .9 } }
+},
+```
+
+上面的路径是接入示例，需要先放入实际文件。同一角色的专属动作、大招和防反架势都可以追加 `audioTimeline`：
+
+```ts
+audioTimeline: [
+  { frame: 12, clip: 'laugh', channel: 'voice', volume: 1, stopOnInterrupt: true }
+],
+feedback: { audio: { clip: 'impact', volume: .9 } },
+```
+
+`frame` 从动作第 0 帧开始，12 帧在 60 Hz 下约为 0.2 秒；必须落在起手、有效、收招的总时长内。同一帧可同时播放音效和语音。`feedback.audio` 在实际命中或格挡接触时播放，实体的命中反馈也支持它；省略时保留公共合成音，角色无需提供全套素材。公共动作的出手声可配置在 `commonAudio[动作ID].audioTimeline`，不会改变公共判定或伤害。
+
+| 字段 | 行为 |
+|---|---|
+| `clip` | 引用本角色 `audio` 中的 ID；不同角色可以使用相同 ID。 |
+| `channel` | `sfx` 或 `voice`，默认 `sfx`。双方语音分别管理，同一角色的新语音替换旧语音；音效可叠加。 |
+| `volume` | 0–1；最终音量是总音量 × 分类音量 × 素材音量 × 本次播放音量。设置变更立即作用于正在播放的声音。 |
+| `stopOnInterrupt` | 默认 `true`。动作在结束前受击、被取消或换招时停止该声音；设为 `false` 可继续播完。动作自然结束允许尾音继续。 |
+
+半速按逻辑帧推迟触发，声音本身保持原速。命中停顿不会重复触发同一帧音轨。暂停会暂停声音，暂停逐帧只推进动作和消费该帧提示，不积攒声音到恢复时爆发。训练复位、换人、换回合和离开对局会清理旧声音。
+
+浏览器需要一次点击或键盘操作解锁音频。配置对局时预解码，交互后才允许播放；未及时就绪的动作提示跳过，不在之后突然补播。自定义命中音频未就绪时回退公共音，解码失败可在浏览器控制台看到文件信息。
+
+构建后打开[音频联调页](http://127.0.0.1:4182/audio-demo.html)，也可[下载离线联调页](https://github.com/haoabcde/meme-rumble/releases/latest/download/audio-demo.html)。先点击画布，再按 **U** 检查第 0 帧音效、第 12 帧语音和命中音；按 **I** 检查受击后继续播放。展开训练设置，选择「重复直拳」和 **0.5×**，复位后分别测试 U、I 的打断差异。设置里的「总音量」「音效」「角色语音」可独立调节，**H** 查看动作阶段，**R** 复位。样例只包含中性电子测试信号，正式角色声音由负责人替换。[样例数据](../src/content/audio-demo.ts)
 
 ## 防反接口
 
 角色可以选「按下防御」或「按 B/C 摆架势」，也可以两种都接，分别指向不同反击。下面用公共直拳跑通流程。4 个逻辑帧约 67 毫秒，正式时机、伤害和动画由角色设计师填写。
 
-想先比较手感，可以下载联调样例，用桌面浏览器打开 HTML。开场已靠近陪练，半速重复出拳。默认按 **S** 试精准防御，按 **U** 试架势，按 **R** 复位。从源码运行 `npm run build` 也会生成同一份 `dist/guard-counter-demo.html`。[下载独立防反训练场](https://github.com/haoabcde/meme-rumble/releases/download/guard-counter-v1/guard-counter-demo.html) · [本机直接试玩](http://127.0.0.1:4182/guard-counter-demo.html) · [样例配置](../src/web/counter-demo.ts)
+想先比较手感，可以下载联调样例，用桌面浏览器打开 HTML。开场已靠近陪练，半速重复出拳。默认按 **S** 试精准防御，按 **U** 试架势，按 **R** 复位。从源码运行 `npm run build` 也会生成同一份 `dist/guard-counter-demo.html`。[下载独立防反训练场](https://github.com/haoabcde/meme-rumble/releases/latest/download/guard-counter-demo.html) · [本机直接试玩](http://127.0.0.1:4182/guard-counter-demo.html) · [样例配置](../src/web/counter-demo.ts)
 
 ### 按下防御
 
@@ -170,7 +216,7 @@ ultimate: {
 - **释放**。大招使用 `cost` 配置消耗，常用的 100、200、300 分别对应一格、两格和三格。
 - **输入与衔接**。所有大招共用逻辑输入 `ULT`。每个 `move` 沿用普通动作的帧数、攻击框和图集动画，可用 `posture`、`direction` 和 `comboKeys` 指定姿态、方向或组合键。上例的方向和消耗只用于联调，正式角色按动作设计填写。配置 `extraCancels: { 'common-jab': ['ULT'] }` 可在直拳命中后衔接大招，也可填写具体大招的动作 ID。`linkOnly: true` 可限制为命中衔接。防反动作的 `counterTo` 和 `guardCounter.actionId` 使用普通攻击 ID。
 
-用桌面浏览器打开下载的独立样例，或打开构建生成的 `dist/ultimate-demo.html`。先按 **O** 验证缺气时无法释放，再靠近陪练，用 **J** 命中五次攒满第一格。也可以点「充满三格能量」，分别试 **O**、**W + O** 和 **S + O** 的一格、两格和三格消耗，每次试招前充满。用 **H** 面板查看起手、有效和收招，用 **0.5×** 或暂停后的「前进一帧」检查画格与判定。用 **R** 复位验证能量归零。改自己的角色后，用自由训练的角色链接重复这套检查。[下载大招联调样例](https://github.com/haoabcde/meme-rumble/releases/download/ui-three-stock-v1/ultimate-demo.html) · [本机直接试玩](http://127.0.0.1:4182/ultimate-demo.html)
+用桌面浏览器打开下载的独立样例，或打开构建生成的 `dist/ultimate-demo.html`。先按 **O** 验证缺气时无法释放，再靠近陪练，用 **J** 命中五次攒满第一格。也可以展开「训练设置」点「充满三格能量」，分别试 **O**、**W + O** 和 **S + O** 的一格、两格和三格消耗，每次试招前充满。用 **H** 面板查看起手、有效和收招，用 **0.5×** 或暂停后的「前进一帧」检查画格与判定。用 **R** 复位验证能量归零。改自己的角色后，用自由训练的角色链接重复这套检查。[下载大招联调样例](https://github.com/haoabcde/meme-rumble/releases/latest/download/ultimate-demo.html) · [本机直接试玩](http://127.0.0.1:4182/ultimate-demo.html)
 
 ## 交付美术
 

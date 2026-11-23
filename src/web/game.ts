@@ -11,6 +11,8 @@ import { tierAt } from '../core/terrain.js';
 import { previewArena, recoveryLabels, Renderer } from './renderer.js';
 import { bindingMap, installSettings, keyHint, loadPreferences, renderGuide, type Control, type Seat } from './settings.js';
 
+declare const __FIGHTER_AUDIO__: Record<string, string>;
+
 function element<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
 }
@@ -120,12 +122,16 @@ const settings = installSettings(preferences, () => {
   clearInputs();
   bindings = bindingMap(preferences);
   audio.volume = new URLSearchParams(location.search).has('silent') ? 0 : preferences.volume / 100;
+  audio.sfxVolume = preferences.sfxVolume / 100;
+  audio.voiceVolume = preferences.voiceVolume / 100;
   audio.enableFromGesture();
   renderGuide(preferences);
   if (screen === 'roster') renderRoster();
   footer();
 });
 audio.volume = new URLSearchParams(location.search).has('silent') ? 0 : preferences.volume / 100;
+audio.sfxVolume = preferences.sfxVolume / 100;
+audio.voiceVolume = preferences.voiceVolume / 100;
 renderGuide(preferences);
 
 stage.style.setProperty('--arcade-art', 'url("' + arcadeArt + '")');
@@ -266,6 +272,8 @@ function renderPreparationNav() {
 }
 
 function show(next: Screen) {
+  if (next === 'match' || next === 'pause') audio.setPaused(next === 'pause');
+  else audio.stopAll();
   clearInputs();
   window.clearTimeout(toastTimer);
   element('ui-notice').hidden = true;
@@ -390,6 +398,7 @@ function selectArena(index: number) {
 
 function configureMatch(immediate: boolean) {
   config.randomSeed = crypto.getRandomValues(new Uint32Array(1))[0] || 1;
+  audio.configure([roster[selected[0]].audio, roster[selected[1]].audio], __FIGHTER_AUDIO__);
   config.arena = arenas[arenaIndex];
   stage.dataset.mode = mode;
   stage.dataset.arena = config.arena.id;
@@ -673,6 +682,7 @@ window.addEventListener('keydown', event => {
 });
 window.addEventListener('keyup', event => held.delete(event.code));
 canvas.addEventListener('blur', clearInputs);
+canvas.addEventListener('pointerdown', () => audio.enableFromGesture());
 function pauseOnHide() {
   if (screen === 'match') pauseMatch();
   else clearInputs();
@@ -716,6 +726,7 @@ function trainingState(seat: Seat) {
   if (recovery) {
     return recoveryLabels[recovery.phase] + (recovery.phase === 'fall' ? '' : ' · ' + recovery.remaining + ' 帧');
   }
+  if (fighter.launched) return '击飞 · 等待落地';
   if (fighter.guardBreak) return '破防 · ' + fighter.guardBreak + ' 帧';
   if (fighter.hitstun) return '受击 · ' + fighter.hitstun + ' 帧';
   if (fighter.blockstun) return '格挡 · ' + fighter.blockstun + ' 帧';
@@ -752,7 +763,9 @@ function renderHUD() {
     setMeter(healthBars[seat], fighter.hp, config.fighters[seat].maxHp);
     const life = lifeDisplay[seat] ?? { hp: fighter.hp, trail: fighter.hp, holdUntil: 0, frame: state.frame };
     if (fighter.hp > life.hp) life.trail = fighter.hp;
-    if (fighter.hp < life.hp || fighter.hitstun || fighter.recovery) life.holdUntil = state.frame + 18;
+    if (fighter.hp < life.hp || (state.phase === 'fight' && (fighter.hitstun || fighter.recovery))) {
+      life.holdUntil = state.frame + 18;
+    }
     if (state.frame > life.holdUntil) {
       life.trail = Math.max(fighter.hp, life.trail - config.fighters[seat].maxHp * .012 * Math.max(0, state.frame - life.frame));
     }
@@ -854,7 +867,7 @@ function tick(player: InputFrame) {
     roundHistory.push({ ...state.result, round: state.round });
   }
   renderer.add(events, state.arenaFrame);
-  audio.play(events);
+  audio.update(config, state, events);
 }
 
 function draw(elapsed: number) {
