@@ -1,4 +1,4 @@
-import normalGuardSource from '../../assets/角色/防御/奶蛙/常态掌架_V3/常态同风格_掌架.png';
+import normalGuardSource from '../../assets/角色/防御/奶蛙/护腹站姿_V4/双手护腹_同常态像素.png';
 import type {FighterAction,FighterState,MatchConfig,MatchState} from '../core/types.js';
 import {frogPowered,FROG_RULES,frogCrouching} from '../core/frog-kit.js';
 import {cutGrid} from './pixel-sprites.mjs';

@@ -1,3 +1,5 @@
+import {createIntroSchoolRenderer} from './water-school-intro-v13.mjs';
+import {drawIntroWaterFrame} from './water-flow-intro-v13.mjs';
 import {WHALE_RULES} from '../core/whale-kit.js';
 import {cutGrid,createPoseMorph} from './pixel-sprites.mjs';
 import {drawPixelFx} from './pixel-fx.mjs';
@@ -49,7 +51,7 @@ function paleWater(im){
 // One blue-grey / ice-blue / silver-white family, with a quieter pool and brighter fish.
 // Luminance retains body modelling; using max(R,G,B) made cyan water and white ridges alike.
 const ICE_STOPS=[[0,26,51,79],[.28,42,88,124],[.55,76,147,188],[.78,132,201,229],[.92,198,236,248],[1,240,252,255]];
-function ultimateWater(im,role='whale'){
+function ultimateWater(im,role='whale',boostFish=true){
  const c=document.createElement('canvas');c.width=im.width;c.height=im.height;
  const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(im,0,0);
  const image=g.getImageData(0,0,c.width,c.height),p=image.data;
@@ -59,13 +61,13 @@ function ultimateWater(im,role='whale'){
   const t=clamp(light*(role==='pool'?.9:.98)+white*.1+(role==='fish'?.09:0));
   const n=ICE_STOPS.findIndex(stop=>stop[0]>=t),hi=ICE_STOPS[Math.max(1,n)],lo=ICE_STOPS[Math.max(0,n-1)],u=clamp((t-lo[0])/(hi[0]-lo[0]));
   for(let channel=0;channel<3;channel++)p[i+channel]=lo[channel+1]+(hi[channel+1]-lo[channel+1])*u;
-  if(role==='fish')p[i+3]=Math.min(255,p[i+3]*1.8);
+  if(role==='fish'&&boostFish)p[i+3]=Math.min(255,p[i+3]*1.8);
   if(role==='whale'&&p[i+3]>100)p[i+3]=Math.min(255,p[i+3]*1.17);
  }
  g.putImageData(image,0,0);return c;
 }
 const ridgeCache=new WeakMap();
-function whaleLight(g,morph,pose,x,y,width,alpha,rotation=0,flow=0){
+function whaleLight(g,morph,pose,x,y,width,alpha,rotation=0,flow=0,drawFrame=drawWaterFrame){
  const frame=morph.frame(pose);let ridge=ridgeCache.get(frame);
  if(!ridge){
   ridge=document.createElement('canvas');ridge.width=frame.width;ridge.height=frame.height;
@@ -75,14 +77,15 @@ function whaleLight(g,morph,pose,x,y,width,alpha,rotation=0,flow=0){
   rg.putImageData(image,0,0);ridgeCache.set(frame,ridge);
  }
  g.save();g.imageSmoothingEnabled=false;g.globalCompositeOperation='screen';g.globalAlpha*=alpha;
- g.translate(x,y);g.rotate(rotation);g.scale(width/200,width/200);drawWaterFrame(g,ridge,flow);g.restore();
+ g.translate(x,y);g.rotate(rotation);g.scale(width/200,width/200);drawFrame(g,ridge,flow);g.restore();
 }
-function waterWhale(g,morph,pose,x,y,width,alpha,rotation,flow){
+function waterWhale(g,morph,pose,x,y,width,alpha,rotation,flow,drawFrame=drawWaterFrame){
  g.save();g.imageSmoothingEnabled=false;g.globalAlpha*=alpha;g.translate(x,y);g.rotate(rotation);g.scale(width/200,width/200);
- drawWaterFrame(g,morph.frame(pose),flow);g.restore();
+ drawFrame(g,morph.frame(pose),flow);g.restore();
 }
 export function createWaterRenderer(images,{preview=false}={}){
  const whales=parts(images.waterWhale).map(im=>paleWater(im)),water=parts(images.waterParts).map(im=>paleWater(im)),runes=parts(images.runeParts).map(im=>paleWater(im));
+ const introSchool=createIntroSchoolRenderer(images.fishSchool,im=>ultimateWater(im,'fish',false));
  const school=createSchoolRenderer(images.fishSchool,im=>ultimateWater(im,'fish'));
  const turning=createPoseMorph(cutGrid(images.whaleTurn,4,2).map(im=>paleWater(im)));
  const introWhale=createPoseMorph(cutGrid(images.whaleTurn,4,2).map(im=>ultimateWater(im)),{steps:24,maxCache:196}),leaping=createPoseMorph(cutGrid(images.whaleLeap,4,2).map(im=>ultimateWater(im)),{steps:24,maxCache:80});
@@ -217,11 +220,11 @@ export function createWaterRenderer(images,{preview=false}={}){
  function cinematic(g,phase){
   const a=-2.7+phase/60*TAU*.9,x=640+Math.cos(a)*430,y=350+Math.sin(a)*225;
   const alpha=clamp(phase/5)*clamp((60-phase)/9);
-  school(g,lag=>{const q=a-lag/410;return{x:640+Math.cos(q)*430,y:350+Math.sin(q)*225,angle:Math.atan2(Math.cos(q)*225,-Math.sin(q)*430)};},phase,1.5,alpha*.9,4);
+  introSchool(g,lag=>{const q=a-lag/410;return{x:640+Math.cos(q)*430,y:350+Math.sin(q)*225,angle:Math.atan2(Math.cos(q)*225,-Math.sin(q)*430)};},phase,1.5,alpha*.9,4);
   const yaw=(((a+Math.PI/2)/TAU*8)%8+8)%8;
   const width=405+Math.sin(a)*35;
-  waterWhale(g,introWhale,yaw,x,y,width,alpha,0,phase*.24);
-  whaleLight(g,introWhale,yaw,x,y,width,alpha*.42,0,phase*.24);
+  waterWhale(g,introWhale,yaw,x,y,width,alpha,0,phase*.24,drawIntroWaterFrame);
+  whaleLight(g,introWhale,yaw,x,y,width,alpha*.42,0,phase*.24,drawIntroWaterFrame);
  }
  let prepared=0;
  function warm(deadline){
