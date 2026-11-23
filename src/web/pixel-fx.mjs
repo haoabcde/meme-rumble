@@ -18,12 +18,13 @@ const pillarTall={...pillar,create:options=>pillar.create({...options,fan:false}
 export const selectedEffects={thunder,wave,whirlpool,blunt,burst,uppercut,pillar,pillarTall,halo,feather,rays,thrust,spark,smite,sun};
 export const GOLD=['#342032','#75402e','#b46c26','#e6a53a','#ffcf62','#ffeaa4','#fff8d8','#ffffff'];
 export const BLUE=['#142c58','#28598a','#467fb7','#68adde','#99d3f5','#c4eaff','#edfaff','#ffffff'];
+export const ICE=['#243e56','#3b6684','#5a90b0','#82b9d3','#a9d9e9','#d1eef5','#edfbff','#ffffff'];
 // Some library flashes read an actor mask even when the demo actor is hidden.
 // An empty silhouette satisfies that contract without painting the library's dummy actor.
 const EMPTY_ACTOR={x:0,y:0,mask:{w:0,h:0,data:new Uint8Array(0)},pixels:new Uint32Array(0)};
 export function createPixelSimulation(name,gold=false){
  const mod=selectedEffects[name],meta=mod.meta,f=createFrame(...meta.size);
- const palette=gold==='blue'?BLUE:GOLD;
+ const palette=gold==='ice'?ICE:gold==='blue'?BLUE:GOLD;
  const fx=createFx({...mod,meta:{...meta,actor:false}},{x:meta.origin[0],y:meta.origin[1],actor:EMPTY_ACTOR,
   ...(gold?{palette}:{}),seed:7});
  return {f,fx,tick:0,frames:new Map()};

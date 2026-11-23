@@ -1,7 +1,7 @@
 import {cutGrid} from './pixel-sprites.mjs';
 /** The actual reference-derived fish and filaments follow different delayed points on a path. */
-export function createSchoolRenderer(source){
- const im=cutGrid(source,1,1)[0];
+export function createSchoolRenderer(source,material=im=>im){
+ const im=material(cutGrid(source,1,1)[0]);
  return function school(g,pointAt,age,size=1,alpha=1,count=3){
   for(let i=count*3-1;i>=0;i--){
    const lag=65+(i*43)%310*size,point=pointAt(lag);if(!point)continue;
