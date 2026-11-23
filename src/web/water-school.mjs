@@ -4,11 +4,11 @@ export function createSchoolRenderer(source,material=im=>im){
  const im=material(cutGrid(source,1,1)[0]);
  return function school(g,pointAt,age,size=1,alpha=1,count=3){
   for(let i=count*4-1;i>=0;i--){
-   const lag=65+(i*43)%310*size,point=pointAt(lag);if(!point)continue;
-   const w=(80+i%3*17)*size,h=w*im.height/im.width;
-   const offset=((i%2?1:-1)*(10+(i*19)%36)+Math.sin(age*.23+i)*13)*size;
+   const lag=40+i*27*size,point=pointAt(lag);if(!point)continue;
+   const w=(130+i%3*24)*size*(1+.12*Math.sin(age*.24+i)),h=w*im.height/im.width;
+   const offset=((i%2?1:-1)*(10+(i*19)%36)+Math.sin(age*.26+i)*26)*size;
    g.save();g.imageSmoothingEnabled=false;g.globalAlpha*=alpha*(.9-i/(count*4)*.4);
-   g.translate(point.x-Math.sin(point.angle)*offset,point.y+Math.cos(point.angle)*offset);g.rotate(point.angle);
+   g.translate(point.x-Math.sin(point.angle)*offset,point.y+Math.cos(point.angle)*offset);g.rotate(point.angle+Math.sin(age*.28+i)*.24);
    // Bend the source school's own luminous ribbons, not a separately drawn straight tail.
    const slices=20;
    for(let j=0;j<slices;j++){

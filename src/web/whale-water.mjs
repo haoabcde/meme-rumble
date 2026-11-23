@@ -59,6 +59,7 @@ function ultimateWater(im,role='whale'){
   const t=clamp(light*(role==='pool'?.9:.98)+white*.1+(role==='fish'?.09:0));
   const n=ICE_STOPS.findIndex(stop=>stop[0]>=t),hi=ICE_STOPS[Math.max(1,n)],lo=ICE_STOPS[Math.max(0,n-1)],u=clamp((t-lo[0])/(hi[0]-lo[0]));
   for(let channel=0;channel<3;channel++)p[i+channel]=lo[channel+1]+(hi[channel+1]-lo[channel+1])*u;
+  if(role==='fish')p[i+3]=Math.min(255,p[i+3]*1.8);
   if(role==='whale'&&p[i+3]>100)p[i+3]=Math.min(255,p[i+3]*1.17);
  }
  g.putImageData(image,0,0);return c;
@@ -158,7 +159,7 @@ export function createWaterRenderer(images,{preview=false}={}){
      return{x:e.x+p.x,y:e.y+mouth.y+p.y,angle:p.angle};
     };
     const material=fade*(.88+spec.depth*.2);
-    school(g,path,localAge,last?1.65:Math.max(.72,whale.width/220),material*(last?.95:.78),last?4:2);
+    school(g,path,localAge,last?1.65:Math.max(.72,whale.width/220),material*(last?1:.95),last?6:4);
     const x=e.x+whale.x,y=e.y+mouth.y+whale.y,flow=localAge*.28+i*.83;
     waterWhale(g,leaping,whale.pose,x,y,whale.width,whale.alpha*material,whale.rotation,flow);
     whaleLight(g,leaping,whale.pose,x,y,whale.width,whale.alpha*material*(last?.45:.25),whale.rotation,flow);

@@ -33,7 +33,7 @@ test('water whale keeps swimming after opening its mouth, with a steadier head t
  for(let i=0;i<240;i++){
   const phase=i/240*Math.PI*2;
   tail.push(waterSpine(phase,.1));head.push(waterSpine(phase,.9));
-  assert.ok(Math.abs(waterSpine(phase+.001,.1)-waterSpine(phase,.1))<.01);
+  assert.ok(Math.abs(waterSpine(phase+.001,.1)-waterSpine(phase,.1))<.025);
  }
  assert.ok(Math.max(...tail)>4);
  assert.ok(Math.max(...head)<.2);

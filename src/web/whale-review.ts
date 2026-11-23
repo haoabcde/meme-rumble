@@ -17,7 +17,7 @@ const scenes=[['tail','三段普攻','三段均45伤害，第三段上挑；每�
 let scene:string='tail',mirror=false,paused=false,debug=false,speed=1,clock=0,loopTick=0,hitCount=0,damage=0,seen=new Set<string>();
 const requestedScene=new URLSearchParams(location.search).get('scene');
 const waterStudy=new URLSearchParams(location.search).has('waterpreview');
-if(waterStudy){document.title='大肥鱼 · 水体材质优化方案 V12';$('h1').textContent='大肥鱼 · 水体材质优化方案 V12';$('h1').nextElementSibling!.textContent='待确认的效果组合：PixelFX 流动泡沫水纹＋双向卷浪、白沫和飞溅＋已有破水水膜与鲸鱼。正式游戏水潭仍保留上一版。';}
+if(waterStudy){document.title='大肥鱼 · 水鲸动态与水体预览 V14';$('h1').textContent='大肥鱼 · 水鲸动态与水体预览 V14';$('h1').nextElementSibling!.textContent='待确认的效果组合：PixelFX 流动泡沫水纹＋双向卷浪、白沫和飞溅＋已有破水水膜与鲸鱼。正式游戏水潭仍保留上一版。';}
 let closeUp=false;
 if(waterStudy){
  const button=document.createElement('button');button.id='water-closeup';button.textContent='水体近景';button.onclick=()=>{closeUp=!closeUp;button.textContent=closeUp?'返回实战':'水体近景';draw()};$('.bar').append(button);
