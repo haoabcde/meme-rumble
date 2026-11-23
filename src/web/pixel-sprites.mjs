@@ -1,13 +1,14 @@
 // Atlas slicing and silhouette-aligned mesh interpolation for authored pixel sprites.
-export function cutGrid(im,columns,rows){
+export function cutGrid(im,columns,rows,{pixelate=true}={}){
  const w=Math.floor(im.width/columns),h=Math.floor(im.height/rows);
  return Array.from({length:columns*rows},(_,i)=>{
   const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d',{willReadFrequently:true});
   g.drawImage(im,(i%columns)*w,Math.floor(i/columns)*h,w,h,0,0,w,h);
   const p=g.getImageData(0,0,w,h).data;let l=w,t=h,r=0,b=0;
   for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(p[(y*w+x)*4+3]>120){l=Math.min(l,x);r=Math.max(r,x);t=Math.min(t,y);b=Math.max(b,y);}
-  const out=document.createElement('canvas');out.width=Math.max(1,Math.ceil((r-l+1)/3));out.height=Math.max(1,Math.ceil((b-t+1)/3));
-  const og=out.getContext('2d',{willReadFrequently:true});og.imageSmoothingEnabled=false;og.drawImage(c,l,t,r-l+1,b-t+1,0,0,out.width,out.height);return out;
+  const divisor=pixelate?3:1;
+  const out=document.createElement('canvas');out.width=Math.max(1,Math.ceil((r-l+1)/divisor));out.height=Math.max(1,Math.ceil((b-t+1)/divisor));
+  const og=out.getContext('2d',{willReadFrequently:true});og.imageSmoothingEnabled=!pixelate;og.drawImage(c,l,t,r-l+1,b-t+1,0,0,out.width,out.height);return out;
  });
 }
 function silhouette(im){

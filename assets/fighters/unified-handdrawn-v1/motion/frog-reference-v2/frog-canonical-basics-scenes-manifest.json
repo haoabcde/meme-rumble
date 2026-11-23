@@ -1,0 +1,794 @@
+{
+  "generator": "Built-in ImageGen",
+  "identity": {
+    "reference": "assets/fighters/unified-handdrawn-v1/frog-reference.png",
+    "sha256": "21d9628796f741ead05474c29b899ceb96f566167790269accac656313b7be43"
+  },
+  "scope": "16 basic poses and 6 round/entry poses redrawn; entry cells 0 and 1 preserved per user selection",
+  "jobs": {
+    "basics-first": {
+      "prompt": "Use case: identity-preserve. Make a production frame sheet for a 2D game by drawing the exact yellow amphibian in the uploaded reference in eight specified poses. The reference is the drawing of the actual character; don't substitute a generic cartoon frog. Preserve the silhouette from that one drawing across the movement like rotating and bending the same drawn puppet: unusually long and broad smoothly rounded head, long curved cervical back that merges uninterrupted into the shoulder (no round separate head bead), subtly rounded blunt muzzle and delicate short horizontal mouth, cream lip wedge as in the reference, same round olive eyes, taupe mitt-like three-finger hands and long tapered taupe toes. The large, deeply projecting lower belly is by far the widest part and takes most of the torso, with a broad cream patch reaching both sides and lying distinctly below the shoulders. It stays very full even when he crouches or tucks his knees. Preserve elongated forearms and long two-section legs with distinct knees and ankles; folded legs take a pronounced zigzag and hind limbs show their full reach when extended. Hands, feet and color matches from the input. Copy the actual hand-drawn irregular warm-brown ink, light hand-painted shading, amber yellow and matte ivory from the reference. One and the same mature-proportioned funny frog every time, no round mini head, short chibi limbs, thin belly, sharp beak, broad smile, or human segmentation of the head or neck.\n\nExact beautiful wide 2:1 transparent PNG atlas, four columns by two rows, strict equal cells with ample gutters and readable contour, full hands and feet within each cell. All face screen right in the same view as the master. Use this order:\nTOP 1 low preparatory squat with knees sharply folded out, soles planted, elbows folded and both hands in fists. The full belly reaches down between the feet and long head/neck still projects upward in the exact shape of the reference.\nTOP 2 strong rise and takeoff, extended rear leg reaching down-left with toes on ground, front leg bent, front hand held up in fist, other hand swept rearward beside flank with elbow visible; long torso angled up-right.\nTOP 3 airborne on the way upward, both feet curled under bent knees, fists near the chest, upper body upright and the same long head silhouette.\nTOP 4 apex airborne, both knees gently bent forwards and underneath, both open palms extended outward for balance, the belly drawn forward prominently.\nBOTTOM 1 descent in the air, opened palms outwards, two long lower legs clearly extending down compared with TOP 4, feet separated.\nBOTTOM 2 low compressed landing with soles flat, knees bent out, arms reaching forward with relaxed open palms, keep the same large round abdomen and long head.\nBOTTOM 3 regaining the regular guard stance, both fists held and legs still lightly bent outward; anatomically almost the reference standing pose.\nBOTTOM 4 forward dash as a long low diagonal, head and body leaning to right, both fists swept behind along streamlined long arms, one long rear leg straight and the nearer leg folded deep beneath the belly.\n\nTrue RGBA empty background (including between arms and abdomen), opaque paint on the actor, clean subtle antialias on outlines. No text, lines, labels, ornaments, extra limbs, speed marks, motion lines, glow, ground, shadows, or pixelation. Each cell has only that pose, all eight distinct and faithful.",
+      "imageReferences": [
+        "assets/fighters/unified-handdrawn-v1/frog-reference.png"
+      ],
+      "imagegenOutput": "source-basics-00-07.png",
+      "imagegenOutputSha256": "1eca44ba789bc1f164d9c713b6af5064d52db043e375749a7aec375554421ec7"
+    },
+    "basics-second": {
+      "prompt": "Use case: identity-preserve. Production sprite art drawing eight keyframes of the single exact character from Image 1. Copy the actual chosen character shape, not a reinterpretation. Treat the uploaded reference as a rigid anatomical puppet which you pose or lean. The frog has a distinct elongated and broad smooth-skull upper outline extending continuously into a long neck-to-shoulder curve with no separate sphere or constricted neck, a little rounded blunt snout with its original short horizontal dark mouth trace and light soft lip, familiar round olive eyes with dark pupils, rich yellow skin, dark taupe three-finger paws and three-toed webbed feet. The long top section stays long even when bending, tilting or sideways; rotate its whole silhouette with its neck. Keep a huge wide low-bulging belly, visible as a well-rounded shape even when he folds, sits or gets pushed back. The belly is dominant and cream, natural legs and arms are quite long and visibly jointed with distinct forearms and shins even when folded. Preserve the same head and eye proportions and accent coloring. Use the exact chosen drawing's warm dark brown varied ink, clear hand-rendered shape, clean rich golden and pale cream matte painted fill with fine grain. Every pose ordinary, with all original anatomical details. No wing, halo, costume, tail, effects, drops, clothing or accessories.\n\nStrict equal 4 columns × 2 rows, landscape 2:1, transparent atlas. Leave generous truly transparent gutters around all four edges of each tile. Show whole actor in each of the 8 cells from head to all visible feet, same visual scale for matched poses. Opaque body, transparent background and between limbs, anticontoured crisp edges, no backdrop/shadow/color spill/pixel art/text/staging marks. Pose order is the order below; the descriptions are keyframes from the animator.\nTop row left to right, all generally face right: (1) light hit recoil, drawing the long head upward and backward slightly, frowning subtly, both fists pulled up near the chest, long legs flexed and soles still planted. (2) heavier hit, long head tilted down close to huge belly, tightly closed eye and extremely brief small grimace, both hands press belly, knees flexed and feet wide apart; the head is elongated across the diagonal between crown and mouth. (3) airborne knockback, leaned back, head tilted up with rounded screaming open mouth, both arms wide spread with open hands and both long bent legs rising forward, toes visible; use the correct long head as a tilted shape. (4) backward rolling midair curled pose, both long knees sharply bent up, both fists tucked near chest, crying grimace and eyes compressed, upper body tilted back and rotated, full bulging abdomen inside curled limbs. \nBottom row left to right: (5) fallen on side, completely horizontal body, long head lies to the left on its side and eyes shut, arms softly curled near belly and body touches the ground, longer legs extend on the ground to the right. The silhouette of the head remains like a long wide lozenge from rear to little mouth, visibly using the rotated canonical form, never a ball. (6) getting up, down on one knee, supports body with one long arm whose palm is on ground, other arm bent over raised knee, still long oval head inclined toward the right, belly present. (7) half-standing after rising, knees bent and angled, soles grounded, both forearms bent, upper long head inclines forward facing right, lower abdomen stays large, trying to regain balance. (8) guard-breaking stagger with one foot out toward the right, long head leaning back, mouth open, both arms spread wide at different heights and lower swollen belly pushing forward. Avoid an identical body pose in (3) and (8), airborne knees versus wide stepping legs.",
+      "imageReferences": [
+        "assets/fighters/unified-handdrawn-v1/frog-reference.png"
+      ],
+      "imagegenOutput": "source-basics-08-15.png",
+      "imagegenOutputSha256": "70c5e035456b83e789e0d10bf6cb65457b3dad1796473d580f5349ecc5f43ecd"
+    },
+    "scenes": {
+      "prompt": "Use case: identity-preserve. Production sprite art drawing eight keyframes of the single exact character from Image 1. Copy the actual chosen character shape, not a reinterpretation. Treat the uploaded reference as a rigid anatomical puppet which you pose or lean. The frog has a distinct elongated and broad smooth-skull upper outline extending continuously into a long neck-to-shoulder curve with no separate sphere or constricted neck, a little rounded blunt snout with its original short horizontal dark mouth trace and light soft lip, familiar round olive eyes with dark pupils, rich yellow skin, dark taupe three-finger paws and three-toed webbed feet. The long top section stays long even when bending, tilting or sideways; rotate its whole silhouette with its neck. Keep a huge wide low-bulging belly, visible as a well-rounded shape even when he folds, sits or gets pushed back. The belly is dominant and cream, natural legs and arms are quite long and visibly jointed with distinct forearms and shins even when folded. Preserve the same head and eye proportions and accent coloring. Use the exact chosen drawing's warm dark brown varied ink, clear hand-rendered shape, clean rich golden and pale cream matte painted fill with fine grain. Every pose ordinary, with all original anatomical details. No wing, halo, costume, tail, effects, drops, clothing or accessories.\n\nStrict equal 4 columns × 2 rows, landscape 2:1, transparent atlas. Leave generous truly transparent gutters around all four edges of each tile. Show whole actor in each of the 8 cells from head to all visible feet, same visual scale for matched poses. Opaque body, transparent background and between limbs, anticontoured crisp edges, no backdrop/shadow/color spill/pixel art/text/staging marks. Pose order is the order below; the descriptions are keyframes from the animator.\nTop row left to right: (1) comic relaxed entrance, reclining right-side-up with torso nearly horizontal on left-hand floor support, head to the right facing viewer in three-quarter angle, one hand touches forehead, one long leg raised diagonally toward upper left and other bent on floor. (2) same pose lowering the extended raised leg toward horizontal, same hand on brow, large round belly remains readable, other leg still on floor. (3) transition into seated position, the torso rises, both long knees bent in front and ground contact of longer feet, one long arm planted behind body, other elbow against knee, head raised smoothly from shoulders and oriented slightly viewer left. (4) moving to kneeling or low crouch, one hand on floor forward with separate long arm, other hand still touching top of head, legs planted broadly, turning to face front. \nBottom row left to right: (5) pleased upright victory three-quarter view to right, both hands on hips, broad full belly, mild satisfied short mouth curve and green eyes. Long upright limbs and same standing head/neck curve as master. (6) relaxed victory facing three-quarters toward right, one hand shows two-finger friendly victory sign held high, other hand on the big belly. Same head length and leg anatomy as previous tile. (7) seated defeat with head hanging down and both green eyelids lowered, long hood-like back of head still visible as skull pivots forward, both long arms hang in front and brown hands near feet, knees bent outward and still prominent big round belly occupying most of torso, keep individual long shin bends. (8) embarrassed seated defeat with one hand covering eyes, the long shoulder-to-palm line of the other arm and bent outspread legs, huge round belly still visible, folded-over long rounded head, replace neutral mouth only where the hand naturally occludes. All stools and opaque objects forbidden: sitting directly on invisible ground.",
+      "imageReferences": [
+        "assets/fighters/unified-handdrawn-v1/frog-reference.png"
+      ],
+      "imagegenOutput": "source-scenes-04-07.png",
+      "imagegenOutputSha256": "89bf08e39905b880afb6232c66da814d52545452c49d4a6d95398e7d3d09639b"
+    },
+    "scenes-first": {
+      "prompt": "Use case: identity-preserve. Redraw the exact ordinary golden frog in the sole uploaded reference, to match his ORIGINAL four animated entrance poses. Maintain his notably long broad rounded head and continuous smooth curve from crown/neck down to shoulder, distinctive round olive eyes, tiny blunt muzzle and short dark horizontal lips, long limbs and extremely full ivory belly. Same human hand-drawn image style, soft clean brown lines and warm matte gold painter color, taupe hands/feet. True transparent RGBA and opaque character.\n\nFour equally wide separate square cells in ONE wide horizontal row, no background, no marks, no shadow. Use these four precise keyframes. Pose 1: clearly LYING on the ground sideways, body and shoulders quite low and reclining diagonally, head faces camera and is placed in the right half. The near bent arm and forearm run ALONG THE GROUND HORIZONTALLY from shoulder toward his central hip; its palm rests near belly/hip, precisely not planted out to the right. Other hand on forehead with its elbow high. A long top leg extends diagonally up-left; bottom leg still bent with left foot flat on the imaginary ground. Pose 2: exact same head and both arms with low shoulders planted on the same spot. Slowly lower raised long leg to horizontal pointing left, the lower bent leg still planted. Pose 3: same character sits up, head is on the screen-right half of his body but nose and eyes FACE SCREEN LEFT in a three-quarter view, both knees and feet grouped to SCREEN LEFT, one hand supports on ground on the far SCREEN RIGHT and the opposite palm rests on the raised knee toward screen left. Pose 4: rises into deep planted squat now facing viewer, one hand still touching forehead, other tilted diagonally toward front ground between his planted long wide-folded legs. Same very long-rounded head, knuckles, toes and very large ivory abdomen beyond the legs. Keep all four poses anatomically the same frog in the uploaded image, distinctly longer head and hands/feet. Preserve full silhouette with huge transparent gutter in every cell, no overlapping limbs between cells, no writing, numbers, lines, a ground sign or extra objects.",
+      "imageReferences": [
+        "assets/fighters/unified-handdrawn-v1/frog-reference.png"
+      ],
+      "imagegenOutput": "source-scenes-00-03.png",
+      "imagegenOutputSha256": "5619e4edca08c290289bfddbab2d78f470f6f33a69bef979d21ecf68084fdeac"
+    }
+  },
+  "assets": {
+    "basics": {
+      "file": "assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/basics.png",
+      "sizePx": [
+        1772,
+        1772
+      ],
+      "grid": {
+        "columns": 4,
+        "rows": 4,
+        "cellSizePx": [
+          443,
+          443
+        ]
+      },
+      "cells": [
+        {
+          "index": 0,
+          "pose": "蓄力蹲身",
+          "job": "basics-first",
+          "sourceCell": 0,
+          "generationSourceRectXYWH": [
+            0,
+            0,
+            444,
+            444
+          ],
+          "sourceRectXYWH": [
+            0,
+            0,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            66,
+            67,
+            311,
+            370
+          ],
+          "footAnchorInCellPx": [
+            221.5,
+            437
+          ],
+          "worldHeight": 101,
+          "worldFootY": 0
+        },
+        {
+          "index": 1,
+          "pose": "起跳蹬地",
+          "job": "basics-first",
+          "sourceCell": 1,
+          "generationSourceRectXYWH": [
+            444,
+            0,
+            443,
+            444
+          ],
+          "sourceRectXYWH": [
+            443,
+            0,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            34,
+            19,
+            375,
+            418
+          ],
+          "footAnchorInCellPx": [
+            221.5,
+            437
+          ],
+          "worldHeight": 139,
+          "worldFootY": 0
+        },
+        {
+          "index": 2,
+          "pose": "收膝上升",
+          "job": "basics-first",
+          "sourceCell": 2,
+          "generationSourceRectXYWH": [
+            887,
+            0,
+            443,
+            444
+          ],
+          "sourceRectXYWH": [
+            886,
+            0,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            105,
+            56,
+            233,
+            381
+          ],
+          "footAnchorInCellPx": [
+            221.5,
+            437
+          ],
+          "worldHeight": 112,
+          "worldFootY": 0
+        },
+        {
+          "index": 3,
+          "pose": "腾空顶点",
+          "job": "basics-first",
+          "sourceCell": 3,
+          "generationSourceRectXYWH": [
+            1330,
+            0,
+            444,
+            444
+          ],
+          "sourceRectXYWH": [
+            1329,
+            0,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            50,
+            57,
+            341,
+            380
+          ],
+          "footAnchorInCellPx": [
+            220.5,
+            437
+          ],
+          "worldHeight": 129,
+          "worldFootY": 0
+        },
+        {
+          "index": 4,
+          "pose": "下落伸腿",
+          "job": "basics-first",
+          "sourceCell": 4,
+          "generationSourceRectXYWH": [
+            0,
+            444,
+            444,
+            443
+          ],
+          "sourceRectXYWH": [
+            0,
+            443,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            52,
+            17,
+            339,
+            421
+          ],
+          "footAnchorInCellPx": [
+            221.5,
+            438
+          ],
+          "worldHeight": 136,
+          "worldFootY": 0
+        },
+        {
+          "index": 5,
+          "pose": "落地缓冲",
+          "job": "basics-first",
+          "sourceCell": 5,
+          "generationSourceRectXYWH": [
+            444,
+            444,
+            443,
+            443
+          ],
+          "sourceRectXYWH": [
+            443,
+            443,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            55,
+            68,
+            332,
+            370
+          ],
+          "footAnchorInCellPx": [
+            221,
+            438
+          ],
+          "worldHeight": 101,
+          "worldFootY": 0
+        },
+        {
+          "index": 6,
+          "pose": "落地回正",
+          "job": "basics-first",
+          "sourceCell": 6,
+          "generationSourceRectXYWH": [
+            887,
+            444,
+            427,
+            443
+          ],
+          "sourceRectXYWH": [
+            886,
+            443,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            91,
+            23,
+            262,
+            414
+          ],
+          "footAnchorInCellPx": [
+            222,
+            437
+          ],
+          "worldHeight": 122,
+          "worldFootY": 0
+        },
+        {
+          "index": 7,
+          "pose": "前倾闪避",
+          "job": "basics-first",
+          "sourceCell": 7,
+          "generationSourceRectXYWH": [
+            1314,
+            444,
+            460,
+            443
+          ],
+          "sourceRectXYWH": [
+            1329,
+            443,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            11,
+            90,
+            420,
+            347
+          ],
+          "footAnchorInCellPx": [
+            221,
+            437
+          ],
+          "worldHeight": 103,
+          "worldFootY": 0
+        },
+        {
+          "index": 8,
+          "pose": "轻受击",
+          "job": "basics-second",
+          "sourceCell": 0,
+          "generationSourceRectXYWH": [
+            0,
+            0,
+            444,
+            444
+          ],
+          "sourceRectXYWH": [
+            0,
+            886,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            88,
+            14,
+            267,
+            423
+          ],
+          "footAnchorInCellPx": [
+            221.5,
+            437
+          ],
+          "worldHeight": 130,
+          "worldFootY": 0
+        },
+        {
+          "index": 9,
+          "pose": "重受击",
+          "job": "basics-second",
+          "sourceCell": 1,
+          "generationSourceRectXYWH": [
+            444,
+            0,
+            443,
+            444
+          ],
+          "sourceRectXYWH": [
+            443,
+            886,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            49,
+            63,
+            344,
+            374
+          ],
+          "footAnchorInCellPx": [
+            221,
+            437
+          ],
+          "worldHeight": 113,
+          "worldFootY": 0
+        },
+        {
+          "index": 10,
+          "pose": "仰身击飞",
+          "job": "basics-second",
+          "sourceCell": 2,
+          "generationSourceRectXYWH": [
+            887,
+            0,
+            443,
+            444
+          ],
+          "sourceRectXYWH": [
+            886,
+            886,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            9,
+            64,
+            424,
+            373
+          ],
+          "footAnchorInCellPx": [
+            221,
+            437
+          ],
+          "worldHeight": 118,
+          "worldFootY": 0
+        },
+        {
+          "index": 11,
+          "pose": "翻身下落",
+          "job": "basics-second",
+          "sourceCell": 3,
+          "generationSourceRectXYWH": [
+            1330,
+            0,
+            444,
+            444
+          ],
+          "sourceRectXYWH": [
+            1329,
+            886,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            69,
+            114,
+            303,
+            324
+          ],
+          "footAnchorInCellPx": [
+            220.5,
+            438
+          ],
+          "worldHeight": 118,
+          "worldFootY": 0
+        },
+        {
+          "index": 12,
+          "pose": "侧卧倒地",
+          "job": "basics-second",
+          "sourceCell": 4,
+          "generationSourceRectXYWH": [
+            0,
+            444,
+            444,
+            443
+          ],
+          "sourceRectXYWH": [
+            0,
+            1329,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            7,
+            228,
+            428,
+            209
+          ],
+          "footAnchorInCellPx": [
+            221,
+            437
+          ],
+          "worldHeight": 63,
+          "worldFootY": 0
+        },
+        {
+          "index": 13,
+          "pose": "撑地起身",
+          "job": "basics-second",
+          "sourceCell": 5,
+          "generationSourceRectXYWH": [
+            444,
+            444,
+            443,
+            443
+          ],
+          "sourceRectXYWH": [
+            443,
+            1329,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            40,
+            90,
+            361,
+            348
+          ],
+          "footAnchorInCellPx": [
+            220.5,
+            438
+          ],
+          "worldHeight": 92,
+          "worldFootY": 0
+        },
+        {
+          "index": 14,
+          "pose": "半蹲起立",
+          "job": "basics-second",
+          "sourceCell": 6,
+          "generationSourceRectXYWH": [
+            887,
+            444,
+            443,
+            443
+          ],
+          "sourceRectXYWH": [
+            886,
+            1329,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            69,
+            84,
+            305,
+            353
+          ],
+          "footAnchorInCellPx": [
+            221.5,
+            437
+          ],
+          "worldHeight": 114,
+          "worldFootY": 0
+        },
+        {
+          "index": 15,
+          "pose": "破防踉跄",
+          "job": "basics-second",
+          "sourceCell": 7,
+          "generationSourceRectXYWH": [
+            1330,
+            444,
+            444,
+            443
+          ],
+          "sourceRectXYWH": [
+            1329,
+            1329,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            8,
+            41,
+            427,
+            396
+          ],
+          "footAnchorInCellPx": [
+            221.5,
+            437
+          ],
+          "worldHeight": 128,
+          "worldFootY": 0
+        }
+      ],
+      "sha256": "2b80649fe5a389f335aacb1c6a502626cf528b889f9ce7f83afea89c6c9f6e7f"
+    },
+    "scenes": {
+      "file": "assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/scenes.png",
+      "sizePx": [
+        1772,
+        886
+      ],
+      "grid": {
+        "columns": 4,
+        "rows": 2,
+        "cellSizePx": [
+          443,
+          443
+        ]
+      },
+      "cells": [
+        {
+          "index": 0,
+          "pose": "侧躺翘腿",
+          "sourceRectXYWH": [
+            0,
+            0,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            22,
+            42,
+            391,
+            350
+          ],
+          "footAnchorInCellPx": [
+            217.5,
+            392
+          ],
+          "worldHeight": 83,
+          "worldFootY": 0,
+          "alpha0Fraction": 0.6219,
+          "alpha240PlusFraction": 0.3656,
+          "source": "approved-entry-two.json",
+          "userSelectedPreserved": true
+        },
+        {
+          "index": 1,
+          "pose": "收腿准备",
+          "sourceRectXYWH": [
+            443,
+            0,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            9,
+            104,
+            425,
+            290
+          ],
+          "footAnchorInCellPx": [
+            221.5,
+            394
+          ],
+          "worldHeight": 86,
+          "worldFootY": 0,
+          "alpha0Fraction": 0.62,
+          "alpha240PlusFraction": 0.3674,
+          "source": "approved-entry-two.json",
+          "userSelectedPreserved": true
+        },
+        {
+          "index": 2,
+          "pose": "撑地坐起",
+          "job": "scenes-first",
+          "sourceCell": 2,
+          "generationSourceRectXYWH": [
+            1086,
+            0,
+            543,
+            724
+          ],
+          "sourceRectXYWH": [
+            886,
+            0,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            5,
+            77,
+            432,
+            361
+          ],
+          "footAnchorInCellPx": [
+            221,
+            438
+          ],
+          "worldHeight": 101,
+          "worldFootY": 0
+        },
+        {
+          "index": 3,
+          "pose": "半蹲起立",
+          "job": "scenes-first",
+          "sourceCell": 3,
+          "generationSourceRectXYWH": [
+            1629,
+            0,
+            543,
+            724
+          ],
+          "sourceRectXYWH": [
+            1329,
+            0,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            15,
+            5,
+            412,
+            432
+          ],
+          "footAnchorInCellPx": [
+            221,
+            437
+          ],
+          "worldHeight": 113,
+          "worldFootY": 0
+        },
+        {
+          "index": 4,
+          "pose": "叉腰得意",
+          "job": "scenes",
+          "sourceCell": 4,
+          "generationSourceRectXYWH": [
+            0,
+            444,
+            444,
+            443
+          ],
+          "sourceRectXYWH": [
+            0,
+            443,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            82,
+            19,
+            278,
+            419
+          ],
+          "footAnchorInCellPx": [
+            221,
+            438
+          ],
+          "worldHeight": 130,
+          "worldFootY": 0
+        },
+        {
+          "index": 5,
+          "pose": "比耶庆祝",
+          "job": "scenes",
+          "sourceCell": 5,
+          "generationSourceRectXYWH": [
+            444,
+            444,
+            443,
+            443
+          ],
+          "sourceRectXYWH": [
+            443,
+            443,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            87,
+            17,
+            268,
+            420
+          ],
+          "footAnchorInCellPx": [
+            221,
+            437
+          ],
+          "worldHeight": 130,
+          "worldFootY": 0
+        },
+        {
+          "index": 6,
+          "pose": "垂头落败",
+          "job": "scenes",
+          "sourceCell": 6,
+          "generationSourceRectXYWH": [
+            887,
+            444,
+            443,
+            443
+          ],
+          "sourceRectXYWH": [
+            886,
+            443,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            50,
+            95,
+            344,
+            343
+          ],
+          "footAnchorInCellPx": [
+            222,
+            438
+          ],
+          "worldHeight": 86,
+          "worldFootY": 0
+        },
+        {
+          "index": 7,
+          "pose": "掩面落败",
+          "job": "scenes",
+          "sourceCell": 7,
+          "generationSourceRectXYWH": [
+            1330,
+            444,
+            444,
+            443
+          ],
+          "sourceRectXYWH": [
+            1329,
+            443,
+            443,
+            443
+          ],
+          "contentRectInCellXYWH": [
+            49,
+            101,
+            344,
+            336
+          ],
+          "footAnchorInCellPx": [
+            221,
+            437
+          ],
+          "worldHeight": 86,
+          "worldFootY": 0
+        }
+      ],
+      "sha256": "b9636529989b4cb717949a10fa511b8ab7f540ecdc2a54dd863173013c894b24"
+    }
+  },
+  "assembly": "透明边残留清除、清透格线定位和等比拼装。按原运行时槽位和图集尺寸导出，世界高度与脚位规则沿用；比例改动来自原生 ImageGen 绘制。",
+  "totalBodyPoseCells": 24
+}

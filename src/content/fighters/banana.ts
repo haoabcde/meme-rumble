@@ -109,7 +109,7 @@ const wave: Omit<ActionDefinition, 'slot' | 'energyCost'> = {
 
 export const banana = defineFighter({
   id: 'banana', name: '香蕉猫', accent: '#ff9c62', height: 145,
-  art: { portrait: 'banana-reference-portrait.webp', motion: 'banana-motion.webp' },
+  art: { portrait: 'unified-handdrawn-v1/banana.webp', motion: 'banana-motion.webp' },
   stats: { usesTears: true, bodyWidth: 54 },
   normalMoves, signatureMoves,
   moveSummary: bananaComboNames.join(' → '),

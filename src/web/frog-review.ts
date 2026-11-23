@@ -8,20 +8,74 @@ import {rules} from '../content/demo.js';
 import {cinematicOwner} from '../core/whale-kit.js';
 import {frogPowered} from '../core/frog-kit.js';
 import {FightAudio} from './audio.js';
+import {sprites} from './art.js';
 declare const __FIGHTER_AUDIO__:Readonly<Record<string,string>>;
-import {frogGoldFrame,frogBodyComparison,frogFoundationFrames} from './frog-art.js';
+import {frogGoldFrame,frogBodyComparison,frogReviewFrames} from './frog-art.js';
 import {FROG_BASIC_POSES,FROG_SCENE_POSES} from './frog-motion.mjs';
 import {Renderer} from './renderer.js';
 import {pixelFrame,selectedEffects} from './pixel-fx.mjs';
 
-document.title='奶蛙 · 基础动作与声音 V21';
-document.body.innerHTML=`<main><header><p class="eyebrow">MEME RUMBLE / CHARACTER WORKSHOP</p><h1>奶蛙 · 基础动作与声音 V21</h1><p>五段近身连击、三连震波与十五秒神性强化。此处使用正式战斗判定，数值与动作同步正式接入版本。</p><p>常态技能语音：U 新版捧腹大笑；W＋U 哈！；I / W＋I 随机四选一。开大即播放专属BGM，强化结束淡出；演出与强化期间不播放配音，保留战斗音效。点击场景或重播后启用声音。</p><nav><a href="/?practice=harbor&p1=frog&p2=banana">自由操作奶蛙</a><a href="/whale-review.html">查看大肥鱼更新</a><a href="#effects">看推荐特效本身 ↓</a></nav></header><div id="scenes"></div><div id="body-compare"><p>常态与防御 · 相同身高、相同脚底基线（放大对比）</p><canvas id="body-canvas" width="1000" height="410" style="width:100%;height:auto;image-rendering:pixelated"></canvas></div><canvas id="arena" width="1280" height="720" aria-label="奶蛙正式战斗预览"></canvas><div class="controls"><button id="play">暂停</button><button id="restart">重播</button><button id="step">前进一帧</button><button id="mirror">方向：右</button><label>速度<select id="speed" aria-label="实战播放速度"><option value="1">正常</option><option value=".5">半速</option><option value=".25">四分之一</option></select></label></div><label class="seek">场景进度<input id="seek" aria-label="奶蛙场景进度" type="range" min="0" max="1100" value="0"></label><p id="stats" role="status"></p><p id="note"></p><section id="effects"><h2>推荐特效 · 直接播放库内效果</h2><p>默认展示原始配色；可切到金白适配色。这里没有混入人物和招式判定。</p><div class="controls"><button id="fx-play">暂停特效</button><label><input id="fx-gold" type="checkbox">奶蛙金白配色</label></div><div id="fx-grid"></div><h2 style="margin-top:28px">参考图改绘 · 金色像素特效</h2><p>从你提供的参考图选择星芒、法环、螺旋光带和星轨，重新绘制为透明像素素材。移动螺旋已停用，改用少量黄白羽毛拖尾；技能一保留法环与完整冲击环。</p><div id="motif-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px"></div></section><section class="decisions"><h2>本版处理</h2><p>“哈！”轻推后由前进飞踢追上；捧腹前三波的前两波留人，第三波强力击飞。全地图波有32帧前摇、25基础伤害，无独立冷却，出招收招结束即可再次发动。演出时停，结束后才出现完整圣光与羽毛；强化普攻和技能始终保持神圣常态，仅释放特效。所有技能一去掉烟花式放射、日轮与落雷，改为完整环形波；仅强化技能释放保留黄白羽毛爆散，常态技能不爆散羽毛；强化命中星芒保留，强化结束有羽毛消散过渡。强化时普通技能1半径与伤害独立为原来1.4倍（4.2身位、总伤害140），地面/空中横移速度1.5倍、承受伤害0.7倍。仅强化技能1可空中发动；常态技能1禁止空中释放，大招仍可空中发动；强化空中技能1施法期间定身，结束后恢复下落。强化不恢复生命，低空悬浮沿用地形与受击框；能量条仅倒计时，不能叠加刷新大招。</p><p>按住 I 下蹲（松开立刻解除），近战和远程攻击均会触发绕到攻击者身后，成功触发获得20能量；W＋I 主动从敌人脚下钻出，不额外造成伤害、不涨能量。短暂消失后钻出，普通二技能仅在强化持按期间有立体星图环绕；常态瞬移保留较淡、无符文旋涡/法阵，强化瞬移改为落点竖直符文法阵及金色流线拖尾；钻出法阵只展开一次，人物出现后滞留约0.3秒，再缩小消失，外圈在法阵平面内旋转、透视不摆动；强化闪避同样有符文落点与金色拖尾，沿用原闪避判定，强化原地黄白羽毛爆散；强化防御有立体符文牌环绕，强化始终保持神圣形态；强化二技能受击绕背后自动接一次技能一，主动上＋二技能不自动接招。二技能目前在地面发动，目标在空中时从其脚下最近的地面或平台钻出。J 五段普攻 · U 捧腹大笑 · W＋U 全地图单波 · K 跳跃 · L 闪避 · S 防御 · O 天使变身</p></section></main>`;
-const style=document.createElement('style');style.textContent=`*{box-sizing:border-box}body{margin:0;background:#10151c;color:#e9e4d7;font:14px/1.65 'Microsoft YaHei',sans-serif}main{max-width:1240px;margin:auto;padding:26px 24px 50px}h1{font-size:30px;line-height:1.25;margin:4px 0 10px}h2{font-size:23px;margin:0 0 8px}p{color:#b7bec6;margin:8px 0}.eyebrow{font-size:10px;letter-spacing:.2em;color:#d8b66d}nav,.controls,#scenes{display:flex;gap:8px;flex-wrap:wrap;margin:13px 0}button,a,select{font:inherit;color:#ecdfc4;background:#242b32;border:1px solid #4b4a42;border-radius:5px;padding:6px 11px;text-decoration:none;cursor:pointer}button[aria-pressed=true]{background:#5b4b28;border-color:#e2c177}#arena{display:block;width:100%;height:auto;image-rendering:pixelated;border:1px solid #5b5649;border-radius:6px}label{display:flex;align-items:center;gap:8px}.seek input{flex:1}#stats{color:#efd6a0}section{margin-top:34px;padding-top:24px;border-top:1px solid #3b3d3d}#fx-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}article{padding:14px;border:1px solid #384149;border-radius:7px;background:#17202a}article h3{margin:0;font-size:16px}article code{color:#91a7bb;font-size:11px}article canvas{display:block;width:100%;background:#0b1017;image-rendering:pixelated;margin:10px 0}article p{font-size:12px}.decisions{max-width:900px}@media(max-width:800px){#fx-grid{grid-template-columns:repeat(2,1fr)}}`;document.head.append(style);
+document.title='奶蛙 · 全造型与动作预览';
+document.body.innerHTML=`<main><header><p class="eyebrow">MEME RUMBLE / CHARACTER WORKSHOP</p><h1>奶蛙 · 全造型与动作预览</h1><p>五段近身连击、三连震波与十五秒神性强化。此处使用正式战斗判定，数值与动作同步正式接入版本。</p><p>常态技能语音：U 新版捧腹大笑；W＋U 哈！；I / W＋I 随机四选一。开大即播放专属BGM，强化结束淡出；演出与强化期间不播放配音，保留战斗音效。点击场景或重播后启用声音。</p><nav><a href="/?practice=harbor&p1=frog&p2=banana">自由操作奶蛙</a><a href="/whale-review.html">查看大肥鱼更新</a><a href="#effects">看推荐特效本身 ↓</a></nav></header><div id="scenes"></div><div id="body-compare"><p>常态与防御 · 相同身高、相同脚底基线（放大对比）</p><canvas id="body-canvas" width="1000" height="410" style="width:100%;height:auto"></canvas></div><canvas id="arena" width="1280" height="720" aria-label="奶蛙正式战斗预览"></canvas><div class="controls"><button id="play">暂停</button><button id="restart">重播</button><button id="step">前进一帧</button><button id="mirror">方向：右</button><label>速度<select id="speed" aria-label="实战播放速度"><option value="1">正常</option><option value=".5">半速</option><option value=".25">四分之一</option></select></label></div><label class="seek">场景进度<input id="seek" aria-label="奶蛙场景进度" type="range" min="0" max="1100" value="0"></label><p id="stats" role="status"></p><p id="note"></p><section id="effects"><h2>推荐特效 · 直接播放库内效果</h2><p>默认展示原始配色；可切到金白适配色。这里没有混入人物和招式判定。</p><div class="controls"><button id="fx-play">暂停特效</button><label><input id="fx-gold" type="checkbox">奶蛙金白配色</label></div><div id="fx-grid"></div><h2 style="margin-top:28px">参考图改绘 · 金色像素特效</h2><p>从你提供的参考图选择星芒、法环、螺旋光带和星轨，重新绘制为透明像素素材。移动螺旋已停用，改用少量黄白羽毛拖尾；技能一保留法环与完整冲击环。</p><div id="motif-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px"></div></section><section class="decisions"><h2>本版处理</h2><p>“哈！”轻推后由前进飞踢追上；捧腹前三波的前两波留人，第三波强力击飞。全地图波有32帧前摇、25基础伤害，无独立冷却，出招收招结束即可再次发动。演出时停，结束后才出现完整圣光与羽毛；强化普攻和技能始终保持神圣常态，仅释放特效。所有技能一去掉烟花式放射、日轮与落雷，改为完整环形波；仅强化技能释放保留黄白羽毛爆散，常态技能不爆散羽毛；强化命中星芒保留，强化结束有羽毛消散过渡。强化时普通技能1半径与伤害独立为原来1.4倍（4.2身位、总伤害140），地面/空中横移速度1.5倍、承受伤害0.7倍。仅强化技能1可空中发动；常态技能1禁止空中释放，大招仍可空中发动；强化空中技能1施法期间定身，结束后恢复下落。强化不恢复生命，低空悬浮沿用地形与受击框；能量条仅倒计时，不能叠加刷新大招。</p><p>按住 I 下蹲（松开立刻解除），近战和远程攻击均会触发绕到攻击者身后，成功触发获得20能量；W＋I 主动从敌人脚下钻出，不额外造成伤害、不涨能量。短暂消失后钻出，普通二技能仅在强化持按期间有立体星图环绕；常态瞬移保留较淡、无符文旋涡/法阵，强化瞬移改为落点竖直符文法阵及金色流线拖尾；钻出法阵只展开一次，人物出现后滞留约0.3秒，再缩小消失，外圈在法阵平面内旋转、透视不摆动；强化闪避同样有符文落点与金色拖尾，沿用原闪避判定，强化原地黄白羽毛爆散；强化防御有立体符文牌环绕，强化始终保持神圣形态；强化二技能受击绕背后自动接一次技能一，主动上＋二技能不自动接招。二技能目前在地面发动，目标在空中时从其脚下最近的地面或平台钻出。J 五段普攻 · U 捧腹大笑 · W＋U 全地图单波 · K 跳跃 · L 闪避 · S 防御 · O 天使变身</p></section></main>`;
+const style=document.createElement('style');style.textContent=`*{box-sizing:border-box}body{margin:0;background:#10151c;color:#e9e4d7;font:14px/1.65 'Microsoft YaHei',sans-serif}main{max-width:1240px;margin:auto;padding:26px 24px 50px}h1{font-size:30px;line-height:1.25;margin:4px 0 10px}h2{font-size:23px;margin:0 0 8px}p{color:#b7bec6;margin:8px 0}.eyebrow{font-size:10px;letter-spacing:.2em;color:#d8b66d}nav,.controls,#scenes{display:flex;gap:8px;flex-wrap:wrap;margin:13px 0}button,a,select{font:inherit;color:#ecdfc4;background:#242b32;border:1px solid #4b4a42;border-radius:5px;padding:6px 11px;text-decoration:none;cursor:pointer}button[aria-pressed=true]{background:#5b4b28;border-color:#e2c177}#arena{display:block;width:100%;height:auto;border:1px solid #5b5649;border-radius:6px}label{display:flex;align-items:center;gap:8px}.seek input{flex:1}#stats{color:#efd6a0}section{margin-top:34px;padding-top:24px;border-top:1px solid #3b3d3d}#fx-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}article{padding:14px;border:1px solid #384149;border-radius:7px;background:#17202a}article h3{margin:0;font-size:16px}article code{color:#91a7bb;font-size:11px}article canvas{display:block;width:100%;background:#0b1017;margin:10px 0}#effects article canvas{image-rendering:pixelated}article p{font-size:12px}.decisions{max-width:900px}@media(max-width:800px){#fx-grid{grid-template-columns:repeat(2,1fr)}}`;document.head.append(style);
 const $=<T extends HTMLElement>(s:string)=>document.querySelector<T>(s)!;
-const foundation=document.createElement('details');foundation.innerHTML='<summary>奶蛙基础动作与出场胜负 · 24个专用关键帧</summary><div id="foundation-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px"></div>';
-$('#effects').before(foundation);
-const foundationCanvases=[...FROG_BASIC_POSES,...FROG_SCENE_POSES].map(name=>{const box=document.createElement('article');box.innerHTML='<p>'+name+'</p><canvas width="220" height="190"></canvas>';foundation.querySelector('#foundation-grid')!.append(box);return box.querySelector('canvas')!;});
-function drawFoundation(){if(!foundation.open)return;frogFoundationFrames().forEach((im,i)=>{const g=foundationCanvases[i].getContext('2d')!;g.fillStyle='#111c28';g.fillRect(0,0,220,190);g.imageSmoothingEnabled=false;const k=Math.min(200/im.width,160/im.height);g.drawImage(im,(220-im.width*k)/2,180-im.height*k,im.width*k,im.height*k);});}
+const galleryGroups: readonly { bank: keyof ReturnType<typeof frogReviewFrames> | 'reference'; name: string; poses: readonly string[] }[] = [
+ { bank: 'reference', name: '形象对照', poses: ['选定参考','实战待机'] },
+ { bank: 'moves', name: '待机与招式', poses: ['常态待机','左拳','右拳','左脚踢','哈！','右脚飞踢','捧腹大笑','架手防御'] },
+ { bank: 'basics', name: '跳跃、受击与倒地', poses: FROG_BASIC_POSES },
+ { bank: 'scenes', name: '出场与胜负', poses: FROG_SCENE_POSES },
+ { bank: 'travel', name: '奔跑与悬浮', poses: ['奔跑起步','收腿迈步','交替迈步','提膝换步','悬浮起势','展翼悬浮','振翅悬浮','悬浮回环'] },
+ { bank: 'angels', name: '天使形态', poses: ['神圣悬浮','天使踢腿','天使捧腹','天使指向'] },
+ { bank: 'stances', name: '护腹、下蹲与思考', poses: ['双手护腹','吐舌比耶下蹲','托腮思考'] },
+ { bank: 'intro', name: '变身演出', poses: ['神性指尖'] }
+];
+const gallery = document.createElement('section');
+gallery.innerHTML = '<h2>奶蛙动作图集</h2><p>47 个姿态和一幅变身演出画面，取自实战加载的素材。</p>';
+$('#effects').before(gallery);
+const galleryPanels = galleryGroups.map(({ bank, name, poses }) => {
+ const panel = document.createElement('details');
+ panel.open = bank === 'reference' || bank === 'moves';
+ const summary = document.createElement('summary');
+ summary.textContent = bank === 'intro' || bank === 'reference' ? name : name + ' · ' + poses.length + ' 帧';
+ const grid = document.createElement('div');
+ if (bank !== 'intro') grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px';
+ panel.append(summary, grid);
+ gallery.append(panel);
+ const frames = poses.map(pose => {
+  const card = document.createElement('article');
+  const label = document.createElement('p');
+  label.textContent = pose;
+  const preview = document.createElement('canvas');
+  preview.width = bank === 'intro' ? 760 : bank === 'reference' ? 420 : 220;
+  preview.height = bank === 'intro' ? 510 : bank === 'reference' ? 360 : 190;
+  preview.setAttribute('aria-label', pose);
+  card.append(label, preview);
+  grid.append(card);
+  return { preview, drawn: undefined as CanvasImageSource | undefined };
+ });
+ return { bank, panel, frames };
+});
+function drawGallery(){
+ const art = frogReviewFrames();
+ for (const { bank, panel, frames } of galleryPanels) {
+  if (!panel.open) continue;
+  const images = bank === 'reference' ? [sprites.frog, art.moves[0]] : art[bank];
+  for (const [index, frame] of frames.entries()) {
+   const im = images[index];
+   if (!im?.width || frame.drawn === im) continue;
+   const { width, height } = frame.preview;
+   const g = frame.preview.getContext('2d')!;
+   const padding = bank === 'intro' ? 0 : 10;
+   const scale = Math.min((width - padding * 2) / im.width, (height - padding * 2) / im.height);
+   g.fillStyle = '#111c28';
+   g.fillRect(0, 0, width, height);
+   g.imageSmoothingEnabled = true;
+   g.imageSmoothingQuality = 'high';
+   g.drawImage(im, (width - im.width * scale) / 2, height - padding - im.height * scale, im.width * scale, im.height * scale);
+   frame.drawn = im;
+  }
+ }
+}
 const voices=document.createElement('details');voices.innerHTML='<summary>奶蛙六段技能语音 · 点击展开试听</summary><div class="voice-grid" style="display:flex;flex-wrap:wrap;gap:16px"></div>';
 $('#effects').before(voices);
 for(const [id,clip]of Object.entries(frog.audio??{})){
@@ -38,8 +92,8 @@ for(const [name,bank]of [['奶蛙',frog.audio],['大肥鱼',whale.audio]] as con
  const box=document.createElement('div'),label=document.createElement('p'),player=document.createElement('audio');label.textContent=name+' · '+clip.src.split('/').at(-1)!.replace('.wav','');player.controls=true;player.preload='none';player.src=__FIGHTER_AUDIO__[clip.src];player.setAttribute('aria-label',label.textContent);box.append(label,player);soundShelf.querySelector('div')!.append(box);
 }
 const musicShelf=document.createElement('details');musicShelf.innerHTML='<summary>奶蛙大招专属 BGM · 原速试听</summary>';const musicPlayer=document.createElement('audio');musicPlayer.controls=true;musicPlayer.preload='metadata';musicPlayer.src=__FIGHTER_AUDIO__[frog.audio!['ultimate-bgm'].src];musicPlayer.setAttribute('aria-label','奶蛙大招专属BGM');musicShelf.append(musicPlayer);$('#effects').before(musicShelf);
-const scenes=[['entry','侧躺出场','参考图侧躺翘腿→收腿→撑地坐起→站稳，开战前完成。'],['victory','胜利庆祝','叉腰得意与比耶庆祝，使用真正胜负席位。'],['defeat','落败表现','倒地后坐地垂头、掩面；没有回血或新增状态。'],['jump-land','跳跃与落地','蹬地、收膝、腾空、下落、落地缓冲和站稳。'],['hit-react','轻受击','奶蛙陪练实际出拳，采用专用轻受击姿态。'],['heavy-react','重受击','香蕉猫陪练实际出拳，采用专用重受击姿态。'],['launch-recover','击飞倒地起身','陪练实际挑空，翻身下落、倒地、撑地起身及站稳。'],['break-guard','破防踉跄','以少量防御耐力承接攻击，实际破防后显示专用姿态。'],['motion-dash','普通闪避姿态','前倾蹬地，保留原有位移和受击保护。'],['power-crouch','强化按住二技能 · 星图','持续按住I保持神圣形态，金色星点连线从身后环绕到身前；松开立即解除。'],['normal-guard','常态防御 · 护腹','以常态第一帧的头、宽躯干、大肚子和短腿为准，双手下移护腹；上方并排核对比例。'],['power-guard','强化防御 · 悬浮符文','按住S保持神圣姿态，立体金色符文牌环绕护体；后排先被人物遮挡，前排经过身侧和下半身。'],['think','托腮思考 · 待机','参照新图的托腮、歪头、目光放空；常态待机定期进入思考并带轻微呼吸。'],['crouch','按住二技能 · 下蹲','按住I保持参考图的吐舌比耶蹲姿；松开立即解除，未触发不涨能量。'],['counter','二技能 · 受击绕背','按住I，受到近战攻击瞬间消失并绕到攻击者身后；成功触发获得20能量，无伤害。'],['counter-rice','二技能 · 远程触发','米饭命中下蹲时，同样消失绕到发射者身后，免于本次伤害和束缚。'],['burrow','↑＋二技能 · 脚下钻出','从原地旋涡消失，在敌人脚下的淡金法阵中钻出；常态无符文、无羽毛。'],['power-counter','强化二技能 · 绕背','按住I时星图环绕身体；触发时黄白羽毛爆散，金色流线拖尾连接实际起点与落点，人物在竖直符文法阵处出现；脚下法阵单次展开、人物出现后滞留约0.3秒，再收缩关闭，外圈旋转，保留垂直圣光，随后自动释放一次强化技能一。'],['power-burrow','强化↑＋二技能','强化主动瞬移：金色流线拖尾连接原点与目的地，法阵从小展开，人物从敌人脚下出现后滞留约0.3秒，再收缩消失；外圈参考变身太阳旋转，保留垂直光束；主动版不自动接技能一。'],['power-dodge','强化闪避 · 瞬移','强化L闪避：原地消失，金色线条沿实际移动轨迹留下余光，人物在落点符文法阵出现；沿用原闪避距离和无敌时段。'],['power-air-dodge','强化空中闪避 · 瞬移','强化跳跃后L：金色拖尾连接实际空中落点，符文外圈旋转，人物在落点出现；不额外增加空中行动次数。'],['dodge','常态闪避','常态L保持原有动作，不新增金色符文瞬移。'],['move','地面移动','四帧交替迈步，手臂和重心同步摆动。'],['power-move','强化悬浮移动','速度为正常1.5倍；神圣姿态低空悬浮，衣摆与羽毛随行。'],['air-laugh','常态空中 · 禁止技能一','跳跃中按U不释放技能一，仍然正常下落；只有开大后的一技能才可空中发动。'],['power-air-laugh','强化空中技能一','保持神圣形态并悬停，三道完整冲击环与符文、黄白羽毛爆散，命中保留星芒。'],['global-chain','全图波连续释放','无额外冷却，完整出招收招后连续释放三次。'],['air-ascend','空中大招','空中启动时停演出；结束后原位变身、继续正常下落。'],['follow-light','跟随全地图圣光','七束会摆动、展开和收拢的圣光全部延伸超过地图顶部；太阳保持原高度和正圆。'],['combo','五段普攻','左拳→右拳→左踢腿→哈！轻推→右脚飞踢。'],['laugh','捧腹三连波','半径三个身位：前两波各28伤害，第三波44伤害并强力击飞。'],['global','↑＋技能一：全地图','跨越整张地图命中；32帧前摇，单次25伤害，无额外冷却。'],['ascend','完整变身','指尖相触演出后强化15秒。演出期间战场时停；演出结束后完整播放多束圣光与黄白羽毛，强化倒计时此时才开始。'],['ascend-end','强化结束·羽毛消散','自动跳至强化结束前0.5秒；15秒到期后约0.6秒化作羽毛、常态渐显，余羽自然飘落，操作不锁定。'],['power-combo','强化五段','本场景从天使强化状态开始，保持神圣常态，以特效完成五段攻击；伤害与范围均为1.5倍。'],['power-laugh','强化捧腹','完整三道冲击环、金色法环与黄白羽毛爆散；范围4.2身位，三波共140伤害；强化圆环与命中星芒已加重。'],['power-global','强化全地图','保持神圣常态；符文与全地图环形单波，35伤害，无烟花放射。']] as const;
-let scene:string='power-crouch',mirror=false,paused=false,speed=1,clock=0,tick=0,hits=0,damage=0,seen=new Set<string>(),history:any[]=[];
+const scenes=[['entry','侧躺出场','参考图侧躺翘腿→收腿→撑地坐起→站稳，开战前完成。'],['victory','胜利庆祝','叉腰得意与比耶庆祝，使用真正胜负席位。'],['defeat','落败表现','倒地后坐地垂头、掩面；没有回血或新增状态。'],['jump-land','跳跃与落地','蹬地、收膝、腾空、下落、落地缓冲和站稳。'],['hit-react','轻受击','奶蛙陪练实际出拳，采用专用轻受击姿态。'],['heavy-react','重受击','香蕉猫陪练实际出拳，采用专用重受击姿态。'],['launch-recover','击飞倒地起身','陪练实际挑空，翻身下落、倒地、撑地起身及站稳。'],['break-guard','破防踉跄','以少量防御耐力承接攻击，实际破防后显示专用姿态。'],['motion-dash','普通闪避姿态','前倾蹬地，保留原有位移和受击保护。'],['power-crouch','强化按住二技能 · 星图','持续按住I保持神圣形态，金色星点连线从身后环绕到身前；松开立即解除。'],['normal-guard','常态防御 · 护腹','沿用常态的修长头颈、长四肢和鼓腹，双手下移护腹；上方并排核对比例。'],['power-guard','强化防御 · 悬浮符文','按住S保持神圣姿态，立体金色符文牌环绕护体；后排先被人物遮挡，前排经过身侧和下半身。'],['think','托腮思考 · 待机','参照新图的托腮、歪头、目光放空；常态待机定期进入思考并带轻微呼吸。'],['crouch','按住二技能 · 下蹲','按住I保持参考图的吐舌比耶蹲姿；松开立即解除，未触发不涨能量。'],['counter','二技能 · 受击绕背','按住I，受到近战攻击瞬间消失并绕到攻击者身后；成功触发获得20能量，无伤害。'],['counter-rice','二技能 · 远程触发','米饭命中下蹲时，同样消失绕到发射者身后，免于本次伤害和束缚。'],['burrow','↑＋二技能 · 脚下钻出','从原地旋涡消失，在敌人脚下的淡金法阵中钻出；常态无符文、无羽毛。'],['power-counter','强化二技能 · 绕背','按住I时星图环绕身体；触发时黄白羽毛爆散，金色流线拖尾连接实际起点与落点，人物在竖直符文法阵处出现；脚下法阵单次展开、人物出现后滞留约0.3秒，再收缩关闭，外圈旋转，保留垂直圣光，随后自动释放一次强化技能一。'],['power-burrow','强化↑＋二技能','强化主动瞬移：金色流线拖尾连接原点与目的地，法阵从小展开，人物从敌人脚下出现后滞留约0.3秒，再收缩消失；外圈参考变身太阳旋转，保留垂直光束；主动版不自动接技能一。'],['power-dodge','强化闪避 · 瞬移','强化L闪避：原地消失，金色线条沿实际移动轨迹留下余光，人物在落点符文法阵出现；沿用原闪避距离和无敌时段。'],['power-air-dodge','强化空中闪避 · 瞬移','强化跳跃后L：金色拖尾连接实际空中落点，符文外圈旋转，人物在落点出现；不额外增加空中行动次数。'],['dodge','常态闪避','常态L保持原有动作，不新增金色符文瞬移。'],['move','地面移动','四帧交替迈步，手臂和重心同步摆动。'],['power-move','强化悬浮移动','速度为正常1.5倍；神圣姿态低空悬浮，衣摆与羽毛随行。'],['air-laugh','常态空中 · 禁止技能一','跳跃中按U不释放技能一，仍然正常下落；只有开大后的一技能才可空中发动。'],['power-air-laugh','强化空中技能一','保持神圣形态并悬停，三道完整冲击环与符文、黄白羽毛爆散，命中保留星芒。'],['global-chain','全图波连续释放','无额外冷却，完整出招收招后连续释放三次。'],['air-ascend','空中大招','空中启动时停演出；结束后原位变身、继续正常下落。'],['follow-light','跟随全地图圣光','七束会摆动、展开和收拢的圣光全部延伸超过地图顶部；太阳保持原高度和正圆。'],['combo','五段普攻','左拳→右拳→左踢腿→哈！轻推→右脚飞踢。'],['laugh','捧腹三连波','半径三个身位：前两波各28伤害，第三波44伤害并强力击飞。'],['global','↑＋技能一：全地图','跨越整张地图命中；32帧前摇，单次25伤害，无额外冷却。'],['ascend','完整变身','指尖相触演出后强化15秒。演出期间战场时停；演出结束后完整播放多束圣光与黄白羽毛，强化倒计时此时才开始。'],['ascend-end','强化结束·羽毛消散','自动跳至强化结束前0.5秒；15秒到期后约0.6秒化作羽毛、常态渐显，余羽自然飘落，操作不锁定。'],['power-combo','强化五段','本场景从天使强化状态开始，保持神圣常态，以特效完成五段攻击；伤害与范围均为1.5倍。'],['power-laugh','强化捧腹','完整三道冲击环、金色法环与黄白羽毛爆散；范围4.2身位，三波共140伤害；强化圆环与命中星芒已加重。'],['power-global','强化全地图','保持神圣常态；符文与全地图环形单波，35伤害，无烟花放射。']] as const;
+let scene:string='combo',mirror=false,paused=false,speed=1,clock=0,tick=0,hits=0,damage=0,seen=new Set<string>(),history:any[]=[];
 const requestedScene=new URLSearchParams(location.search).get('scene');if(scenes.some(s=>s[0]===requestedScene))scene=requestedScene!;
 let config:MatchConfig,state:ReturnType<typeof createMatch>;
 const audio=new FightAudio();
@@ -86,7 +140,7 @@ function inputs():[InputFrame,InputFrame]{let c=NEUTRAL,opponent=NEUTRAL;if(!sta
 function advance(){const ev=step(state,inputs(),config);renderer.add(ev,state.arenaFrame);audio.update(config,state,ev);for(const e of ev)if(e.kind==='hit'&&e.source===(mirror?1:0)){hits++;damage+=e.amount??0;}save();}
 function draw(){
  const panel=$('#body-compare');panel.hidden=scene!=='normal-guard';
- if(!panel.hidden){const g=$<HTMLCanvasElement>('#body-canvas').getContext('2d')!;g.fillStyle='#141c26';g.fillRect(0,0,1000,410);g.imageSmoothingEnabled=false;
+ if(!panel.hidden){const g=$<HTMLCanvasElement>('#body-canvas').getContext('2d')!;g.fillStyle='#141c26';g.fillRect(0,0,1000,410);g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
   g.strokeStyle='#46505c';g.beginPath();g.moveTo(40,355);g.lineTo(960,355);g.moveTo(40,69);g.lineTo(960,69);g.stroke();
   g.font='20px Microsoft YaHei';g.textAlign='center';g.fillStyle='#f5dba2';
   frogBodyComparison().forEach((im,i)=>{g.fillText(i?'防御 · 双手护腹':'常态 · 比例基准',250+i*500,36);if(im){const h=130*2.2,w=h*im.width/im.height;g.drawImage(im,250+i*500-w/2,355-h,w,h);}});
@@ -108,4 +162,4 @@ function drawMotifs(){for(let i=0;i<4;i++){
 }}
 let fxPaused=false,fxTime=0;$('#fx-play').onclick=()=>{fxPaused=!fxPaused;$('#fx-play').textContent=fxPaused?'播放特效':'暂停特效';};
 function drawFx(){const gold=$<HTMLInputElement>('#fx-gold').checked;for(let i=0;i<picks.length;i++){const id=picks[i][0],meta=selectedEffects[id].meta,g=fxCanvases[i].getContext('2d')!;g.fillStyle='#0b1017';g.fillRect(0,0,320,220);const im=pixelFrame(id,(fxTime-fxOffsets[i])%(meta.duration+.4),'both',gold);if(!im)continue;const scale=Math.min(290/im.width,195/im.height);g.imageSmoothingEnabled=false;g.drawImage(im,160-im.width*scale/2,110-im.height*scale/2,im.width*scale,im.height*scale);}}
-reset();let last=0;function frame(now:number){const dt=last?Math.min(80,now-last):0;last=now;if(!paused){clock+=dt*speed;while(clock>=1000/60){clock-=1000/60;advance();}if(state.frame>(scene==='ascend-end'?1100:scene.includes('ascend')||scene==='follow-light'?1050:scene.startsWith('power')?240:210))reset();}if(!fxPaused)fxTime+=dt/1000;draw();drawFx();drawMotifs();drawFoundation();requestAnimationFrame(frame);}requestAnimationFrame(frame);
+reset();let last=0;function frame(now:number){const dt=last?Math.min(80,now-last):0;last=now;if(!paused){clock+=dt*speed;while(clock>=1000/60){clock-=1000/60;advance();}if(state.frame>(scene==='ascend-end'?1100:scene.includes('ascend')||scene==='follow-light'?1050:scene.startsWith('power')?240:210))reset();}if(!fxPaused)fxTime+=dt/1000;draw();drawFx();drawMotifs();drawGallery();requestAnimationFrame(frame);}requestAnimationFrame(frame);

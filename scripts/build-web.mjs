@@ -47,6 +47,8 @@ async function publish(file, content) {
 }
 await Promise.all([
   publish('game.bundle.js', game), publish('index.html', standalone(game)),
+  publish('frog-review.bundle.js', frogReview),
+  publish('frog-review-dev.html','<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>奶蛙造型审阅</title><body><script src="./dist/frog-review.bundle.js"></script></body></html>'),
   publish('guard-counter-demo.html', standalone(counterDemo)),
   publish('ultimate-demo.html', standalone(ultimateDemo)),
   publish('combat-demo.html', standalone(combatDemo)),

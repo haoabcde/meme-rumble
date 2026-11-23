@@ -1,7 +1,7 @@
 import { bananaWaveTitle } from '../content/fighters/banana.js';
 import type { CutIn } from '../core/types.js';
-import sprites from '../../assets/fighters/banana-wave-actions.webp';
-import expressions from '../../assets/fighters/banana-wave-expressions.webp';
+import sprites from '../../assets/fighters/unified-handdrawn-v1/motion/banana/registered/banana-wave-actions.webp';
+import expressions from '../../assets/fighters/unified-handdrawn-v1/motion/banana/registered/banana-wave-expressions.webp';
 import { drawPixelEffect } from './pixelfx.js';
 
 const sheet = new Image();

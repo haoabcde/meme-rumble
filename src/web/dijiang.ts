@@ -1,4 +1,4 @@
-import portrait from '../../assets/fighters/gaga-dijiang.webp';
+import portrait from '../../assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-dijiang.webp';
 import ship from '../../assets/props/dijiang-impact.webp';
 import { dijiangPitch, dijiangTip, summonArea, summonFallFrames, summonImpactFrames } from '../core/summon.js';
 import type { Summon } from '../core/types.js';

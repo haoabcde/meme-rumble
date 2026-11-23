@@ -1,0 +1,3552 @@
+{
+  "width": 1728,
+  "height": 8640,
+  "columns": 4,
+  "cell": 432,
+  "sourceScale": 2,
+  "fit": "anchor",
+  "generatedFrames": 79,
+  "fallbackFrames": 0,
+  "diagnostics": [
+    {
+      "name": "whale-00-07.png",
+      "warnings": [],
+      "splitsX": [
+        443,
+        887,
+        1330
+      ],
+      "splitsY": [
+        443
+      ],
+      "width": 1774,
+      "height": 887
+    },
+    {
+      "name": "whale-08-15.png",
+      "warnings": [],
+      "splitsX": [
+        443,
+        887,
+        1330
+      ],
+      "splitsY": [
+        443
+      ],
+      "width": 1774,
+      "height": 887
+    },
+    {
+      "name": "whale-16-23.png",
+      "warnings": [],
+      "splitsX": [
+        451,
+        887,
+        1330
+      ],
+      "splitsY": [
+        443
+      ],
+      "width": 1774,
+      "height": 887
+    },
+    {
+      "name": "whale-24-31.png",
+      "warnings": [],
+      "splitsX": [
+        443,
+        887,
+        1330
+      ],
+      "splitsY": [
+        443
+      ],
+      "width": 1774,
+      "height": 887
+    },
+    {
+      "name": "whale-32-39.png",
+      "warnings": [],
+      "splitsX": [
+        443,
+        887,
+        1330
+      ],
+      "splitsY": [
+        443
+      ],
+      "width": 1774,
+      "height": 887
+    },
+    {
+      "name": "whale-40-47.png",
+      "warnings": [],
+      "splitsX": [
+        443,
+        887,
+        1330
+      ],
+      "splitsY": [
+        443
+      ],
+      "width": 1774,
+      "height": 887
+    },
+    {
+      "name": "whale-48-55.png",
+      "warnings": [],
+      "splitsX": [
+        443,
+        887,
+        1330
+      ],
+      "splitsY": [
+        443
+      ],
+      "width": 1774,
+      "height": 887
+    },
+    {
+      "name": "whale-56-63.png",
+      "warnings": [],
+      "splitsX": [
+        443,
+        887,
+        1330
+      ],
+      "splitsY": [
+        443
+      ],
+      "width": 1774,
+      "height": 887
+    },
+    {
+      "name": "whale-64-71.png",
+      "warnings": [],
+      "splitsX": [
+        443,
+        887,
+        1330
+      ],
+      "splitsY": [
+        443
+      ],
+      "width": 1774,
+      "height": 887
+    },
+    {
+      "name": "whale-72-79.png",
+      "warnings": [],
+      "splitsX": [
+        443,
+        887,
+        1330
+      ],
+      "splitsY": [
+        443
+      ],
+      "width": 1774,
+      "height": 887
+    }
+  ],
+  "frames": [
+    {
+      "index": 0,
+      "input": "whale-00-07.png",
+      "slot": 0,
+      "sourceRect": [
+        0,
+        0,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        31,
+        42,
+        114,
+        143
+      ],
+      "outputBBox": [
+        24,
+        83,
+        228,
+        286
+      ],
+      "generatedBBox": [
+        50,
+        33,
+        268,
+        362
+      ],
+      "sourceAnchor": [
+        189,
+        368
+      ],
+      "outputAnchor": [
+        188.61940298507463,
+        368.2099447513812
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 1,
+      "input": "whale-00-07.png",
+      "slot": 1,
+      "sourceRect": [
+        216,
+        0,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        31,
+        42,
+        114,
+        144
+      ],
+      "outputBBox": [
+        37,
+        83,
+        228,
+        288
+      ],
+      "generatedBBox": [
+        495,
+        34,
+        267,
+        366
+      ],
+      "sourceAnchor": [
+        193,
+        370
+      ],
+      "outputAnchor": [
+        192.8426966292135,
+        370.21311475409834
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 2,
+      "input": "whale-00-07.png",
+      "slot": 2,
+      "sourceRect": [
+        432,
+        0,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        52,
+        46,
+        108,
+        139
+      ],
+      "outputBBox": [
+        106,
+        91,
+        216,
+        278
+      ],
+      "generatedBBox": [
+        962,
+        41,
+        262,
+        349
+      ],
+      "sourceAnchor": [
+        224,
+        368
+      ],
+      "outputAnchor": [
+        224.3053435114504,
+        368.20343839541545
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 3,
+      "input": "whale-00-07.png",
+      "slot": 3,
+      "sourceRect": [
+        648,
+        0,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        51,
+        34,
+        102,
+        151
+      ],
+      "outputBBox": [
+        99,
+        67,
+        204,
+        302
+      ],
+      "generatedBBox": [
+        1425,
+        36,
+        248,
+        359
+      ],
+      "sourceAnchor": [
+        216,
+        368
+      ],
+      "outputAnchor": [
+        216.21774193548387,
+        368.15877437325906
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 4,
+      "input": "whale-00-07.png",
+      "slot": 4,
+      "sourceRect": [
+        0,
+        216,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        41,
+        39,
+        107,
+        146
+      ],
+      "outputBBox": [
+        84,
+        76,
+        214,
+        292
+      ],
+      "generatedBBox": [
+        67,
+        475,
+        259,
+        351
+      ],
+      "sourceAnchor": [
+        217,
+        368
+      ],
+      "outputAnchor": [
+        217.02702702702703,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 5,
+      "input": "whale-00-07.png",
+      "slot": 5,
+      "sourceRect": [
+        216,
+        216,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        61,
+        45,
+        148,
+        140
+      ],
+      "outputBBox": [
+        121,
+        88,
+        296,
+        280
+      ],
+      "generatedBBox": [
+        514,
+        482,
+        345,
+        343
+      ],
+      "sourceAnchor": [
+        216,
+        368
+      ],
+      "outputAnchor": [
+        216.23478260869564,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 6,
+      "input": "whale-00-07.png",
+      "slot": 6,
+      "sourceRect": [
+        432,
+        216,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        48,
+        46,
+        155,
+        139
+      ],
+      "outputBBox": [
+        99,
+        90,
+        310,
+        278
+      ],
+      "generatedBBox": [
+        921,
+        486,
+        382,
+        340
+      ],
+      "sourceAnchor": [
+        217,
+        368
+      ],
+      "outputAnchor": [
+        217.48167539267016,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 2,
+      "removedComponents": 0
+    },
+    {
+      "index": 7,
+      "input": "whale-00-07.png",
+      "slot": 7,
+      "sourceRect": [
+        648,
+        216,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        67,
+        42,
+        136,
+        143
+      ],
+      "outputBBox": [
+        132,
+        82,
+        272,
+        286
+      ],
+      "generatedBBox": [
+        1424,
+        479,
+        328,
+        346
+      ],
+      "sourceAnchor": [
+        221,
+        368
+      ],
+      "outputAnchor": [
+        220.7317073170732,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 8,
+      "input": "whale-08-15.png",
+      "slot": 0,
+      "sourceRect": [
+        0,
+        432,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        67,
+        42,
+        136,
+        143
+      ],
+      "outputBBox": [
+        141,
+        82,
+        272,
+        286
+      ],
+      "generatedBBox": [
+        107,
+        36,
+        319,
+        350
+      ],
+      "sourceAnchor": [
+        221,
+        368
+      ],
+      "outputAnchor": [
+        221.15047021943573,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 9,
+      "input": "whale-08-15.png",
+      "slot": 1,
+      "sourceRect": [
+        216,
+        432,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        61,
+        45,
+        148,
+        140
+      ],
+      "outputBBox": [
+        124,
+        89,
+        296,
+        280
+      ],
+      "generatedBBox": [
+        522,
+        37,
+        347,
+        348
+      ],
+      "sourceAnchor": [
+        216,
+        368
+      ],
+      "outputAnchor": [
+        215.70028818443802,
+        368.1954022988506
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 10,
+      "input": "whale-08-15.png",
+      "slot": 2,
+      "sourceRect": [
+        432,
+        432,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        51,
+        66,
+        123,
+        119
+      ],
+      "outputBBox": [
+        102,
+        131,
+        246,
+        238
+      ],
+      "generatedBBox": [
+        946,
+        95,
+        295,
+        292
+      ],
+      "sourceAnchor": [
+        214,
+        368
+      ],
+      "outputAnchor": [
+        214.15932203389832,
+        368.18493150684935
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 11,
+      "input": "whale-08-15.png",
+      "slot": 3,
+      "sourceRect": [
+        648,
+        432,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        46,
+        39,
+        109,
+        147
+      ],
+      "outputBBox": [
+        92,
+        77,
+        218,
+        294
+      ],
+      "generatedBBox": [
+        1410,
+        31,
+        261,
+        360
+      ],
+      "sourceAnchor": [
+        197,
+        370
+      ],
+      "outputAnchor": [
+        196.82375478927202,
+        370.18333333333334
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 12,
+      "input": "whale-08-15.png",
+      "slot": 4,
+      "sourceRect": [
+        0,
+        648,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        41,
+        39,
+        107,
+        146
+      ],
+      "outputBBox": [
+        84,
+        77,
+        214,
+        292
+      ],
+      "generatedBBox": [
+        65,
+        474,
+        266,
+        362
+      ],
+      "sourceAnchor": [
+        217,
+        368
+      ],
+      "outputAnchor": [
+        217.14661654135338,
+        368.1933701657459
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 13,
+      "input": "whale-08-15.png",
+      "slot": 5,
+      "sourceRect": [
+        216,
+        648,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        37,
+        43,
+        113,
+        142
+      ],
+      "outputBBox": [
+        74,
+        85,
+        226,
+        284
+      ],
+      "generatedBBox": [
+        494,
+        479,
+        270,
+        356
+      ],
+      "sourceAnchor": [
+        212,
+        368
+      ],
+      "outputAnchor": [
+        212.11111111111111,
+        368.2022471910112
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 14,
+      "input": "whale-08-15.png",
+      "slot": 6,
+      "sourceRect": [
+        432,
+        648,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        57,
+        41,
+        114,
+        144
+      ],
+      "outputBBox": [
+        119,
+        80,
+        228,
+        288
+      ],
+      "generatedBBox": [
+        967,
+        479,
+        283,
+        348
+      ],
+      "sourceAnchor": [
+        216,
+        368
+      ],
+      "outputAnchor": [
+        216.08127208480565,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 15,
+      "input": "whale-08-15.png",
+      "slot": 7,
+      "sourceRect": [
+        648,
+        648,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        69,
+        41,
+        129,
+        144
+      ],
+      "outputBBox": [
+        141,
+        81,
+        258,
+        288
+      ],
+      "generatedBBox": [
+        1399,
+        478,
+        344,
+        357
+      ],
+      "sourceAnchor": [
+        255,
+        368
+      ],
+      "outputAnchor": [
+        255,
+        368.1932773109244
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 16,
+      "input": "whale-16-23.png",
+      "slot": 0,
+      "sourceRect": [
+        0,
+        864,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        61,
+        45,
+        148,
+        140
+      ],
+      "outputBBox": [
+        119,
+        89,
+        296,
+        280
+      ],
+      "generatedBBox": [
+        88,
+        42,
+        364,
+        351
+      ],
+      "sourceAnchor": [
+        216,
+        368
+      ],
+      "outputAnchor": [
+        215.76923076923077,
+        368.2022792022792
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 17,
+      "input": "whale-16-23.png",
+      "slot": 1,
+      "sourceRect": [
+        216,
+        864,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        65,
+        44,
+        137,
+        141
+      ],
+      "outputBBox": [
+        132,
+        87,
+        274,
+        282
+      ],
+      "generatedBBox": [
+        548,
+        41,
+        331,
+        351
+      ],
+      "sourceAnchor": [
+        217,
+        368
+      ],
+      "outputAnchor": [
+        217.26283987915406,
+        368.1965811965812
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 18,
+      "input": "whale-16-23.png",
+      "slot": 2,
+      "sourceRect": [
+        432,
+        864,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        46,
+        46,
+        131,
+        139
+      ],
+      "outputBBox": [
+        90,
+        91,
+        262,
+        278
+      ],
+      "generatedBBox": [
+        955,
+        43,
+        336,
+        348
+      ],
+      "sourceAnchor": [
+        217,
+        368
+      ],
+      "outputAnchor": [
+        217.49107142857144,
+        368.2011494252874
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 19,
+      "input": "whale-16-23.png",
+      "slot": 3,
+      "sourceRect": [
+        648,
+        864,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        40,
+        45,
+        108,
+        140
+      ],
+      "outputBBox": [
+        81,
+        89,
+        216,
+        280
+      ],
+      "generatedBBox": [
+        1404,
+        46,
+        260,
+        345
+      ],
+      "sourceAnchor": [
+        217,
+        368
+      ],
+      "outputAnchor": [
+        217.24615384615385,
+        368.18840579710144
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 20,
+      "input": "whale-16-23.png",
+      "slot": 4,
+      "sourceRect": [
+        0,
+        1080,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        42,
+        39,
+        107,
+        146
+      ],
+      "outputBBox": [
+        64,
+        76,
+        214,
+        292
+      ],
+      "generatedBBox": [
+        71,
+        486,
+        254,
+        351
+      ],
+      "sourceAnchor": [
+        197,
+        368
+      ],
+      "outputAnchor": [
+        196.6968503937008,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 21,
+      "input": "whale-16-23.png",
+      "slot": 5,
+      "sourceRect": [
+        216,
+        1080,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        41,
+        43,
+        114,
+        142
+      ],
+      "outputBBox": [
+        79,
+        84,
+        228,
+        284
+      ],
+      "generatedBBox": [
+        506,
+        486,
+        274,
+        346
+      ],
+      "sourceAnchor": [
+        216,
+        368
+      ],
+      "outputAnchor": [
+        215.8832116788321,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 22,
+      "input": "whale-16-23.png",
+      "slot": 6,
+      "sourceRect": [
+        432,
+        1080,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        40,
+        49,
+        114,
+        136
+      ],
+      "outputBBox": [
+        73,
+        96,
+        228,
+        272
+      ],
+      "generatedBBox": [
+        939,
+        500,
+        294,
+        332
+      ],
+      "sourceAnchor": [
+        200,
+        368
+      ],
+      "outputAnchor": [
+        200.18367346938777,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 23,
+      "input": "whale-16-23.png",
+      "slot": 7,
+      "sourceRect": [
+        648,
+        1080,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        37,
+        44,
+        131,
+        141
+      ],
+      "outputBBox": [
+        83,
+        86,
+        262,
+        282
+      ],
+      "generatedBBox": [
+        1378,
+        494,
+        323,
+        337
+      ],
+      "sourceAnchor": [
+        216,
+        368
+      ],
+      "outputAnchor": [
+        216.43343653250773,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 24,
+      "input": "whale-24-31.png",
+      "slot": 0,
+      "sourceRect": [
+        0,
+        1296,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        48,
+        46,
+        155,
+        139
+      ],
+      "outputBBox": [
+        93,
+        91,
+        310,
+        278
+      ],
+      "generatedBBox": [
+        45,
+        39,
+        369,
+        366
+      ],
+      "sourceAnchor": [
+        217,
+        368
+      ],
+      "outputAnchor": [
+        216.91598915989158,
+        368.24043715846994
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 2,
+      "removedComponents": 0
+    },
+    {
+      "index": 25,
+      "input": "whale-24-31.png",
+      "slot": 1,
+      "sourceRect": [
+        216,
+        1296,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        29,
+        45,
+        125,
+        140
+      ],
+      "outputBBox": [
+        64,
+        89,
+        250,
+        280
+      ],
+      "generatedBBox": [
+        492,
+        36,
+        299,
+        372
+      ],
+      "sourceAnchor": [
+        216,
+        368
+      ],
+      "outputAnchor": [
+        216.17391304347825,
+        368.247311827957
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 26,
+      "input": "whale-24-31.png",
+      "slot": 2,
+      "sourceRect": [
+        432,
+        1296,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        26,
+        45,
+        127,
+        140
+      ],
+      "outputBBox": [
+        50,
+        88,
+        254,
+        280
+      ],
+      "generatedBBox": [
+        922,
+        39,
+        323,
+        366
+      ],
+      "sourceAnchor": [
+        216,
+        368
+      ],
+      "outputAnchor": [
+        216.3188854489164,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 27,
+      "input": "whale-24-31.png",
+      "slot": 3,
+      "sourceRect": [
+        648,
+        1296,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        41,
+        42,
+        108,
+        143
+      ],
+      "outputBBox": [
+        78,
+        83,
+        216,
+        286
+      ],
+      "generatedBBox": [
+        1411,
+        35,
+        275,
+        369
+      ],
+      "sourceAnchor": [
+        197,
+        368
+      ],
+      "outputAnchor": [
+        197.3890909090909,
+        368.2249322493225
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 28,
+      "input": "whale-24-31.png",
+      "slot": 4,
+      "sourceRect": [
+        0,
+        1512,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        42,
+        39,
+        108,
+        146
+      ],
+      "outputBBox": [
+        62,
+        76,
+        216,
+        292
+      ],
+      "generatedBBox": [
+        63,
+        474,
+        273,
+        365
+      ],
+      "sourceAnchor": [
+        200,
+        368
+      ],
+      "outputAnchor": [
+        199.67032967032966,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 29,
+      "input": "whale-24-31.png",
+      "slot": 5,
+      "sourceRect": [
+        216,
+        1512,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        41,
+        57,
+        107,
+        128
+      ],
+      "outputBBox": [
+        74,
+        112,
+        214,
+        256
+      ],
+      "generatedBBox": [
+        501,
+        510,
+        275,
+        328
+      ],
+      "sourceAnchor": [
+        197,
+        368
+      ],
+      "outputAnchor": [
+        196.95272727272726,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 30,
+      "input": "whale-24-31.png",
+      "slot": 6,
+      "sourceRect": [
+        432,
+        1512,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        51,
+        62,
+        124,
+        123
+      ],
+      "outputBBox": [
+        130,
+        122,
+        248,
+        246
+      ],
+      "generatedBBox": [
+        951,
+        513,
+        325,
+        324
+      ],
+      "sourceAnchor": [
+        240,
+        368
+      ],
+      "outputAnchor": [
+        239.50153846153847,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 31,
+      "input": "whale-24-31.png",
+      "slot": 7,
+      "sourceRect": [
+        648,
+        1512,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        50,
+        44,
+        136,
+        141
+      ],
+      "outputBBox": [
+        111,
+        87,
+        272,
+        282
+      ],
+      "generatedBBox": [
+        1409,
+        486,
+        347,
+        353
+      ],
+      "sourceAnchor": [
+        217,
+        368
+      ],
+      "outputAnchor": [
+        217.21325648414984,
+        368.20113314447593
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 32,
+      "input": "whale-32-39.png",
+      "slot": 0,
+      "sourceRect": [
+        0,
+        1728,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        67,
+        42,
+        136,
+        143
+      ],
+      "outputBBox": [
+        140,
+        83,
+        272,
+        286
+      ],
+      "generatedBBox": [
+        89,
+        34,
+        344,
+        369
+      ],
+      "sourceAnchor": [
+        221,
+        368
+      ],
+      "outputAnchor": [
+        220.65116279069767,
+        368.2249322493225
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 33,
+      "input": "whale-32-39.png",
+      "slot": 1,
+      "sourceRect": [
+        216,
+        1728,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        70,
+        24,
+        134,
+        161
+      ],
+      "outputBBox": [
+        137,
+        47,
+        268,
+        322
+      ],
+      "generatedBBox": [
+        534,
+        7,
+        341,
+        396
+      ],
+      "sourceAnchor": [
+        216,
+        368
+      ],
+      "outputAnchor": [
+        215.59237536656892,
+        368.1868686868687
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 34,
+      "input": "whale-32-39.png",
+      "slot": 2,
+      "sourceRect": [
+        432,
+        1728,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        40,
+        47,
+        148,
+        138
+      ],
+      "outputBBox": [
+        75,
+        93,
+        296,
+        276
+      ],
+      "generatedBBox": [
+        928,
+        42,
+        385,
+        361
+      ],
+      "sourceAnchor": [
+        216,
+        368
+      ],
+      "outputAnchor": [
+        215.6961038961039,
+        368.2354570637119
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 35,
+      "input": "whale-32-39.png",
+      "slot": 3,
+      "sourceRect": [
+        648,
+        1728,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        43,
+        44,
+        106,
+        141
+      ],
+      "outputBBox": [
+        87,
+        87,
+        212,
+        282
+      ],
+      "generatedBBox": [
+        1396,
+        42,
+        287,
+        362
+      ],
+      "sourceAnchor": [
+        197,
+        368
+      ],
+      "outputAnchor": [
+        196.69337979094075,
+        368.2209944751381
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 36,
+      "input": "whale-32-39.png",
+      "slot": 4,
+      "sourceRect": [
+        0,
+        1944,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        47,
+        39,
+        105,
+        146
+      ],
+      "outputBBox": [
+        86,
+        77,
+        210,
+        292
+      ],
+      "generatedBBox": [
+        70,
+        485,
+        273,
+        362
+      ],
+      "sourceAnchor": [
+        219,
+        368
+      ],
+      "outputAnchor": [
+        219.46153846153845,
+        368.1933701657459
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 37,
+      "input": "whale-32-39.png",
+      "slot": 5,
+      "sourceRect": [
+        216,
+        1944,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        47,
+        39,
+        104,
+        146
+      ],
+      "outputBBox": [
+        86,
+        76,
+        208,
+        292
+      ],
+      "generatedBBox": [
+        513,
+        485,
+        273,
+        361
+      ],
+      "sourceAnchor": [
+        218,
+        368
+      ],
+      "outputAnchor": [
+        218.1904761904762,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 38,
+      "input": "whale-32-39.png",
+      "slot": 6,
+      "sourceRect": [
+        432,
+        1944,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        46,
+        39,
+        106,
+        146
+      ],
+      "outputBBox": [
+        81,
+        77,
+        212,
+        292
+      ],
+      "generatedBBox": [
+        957,
+        485,
+        273,
+        362
+      ],
+      "sourceAnchor": [
+        216,
+        368
+      ],
+      "outputAnchor": [
+        215.73260073260073,
+        368.1933701657459
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 39,
+      "input": "whale-32-39.png",
+      "slot": 7,
+      "sourceRect": [
+        648,
+        1944,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        31,
+        42,
+        114,
+        143
+      ],
+      "outputBBox": [
+        51,
+        82,
+        228,
+        286
+      ],
+      "generatedBBox": [
+        1370,
+        485,
+        291,
+        364
+      ],
+      "sourceAnchor": [
+        189,
+        368
+      ],
+      "outputAnchor": [
+        188.89690721649484,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 40,
+      "input": "whale-40-47.png",
+      "slot": 0,
+      "sourceRect": [
+        0,
+        2160,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        45,
+        42,
+        111,
+        144
+      ],
+      "outputBBox": [
+        73,
+        83,
+        222,
+        288
+      ],
+      "generatedBBox": [
+        52,
+        28,
+        281,
+        377
+      ],
+      "sourceAnchor": [
+        217,
+        370
+      ],
+      "outputAnchor": [
+        216.7864768683274,
+        370.236074270557
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 41,
+      "input": "whale-40-47.png",
+      "slot": 1,
+      "sourceRect": [
+        216,
+        2160,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        31,
+        42,
+        114,
+        144
+      ],
+      "outputBBox": [
+        32,
+        82,
+        228,
+        288
+      ],
+      "generatedBBox": [
+        498,
+        26,
+        281,
+        384
+      ],
+      "sourceAnchor": [
+        193,
+        370
+      ],
+      "outputAnchor": [
+        193.06049822064057,
+        370
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 42,
+      "input": "whale-40-47.png",
+      "slot": 2,
+      "sourceRect": [
+        432,
+        2160,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        45,
+        42,
+        112,
+        144
+      ],
+      "outputBBox": [
+        87,
+        83,
+        224,
+        288
+      ],
+      "generatedBBox": [
+        947,
+        28,
+        275,
+        381
+      ],
+      "sourceAnchor": [
+        212,
+        370
+      ],
+      "outputAnchor": [
+        212.03272727272727,
+        370.244094488189
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 43,
+      "input": "whale-40-47.png",
+      "slot": 3,
+      "sourceRect": [
+        648,
+        2160,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        40,
+        46,
+        123,
+        140
+      ],
+      "outputBBox": [
+        84,
+        91,
+        246,
+        280
+      ],
+      "generatedBBox": [
+        1389,
+        48,
+        289,
+        363
+      ],
+      "sourceAnchor": [
+        221,
+        370
+      ],
+      "outputAnchor": [
+        221.47058823529412,
+        370.22865013774106
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 44,
+      "input": "whale-40-47.png",
+      "slot": 4,
+      "sourceRect": [
+        0,
+        2376,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        55,
+        50,
+        111,
+        135
+      ],
+      "outputBBox": [
+        95,
+        99,
+        222,
+        270
+      ],
+      "generatedBBox": [
+        70,
+        492,
+        278,
+        344
+      ],
+      "sourceAnchor": [
+        214,
+        368
+      ],
+      "outputAnchor": [
+        213.9856115107914,
+        368.2151162790698
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 45,
+      "input": "whale-40-47.png",
+      "slot": 5,
+      "sourceRect": [
+        216,
+        2376,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        48,
+        43,
+        110,
+        142
+      ],
+      "outputBBox": [
+        73,
+        84,
+        220,
+        284
+      ],
+      "generatedBBox": [
+        500,
+        480,
+        267,
+        351
+      ],
+      "sourceAnchor": [
+        193,
+        368
+      ],
+      "outputAnchor": [
+        193.29962546816478,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 46,
+      "input": "whale-40-47.png",
+      "slot": 6,
+      "sourceRect": [
+        432,
+        2376,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        52,
+        46,
+        108,
+        139
+      ],
+      "outputBBox": [
+        95,
+        91,
+        216,
+        278
+      ],
+      "generatedBBox": [
+        934,
+        456,
+        279,
+        346
+      ],
+      "sourceAnchor": [
+        224,
+        368
+      ],
+      "outputAnchor": [
+        223.51612903225808,
+        368.1965317919075
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 47,
+      "input": "whale-40-47.png",
+      "slot": 7,
+      "sourceRect": [
+        648,
+        2376,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        48,
+        39,
+        111,
+        147
+      ],
+      "outputBBox": [
+        84,
+        76,
+        222,
+        294
+      ],
+      "generatedBBox": [
+        1385,
+        455,
+        269,
+        331
+      ],
+      "sourceAnchor": [
+        220,
+        370
+      ],
+      "outputAnchor": [
+        220.17100371747213,
+        370
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 48,
+      "input": "whale-48-55.png",
+      "slot": 0,
+      "sourceRect": [
+        0,
+        2592,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        40,
+        54,
+        114,
+        131
+      ],
+      "outputBBox": [
+        63,
+        106,
+        228,
+        262
+      ],
+      "generatedBBox": [
+        52,
+        35,
+        276,
+        355
+      ],
+      "sourceAnchor": [
+        197,
+        368
+      ],
+      "outputAnchor": [
+        196.82608695652175,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 49,
+      "input": "whale-48-55.png",
+      "slot": 1,
+      "sourceRect": [
+        216,
+        2592,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        48,
+        45,
+        117,
+        140
+      ],
+      "outputBBox": [
+        102,
+        88,
+        234,
+        280
+      ],
+      "generatedBBox": [
+        497,
+        34,
+        285,
+        366
+      ],
+      "sourceAnchor": [
+        224,
+        368
+      ],
+      "outputAnchor": [
+        224.33684210526314,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 50,
+      "input": "whale-48-55.png",
+      "slot": 2,
+      "sourceRect": [
+        432,
+        2592,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        45,
+        47,
+        112,
+        138
+      ],
+      "outputBBox": [
+        87,
+        93,
+        224,
+        276
+      ],
+      "generatedBBox": [
+        950,
+        39,
+        279,
+        371
+      ],
+      "sourceAnchor": [
+        214,
+        368
+      ],
+      "outputAnchor": [
+        214.25448028673836,
+        368.25606469002696
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 51,
+      "input": "whale-48-55.png",
+      "slot": 3,
+      "sourceRect": [
+        648,
+        2592,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        50,
+        50,
+        125,
+        135
+      ],
+      "outputBBox": [
+        99,
+        99,
+        250,
+        270
+      ],
+      "generatedBBox": [
+        1381,
+        55,
+        355,
+        353
+      ],
+      "sourceAnchor": [
+        218,
+        368
+      ],
+      "outputAnchor": [
+        218.01408450704224,
+        368.23512747875355
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 52,
+      "input": "whale-48-55.png",
+      "slot": 4,
+      "sourceRect": [
+        0,
+        2808,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        46,
+        39,
+        109,
+        147
+      ],
+      "outputBBox": [
+        78,
+        77,
+        218,
+        294
+      ],
+      "generatedBBox": [
+        73,
+        467,
+        270,
+        374
+      ],
+      "sourceAnchor": [
+        197,
+        370
+      ],
+      "outputAnchor": [
+        197.0925925925926,
+        370.2139037433155
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 53,
+      "input": "whale-48-55.png",
+      "slot": 5,
+      "sourceRect": [
+        216,
+        2808,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        38,
+        46,
+        113,
+        140
+      ],
+      "outputBBox": [
+        63,
+        91,
+        226,
+        280
+      ],
+      "generatedBBox": [
+        512,
+        477,
+        282,
+        364
+      ],
+      "sourceAnchor": [
+        182,
+        370
+      ],
+      "outputAnchor": [
+        182.4113475177305,
+        370.2307692307692
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 54,
+      "input": "whale-48-55.png",
+      "slot": 6,
+      "sourceRect": [
+        432,
+        2808,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        45,
+        52,
+        112,
+        134
+      ],
+      "outputBBox": [
+        85,
+        103,
+        224,
+        268
+      ],
+      "generatedBBox": [
+        949,
+        499,
+        280,
+        338
+      ],
+      "sourceAnchor": [
+        197,
+        370
+      ],
+      "outputAnchor": [
+        197.4,
+        370.20710059171597
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 55,
+      "input": "whale-48-55.png",
+      "slot": 7,
+      "sourceRect": [
+        648,
+        2808,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        38,
+        86,
+        129,
+        100
+      ],
+      "outputBBox": [
+        68,
+        170,
+        258,
+        200
+      ],
+      "generatedBBox": [
+        1373,
+        600,
+        343,
+        231
+      ],
+      "sourceAnchor": [
+        203,
+        370
+      ],
+      "outputAnchor": [
+        202.64139941690962,
+        370
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 56,
+      "input": "whale-56-63.png",
+      "slot": 0,
+      "sourceRect": [
+        0,
+        3024,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        29,
+        102,
+        138,
+        83
+      ],
+      "outputBBox": [
+        66,
+        203,
+        276,
+        166
+      ],
+      "generatedBBox": [
+        37,
+        172,
+        350,
+        212
+      ],
+      "sourceAnchor": [
+        196,
+        368
+      ],
+      "outputAnchor": [
+        195.72,
+        368.2169811320755
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 57,
+      "input": "whale-56-63.png",
+      "slot": 1,
+      "sourceRect": [
+        216,
+        3024,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        51,
+        66,
+        123,
+        119
+      ],
+      "outputBBox": [
+        103,
+        131,
+        246,
+        238
+      ],
+      "generatedBBox": [
+        508,
+        90,
+        312,
+        297
+      ],
+      "sourceAnchor": [
+        214,
+        368
+      ],
+      "outputAnchor": [
+        213.77884615384616,
+        368.19865319865323
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 58,
+      "input": "whale-56-63.png",
+      "slot": 2,
+      "sourceRect": [
+        432,
+        3024,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        45,
+        46,
+        119,
+        139
+      ],
+      "outputBBox": [
+        62,
+        91,
+        238,
+        278
+      ],
+      "generatedBBox": [
+        954,
+        39,
+        296,
+        351
+      ],
+      "sourceAnchor": [
+        197,
+        368
+      ],
+      "outputAnchor": [
+        196.67905405405406,
+        368.2079772079772
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 59,
+      "input": "whale-56-63.png",
+      "slot": 3,
+      "sourceRect": [
+        648,
+        3024,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        24,
+        106,
+        154,
+        79
+      ],
+      "outputBBox": [
+        47,
+        211,
+        308,
+        158
+      ],
+      "generatedBBox": [
+        1353,
+        184,
+        381,
+        202
+      ],
+      "sourceAnchor": [
+        203,
+        368
+      ],
+      "outputAnchor": [
+        203.4251968503937,
+        368.21782178217825
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 60,
+      "input": "whale-56-63.png",
+      "slot": 4,
+      "sourceRect": [
+        0,
+        3240,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        47,
+        39,
+        106,
+        147
+      ],
+      "outputBBox": [
+        93,
+        77,
+        212,
+        294
+      ],
+      "generatedBBox": [
+        72,
+        473,
+        283,
+        368
+      ],
+      "sourceAnchor": [
+        214,
+        370
+      ],
+      "outputAnchor": [
+        213.6077738515901,
+        370.20108695652175
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 61,
+      "input": "whale-56-63.png",
+      "slot": 5,
+      "sourceRect": [
+        216,
+        3240,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        48,
+        39,
+        105,
+        147
+      ],
+      "outputBBox": [
+        94,
+        77,
+        210,
+        294
+      ],
+      "generatedBBox": [
+        510,
+        474,
+        290,
+        367
+      ],
+      "sourceAnchor": [
+        216,
+        370
+      ],
+      "outputAnchor": [
+        215.6551724137931,
+        370.19891008174386
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 62,
+      "input": "whale-56-63.png",
+      "slot": 6,
+      "sourceRect": [
+        432,
+        3240,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        48,
+        39,
+        105,
+        147
+      ],
+      "outputBBox": [
+        96,
+        76,
+        210,
+        294
+      ],
+      "generatedBBox": [
+        951,
+        474,
+        290,
+        366
+      ],
+      "sourceAnchor": [
+        215,
+        370
+      ],
+      "outputAnchor": [
+        215.1206896551724,
+        370
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 63,
+      "input": "whale-56-63.png",
+      "slot": 7,
+      "sourceRect": [
+        648,
+        3240,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        47,
+        39,
+        107,
+        147
+      ],
+      "outputBBox": [
+        90,
+        76,
+        214,
+        294
+      ],
+      "generatedBBox": [
+        1393,
+        474,
+        286,
+        367
+      ],
+      "sourceAnchor": [
+        215,
+        370
+      ],
+      "outputAnchor": [
+        215.33216783216784,
+        370
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 64,
+      "input": "whale-64-71.png",
+      "slot": 0,
+      "sourceRect": [
+        0,
+        3456,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        47,
+        39,
+        106,
+        146
+      ],
+      "outputBBox": [
+        87,
+        77,
+        212,
+        292
+      ],
+      "generatedBBox": [
+        81,
+        28,
+        265,
+        385
+      ],
+      "sourceAnchor": [
+        214,
+        368
+      ],
+      "outputAnchor": [
+        214.2,
+        368.2415584415584
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 65,
+      "input": "whale-64-71.png",
+      "slot": 1,
+      "sourceRect": [
+        216,
+        3456,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        47,
+        39,
+        106,
+        146
+      ],
+      "outputBBox": [
+        89,
+        77,
+        212,
+        292
+      ],
+      "generatedBBox": [
+        525,
+        28,
+        265,
+        385
+      ],
+      "sourceAnchor": [
+        216,
+        368
+      ],
+      "outputAnchor": [
+        215.8,
+        368.2415584415584
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 66,
+      "input": "whale-64-71.png",
+      "slot": 2,
+      "sourceRect": [
+        432,
+        3456,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        48,
+        41,
+        105,
+        144
+      ],
+      "outputBBox": [
+        90,
+        81,
+        210,
+        288
+      ],
+      "generatedBBox": [
+        969,
+        28,
+        265,
+        385
+      ],
+      "sourceAnchor": [
+        215,
+        368
+      ],
+      "outputAnchor": [
+        215.20754716981133,
+        368.25194805194803
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 67,
+      "input": "whale-64-71.png",
+      "slot": 3,
+      "sourceRect": [
+        648,
+        3456,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        43,
+        54,
+        110,
+        131
+      ],
+      "outputBBox": [
+        85,
+        107,
+        220,
+        262
+      ],
+      "generatedBBox": [
+        1397,
+        60,
+        300,
+        344
+      ],
+      "sourceAnchor": [
+        195,
+        368
+      ],
+      "outputAnchor": [
+        195,
+        368.23837209302326
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 68,
+      "input": "whale-64-71.png",
+      "slot": 4,
+      "sourceRect": [
+        0,
+        3672,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        54,
+        40,
+        102,
+        144
+      ],
+      "outputBBox": [
+        107,
+        81,
+        204,
+        288
+      ],
+      "generatedBBox": [
+        81,
+        471,
+        265,
+        386
+      ],
+      "sourceAnchor": [
+        229,
+        368
+      ],
+      "outputAnchor": [
+        229.4,
+        368.2538860103627
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 69,
+      "input": "whale-64-71.png",
+      "slot": 5,
+      "sourceRect": [
+        216,
+        3672,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        54,
+        40,
+        104,
+        144
+      ],
+      "outputBBox": [
+        106,
+        81,
+        208,
+        288
+      ],
+      "generatedBBox": [
+        525,
+        472,
+        265,
+        385
+      ],
+      "sourceAnchor": [
+        230,
+        368
+      ],
+      "outputAnchor": [
+        230.40754716981132,
+        368.25194805194803
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 70,
+      "input": "whale-64-71.png",
+      "slot": 6,
+      "sourceRect": [
+        432,
+        3672,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        55,
+        40,
+        126,
+        144
+      ],
+      "outputBBox": [
+        101,
+        81,
+        252,
+        288
+      ],
+      "generatedBBox": [
+        969,
+        472,
+        306,
+        385
+      ],
+      "sourceAnchor": [
+        231,
+        368
+      ],
+      "outputAnchor": [
+        231.11764705882354,
+        368.25194805194803
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 71,
+      "input": "whale-64-71.png",
+      "slot": 7,
+      "sourceRect": [
+        648,
+        3672,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        55,
+        40,
+        102,
+        144
+      ],
+      "outputBBox": [
+        108,
+        81,
+        204,
+        288
+      ],
+      "generatedBBox": [
+        1411,
+        471,
+        265,
+        386
+      ],
+      "sourceAnchor": [
+        231,
+        368
+      ],
+      "outputAnchor": [
+        230.78490566037738,
+        368.2538860103627
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 72,
+      "input": "whale-72-79.png",
+      "slot": 0,
+      "sourceRect": [
+        0,
+        3888,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        58,
+        40,
+        124,
+        144
+      ],
+      "outputBBox": [
+        105,
+        81,
+        248,
+        288
+      ],
+      "generatedBBox": [
+        103,
+        38,
+        296,
+        369
+      ],
+      "sourceAnchor": [
+        216,
+        368
+      ],
+      "outputAnchor": [
+        216.43243243243245,
+        368.219512195122
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 73,
+      "input": "whale-72-79.png",
+      "slot": 1,
+      "sourceRect": [
+        216,
+        3888,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        30,
+        40,
+        107,
+        144
+      ],
+      "outputBBox": [
+        57,
+        81,
+        214,
+        288
+      ],
+      "generatedBBox": [
+        497,
+        38,
+        272,
+        369
+      ],
+      "sourceAnchor": [
+        202,
+        368
+      ],
+      "outputAnchor": [
+        202.15808823529412,
+        368.219512195122
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 74,
+      "input": "whale-72-79.png",
+      "slot": 2,
+      "sourceRect": [
+        432,
+        3888,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        55,
+        40,
+        112,
+        144
+      ],
+      "outputBBox": [
+        107,
+        80,
+        224,
+        288
+      ],
+      "generatedBBox": [
+        960,
+        40,
+        293,
+        366
+      ],
+      "sourceAnchor": [
+        221,
+        368
+      ],
+      "outputAnchor": [
+        220.52901023890786,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 75,
+      "input": "whale-72-79.png",
+      "slot": 3,
+      "sourceRect": [
+        648,
+        3888,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        79,
+        40,
+        111,
+        144
+      ],
+      "outputBBox": [
+        160,
+        80,
+        222,
+        288
+      ],
+      "generatedBBox": [
+        1435,
+        41,
+        271,
+        365
+      ],
+      "sourceAnchor": [
+        230,
+        368
+      ],
+      "outputAnchor": [
+        229.6309963099631,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 76,
+      "input": "whale-72-79.png",
+      "slot": 4,
+      "sourceRect": [
+        0,
+        4104,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        51,
+        40,
+        100,
+        145
+      ],
+      "outputBBox": [
+        92,
+        78,
+        200,
+        290
+      ],
+      "generatedBBox": [
+        79,
+        478,
+        262,
+        366
+      ],
+      "sourceAnchor": [
+        216,
+        368
+      ],
+      "outputAnchor": [
+        216.04580152671755,
+        368
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 77,
+      "input": "whale-72-79.png",
+      "slot": 5,
+      "sourceRect": [
+        216,
+        4104,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        51,
+        40,
+        100,
+        145
+      ],
+      "outputBBox": [
+        94,
+        79,
+        200,
+        290
+      ],
+      "generatedBBox": [
+        515,
+        478,
+        266,
+        367
+      ],
+      "sourceAnchor": [
+        216,
+        368
+      ],
+      "outputAnchor": [
+        216.18045112781954,
+        368.2098092643052
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    {
+      "index": 78,
+      "input": "whale-72-79.png",
+      "slot": 6,
+      "sourceRect": [
+        432,
+        4104,
+        216,
+        216
+      ],
+      "sourceBBox": [
+        51,
+        34,
+        102,
+        151
+      ],
+      "outputBBox": [
+        99,
+        67,
+        204,
+        302
+      ],
+      "generatedBBox": [
+        975,
+        480,
+        257,
+        365
+      ],
+      "sourceAnchor": [
+        216,
+        368
+      ],
+      "outputAnchor": [
+        216.47859922178986,
+        368.172602739726
+      ],
+      "anchorOffset": [
+        0,
+        0
+      ],
+      "keptComponents": 1,
+      "removedComponents": 0
+    },
+    null
+  ]
+}

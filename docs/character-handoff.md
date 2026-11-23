@@ -6,10 +6,10 @@
 
 | 角色 | 配置文件 | 当前立绘 | 当前动作图集 |
 |---|---|---|---|
-| 大肥鱼 | [whale.ts](../src/content/fighters/whale.ts) | [常态.webp](../assets/fighters/大肥鱼/常态.webp) | [完整动作.webp](../assets/fighters/大肥鱼/完整动作.webp) |
-| 奶蛙 | [frog.ts](../src/content/fighters/frog.ts) | [frog-v2.webp](../assets/fighters/frog-v2.webp) | [frog-motion.webp](../assets/fighters/frog-motion.webp) |
-| 香蕉猫 | [banana.ts](../src/content/fighters/banana.ts) | [banana-reference-portrait.webp](../assets/fighters/banana-reference-portrait.webp) | [banana-motion.webp](../assets/fighters/banana-motion.webp) |
-| 姑姑嘎嘎 | [gaga.ts](../src/content/fighters/gaga.ts) | [gaga-arcade.webp](../assets/fighters/gaga-arcade.webp) | [gaga-motion.webp](../assets/fighters/gaga-motion.webp) |
+| 大肥鱼 | [whale.ts](../src/content/fighters/whale.ts) | [whale.webp](../assets/fighters/unified-handdrawn-v1/whale.webp) | [两倍源像素图集](../assets/fighters/unified-handdrawn-v1/motion/whale/atlas.webp) |
+| 奶蛙 | [frog.ts](../src/content/fighters/frog.ts) | [frog-reference.webp](../assets/fighters/unified-handdrawn-v1/frog-reference.webp) | [专用动作与演出](../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/) |
+| 香蕉猫 | [banana.ts](../src/content/fighters/banana.ts) | [banana.webp](../assets/fighters/unified-handdrawn-v1/banana.webp) | [专用动作与演出](../assets/fighters/unified-handdrawn-v1/motion/banana/registered/) |
+| 姑姑嘎嘎 | [gaga.ts](../src/content/fighters/gaga.ts) | [gaga-arcade.webp](../assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-arcade.webp) | [专用动作与演出](../assets/fighters/unified-handdrawn-v1/motion/gaga/registered/) |
 
 保留表中四个文件现有的 `id`，它也是训练链接使用的角色标识。`name` 是显示名，`accent` 是界面配色，`height` 控制画面中的角色高度。
 
@@ -225,9 +225,9 @@ ultimate: {
 
 把文件放在 `assets/fighters/`，也可以在其中建自己的角色目录。在角色文件的 `art.portrait`、`art.motion` 填相对于该目录的路径。构建会自动收集引用的 WebP，打进离线 HTML。
 
-- **立绘**用透明底、朝右的全身图，脚底贴近下边缘。选角、VS、HUD、结算和场上待机共用这张图。
-- **动作图集**固定四列，每格 216×216 像素，格内脚底锚点为 `(108, 184)`，参考身高 144 像素。前三行共 12 格供跑步、跳跃、防御、公共攻击和受击使用。[前十二格排布](../assets/README.md#公共动作图集)
-- **专属动画**往图集底部追加整行，宽度保持 864 像素，高度每次增加 216 像素。格号从 0 开始逐行向右数，第四行是 12–15。只有已画好并打包的格号才能写入 `animation`。
+- **立绘**用透明底、朝右的全身图，脚底贴近下边缘。选角、VS、HUD 和结算使用角色立绘。场上待机根据角色渲染配置取专用动作格或立绘。
+- **公共动作图集**固定四列，逻辑格为 216×216，格内脚底锚点为 `(108, 184)`，参考身高为 144 世界单位。前三行共 12 格供跑步、跳跃、防御、公共攻击和受击使用。[前十二格排布](../assets/README.md#公共动作图集)
+- **公共图集的附加画格**按整行追加，宽度保持 864 逻辑像素。格号从 0 开始逐行向右数，第四行是 12–15。`animation` 中使用已画好并打包的格号，专用角色图另按表中的素材目录维护。
 
 ## 提交前验收
 
@@ -256,8 +256,10 @@ ultimate: {
 
 ## 高清手绘素材接入
 
-用户追加要求真正重绘四角色及队友原有动作，采用清晰卡通手绘，可完全取消像素感。新全身基准另存于[统一手绘目录](../assets/fighters/unified-handdrawn-v1/README.md)，完整动作制作状态见[进度](角色画风统一进度.md)。奶蛙以 `frog-v2.png` 的长头、修长上半身和大鼓腹为当前比例，旧矮胖动作不能直接作为最终稿。
+角色美术更新沿用队友设计的动作、技能、时序和判定。大肥鱼的两倍源像素图集保留 80 个槽，其中 79 个有效。嘎嘎与香蕉猫分别重绘了 55 和 21 个场上关键画格，另有 4 个帝江和 3 个泪海演出画格。[统一手绘目录](../assets/fighters/unified-handdrawn-v1/README.md)
 
-公共四列动作图可设置 `art.motionScale: 2`，使用432×432源像素格；逻辑格仍为216、脚锚仍为(108,184)，动作 `animation[].cell` 编号、显示大小、位移和判定均保持原值。省略时继续校验216格。构建会按实际源格数检查越界；只放大图集而不声明源密度会被拒绝。可选源密度为1、2、3、4。
+用户选定的 [frog-reference.png](../assets/fighters/unified-handdrawn-v1/frog-reference.png) 是奶蛙唯一的外形与比例基准，立绘 WebP 同源。`motion/frog-reference-v2/` 收录 47 个身体槽位，其中 37 个常态画格为本轮重绘，2 个侧躺出场和 8 个天使画格按选定姿态保留。变身演出保留左侧天使，右侧普通奶蛙沿用最终体型。`frog-v2.png` 为历史立绘，前一版 47 槽动作方案已弃用。
 
-奶蛙、嘎嘎和香蕉猫还包含各自的独立动作及演出素材，不能只替换 `art.motion` 就宣布全部完成。重绘后须逐格配准裁框/手眼锚/脚底，核对移步、受击、倒地起身和技能演出，避免套用旧像素化降采样让新图再次变糊。原动作与技能设计归角色负责人，新素材保留版本记录。
+公共四列动作图可设置 `art.motionScale: 2`，使用 432×432 源像素格。逻辑格仍为 216×216，脚锚仍为 `(108, 184)`，`animation[].cell` 编号、显示大小、位移和判定均沿用原值。构建会检查实际源格数和越界，可选源密度为 1、2、3、4。奶蛙的专用身体图用 `cutGrid(..., { pixelate: false })` 保留原分辨率，按旧世界高度和底部中央锚点绘制。后续替换身体图时，核对朝向、脚底和关键手眼位置，护腹防御用直视玩家的眼神。[奶蛙身体渲染](../src/web/frog-art.ts)
+
+素材已按画格进行静态目检。运行回归记录当前版实际执行的操作和观测结果。`npm run build` 生成的 `dist/frog-review.html` 和 `dist/whale-review.html` 使用高清角色美术，可单独回看动作。[素材状态与验收范围](角色画风统一进度.md)

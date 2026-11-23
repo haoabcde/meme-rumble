@@ -1,0 +1,11 @@
+{
+  "generator": "Built-in ImageGen",
+  "file": "normal-guard.png",
+  "source": "normal-guard-direct-gaze-raw.png",
+  "sizePx": [
+    724,
+    724
+  ],
+  "userRequirement": "双眼直视屏幕外玩家，打破第四面墙；保留护腹姿势、长头、大腹和长四肢。",
+  "outputSha256": "54c755402abf7edf95d49c8717ade1284b8ab4135f3d465fd77c614994725ad4"
+}

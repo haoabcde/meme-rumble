@@ -1,6 +1,6 @@
 import type { CombatEvent, FighterState } from '../core/types.js';
 import { bananaActionIds } from '../content/fighters/banana.js';
-import sprites from '../../assets/fighters/banana-hit-reactions.webp';
+import sprites from '../../assets/fighters/unified-handdrawn-v1/motion/banana/registered/banana-hit-reactions.webp';
 import { drawPixelEffect } from './pixelfx.js';
 
 const sheet = new Image();

@@ -1,0 +1,12 @@
+{
+  "file": "scenes.png",
+  "cells": [
+    0,
+    1
+  ],
+  "source": "user selected these two poses from the previous contact sheet",
+  "preservation": "original RGBA copied exactly without scaling; all remaining six cells retained",
+  "sourceCellPx": 443,
+  "selectedRgbaSha256": "1617cc4a9c2a9aeb9609609f5ac6c40fe37df0503d4190ce572588ad48cc0c3a",
+  "finalPngSha256": "b9636529989b4cb717949a10fa511b8ab7f540ecdc2a54dd863173013c894b24"
+}

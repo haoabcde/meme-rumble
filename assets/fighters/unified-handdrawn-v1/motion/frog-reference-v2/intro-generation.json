@@ -1,0 +1,152 @@
+{
+  "generator": "Built-in ImageGen",
+  "editTarget": "assets/fighters/unified-handdrawn-v1/motion/frog-reference/intro.png",
+  "identityReference": "assets/fighters/unified-handdrawn-v1/frog-reference.png",
+  "prompt": "Use case: precise-object-edit. Image 1 is the edit target and must stay in its exact original 3:2 1536x1024 composition. Change ONLY the plain yellow non-angel frog at the lower right. Image 2 is the selected model for that non-angel frog and the ONLY reference for its anatomy and face. Keep the unchanged winged angel at left, all frame edges, lighting, sky clouds, rainbow-free golden rays, tiny spark between both fingers, and existing painted composition. Keep the plain frog's pointing hand orientation and fingertip at the precise same location near the central spark; stay in the exact same in-flight position, facing left three-quarter, eyes gazing at the angel. Its other hand hangs down to the right, both distinct feet trailing beneath it. In that pose carefully redraw the right character with the broad, domed head and very tall single unbroken head/neck curve of Image 2, blunt rounded broad mouth with the little straight dark horizontal slit and no upward pointed beak, olive eyes in the same proportion as the reference, much more forward-projecting round lower abdomen with broad cream area and similarly long orange-gold arms and legs with earthy olive-brown rounded hand and foot digits. Make the belly notably wider and lower than the version in Image 1, still fully inside the existing lower-right character location and silhouetted against the sky. Retain thin dark-brown ink edges, subtle paper grain and gouache colors. Match ambient gold rim-light precisely so the edit is integrated. Everything outside the right character silhouette should be pixel-aligned with the original, especially the original angel, fingers, spark and cloud lighting. There are exactly two characters. No new objects, no text.",
+  "generatedSource": "01a20446-77a6-70e2-b978-c0d31320b57d/exec-f952d5bd-f908-4f90-b808-96495c49254d.png",
+  "sourceSha256": "7dcab90e6f976c79a9c84be9890537e4c1c04b648481a02a7737f7c32ebd11cd",
+  "assembly": {
+    "vertices": [
+      [
+        829,
+        475
+      ],
+      [
+        853,
+        466
+      ],
+      [
+        916,
+        499
+      ],
+      [
+        965,
+        531
+      ],
+      [
+        959,
+        484
+      ],
+      [
+        968,
+        438
+      ],
+      [
+        1002,
+        406
+      ],
+      [
+        1062,
+        397
+      ],
+      [
+        1103,
+        403
+      ],
+      [
+        1153,
+        430
+      ],
+      [
+        1161,
+        501
+      ],
+      [
+        1179,
+        562
+      ],
+      [
+        1224,
+        607
+      ],
+      [
+        1281,
+        680
+      ],
+      [
+        1308,
+        708
+      ],
+      [
+        1309,
+        782
+      ],
+      [
+        1249,
+        808
+      ],
+      [
+        1274,
+        893
+      ],
+      [
+        1310,
+        945
+      ],
+      [
+        1311,
+        1006
+      ],
+      [
+        1199,
+        1006
+      ],
+      [
+        1166,
+        981
+      ],
+      [
+        1091,
+        996
+      ],
+      [
+        1060,
+        950
+      ],
+      [
+        1049,
+        904
+      ],
+      [
+        973,
+        864
+      ],
+      [
+        926,
+        818
+      ],
+      [
+        883,
+        768
+      ],
+      [
+        876,
+        700
+      ],
+      [
+        892,
+        651
+      ],
+      [
+        926,
+        606
+      ],
+      [
+        890,
+        575
+      ],
+      [
+        850,
+        548
+      ],
+      [
+        826,
+        516
+      ]
+    ],
+    "feather": 12,
+    "changedPixels": 176173,
+    "verifiedUnchangedPixels": 1391506,
+    "originalImageGenPixelsChangedOutsideBlend": 1388128
+  }
+}

@@ -34,7 +34,7 @@ const slip=(mode:'crouch'|'burrow'|'evade'):ActionDefinition&{slot:'C'}=>({
  ...(mode==='crouch'?{}:{hurtTimeline:[{from:6,to:18,boxes:[{x:-32,y:-128,w:64,h:128}]}]}),
  hitbox:{x:0,y:0,w:1,h:1},damage:0,hitstun:0,blockstun:0,guardCost:0,push:0,lift:0,stop:0,advance:0,pose:'rise'
 });
-export const frog=defineFighter({id:'frog',name:'奶蛙',accent:'#ffcf54',height:130,art:{portrait:'frog-v2.webp',motion:'frog-motion.webp'},
+export const frog=defineFighter({id:'frog',name:'奶蛙',accent:'#ffcf54',height:130,art:{portrait:'unified-handdrawn-v1/frog-reference.webp',motion:'unified-handdrawn-v1/motion/frog-reference-v2/motion.webp',motionScale:2},
  audio:{'ultimate-bgm':{src:'assets/audio/frog/大招专属BGM.wav',volume:1},...Object.fromEntries(Object.entries({'melee-swing':'拳脚挥风','melee-hit':'拳脚命中','event-block':'落地缓冲','event-land':'落地缓冲','event-jump':'起跳蹬地','event-air-jump':'起跳蹬地','event-dash':'拳脚挥风','event-knockdown':'落败坐地','event-break':'落败坐地','event-entry':'侧躺起身','event-parry':'金色瞬移',wave:'捧腹震波','wave-hit':'拳脚命中','global-wave':'全图冲击',teleport:'金色瞬移','holy-hit':'神圣命中','holy-wave':'神圣震波'}).map(([id,name])=>[id,{src:'assets/audio/frog/'+name+'.wav',volume:1}])),laugh:{src:'assets/audio/frog/捧腹大笑_V2.wav'},ha:{src:'assets/audio/frog/哈.wav'},...Object.fromEntries([1,2,3,4].map(i=>['skill2-'+i,{src:'assets/audio/frog/二技能_语音'+i+'.wav'}]))},
  stats:{bodyWidth:80,hurtbox:{x:-32,y:-128,w:64,h:128}},
  commonMoves:[...Array.from({length:5},(_,i)=>combo(i+1)),{...combo(3),id:'common-air',name:'空中踢腿',posture:'air',linkOnly:false,advance:0,chainAfter:undefined,cancelOnHit:[],airControl:.5}],

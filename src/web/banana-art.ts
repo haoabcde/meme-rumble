@@ -1,7 +1,7 @@
 import { bananaActionIds as ids } from '../content/fighters/banana.js';
 import type { ActionDefinition, FighterState } from '../core/types.js';
-import bananaSprites from '../../assets/fighters/banana-arcade-actions.webp';
-import bananaJetExpressions from '../../assets/fighters/banana-jet-expressions.webp';
+import bananaSprites from '../../assets/fighters/unified-handdrawn-v1/motion/banana/registered/banana-arcade-actions.webp';
+import bananaJetExpressions from '../../assets/fighters/unified-handdrawn-v1/motion/banana/registered/banana-jet-expressions.webp';
 import { drawCryingTears, drawTearJets } from './banana-fx.js';
 import { drawBananaWaveMotion } from './banana-wave-art.js';
 import { drawBananaHurt } from './banana-hit-art.js';

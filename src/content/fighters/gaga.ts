@@ -132,7 +132,7 @@ const dijiang: Omit<ActionDefinition, 'slot' | 'energyCost'> = {
 
 export const gaga = defineFighter({
   id: 'gaga', name: '姑姑嘎嘎', accent: '#d7a5ff', height: 139,
-  art: { portrait: 'gaga-arcade.webp', motion: 'gaga-motion.webp' },
+  art: { portrait: 'unified-handdrawn-v1/motion/gaga/registered/gaga-arcade.webp', motion: 'gaga-motion.webp' },
   audio: Object.fromEntries(Object.entries({
     'jab': 0.45,
     'backhand': 0.48,
