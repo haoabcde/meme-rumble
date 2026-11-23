@@ -47,9 +47,11 @@ export function drawWhaleActor(ctx:CanvasRenderingContext2D,f:FighterState,state
  if(action&&'whale' in action&&(action.whale==='spin'||action.whale==='counter')){
   const age=f.attack?.frame??0;if(age<(action.whale==='counter'?20:12))return;
  }
- if(f.dashActive){ctx.save();ctx.globalAlpha*=.15;for(const x of [-30,-60])ctx.drawImage(sheet,51%4*216,Math.floor(51/4)*216,216,216,x-108,-184,216,216);ctx.restore();}
- ctx.drawImage(sheet,cell%4*216,Math.floor(cell/4)*216,216,216,-108,-184,216,216);
- if(action&&'whale' in action&&action.whale==='spin-up'&&f.attack){const age=f.attack.frame,blend=age<6?age/6:age<14?1:Math.max(0,(22-age)/8);ctx.save();ctx.globalAlpha*=1-blend;ctx.drawImage(sheet,77%4*216,Math.floor(77/4)*216,216,216,-108,-184,216,216);ctx.restore();}
+ const sourceCell=sheet.naturalWidth/4;
+ const drawCell=(index:number,x=0)=>ctx.drawImage(sheet,index%4*sourceCell,Math.floor(index/4)*sourceCell,sourceCell,sourceCell,x-108,-184,216,216);
+ if(f.dashActive){ctx.save();ctx.globalAlpha*=.15;for(const x of [-30,-60])drawCell(51,x);ctx.restore();}
+ drawCell(cell);
+ if(action&&'whale' in action&&action.whale==='spin-up'&&f.attack){const age=f.attack.frame,blend=age<6?age/6:age<14?1:Math.max(0,(22-age)/8);ctx.save();ctx.globalAlpha*=1-blend;drawCell(77);ctx.restore();}
 }
 function riceBlob(ctx:CanvasRenderingContext2D,x:number,y:number,r=14){
  ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.fillStyle='#798da8';ctx.beginPath();ctx.ellipse(0,0,r,r*.56,0,0,Math.PI*2);ctx.fill();

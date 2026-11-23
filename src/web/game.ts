@@ -1,9 +1,10 @@
 import { rules } from '../content/demo.js';
 import { arenas } from '../content/arenas.js';
+import { bananaWaveTitle } from '../content/fighters/banana.js';
 import { roster } from '../content/roster.js';
 import { actionFor, createMatch, step } from '../core/match.js';
 import {frogPowered} from '../core/frog-kit.js';
-import { ENERGY_PER_STOCK, MAX_ENERGY, NEUTRAL, type ActionKey, type Axis, type Duo, type FighterDefinition, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
+import { ENERGY_PER_STOCK, MAX_ENERGY, MAX_TEARS, TEAR_UNITS_PER_POINT, NEUTRAL, type ActionKey, type Axis, type Duo, type FighterDefinition, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
 import { arcadeArt, comicArt, arenaArt, fighterArt } from './art.js';
 import { FightAudio } from './audio.js';
 import { cpuInput } from './cpu.js';
@@ -77,6 +78,9 @@ const winPips = namesSuffix.map(id => element('wins-' + id));
 const energyRows = namesSuffix.map(id => element('energy-row-' + id));
 const energyBars = namesSuffix.map(id => element('energy-' + id));
 const energyLabels = namesSuffix.map(id => element('energy-label-' + id));
+const tearRows = namesSuffix.map(id => element('tears-row-' + id));
+const tearFills = namesSuffix.map(id => element('tears-' + id));
+const tearCounts = namesSuffix.map(id => element('tears-count-' + id));
 const combos = namesSuffix.map(id => element('combo-' + id));
 const portraits = namesSuffix.map(id => element<HTMLImageElement>('portrait-' + id));
 const panels = namesSuffix.map(id => element('fighter-panel-' + id));
@@ -195,6 +199,11 @@ function seatName(seat: Seat) {
 function trainingSkillHints(fighter: FighterDefinition) {
   if(fighter.id==='whale')return whaleInputHints(0);
   if(fighter.id==='frog')return frogInputHints(0);
+  if (fighter.id === 'gaga') return keyHint(preferences, 0, ['A']) + ' 五段连击 · ' +
+    keyHint(preferences, 0, ['C']) + ' 炮台 · ' + keyHint(preferences, 0, ['ULT']) + ' 帝江';
+  if (fighter.id === 'banana') return keyHint(preferences, 0, ['A']) + ' 四段连击 · ' +
+    keyHint(preferences, 0, ['B']) + ' 喷泪 · 按住' + keyHint(preferences, 0, ['C']) + ' 回泪 · ' +
+    keyHint(preferences, 0, ['ULT']) + ' 泪海';
   const hints: string[] = [];
   if (acceptsSkillInput(fighter, 'ULT')) hints.push(keyHint(preferences, 0, ['ULT']) + ' 大招');
   if (fighter.guardCounter) hints.push(keyHint(preferences, 0, ['down']) + ' 精准防反');
@@ -339,7 +348,7 @@ function renderRoster() {
       const cost = entry.fighter.ultimateCost ?? 0;
       skills.push('大招 ' + keyHint(preferences, seat, ['ULT']) + (cost ? ' · 消耗 ' + cost : ' · 无消耗'));
     }
-    text(panels[seat].querySelector('p')!, skills.join(' · ') || '专属技能待接入');
+    text(panels[seat].querySelector('p')!, [entry.moveSummary, ...skills].filter(Boolean).join(' · ') || '专属技能待接入');
     lockButtons[seat].setAttribute('aria-pressed', String(confirmed[seat]));
     text(lockButtons[seat], confirmed[seat] ? who + ' 已确认' : '确认 ' + who);
   }
@@ -384,7 +393,9 @@ function selectArena(index: number) {
   text(element('map-name'), arena.name);
   const screens = ((arena.right - arena.left) / canvas.width).toFixed(1);
   const tiers = new Set(arena.platforms.map(platform => platform.tier)).size;
-  text(element('map-count'), screens + ' 屏宽 · ' + tiers + ' 层 · ' + arena.platforms.length + ' 处平台');
+  const hasRoutes = arena.routes.some(route => route.length > 0);
+  text(element('map-count'), screens + ' 屏宽 · ' + (arena.platforms.length
+    ? tiers + ' 层 · ' + arena.platforms.length + ' 处平台' : '单层地面'));
   text(element('start'), mode === 'training' ? '进入训练 ›' : '开始对战 ›');
   text(element('map-description'), arena.description);
   const routeLine = element('map-route');
@@ -392,9 +403,10 @@ function selectArena(index: number) {
     const routeNames = arena.routes[side].map(id => arena.platforms.find(platform => platform.id === id)!.name);
     text(element('map-route-' + suffix), routeNames.join(' → '));
   }
-  routeLine.hidden = !routeVisible;
+  routeLine.hidden = !hasRoutes || !routeVisible;
+  routeToggle.hidden = !hasRoutes;
   routeToggle.setAttribute('aria-pressed', String(routeVisible));
-  previewArena(mapCanvas, arena, routeVisible);
+  previewArena(mapCanvas, arena, hasRoutes && routeVisible);
 }
 
 function configureMatch(immediate: boolean) {
@@ -541,6 +553,7 @@ element('rematch').addEventListener('click', () => startMatch());
 element('reset-training').addEventListener('click', () => startMatch(true));
 fillTrainingEnergy.addEventListener('click', () => {
   if (screen !== 'match' || !config.training) return;
+  audio.enableFromGesture();
   canvas.focus();
   state.fighters[0].energy = MAX_ENERGY;
   renderHUD();
@@ -668,6 +681,7 @@ window.addEventListener('keydown', event => {
   if (!binding) return;
   event.preventDefault();
   if (held.has(event.code) || event.repeat || (binding.seat === 1 && mode !== 'local')) return;
+  audio.enableFromGesture();
   held.add(event.code);
   const { seat, control } = binding;
   if ((control === 'B' || control === 'C' || control === 'ULT') &&
@@ -781,6 +795,13 @@ function renderHUD() {
     guardBars[seat].parentElement!.dataset.broken = String(fighter.guardBreak > 0);
     text(guardValues[seat], fighter.guard + ' / ' + rules.guardMax);
     guardValues[seat].hidden = !debug;
+    const tearUnits = fighter.tearUnits;
+    tearRows[seat].hidden = tearUnits === undefined;
+    if (tearUnits !== undefined) {
+      const tears = Math.floor(tearUnits / TEAR_UNITS_PER_POINT);
+      setMeter(tearFills[seat], tears, MAX_TEARS);
+      text(tearCounts[seat], tears + ' / ' + MAX_TEARS);
+    }
     energyRows[seat].hidden = fighter.energy === undefined;
     if (fighter.energy !== undefined) {
       const energy = fighter.energy ?? 0;
@@ -834,9 +855,16 @@ function renderHUD() {
 function tick(player: InputFrame) {
   const previous = state.phase;
   const events = step(state, [player, opponentInput()], config);
+  const shortage = events.find(event => (event.kind === 'ultimate-no-energy' || event.kind === 'tears-short') &&
+    (event.source === 0 || mode === 'local'));
+  if (shortage?.amount) notify(seatName(shortage.source) + ' 需要 ' + (shortage.kind === 'tears-short'
+    ? shortage.amount + ' 点眼泪' : shortage.amount / ENERGY_PER_STOCK + ' 格气'));
+  const blockedWave = events.find(event => event.kind === 'wave-unavailable' && (event.source === 0 || mode === 'local'));
+  if (blockedWave) notify(blockedWave.requirement === 'ground' ? '落地后才能发动' + bananaWaveTitle
+    : '等当前动作结束再发动' + bananaWaveTitle);
   if (state.phase === 'ready' && previous !== 'ready') lastChains = [null, null];
   for (const event of events) {
-    if (event.kind === 'ultimate-no-energy') {
+    if (event.kind === 'ultimate-no-energy' && !event.amount) {
       notify(seatName(event.source) + ' 技能能量不足');
     }
     if (event.kind === 'dash-no-stamina') notify(seatName(event.source) + ' 耐力不足');
@@ -850,8 +878,10 @@ function tick(player: InputFrame) {
       trainingInputs.push(keyHint(preferences, 0, ['down']));
     }
     trainingDownHeld = down;
-    for (const key of player.pressed) {
-      const { x, y } = player.sampled?.[key] ?? player;
+    for (const [index, key] of player.pressed.entries()) {
+      const sampled = player.sampled;
+      const { x, y } = (Array.isArray(sampled) ? sampled[index] :
+        (sampled as Partial<Record<ActionKey, Stick>> | undefined)?.[key]) ?? player;
       const controls: Control[] = [];
       if (y) controls.push(y < 0 ? 'up' : 'down');
       if (x) controls.push(x < 0 ? 'left' : 'right');
@@ -867,15 +897,16 @@ function tick(player: InputFrame) {
   if (previous === 'fight' && state.phase === 'round-over' && state.result) {
     roundHistory.push({ ...state.result, round: state.round });
   }
-  renderer.add(events, state.arenaFrame);
+  renderer.add(events, state.arenaFrame, config.fighters);
   audio.update(config, state, events);
 }
 
 function draw(elapsed: number) {
+  stage.toggleAttribute('data-cinematic', Boolean(state.cutIn) || state.summon?.phase === 'cut-in');
   const opening = state.phase === 'ready' && !config.training && !reducedMotion.matches
     ? Math.max(0, Math.min(1, (state.phaseTicks - 18) / 74)) : 0;
   renderer.draw(config, state, debug, elapsed, preferences.shake && !reducedMotion.matches,
-    preferences.camera === 'focus' && !reducedMotion.matches, opening, debt / (1000 / rules.ticksPerSecond));
+    preferences.camera === 'focus' && !reducedMotion.matches, reducedMotion.matches, opening, debt / (1000 / rules.ticksPerSecond));
 }
 
 function frame(now: number) {
@@ -917,7 +948,6 @@ export function openPractice(practiceParams: URLSearchParams) {
   confirmed.fill(true);
   configureMatch(true);
   enterMatch();
-  window.addEventListener('keydown', () => audio.enableFromGesture(), { once: true });
   return true;
 }
 if (!openPractice(new URLSearchParams(location.search))) go('title');

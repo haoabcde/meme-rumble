@@ -80,7 +80,7 @@ function inputs():[InputFrame,InputFrame]{
 }
 function saveSnapshot(){history[state.frame]=structuredClone({state,loopTick,hitCount,damage,seen:[...seen]});}
 function advance(){const events=step(state,inputs(),config);renderer.add(events,state.arenaFrame);audio.update(config,state,events);for(const e of events)if(e.kind==='hit'&&e.source===(mirror?1:0)){hitCount++;damage+=e.amount??0;}saveSnapshot();}
-function draw(){renderer.draw(config,state,debug,paused?0:1,false,true,0,paused?0:clock/(1000/60));const caster=state.fighters[mirror?1:0],target=state.fighters[mirror?0:1];
+function draw(){renderer.draw(config,state,debug,paused?0:1,false,true,false,0,paused?0:clock/(1000/60));const caster=state.fighters[mirror?1:0],target=state.fighters[mirror?0:1];
  const ctx=canvas.getContext('2d')!;ctx.resetTransform();ctx.fillStyle='#071427df';ctx.fillRect(0,0,1280,63);ctx.font='bold 20px Microsoft YaHei';ctx.fillStyle='#c8edff';ctx.textAlign='left';ctx.fillText('大肥鱼  HP '+caster.hp+' / 气 '+(caster.energy??0),24,38);ctx.textAlign='right';ctx.fillStyle='#ffd5c9';ctx.fillText('陪练  HP '+target.hp,1256,38);ctx.textAlign='center';ctx.fillStyle='#e6f5ff';ctx.fillText(hitCount+' 段 · 累计 '+damage,640,38);
  $<HTMLInputElement>('#seek').value=String(state.frame);
  $('#stats').textContent=`${paused?'已暂停':'播放中'} · ${(state.arenaFrame/60).toFixed(2)}s · ${hitCount}次实际命中 / ${damage}伤害 · 场上实体${state.entities?.length??0} · ${cinematicOwner(state)!==undefined?'梁文峰演出 · 战斗时间静止':state.entities?.some(e=>e.definition.behavior==='pool'&&e.age<WHALE_RULES.telegraph)?'水潭预警 · '+((WHALE_RULES.telegraph-state.entities.find(e=>e.definition.behavior==='pool')!.age)/60).toFixed(2)+'s':caster.attack?.id??'待机'}${(target.bindUntil??0)>state.arenaFrame?' · 敌人被米饭粘住':''}`;

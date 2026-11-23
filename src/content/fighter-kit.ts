@@ -10,6 +10,8 @@ export interface FighterArt {
   /** WebP paths relative to assets/fighters/. */
   portrait: string;
   motion: string;
+  /** Source-pixel density; logical cells and foot anchors stay at 216 and (108, 184). */
+  motionScale?: 1 | 2 | 3 | 4;
 }
 
 export interface FighterAudioClip {
@@ -26,8 +28,10 @@ export interface RosterEntry {
   height: number;
   art: FighterArt;
   audio?: FighterAudioBank;
+  moveSummary?: string;
 }
 
+export type NormalMove = ActionDefinition & { slot: 'A' };
 export type SignatureMove = (ActionDefinition & { slot: 'B' | 'C' }) | CounterStance;
 
 interface UltimateMove {
@@ -44,7 +48,9 @@ export interface FighterPackage {
   art: FighterArt;
   audio?: FighterAudioBank;
   stats?: Partial<Omit<FighterDefinition, 'id' | 'name' | 'actions' | 'guardCounter' | 'ultimateCost' | 'ultimateGain'>>;
+  normalMoves?: NormalMove[];
   signatureMoves: SignatureMove[];
+  moveSummary?: string;
   guardCounter?: FighterDefinition['guardCounter'];
   ultimate?: UltimateMove & { gain?: UltimateGain; variants?: UltimateMove[] };
   /** Additional destinations after a shared attack lands, applied to this fighter only. */
@@ -188,7 +194,7 @@ function validateCounterTarget(owner: string, targetId: string, actions: Fighter
   if (!target || 'counterTo' in target || target.posture === 'air' || target.slot === 'ULT') {
     throw Error(owner + ' 的防反必须指向本角色可在地面发动的非大招攻击：' + targetId);
   }
-  if ((target.energyCost ?? 0) > 0) {
+  if ((target.energyCost ?? 0) > 0 || (target.tearCost ?? 0) > 0) {
     throw Error(owner + ' 的自动反击不能指向需要消耗技能能量的动作：' + targetId);
   }
 }
@@ -220,7 +226,9 @@ function validateMoves(owner: string, actions: FighterAction[], audio: FighterAu
       }
       validateCounterTarget(where, action.counterTo, actions);
     } else {
-      if (!validBox(action.hitbox)) throw Error(where + ' 的攻击框坐标或宽高无效');
+      const { x, y, w, h } = action.hitbox;
+      const noMelee = action.hitTimeline?.length === 0 && [x, y].every(Number.isFinite) && w === 0 && h === 0;
+      if (!noMelee && !validBox(action.hitbox)) throw Error(where + ' 的攻击框坐标或宽高无效');
       if (action.energyCost !== undefined && !validEnergy(action.energyCost)) {
         throw Error(where + ' 的技能能量消耗须为 0–' + MAX_ENERGY + ' 的整数');
       }
@@ -245,6 +253,14 @@ function validateMoves(owner: string, actions: FighterAction[], audio: FighterAu
   const legalTargets = new Set([...ids, 'A', 'B', 'C', 'jump']);
   if (actions.some(action => action.slot === 'ULT')) legalTargets.add('ULT');
   for (const action of actions) {
+    if ('chain' in action && action.chain) {
+      const { actionId, open, close } = action.chain;
+      if (!actions.some(move => move.id === actionId && move.slot === action.slot && move.linkOnly) ||
+          !Number.isInteger(open) || !Number.isInteger(close) || open < 0 || close < open ||
+          close > action.startup + action.active + action.recovery) {
+        throw Error(owner + ' / ' + action.id + ' 的连段目标或接续窗口无效');
+      }
+    }
     for (const target of action.cancelOnHit ?? []) {
       if (!legalTargets.has(target)) throw Error(owner + ' / ' + action.id + ' 引用了未知的取消目标 ' + target);
     }
@@ -252,20 +268,21 @@ function validateMoves(owner: string, actions: FighterAction[], audio: FighterAu
 }
 
 export function defineFighter(spec: FighterPackage): RosterEntry {
-  const { id, name, accent, height, art, audio, stats, signatureMoves, guardCounter, ultimate,
+  const { id, name, accent, height, art, audio, stats, signatureMoves, moveSummary, guardCounter, ultimate,
     extraCancels = {}, commonAudio = {} } = spec;
+  const normalMoves = spec.normalMoves ?? spec.commonMoves ?? commonActions;
   validateAudioBank(id, audio);
   for (const source of Object.keys(extraCancels)) {
-    if (!commonActions.some(move => move.id === source)) throw Error(id + ' 找不到公共动作 ' + source);
+    if (!normalMoves.some(move => move.id === source)) throw Error(id + ' 找不到公共动作 ' + source);
   }
   if (!commonAudio || ![Object.prototype, null].includes(Object.getPrototypeOf(commonAudio))) {
     throw Error(id + ' 的 commonAudio 须为公共动作 ID 到音频配置的映射');
   }
   for (const [source, override] of Object.entries(commonAudio)) {
-    if (!commonActions.some(move => move.id === source)) throw Error(id + ' / commonAudio 找不到公共动作 ' + source);
+    if (!normalMoves.some(move => move.id === source)) throw Error(id + ' / commonAudio 找不到公共动作 ' + source);
     if (!override || typeof override !== 'object') throw Error(id + ' / commonAudio.' + source + ' 的音频配置无效');
   }
-  const shared = (spec.commonMoves ?? commonActions).map(move => {
+  const shared = normalMoves.map(move => {
     const extra = extraCancels[move.id];
     const override = commonAudio[move.id];
     if (!extra && !override) return move;
@@ -320,5 +337,5 @@ export function defineFighter(spec: FighterPackage): RosterEntry {
     fighter.dash, fighter.airJump ?? 0].every(n => Number.isFinite(n) && n >= 0)) {
     throw Error(id + ' 的受击框、身体宽度或移动数值无效');
   }
-  return { fighter, accent, height, art, ...(audio === undefined ? {} : { audio }) };
+  return { fighter, accent, height, art, moveSummary, ...(audio === undefined ? {} : { audio }) };
 }

@@ -26,7 +26,10 @@ export async function embedFighterImages(roster, directory) {
       }
     }
     const { width, height } = images.get(art.motion);
-    const { columns, cell, defaultRows } = motionGrid;
+    const { columns, defaultRows } = motionGrid;
+    const scale = art.motionScale ?? 1;
+    if (![1, 2, 3, 4].includes(scale)) throw Error(fighter.id + ' 的 motionScale 应为1至4的整数');
+    const cell = motionGrid.cell * scale;
     if (width !== columns * cell || height < defaultRows * cell || height % cell !== 0) {
       throw Error(fighter.id + ' / ' + art.motion + '：动作图集应为 ' + columns + ' 列，至少 ' + defaultRows + ' 行，每格 ' + cell + '×' + cell);
     }

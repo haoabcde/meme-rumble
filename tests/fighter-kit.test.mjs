@@ -595,3 +595,20 @@ test('the offline builder embeds character-owned files and checks sprite referen
   await assert.rejects(embedFighterImages([{ ...dummy, art: { ...empty.art, motion: empty.art.portrait } }], dir), /动作图集/);
   await assert.rejects(embedFighterImages([{ ...dummy, art: { ...empty.art, portrait: 'missing.webp' } }], dir), /missing.webp/);
 });
+
+test('high-density animation sheets keep logical cell numbers and require an explicit source scale', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'meme-hires-assets-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  await writeFile(join(dir, empty.art.portrait), Buffer.from('UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==', 'base64'));
+  // Actual lossless transparent 1728×1728 WebP: four columns/rows of 432 source pixels.
+  await writeFile(join(dir, empty.art.motion), Buffer.from('UklGRqAAAABXRUJQVlA4TJQAAAAvv8avEQcQERFQ0LYNU/7wu+OI/mf4z3/+85///Oc///nPf/7zn//85z//+c9//vOf//znP//5z3/+85///Oc///nPf/7zn//85z//+c9//vOf//znP//5z3/+85///Oc///nPf/7zn//85z//+c9//vOf//znP//5z3/+85///Oc///nPf/7zn//85z//+c9//jcL', 'base64'));
+  const entry = cell => defineFighter({ ...empty, art: { ...empty.art, motionScale: 2 },
+    signatureMoves: [{ ...probeB, animation: [{ frame: 0, cell }] }] });
+  const images = await embedFighterImages([entry(15)], dir);
+  assert.ok(images[empty.art.motion].startsWith('data:image/webp;base64,'));
+  await assert.rejects(embedFighterImages([entry(16)], dir), /fixture.*test-b.*16/);
+  await assert.rejects(embedFighterImages([{ ...entry(15), art: empty.art }], dir), /动作图集/);
+  for (const motionScale of [0, 1.5, 5]) {
+    await assert.rejects(embedFighterImages([{ ...entry(15), art: { ...empty.art, motionScale } }], dir), /motionScale/);
+  }
+});

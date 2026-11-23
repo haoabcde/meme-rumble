@@ -4,5 +4,6 @@ dist/
 .codex-attachments/
 .playwright-cli/
 output/playwright/
+output/角色试玩版/
 
 output/奶娃制作/推荐特效/*.rgba

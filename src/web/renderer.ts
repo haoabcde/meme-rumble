@@ -1,18 +1,36 @@
-import { roster } from '../content/roster.js';
 import { motionGrid } from '../content/fighter-kit.js';
-import { actionFor, hitRegionsFor, hurtRegionsFor, isActiveFrame, recoveryDuration, worldBox } from '../core/match.js';
+import { bananaActionIds } from '../content/fighters/banana.js';
+import { gagaActionIds } from '../content/fighters/gaga.js';
+import { roster } from '../content/roster.js';
 import type { EntityState } from '../core/entities.js';
-import { DEFAULT_RISE_FRAMES } from '../core/types.js';
-import type { ActionDefinition, ArenaDefinition, Box, CombatEvent, FighterAction, FighterState, MatchConfig, MatchState } from '../core/types.js';
-import { backgrounds, harborProps, harborGantry, motionArt, sprites, stageKits } from './art.js';
-import { drawHarborScenery, drawHarborLift, drawQuay } from './harbor-art.js';
-import { drawStageBackdrop, drawStageMechanism, drawStageScenery } from './stage-art.js';
+import { frogPowered } from '../core/frog-kit.js';
+import { actionFor, hitRegionsFor, hurtRegionsFor, isActiveFrame, recoveryDuration, worldBox } from '../core/match.js';
+import { summonFallFrames } from '../core/summon.js';
 import { platformAt } from '../core/terrain.js';
-import { frameCamera, type CameraView } from './camera.js';
-import {frogPowered} from '../core/frog-kit.js';
-import {cinematicOwner} from '../core/whale-kit.js';
-import {drawFrogActor,drawFrogEffects,drawFrogIntro} from './frog-art.js';
-import {drawWhaleActor,drawWhaleEntities,drawWhaleIntro} from './whale-art.js';
+import { turretBuildTicks } from '../core/turret.js';
+import { DEFAULT_RISE_FRAMES, isAttack } from '../core/types.js';
+import type { ActionDefinition, ArenaDefinition, Box, CombatEvent, FighterAction, FighterState, MatchConfig, MatchState, Summon } from '../core/types.js';
+import { cinematicOwner } from '../core/whale-kit.js';
+import { backgrounds, harborProps, harborGantry, stageKits, drawEngineeringCrate, drawGagaLaunchTrail,
+  drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose, gagaReactionPose,
+  motionArt, sprites, type PolePose } from './art.js';
+import { drawBanana } from './banana-art.js';
+import { bananaEffectLife, drawBananaEffect, drawBananaProjectile, drawBananaWave, isTearJet } from './banana-fx.js';
+import { drawBananaImpact } from './banana-hit-art.js';
+import { drawBananaWaveCutIn } from './banana-wave-art.js';
+import { frameCamera, frameDijiangLength, frameDijiangImpact, type CameraView } from './camera.js';
+import { dijiangImpactLife, drawDijiang, drawDijiangGround, drawDijiangImpact, drawDijiangPressure,
+  drawSummonCutIn } from './dijiang.js';
+import { drawFrogActor, drawFrogEffects, drawFrogIntro } from './frog-art.js';
+import { drawGagaContact, drawGagaReceive, gagaContact, type GagaContact } from './gaga-contact.js';
+import { drawPoleDust, drawPoleEarthBurst, drawPoleGroundMark, poleDustLife, poleImpactLife,
+  poleSwingFor, type PoleSwing } from './gaga-pole-fx.js';
+import { drawTurretEffect, isTurretEffect, turretEffectLife } from './gaga-turret-fx.js';
+import { drawGagaWalk, GagaWalk } from './gaga-walk.js';
+import { drawHarborScenery, drawHarborLift, drawQuay } from './harbor-art.js';
+import { drawKnockdownDust, drawKnockdownPose, knockdownPose } from './knockdown-art.js';
+import { drawStageBackdrop, drawStageMechanism, drawStageScenery } from './stage-art.js';
+import { drawWhaleActor, drawWhaleEntities, drawWhaleIntro } from './whale-art.js';
 
 export const seatColors = ['#61d8ff', '#ff849e'];
 export const recoveryLabels = { fall: '击倒', down: '倒地', rise: '起身' };
@@ -55,7 +73,8 @@ function poseFor(fighter: FighterState, action: FighterAction | undefined, frame
 function drawPose(ctx: CanvasRenderingContext2D, sheet: HTMLImageElement, pose: number, height: number, offset = 0) {
   const { cell, columns, footX, footY, referenceHeight } = motionGrid;
   const scale = height / referenceHeight;
-  ctx.drawImage(sheet, pose % columns * cell, Math.floor(pose / columns) * cell, cell, cell,
+  const sourceCell = sheet.naturalWidth / columns;
+  ctx.drawImage(sheet, pose % columns * sourceCell, Math.floor(pose / columns) * sourceCell, sourceCell, sourceCell,
     offset - footX * scale, -footY * scale, cell * scale, cell * scale);
 }
 
@@ -73,7 +92,8 @@ function poseGroundOffset(sheet: HTMLImageElement, pose: number, angle: number, 
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = cell;
     const ctx = canvas.getContext('2d')!;
-    ctx.drawImage(sheet, pose % columns * cell, Math.floor(pose / columns) * cell, cell, cell, 0, 0, cell, cell);
+    const sourceCell = sheet.naturalWidth / columns;
+    ctx.drawImage(sheet, pose % columns * sourceCell, Math.floor(pose / columns) * sourceCell, sourceCell, sourceCell, 0, 0, cell, cell);
     const pixels = ctx.getImageData(0, 0, cell, cell).data;
     contour = [];
     // Keep the lowest opaque pixel in each column. All of these tilts are between flat and upright.
@@ -103,6 +123,18 @@ function recoveryTilt(fighter: FighterState, getUp: number, gap: number, height:
   }
   return 0;
 }
+
+type Trail = [Point, Point, Point];
+
+const attackTrails: Partial<Record<string, Trail[]>> = {
+  [gagaActionIds.jab]: [[[34, -49], [67, -57], [111, -61]]],
+  [gagaActionIds.backhand]: [[[-43, -96], [32, -125], [98, -55]]],
+  [gagaActionIds.poleSweep]: [[[24, -50], [147, -19], [266, -84]]],
+  [gagaActionIds.poleBacksweep]: [[[25, -72], [162, -91], [265, -24]]],
+  [gagaActionIds.lift]: [[[24, -48], [48, -73], [78, -127]]],
+  [gagaActionIds.slide]: [[[-91, -12], [-46, -5], [28, -10]], [[-68, -21], [-38, -18], [-12, -18]]]
+};
+const rushTrails: Trail[] = [[[-89, -22], [-64, -28], [-37, -31]], [[-101, -10], [-72, -10], [-48, -13]]];
 
 function polygon(ctx: CanvasRenderingContext2D, color: string, points: Point[]) {
   ctx.fillStyle = color;
@@ -306,6 +338,12 @@ interface Effect {
   event: CombatEvent;
   start: number;
   life: number;
+  cue?: GagaContact;
+  poleSwing?: PoleSwing;
+  gagaReceives?: boolean;
+  bananaImpact?: boolean;
+  knockdownDust?: boolean;
+  shake?: number;
 }
 
 const expiresAfter: Partial<Record<CombatEvent['kind'], number>> = {
@@ -319,6 +357,10 @@ export class Renderer {
   private sceneryTop = 0;
   private effects: Effect[] = [];
   private camera: CameraView | null = null;
+  private dive: { summon: Summon; length: number } | null = null;
+  private gagaWalks = [new GagaWalk(), new GagaWalk()];
+  private previousArenaFrame?: number;
+  private previousRound?: number;
 
   constructor(canvas: HTMLCanvasElement, arena: ArenaDefinition) {
     this.ctx = canvas.getContext('2d', { alpha: false })!;
@@ -352,30 +394,121 @@ export class Renderer {
     }
     this.effects = [];
     this.camera = null;
+    this.dive = null;
+    this.gagaWalks.forEach(walk => walk.reset());
+    this.previousArenaFrame = undefined;
+    this.previousRound = undefined;
   }
 
-  add(events: CombatEvent[], frame: number) {
+  add(events: CombatEvent[], frame: number, fighters?: MatchConfig['fighters']) {
     for (const event of events) {
-      const life = event.kind === 'hit' && event.heavy ? 16 : expiresAfter[event.kind];
-      if (life) this.effects.push({ event, life, start: frame });
+      const { kind, actionId, source } = event;
+      if (kind === 'ultimate' && (actionId === bananaActionIds.wave || actionId === gagaActionIds.dijiang)) continue;
+      const actor = fighters?.[source].id;
+      const target = fighters?.[source === 0 ? 1 : 0].id;
+      const jet = isTearJet(actionId);
+      const wave = actionId === bananaActionIds.wave;
+      const poleSwing = poleSwingFor(event);
+      const cue = fighters && gagaContact(event, fighters);
+      const gagaReceives = kind === 'hit' && target === 'gaga';
+      const bananaImpact = kind === 'land' ? actor === 'banana' && event.reaction === 'air'
+        : kind === 'hit' && Boolean(event.amount) && !jet && !wave && actionId !== bananaActionIds.tear &&
+          (actor === 'banana' || target === 'banana');
+      const knockdownDust = kind === 'knockdown' && (actor === 'gaga' || actor === 'banana');
+      const bananaLife = bananaEffectLife(event);
+      let life = kind === 'hit' && event.heavy ? 16 : expiresAfter[kind];
+      let shake: number | undefined;
+
+      if (kind === 'tear-splash') {
+        life = bananaLife;
+        shake = 5;
+      } else if (isTurretEffect(event)) {
+        life = turretEffectLife[event.kind];
+        if (event.kind === 'grenade-impact') shake = 9;
+        if (event.kind === 'turret-burst' || event.kind === 'turret-ready') shake = 6;
+      } else if (poleSwing) {
+        life = poleDustLife;
+      } else if (kind === 'pole-impact') {
+        life = poleImpactLife;
+        shake = 8.5;
+      } else if (kind === 'summon-impact') {
+        life = dijiangImpactLife;
+      } else if (kind === 'summon-catch') {
+        life = 14;
+      } else if (knockdownDust) {
+        life = 22;
+      } else if (bananaImpact) {
+        life = kind === 'land' ? 22 : 19;
+      } else if (bananaLife) {
+        life = bananaLife;
+      } else if (cue || gagaReceives) {
+        life = cue === 'light' || event.impact === 'light' ? 14 : event.impact === 'heavy' ? 22 : 23;
+      }
+
+      if (kind === 'swing' && (jet || wave)) {
+        shake = wave ? 11 : actionId === bananaActionIds.uppercut ? 8 : 5.5;
+        life = Math.ceil(shake);
+      } else if ((kind === 'hit' || kind === 'break') && (jet || wave || cue || gagaReceives || bananaLife)) {
+        const strength = jet ? (actionId === bananaActionIds.uppercut ? 13 : 8)
+          : event.impact === 'heavy' ? 10 : event.impact === 'light' ? 2.5 : 4;
+        shake = Math.max(wave ? 16 : 0, event.feedback?.shake ?? strength);
+      }
+      if (life) this.effects.push({ event, life, start: frame, cue, poleSwing, gagaReceives, bananaImpact, knockdownDust, shake });
     }
   }
 
-  draw(config: MatchConfig, state: MatchState, debug: boolean, elapsed: number, shakeEnabled: boolean, focus = false, opening = 0, presentationFraction = 0) {
+  draw(config: MatchConfig, state: MatchState, debug: boolean, elapsed: number, shakeEnabled: boolean, focus = false,
+    reducedMotion = false, opening = 0, presentationFraction = 0) {
     const ctx = this.ctx;
     const { width, height } = ctx.canvas;
     // A seek can jump across camera framing or a cinematic: redraw from a clean frame.
-    ctx.resetTransform();ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
-    ctx.clearRect(0,0,width,height);
+    ctx.resetTransform();
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0, 0, width, height);
+    const arenaFrame = state.arenaFrame;
+    if (this.previousRound !== state.round || arenaFrame < (this.previousArenaFrame ?? 0)) {
+      this.camera = null;
+      this.dive = null;
+      this.gagaWalks.forEach(walk => walk.reset());
+    }
+    const motionFrames = Math.max(0, arenaFrame - (this.previousArenaFrame ?? arenaFrame));
+    this.previousRound = state.round;
+    this.previousArenaFrame = arenaFrame;
+    this.effects = this.effects.filter(({ start, life }) => arenaFrame >= start && arenaFrame - start < life);
+
+    if (state.cutIn) {
+      drawBananaWaveCutIn(ctx, state.cutIn, reducedMotion);
+      return;
+    }
+    const summon = state.summon;
+    if (summon?.phase === 'cut-in') {
+      drawSummonCutIn(ctx, summon.frame, reducedMotion);
+      return;
+    }
+
     const [a, b] = state.fighters;
-    this.effects = this.effects.filter(({ start, life }) => state.arenaFrame >= start && state.arenaFrame - start < life);
-    const heights = ([0,1] as const).map(seat=>(artSizes.get(config.fighters[seat].id)??137)+(frogPowered(state.fighters[seat],state)?52:0));
-    const camera = frameCamera(config.arena, { width, height },
+    const heights = ([0, 1] as const).map(seat =>
+      (artSizes.get(config.fighters[seat].id) ?? 137) + (frogPowered(state.fighters[seat], state) ? 52 : 0));
+    const jetTips = ([0, 1] as const).flatMap(seat => {
+      const fighter = state.fighters[seat];
+      const action = actionFor(config, state, seat);
+      if (!isAttack(action) || action.id !== bananaActionIds.pressure || !fighter.attack ||
+        fighter.attack.frame >= action.startup + action.active + 7) return [];
+      const box = worldBox(action.hitbox, fighter.x, fighter.y, fighter.facing);
+      const tip = fighter.facing === 1 ? box.x + box.w : box.x;
+      return [{ x: Math.max(0, Math.min(config.arena.width, tip)), y: Math.max(0, box.y) }];
+    });
+    const frozen = state.phase === 'fight' && (state.freeze > 0 || cinematicOwner(state) !== undefined);
+    const framing = frameCamera(config.arena, { width, height },
       [{ x: a.x, y: a.y, height: heights[0] }, { x: b.x, y: b.y, height: heights[1] }],
-      this.camera, state.phase === 'fight' && (state.freeze || cinematicOwner(state)!==undefined) ? 0 : elapsed, focus, opening);
-    this.camera = camera;
+      this.camera, frozen ? 0 : elapsed, focus, opening, summon, jetTips);
+    this.camera = framing;
+    const impact = this.effects.find(effect => effect.event.kind === 'summon-impact');
+    const camera = impact && shakeEnabled && !reducedMotion
+      ? frameDijiangImpact(config.arena, { width, height }, framing, impact.event, arenaFrame - impact.start) : framing;
     const { x, y, zoom } = camera;
-    const [shakeX, shakeY] = shakeEnabled ? this.shakeOffset(state.arenaFrame) : [0, 0];
+    const [shakeX, shakeY] = shakeEnabled && !reducedMotion ? this.shakeOffset(arenaFrame) : [0, 0];
     const dx = Math.min(x * zoom, Math.max(width - (config.arena.width - x) * zoom, shakeX));
     const dy = Math.min(y * zoom, Math.max(height - (config.arena.height - y) * zoom, shakeY));
     ctx.setTransform(zoom, 0, 0, zoom, -x * zoom + dx, -y * zoom + dy);
@@ -391,7 +524,25 @@ export class Renderer {
     ctx.fillStyle = layered ? '#10153312' : '#10153324';
     ctx.fillRect(x - dx / zoom, y - dy / zoom, width / zoom, height / zoom);
 
-    const decks = config.arena.platforms.map(p => platformAt(p, state.arenaFrame));
+    const decks = config.arena.platforms.map(p => platformAt(p, arenaFrame));
+    if (summon?.phase === 'fall') {
+      drawDijiangPressure(ctx, summon.x, summon.y, summon.frame / summonFallFrames, reducedMotion);
+    } else if (impact && arenaFrame - impact.start < 24) {
+      const { event, start } = impact;
+      drawDijiangPressure(ctx, event.x, event.y, 1, reducedMotion, 1 - (arenaFrame - start) / 24);
+    }
+    for (const { event, start } of this.effects) {
+      if (event.kind !== 'pole-impact' && event.kind !== 'summon-impact') continue;
+      ctx.save();
+      ctx.translate(event.x, event.y);
+      const age = arenaFrame - start;
+      if (event.kind === 'pole-impact' && event.surface) {
+        drawPoleGroundMark(ctx, age, event.surface.left - event.x, event.surface.right - event.x);
+      } else if (event.kind === 'summon-impact') {
+        drawDijiangGround(ctx, age, config.arena.left - event.x, config.arena.right - event.x);
+      }
+      ctx.restore();
+    }
     if (debug) {
       ctx.strokeStyle = '#fff4d9';
       ctx.lineWidth = 2;
@@ -405,8 +556,33 @@ export class Renderer {
       ctx.setLineDash([]);
     }
 
-    drawWhaleEntities(ctx,state,config,'back',presentationFraction);
-    drawFrogEffects(ctx,state,config,'back');
+    if (summon && this.dive?.summon !== summon) {
+      this.dive = { summon, length: frameDijiangLength({ width, height }, framing) };
+    } else if (!summon) {
+      this.dive = null;
+    }
+    const carrying = summon?.phase === 'fall' && summon.carry;
+    if (carrying && summon && this.dive) drawDijiang(ctx, summon, this.dive.length, debug, reducedMotion);
+
+    const swingTrails: { paths: Trail[]; x: number; y: number; facing: number; alpha: number; wide: boolean }[] = [];
+    const poles: { pose: PolePose; x: number; y: number; facing: number; action: ActionDefinition; frame: number }[] = [];
+    for (const turret of Object.values(state.turrets)) {
+      if (!turret) continue;
+      drawTurret(ctx, turret);
+      if (turret.age >= turretBuildTicks) {
+        const y = turret.y - (turret.kind === 'bolt' ? 142 : 136);
+        for (let i = 0; i < 2; i++) {
+          ctx.fillStyle = '#111533';
+          ctx.fillRect(turret.x - 15 + i * 16, y, 13, 5);
+          if (i < turret.hp) {
+            ctx.fillStyle = seatColors[turret.owner];
+            ctx.fillRect(turret.x - 14 + i * 16, y + 1, 11, 3);
+          }
+        }
+      }
+    }
+    drawWhaleEntities(ctx, state, config, 'back', reducedMotion ? 0 : presentationFraction);
+    drawFrogEffects(ctx, state, config, 'back');
     const riseFrames = recoveryDuration(config.rules.riseFrames, DEFAULT_RISE_FRAMES);
     const front = a.attack && b.hitstun ? [1, 0] as const : [0, 1] as const;
     for (const seat of front) {
@@ -415,15 +591,30 @@ export class Renderer {
       const sprite = sprites[def.id];
       const sheet = motionArt[def.id];
       const color = seatColors[seat];
-      const action = actionFor(config, state, seat);
+      const move = actionFor(config, state, seat);
+      const action = isAttack(move) ? move : undefined;
       const phase = f.attack?.frame ?? 0;
-      const active = action && isActiveFrame(action, phase) ? action : undefined;
-      const strike = active && !('counterTo' in active) ? active : undefined;
+      const active = move && isActiveFrame(move, phase);
+      const strike = active ? action : undefined;
       const hitboxes = strike && (state.phase === 'fight' || state.freeze > 0) ? hitRegionsFor(strike, phase) : [];
-      const stance = active && 'counterTo' in active && f.ground;
+      const stance = active && !action && f.ground;
       const height = heights[seat];
       const getUp = f.recovery?.phase === 'rise' ? (riseFrames - f.recovery.remaining) / Math.max(1, riseFrames - 1) : 0;
-      const pose = poseFor(f, action, state.arenaFrame, getUp);
+      const pose = poseFor(f, move, arenaFrame, getUp);
+      const isGaga = def.id === 'gaga';
+      const isBanana = def.id === 'banana';
+      const sharedArt = def.id !== 'whale' && def.id !== 'frog';
+      const fallingPose = knockdownPose(def.id, f, getUp);
+      const canDrawAction = isGaga && action && f.hp && !f.recovery && !f.hitstun;
+      const gagaPose = canDrawAction ? gagaActionPose(action, phase, Boolean(f.ground)) : undefined;
+      const reaction = isGaga && f.hp && !action && !f.walk && !f.dash && !f.guarding ? f.reaction : undefined;
+      const hurtPose = reaction ? gagaReactionPose(reaction, f.vy) : undefined;
+      const drawnPose = hurtPose ?? gagaPose;
+      const canWalk = isGaga && f.ground && f.hp && !move && !f.guarding && !f.dash &&
+        !f.hitstun && !f.blockstun && !f.guardBreak && !f.recovery;
+      const walk = this.gagaWalks[seat];
+      if (!canWalk) walk.reset();
+      const walkPose = canWalk && !hurtPose ? walk.sample(f.walk, motionFrames) : undefined;
       const ground = decks.reduce((y, platform) =>
         f.x >= platform.left && f.x <= platform.right && platform.y >= f.y && platform.id !== f.ignorePlatform
           ? Math.min(y, platform.y) : y,
@@ -437,56 +628,100 @@ export class Renderer {
 
       ctx.save();
       ctx.translate(f.x, f.y);
-      ctx.scale(f.facing, 1);
-      if(def.id==='whale'){
-        const flash=this.hitFlash(seat,state.arenaFrame,f.hitstun>0&&state.freeze>0);
-        if(flash>0)ctx.filter=`brightness(${1+flash*.36})`;
-        drawWhaleActor(ctx,f,state,seat,action);ctx.filter='none';
-      }else if(def.id==='frog'){drawFrogActor(ctx,f,state,action,seat);
-      }else{
-      const spriteWidth = sprite?.naturalWidth ? height * sprite.naturalWidth / sprite.naturalHeight : 0;
-      if (tilt && pose !== undefined) {
-        const bottom = sheet?.naturalWidth
-          ? poseGroundOffset(sheet, pose, tilt, height)
-          : spriteWidth * .51 * recline;
-        // The standing hurt art keeps limbs spread. Settle that silhouette toward the surface as it lies flat.
-        const postureHeight = 1 - .44 * recline ** 4;
-        ctx.translate(height * .43 * recline, -bottom * postureHeight);
-        ctx.scale(1, postureHeight);
-        ctx.rotate(tilt);
-      }
-      if (f.dash && sheet?.naturalWidth && pose !== undefined) {
-        ctx.globalAlpha = .18;
-        drawPose(ctx, sheet, pose, height, -48);
-        ctx.globalAlpha = .34;
-        drawPose(ctx, sheet, pose, height, -23);
+      ctx.scale(fallingPose?.facing ?? (hurtPose && reaction ? reaction.facing : f.facing), 1);
+      const flash = this.hitFlash(seat, arenaFrame, f.hitstun > 0 && state.freeze > 0);
+      if (def.id === 'whale') {
+        if (flash > 0) ctx.filter = `brightness(${1 + flash * .36})`;
+        drawWhaleActor(ctx, f, state, seat, move);
+      } else if (def.id === 'frog') {
+        drawFrogActor(ctx, f, state, move, seat);
+      } else {
+        const spriteWidth = sprite?.naturalHeight ? height * sprite.naturalWidth / sprite.naturalHeight : 0;
+        const drawFromSheet = !isGaga && !isBanana && Boolean(sheet?.naturalWidth) && pose !== undefined;
+        if (!fallingPose && !drawnPose?.image && !isBanana && tilt && pose !== undefined) {
+          const bottom = drawFromSheet
+            ? poseGroundOffset(sheet, pose, tilt, height)
+            : spriteWidth * .51 * recline;
+          // The standing hurt art keeps limbs spread. Settle its silhouette toward the playing surface.
+          const postureHeight = 1 - .44 * recline ** 4;
+          ctx.translate(height * .43 * recline, -bottom * postureHeight);
+          ctx.scale(1, postureHeight);
+          ctx.rotate(tilt);
+        } else if (isGaga && !fallingPose) {
+          let scaleY = drawnPose || walkPose ? 1 : 1 + Math.sin(arenaFrame * .16) * .0084;
+          if (f.hitstun && !hurtPose) {
+            const reeling = Math.abs(f.push) >= 15;
+            ctx.rotate(reeling ? -.38 : -.20);
+            scaleY = reeling ? .88 : .94;
+          } else if (f.dash) {
+            ctx.rotate(.20);
+            scaleY = .87;
+          } else if (f.guarding) {
+            scaleY = .83;
+          } else if (strike && !gagaPose) {
+            ctx.rotate(strike.pose === 'rise' ? -.14 : .12);
+          } else if (!f.ground && !drawnPose) {
+            ctx.rotate(f.vy < 0 ? -.085 : .085);
+          }
+          ctx.scale(2 - scaleY, scaleY);
+          if (!hurtPose && gagaPose?.rotation) ctx.rotate(gagaPose.rotation);
+        }
+        if (f.dash && drawFromSheet && !reducedMotion) {
+          ctx.globalAlpha = .18;
+          drawPose(ctx, sheet, pose, height, -48);
+          ctx.globalAlpha = .34;
+          drawPose(ctx, sheet, pose, height, -23);
+          ctx.globalAlpha = 1;
+        }
+        if (!fallingPose && f.recovery?.phase === 'rise') ctx.globalAlpha = .83;
+        ctx.shadowColor = color + 'ae';
+        ctx.shadowBlur = 9;
+        if (flash > 0) ctx.filter = `brightness(${1 + flash * .36})`;
+        else if (hurtPose && reaction && reaction.elapsed < 2) ctx.filter = 'brightness(1.45) saturate(.7)';
+        if (fallingPose) {
+          drawKnockdownPose(ctx, fallingPose, height, reducedMotion);
+        } else if (isBanana) {
+          drawBanana(ctx, f, action, arenaFrame, reducedMotion);
+        } else if (drawnPose?.image) {
+          const { image, region, scaleX, scaleY } = drawnPose;
+          ctx.drawImage(image, region.x, region.y, region.width, region.height,
+            -region.footX * scaleX, -region.footY * scaleY, region.width * scaleX, region.height * scaleY);
+        } else if (walkPose && spriteWidth) {
+          drawGagaWalk(ctx, sprite, height, walkPose);
+        } else if (drawFromSheet) {
+          drawPose(ctx, sheet, pose, height, strike && hitboxes.length && !strike.animation?.length ? 8 : 0);
+        } else if (spriteWidth) {
+          const breathe = pose === undefined ? Math.sin(arenaFrame * .10) * 1.4 : 0;
+          const lean = isGaga && strike ? 9 : 0;
+          ctx.drawImage(sprite, -spriteWidth * .51 + lean, -height - breathe, spriteWidth, height + breathe);
+        }
+        ctx.filter = 'none';
+        ctx.shadowBlur = 0;
         ctx.globalAlpha = 1;
-      }
-      if (f.recovery?.phase === 'rise') ctx.globalAlpha = .83;
-      ctx.shadowColor = color + 'ae';
-      ctx.shadowBlur = 9;
-      const flash = this.hitFlash(seat, state.arenaFrame, f.hitstun > 0 && state.freeze > 0);
-      if (flash > 0) ctx.filter = `brightness(${1 + flash * .36})`;
-      if (sheet?.naturalWidth && pose !== undefined) {
-        drawPose(ctx, sheet, pose, height, strike && hitboxes.length && !strike.animation?.length ? 8 : 0);
-      } else if (spriteWidth) {
-        const breathe = pose === undefined ? Math.sin(state.arenaFrame * .10) * 1.4 : 0;
-        ctx.drawImage(sprite, -spriteWidth * .51, -height - breathe, spriteWidth, height + breathe);
-      }
-      ctx.filter = 'none';
-      ctx.shadowBlur = 0;
-      ctx.globalAlpha = 1;
-      if (f.guarding || stance) {
-        ctx.strokeStyle = stance ? '#ffde85' : f.blockstun ? '#81e7ff' : '#afdfff93';
-        ctx.lineWidth = f.blockstun ? 5 : 3;
-        ctx.beginPath();
-        ctx.ellipse(15, -60, 48, 56, 0, -1.33, 1.32);
-        ctx.stroke();
-      }
+        if (gagaPose?.heldCrate) {
+          drawEngineeringCrate(ctx, gagaPose.heldCrate.kind, gagaPose.heldCrate.x, gagaPose.heldCrate.y, -.16);
+        }
+        if (gagaPose?.pole && action) {
+          poles.push({ pose: gagaPose.pole, x: f.x, y: f.y, facing: f.facing, action, frame: phase });
+        }
+        const trails = gagaPose?.rushing ? rushTrails : strike && gagaPose && attackTrails[strike.id];
+        if (trails && action) {
+          const sustained = gagaPose?.rushing || action.id === gagaActionIds.slide;
+          const alpha = sustained ? .54 : .76 * (1 - (phase - action.startup) / action.active);
+          swingTrails.push({ paths: trails, x: f.x, y: f.y, facing: f.facing,
+            alpha, wide: Boolean(gagaPose?.pole) || action.impact === 'heavy' });
+        }
+        if (f.guarding || stance) {
+          ctx.strokeStyle = stance ? '#ffde85' : f.blockstun ? '#81e7ff' : '#afdfff93';
+          ctx.lineWidth = f.blockstun ? 5 : 3;
+          ctx.beginPath();
+          ctx.ellipse(15, -60, 48, 56, 0, -1.33, 1.32);
+          ctx.stroke();
+        }
       }
       ctx.restore();
 
-      if (strike && def.id!=='whale' && def.id!=='frog') {
+      if (strike && sharedArt && !isBanana && !gagaPose) {
         for (const hitbox of hitboxes) {
           drawSwing(ctx, f, hitbox, strike.pose, (phase - strike.startup) / strike.active, color);
         }
@@ -497,7 +732,7 @@ export class Renderer {
         if (f.hp && !f.recovery) {
           ctx.fillStyle = '#27d7ee24';
           ctx.strokeStyle = '#4ce2e8';
-          for (const region of hurtRegionsFor(def, action, phase)) {
+          for (const region of hurtRegionsFor(def, move, phase)) {
             const hurt = worldBox(region, f.x, f.y, f.facing);
             ctx.fillRect(hurt.x, hurt.y, hurt.w, hurt.h);
             ctx.strokeRect(hurt.x, hurt.y, hurt.w, hurt.h);
@@ -515,10 +750,63 @@ export class Renderer {
       }
     }
 
-    for (const entity of state.entities ?? []) if(!entity.definition.behavior)drawEntity(ctx, entity, debug);
-    drawWhaleEntities(ctx,state,config,'front',presentationFraction);
-    drawFrogEffects(ctx,state,config,'front');
-    this.drawEffects(state.arenaFrame, Boolean(config.training));
+    for (const pole of poles) {
+      ctx.save();
+      ctx.translate(pole.x, pole.y);
+      ctx.scale(pole.facing, 1);
+      if (pole.action.id === gagaActionIds.poleLaunch) drawGagaLaunchTrail(ctx, pole.action, pole.frame);
+      drawGagaPole(ctx, pole.pose);
+      ctx.restore();
+    }
+    for (const projectile of state.projectiles) {
+      const data = config.fighters[projectile.source].actions.filter(isAttack).find(move => move.id === projectile.actionId)?.projectile;
+      if (!data) continue;
+      if (data.kind === 'crate' && data.turret) {
+        const pitch = Math.atan2(projectile.vy, Math.abs(projectile.vx)) * .20 * projectile.facing;
+        drawEngineeringCrate(ctx, data.turret, projectile.x, projectile.y, pitch);
+      } else if (data.kind === 'bolt') {
+        drawTurretBolt(ctx, projectile);
+      } else if (data.kind === 'grenade') {
+        drawGrenade(ctx, projectile);
+      } else if (data.kind === 'tear') {
+        drawBananaProjectile(ctx, projectile, data);
+      } else if (data.kind === 'wave') {
+        drawBananaWave(ctx, projectile, data, reducedMotion);
+      } else {
+        drawThrownPole(ctx, projectile, data);
+      }
+      if (debug) {
+        const halfWidth = data.halfWidth ?? data.radius;
+        ctx.strokeStyle = '#ff5a6e';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(projectile.x - halfWidth, projectile.y - data.radius, halfWidth * 2, data.radius * 2);
+      }
+    }
+    for (const entity of state.entities ?? []) {
+      if (!entity.definition.behavior) drawEntity(ctx, entity, debug);
+    }
+    drawWhaleEntities(ctx, state, config, 'front', reducedMotion ? 0 : presentationFraction);
+    drawFrogEffects(ctx, state, config, 'front');
+    for (const trail of swingTrails) {
+      ctx.save();
+      ctx.translate(trail.x, trail.y);
+      ctx.scale(trail.facing, 1);
+      ctx.globalAlpha = trail.alpha;
+      ctx.strokeStyle = '#fff1c0';
+      ctx.lineWidth = trail.wide ? 7 : 4;
+      ctx.lineCap = 'round';
+      for (const [from, control, to] of trail.paths) {
+        ctx.beginPath();
+        ctx.moveTo(...from);
+        ctx.quadraticCurveTo(...control, ...to);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    if (!carrying && summon && this.dive) {
+      drawDijiang(ctx, summon, this.dive.length, debug, reducedMotion);
+    }
+    this.drawEffects(arenaFrame, Boolean(config.training), reducedMotion);
     ctx.resetTransform();
     for (const seat of [0, 1] as const) {
       const f = state.fighters[seat];
@@ -544,8 +832,8 @@ export class Renderer {
     if (debug || Math.abs(a.x - b.x) > width / zoom * .7) {
       this.drawPositionStrip(config.arena, [a.x, b.x], camera);
     }
-    drawWhaleIntro(ctx,config,state,presentationFraction);
-    drawFrogIntro(ctx,config,state);
+    drawWhaleIntro(ctx, config, state, reducedMotion ? 0 : presentationFraction);
+    drawFrogIntro(ctx, config, state);
   }
 
   private drawPositionStrip(arena: ArenaDefinition, fighters: [number, number], camera: CameraView) {
@@ -572,16 +860,17 @@ export class Renderer {
   private shakeOffset(frame: number): Point {
     let offset: Point = [0, 0];
     let remaining = 0;
-    for (const { event, start } of this.effects) {
-      if (event.kind !== 'hit' && event.kind !== 'break') continue;
-      const heavy = event.heavy || event.kind === 'break';
-      const strength = event.kind === 'hit' ? event.feedback?.shake : undefined;
+    for (const { event, start, shake } of this.effects) {
+      if (shake === undefined && event.kind !== 'hit' && event.kind !== 'break') continue;
+      const heavy = event.heavy || event.kind === 'break' || (shake ?? 0) >= 8;
+      const strength = shake ?? Math.min(10, event.feedback?.shake ?? (heavy ? 8 : 3));
+      if (strength <= 0) continue;
       const age = frame - start;
-      const weight = Math.min(10, strength ?? (heavy ? 8 : 3)) * Math.max(0, 1 - age / (heavy ? 9 : 5));
+      const weight = strength * Math.max(0, 1 - age / (shake ?? (heavy ? 9 : 5)));
       if (weight <= remaining) continue;
       remaining = weight;
       const pulse = Math.cos(age * 2.3) * weight;
-      offset = [pulse * (event.direction ?? 1) * (heavy ? .45 : .8), -pulse * (heavy ? .9 : .24)];
+      offset = [pulse * (event.direction ?? event.facing ?? 1) * (heavy ? .45 : .8), -pulse * (heavy ? .9 : .24)];
     }
     return offset;
   }
@@ -597,7 +886,7 @@ export class Renderer {
     return frozenInHitstun ? 1 : 0;
   }
 
-  private drawEffects(frame: number, training: boolean) {
+  private drawEffects(frame: number, training: boolean, reducedMotion: boolean) {
     const ctx = this.ctx;
     const latestHit: [Effect | undefined, Effect | undefined] = [undefined, undefined];
     if (training) {
@@ -606,13 +895,32 @@ export class Renderer {
       }
     }
     for (const effect of this.effects) {
-      const { event, start, life } = effect;
+      const { event, start, life, cue, poleSwing, bananaImpact, gagaReceives, knockdownDust } = effect;
+      if (event.kind === 'swing' && !poleSwing) continue;
       const age = frame - start;
       const color = event.kind === 'block' ? '#84e8ff' : event.kind === 'break' ? '#ff8c88' : event.feedback?.color ?? '#ffdfa0';
       ctx.save();
       ctx.globalAlpha = Math.min(1, (life - age) / 6);
       ctx.translate(event.x, event.y);
-      if (event.kind === 'ultimate') {
+      if (poleSwing) {
+        drawPoleDust(ctx, poleSwing, age, event.facing);
+      } else if (event.kind === 'pole-impact') {
+        drawPoleEarthBurst(ctx, age, event.facing);
+      } else if (event.kind === 'summon-impact') {
+        drawDijiangImpact(ctx, age, reducedMotion);
+      } else if (event.kind === 'summon-catch') {
+        drawGagaContact(ctx, 'heavy', age, event.facing);
+      } else if (isTurretEffect(event)) {
+        drawTurretEffect(ctx, event, age);
+      } else if (bananaEffectLife(event)) {
+        drawBananaEffect(ctx, event, age, life);
+      } else if (cue) {
+        drawGagaContact(ctx, cue, age, event.facing ?? event.direction);
+      } else if (knockdownDust) {
+        drawKnockdownDust(ctx, age);
+      } else if (bananaImpact && event.kind === 'land') {
+        drawBananaImpact(ctx, event, age, life, reducedMotion);
+      } else if (event.kind === 'ultimate') {
         ctx.strokeStyle = '#efd28a';
         ctx.lineWidth = 3;
         ctx.beginPath();
@@ -651,7 +959,7 @@ export class Renderer {
         ctx.strokeStyle = '#fff2cf';
         ctx.lineWidth = 3;
         ctx.beginPath();ctx.arc(0, 0, 10 + age * 1.7, 0, Math.PI * 2);ctx.stroke();
-      } else {
+      } else if (!bananaImpact) {
         const heavy = event.heavy || event.kind === 'break';
         if (heavy) {
           const radius = 24 + age * 2.25;
@@ -671,16 +979,18 @@ export class Renderer {
         ctx.fillStyle = color;
         for (let i = 0; i < 5; i++) ctx.fillRect(19 + age * (1.3 + i * .12), (i - 2) * (12 + age * .42), 7, 2);
         ctx.restore();
-        if (event.amount && latestHit[event.source] === effect) {
-          const offset = 42 * (event.direction ?? 1);
-          ctx.font = '950 20px system-ui';
-          ctx.textAlign = 'center';
-          ctx.strokeStyle = '#181934';
-          ctx.lineWidth = 5;
-          ctx.strokeText(String(event.amount), offset, -99 - age);
-          ctx.fillStyle = '#fff4b9';
-          ctx.fillText(String(event.amount), offset, -99 - age);
-        }
+      }
+      if (bananaImpact && event.kind === 'hit') drawBananaImpact(ctx, event, age, life, reducedMotion);
+      if (gagaReceives) drawGagaReceive(ctx, age, event.facing ?? event.direction);
+      if (event.amount && latestHit[event.source] === effect) {
+        const offset = 42 * (event.direction ?? 1);
+        ctx.font = '950 20px system-ui';
+        ctx.textAlign = 'center';
+        ctx.strokeStyle = '#181934';
+        ctx.lineWidth = 5;
+        ctx.strokeText(String(event.amount), offset, -99 - age);
+        ctx.fillStyle = '#fff4b9';
+        ctx.fillText(String(event.amount), offset, -99 - age);
       }
       ctx.restore();
     }

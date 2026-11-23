@@ -1,5 +1,9 @@
 import type { EntityDefinition, EntityState } from './entities.js';
 
+export type Impact = 'light' | 'medium' | 'heavy';
+export const turretKinds = ['bolt', 'howitzer'] as const;
+export type TurretKind = typeof turretKinds[number];
+
 export type Side = -1 | 1;
 export type Slot = 'A' | 'B' | 'C' | 'ULT';
 export type Direction = 'up' | 'down' | 'forward' | 'back';
@@ -15,7 +19,7 @@ export interface Stick {
 export interface InputFrame extends Stick {
   pressed: ActionKey[];
   held?: ActionKey[];
-  sampled?: Partial<Record<ActionKey, Stick>>;
+  sampled?: Partial<Record<ActionKey, Stick>> | readonly Stick[];
 }
 
 export interface Box {
@@ -87,6 +91,21 @@ interface ActionTiming {
   hurtTimeline?: BoxWindow[];
 }
 
+export interface ProjectileDefinition {
+  kind?: 'crate' | 'bolt' | 'grenade' | 'tear' | 'wave';
+  life?: number;
+  turret?: TurretKind;
+  blastRadius?: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  gravity: number;
+  reach: number;
+  radius: number;
+  halfWidth?: number;
+}
+
 export interface ActionDefinition extends ActionTiming {
   /** Authored whale kit hooks; serialized state, no renderer-side combat logic. */
   whale?: 'rice' | 'rice-up' | 'spin' | 'spin-up' | 'counter' | 'eat' | 'open-source';
@@ -96,6 +115,20 @@ export interface ActionDefinition extends ActionTiming {
   guardHitsToBreak?: number;
   fixedDamage?: boolean;
   hitbox: Box;
+  summon?: true;
+  cutIn?: { at: number; duration: number };
+  unblockable?: boolean;
+  tearCost?: number;
+  channel?: 'spray' | 'cry';
+  slow?: number;
+  advanceFrom?: number;
+  advanceUntil?: number;
+  activeAdvance?: number;
+  chain?: { actionId: string; open: number; close: number };
+  swingOnActive?: boolean;
+  swingLead?: number;
+  projectile?: ProjectileDefinition;
+  impact?: Impact;
   /** Skill energy paid once when the action starts. */
   energyCost?: number;
   /** The first overlapping unconsumed group connects on each active frame. */
@@ -127,6 +160,10 @@ export interface CounterStance extends ActionTiming {
 
 export type FighterAction = ActionDefinition | CounterStance;
 
+export function isAttack(action: FighterAction | undefined): action is ActionDefinition {
+  return Boolean(action && !('counterTo' in action));
+}
+
 export interface UltimateGain {
   onHit?: number;
   onHurt?: number;
@@ -150,6 +187,7 @@ export interface FighterDefinition {
   guardCounter?: { windowFrames: number; actionId: string; whileGuarding?: boolean };
   ultimateCost?: number;
   ultimateGain?: UltimateGain;
+  usesTears?: boolean;
 }
 
 export interface Platform {
@@ -229,10 +267,28 @@ export interface Attack {
   connected: boolean;
   landed: boolean;
   connectedGroups?: string[];
+  queuedChain?: string[];
+  released?: boolean;
+  sustainedFrames?: number;
+  hitTurrets?: TurretKind[];
+  projectileSpawned?: boolean;
   spawnedEntities?: string[];
 }
 
-export type Recovery = { phase: 'fall' } | { phase: 'down' | 'rise'; remaining: number };
+export type Recovery = { facing?: Side } &
+  ({ phase: 'fall' } | { phase: 'down' | 'rise'; remaining: number });
+
+export interface WalkState {
+  direction: 'forward' | 'back';
+  distance: number;
+}
+
+export interface HitReaction {
+  kind: 'light' | 'heavy' | 'air';
+  elapsed: number;
+  facing: Side;
+  landedAt?: number;
+}
 
 export interface FighterState {
   ascendUntil?: number;
@@ -258,7 +314,11 @@ export interface FighterState {
   ground: string | null;
   ignorePlatform: string | null;
   hp: number;
-  energy?: number;
+  energy: number;
+  slow: number;
+  tearUnits?: number;
+  walk?: WalkState;
+  reaction?: HitReaction;
   guard: number;
   guardWait: number;
   guardBreak: number;
@@ -284,7 +344,35 @@ export interface FighterState {
   moving: boolean;
 }
 
+export interface Projectile {
+  actionId: string;
+  source: 0 | 1;
+  facing: Side;
+  // Position of the leading tip in world space.
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  connected: boolean;
+  age?: number;
+  hitTurrets?: TurretKind[];
+}
+
+export interface Turret {
+  kind: TurretKind;
+  owner: 0 | 1;
+  x: number;
+  y: number;
+  age: number;
+  hp: number;
+  facing: Side;
+  support?: string;
+}
+
 export type EventKind = 'swing' | 'ultimate' | 'ultimate-no-energy' | 'hit' | 'block' | 'parry' | 'break' | 'whiff' | 'dash' | 'dash-no-stamina' | 'jump' | 'air-jump' |
+  'pole-impact' | 'turret-land' | 'turret-ready' | 'turret-fire' | 'turret-burst' | 'grenade-impact' |
+  'tear-splash' | 'tears-short' | 'wave-windup' | 'wave-cut-in' | 'wave-unavailable' |
+  'summon-start' | 'summon-confirm' | 'summon-drop' | 'summon-catch' | 'summon-impact' |
   'drop' | 'land' | 'knockdown' | 'rise' | 'ko' | 'action-audio';
 export interface CombatEvent {
   kind: EventKind;
@@ -292,6 +380,14 @@ export interface CombatEvent {
   x: number;
   y: number;
   amount?: number;
+  impact?: Impact;
+  actionId?: string;
+  reaction?: HitReaction['kind'];
+  facing?: Side;
+  radius?: number;
+  turretKind?: TurretKind;
+  surface?: { left: number; right: number };
+  requirement?: 'ground' | 'recovery';
   chain?: number;
   direction?: Side;
   heavy?: boolean;
@@ -319,14 +415,38 @@ export interface MatchState {
   fighters: Duo<FighterState>;
   result: RoundResult | null;
   winner: 0 | 1 | null;
+  projectiles: Projectile[];
+  turrets: Record<TurretKind, Turret | null>;
+  summon?: Summon;
+  cutIn?: CutIn;
   entities?: EntityState[];
   nextEntityId?: number;
   randomState?: number;
+}
+
+export interface CutIn {
+  source: 0 | 1;
+  frame: number;
+  duration: number;
+}
+
+export interface Summon {
+  source: 0 | 1;
+  actionId: string;
+  facing: Side;
+  x: number;
+  y: number;
+  rise: number;
+  phase: 'cut-in' | 'fall' | 'impact';
+  frame: number;
+  carry?: { x: number; y: number; frame: number };
 }
 
 export const TICK_RATE = 60;
 export const DEFAULT_KNOCKDOWN_FRAMES = 30;
 export const DEFAULT_RISE_FRAMES = 18;
 export const ENERGY_PER_STOCK = 100;
+export const TEAR_UNITS_PER_POINT = TICK_RATE;
+export const MAX_TEARS = 100;
 export const MAX_ENERGY = 3 * ENERGY_PER_STOCK;
 export const NEUTRAL: InputFrame = { x: 0, y: 0, pressed: [] };

@@ -1,15 +1,15 @@
 # 角色制作交接
 
-两位角色制作者可以并行工作。先认领角色，各自在对应的 TypeScript 文件里填写属性、素材路径和动作。四个角色已经接入选角、对局和自由训练，目前都能使用公共动作，B、C 和独立大招槽留给你们填写。具体人选、角色设定和技能数值由你们决定。
+四位角色均已接入队友的专属动作、技能、音效和大招；框架负责输入、资源、碰撞、实体、倒地、声音和预览。后续从最新 `main` 继续开发角色，保留已有 ID 和队友的配置，不用再从公共占位动作重新搭建。默认 P1 用 O，P2 用单引号或小键盘 6 释放已配置大招。
 
 ## 找到自己的入口
 
 | 角色 | 配置文件 | 当前立绘 | 当前动作图集 |
 |---|---|---|---|
-| DeepSeek 鲸鱼娘 | [whale.ts](../src/content/fighters/whale.ts) | [whale.webp](../assets/fighters/whale.webp) | [whale-motion.webp](../assets/fighters/whale-motion.webp) |
+| 大肥鱼 | [whale.ts](../src/content/fighters/whale.ts) | [常态.webp](../assets/fighters/大肥鱼/常态.webp) | [完整动作.webp](../assets/fighters/大肥鱼/完整动作.webp) |
 | 奶蛙 | [frog.ts](../src/content/fighters/frog.ts) | [frog-v2.webp](../assets/fighters/frog-v2.webp) | [frog-motion.webp](../assets/fighters/frog-motion.webp) |
-| 香蕉猫 | [banana.ts](../src/content/fighters/banana.ts) | [banana.webp](../assets/fighters/banana.webp) | [banana-motion.webp](../assets/fighters/banana-motion.webp) |
-| 姑姑嘎嘎 | [gaga.ts](../src/content/fighters/gaga.ts) | [gaga.webp](../assets/fighters/gaga.webp) | [gaga-motion.webp](../assets/fighters/gaga-motion.webp) |
+| 香蕉猫 | [banana.ts](../src/content/fighters/banana.ts) | [banana-reference-portrait.webp](../assets/fighters/banana-reference-portrait.webp) | [banana-motion.webp](../assets/fighters/banana-motion.webp) |
+| 姑姑嘎嘎 | [gaga.ts](../src/content/fighters/gaga.ts) | [gaga-arcade.webp](../assets/fighters/gaga-arcade.webp) | [gaga-motion.webp](../assets/fighters/gaga-motion.webp) |
 
 保留表中四个文件现有的 `id`，它也是训练链接使用的角色标识。`name` 是显示名，`accent` 是界面配色，`height` 控制画面中的角色高度。
 
@@ -58,6 +58,9 @@ signatureMoves: [
 重新构建后，选角面板应显示「可用专属槽 · B」。进训练靠近陪练，按 **U**，能在 **H** 面板看到「接口测试」依次经过起手、有效和收招，命中时陪练掉血。默认 P1 的 B/C 是 **U / I**，本地双人中 P2 是 **句号 / 斜杠**，也可以用小键盘 **4 / 5**。改键后以「操作说明」为准。
 
 ## 填自己的动作
+
+角色包可通过 \`normalMoves\` 替换 A 槽的公共动作，用 \`signatureMoves\` 登记 B/C，用 \`ultimate\` 登记大招。香蕉猫的水球和海浪、姑姑嘎嘎的炮塔和帝江由各自招式的特殊规则处理，伤害结算共用公共的受击框与硬直流程。包内填写 \`animation\` 的招式会按配置播放动作图集，已有专用美术仍可用自己的表现逻辑。
+
 
 | 字段 | 填法和效果 |
 |---|---|
@@ -238,4 +241,23 @@ ultimate: {
 
 ## 直播擂台联调
 
-新增 `broadcast-ring` 场地，直接打开[直播擂台训练](http://127.0.0.1:4182/?practice=broadcast-ring&p1=whale&p2=frog)。世界宽 4480，可走区间为 96–4384，地面高度 2084；18 个落脚面，最高层离地 527。中央升降台行程 465、周期 480 帧，支持双人共乘。技能位移、实体和音频接口均沿用现有配置，本轮不修改角色或技能内容。先在地面核对命中，再沿两翼登顶和跨层下穿，检查高低差攻击与升降台上的动作。公共 UI 改为漫画拼贴风格，选角卡片、人物素材和布局保留。
+`broadcast-ring` 已按最新要求改成单层特殊地图：[大肥鱼对奶蛙](http://127.0.0.1:4182/?practice=broadcast-ring&p1=whale&p2=frog) · [嘎嘎对香蕉猫](http://127.0.0.1:4182/?practice=broadcast-ring&p1=gaga&p2=banana)。世界宽4480，可走区间96–4384，地面2084，平台数组与双方登台路线均为空。此图只在连续地面交锋；另外四图保留上下层和移动平台，仍须用它们测试高低差和穿台。选图页在此图显示“单层地面”并隐藏登台路线，切回多层图恢复。
+
+## 四角色合并后的公共约定
+
+- 已整合 `feat/whale-integrated-20261122` 的 `2a2625b` 与 `art/gaga-pixel` 的 `f7150bc`。角色设计和素材以队友这两份提交为准，框架层完成冲突合并。
+- `defineFighter` 同时接受先前的 `commonMoves` 和香蕉猫/嘎嘎的 `normalMoves`；优先级为 `normalMoves ?? commonMoves ?? commonActions`。角色 `audio`、`moveSummary` 均保留。
+- `ActionDefinition.chain` 管理可预输入的连段，`chainAfter`/`cancelOnHit` 继续支持另外两位角色的命中衔接。两种约定不互相覆盖。
+- 大肥鱼/奶蛙使用公共 `entities` 生命周期；嘎嘎的投掷物、炮台和帝江召唤保留各自逻辑。两类实体共同参与命中结算、防反、暂停和回合清理。
+- 普通挑空持续失控到落地，之后共用默认30帧倒地、18帧起身；规则可覆盖。`Recovery.facing` 为倒地美术保留受击朝向；空中落地触发带 `reaction: 'air'` 的 `knockdown` 事件，不再额外触发一次 `land`，避免重复音效。
+- 嘎嘎的17份录音已通过角色 `audio` 注册，并随既有 `__FIGHTER_AUDIO__` 离线内嵌；统一从 `FightAudio.update(config,state,events)` 播放，未引入第二套解码/音量旁路。
+- 渲染入口为 `renderer.add(events, state.arenaFrame, config.fighters)`；第三参数可省略以兼容动作审阅页。`draw` 的尾部参数依次为 `shake, focus, reducedMotion, opening, interpolation`。特效寿命按竞技帧计算，暂停和大招演出不消耗普通特效寿命。
+- 嘎嘎与香蕉猫的独立机制测试使用公共陪练测试体；真实跨角色防反、同帧多水球瞬移、大招冻结和快照重放见[跨角色集成测试](../tests/cross-character-integration.test.mjs)。
+
+## 高清手绘素材接入
+
+用户追加要求真正重绘四角色及队友原有动作，采用清晰卡通手绘，可完全取消像素感。新全身基准另存于[统一手绘目录](../assets/fighters/unified-handdrawn-v1/README.md)，完整动作制作状态见[进度](角色画风统一进度.md)。奶蛙以 `frog-v2.png` 的长头、修长上半身和大鼓腹为当前比例，旧矮胖动作不能直接作为最终稿。
+
+公共四列动作图可设置 `art.motionScale: 2`，使用432×432源像素格；逻辑格仍为216、脚锚仍为(108,184)，动作 `animation[].cell` 编号、显示大小、位移和判定均保持原值。省略时继续校验216格。构建会按实际源格数检查越界；只放大图集而不声明源密度会被拒绝。可选源密度为1、2、3、4。
+
+奶蛙、嘎嘎和香蕉猫还包含各自的独立动作及演出素材，不能只替换 `art.motion` 就宣布全部完成。重绘后须逐格配准裁框/手眼锚/脚底，核对移步、受击、倒地起身和技能演出，避免套用旧像素化降采样让新图再次变糊。原动作与技能设计归角色负责人，新素材保留版本记录。

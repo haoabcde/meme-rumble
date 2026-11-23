@@ -1063,3 +1063,11 @@ kbd {
   .guide { --guide-pad: 14px; }
   .guide-grid { grid-template-columns: 1fr; }
 }
+
+.tear-row { display: flex; align-items: center; gap: .35cqw; margin-top: .28cqw; color: #d7f5ff; font-size: clamp(8px, .9cqw, 13px); font-weight: 900; text-shadow: 0 1px 2px #100c2f; }
+.tear-row > span:last-child { min-width: 8ch; font-variant-numeric: tabular-nums; }
+.tear-track { flex: 1; min-width: 0; overflow: hidden; height: clamp(5px, .88cqw, 13px); background: #172c47; border: 1px solid #93d6f599; }
+.tear-track i { display: block; height: 100%; transform-origin: left; background: linear-gradient(#d3faff, #41bfee 62%, #247eba); }
+.p2 .tear-row { flex-direction: row-reverse; }
+.p2 .tear-track i { transform-origin: right; }
+.stage[data-cinematic] :is(.hud, .announcement, .skill-gauges, .training-readout, .fight-deck, .combo) { visibility: hidden; }

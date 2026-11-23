@@ -13,6 +13,7 @@ const [fighterImages, fighterAudio, demoAudio] = await Promise.all([
   embedFighterAudio(roster, fileURLToPath(root)),
   embedFighterAudio(demoRoster, fileURLToPath(root))
 ]);
+const pixelfxLicense = await readFile(new URL('assets/fx/pixelfx/LICENSE', root), 'utf8');
 async function bundleEntry(entry, audio = fighterAudio) {
   const result = await build({
     entryPoints: [fileURLToPath(new URL('src/web/' + entry, root))],
@@ -34,6 +35,7 @@ const [template, css, game, counterDemo, ultimateDemo, combatDemo, audioDemo, wh
 
 function standalone(script) {
   return template
+    .replace('<!doctype html>', () => '<!doctype html>\n<!-- Pixelfx sprite sheets\n' + pixelfxLicense + '-->')
     .replace('<link rel="stylesheet" href="./styles.css">', () => '<style>\n' + css + '</style>')
     .replace('<script src="./dist/game.bundle.js"></script>', () =>
       '<script>\n' + script.replace(/<\/script/gi, '<\\/script') + '</script>');

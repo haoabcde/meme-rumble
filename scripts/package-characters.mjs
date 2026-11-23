@@ -10,7 +10,7 @@ const html=await readFile(new URL('dist/index.html',root));
 if(/<script\b[^>]*\bsrc\s*=/i.test(html.toString())||/<link\b[^>]*rel=["']stylesheet/i.test(html.toString()))throw Error('成品仍引用外部脚本或样式，请先构建');
 const commit=execFileSync('git',['rev-parse','HEAD'],{cwd:root,encoding:'utf8'}).trim();
 const sha=data=>createHash('sha256').update(data).digest('hex');
-const instructions=Buffer.from(`Meme 乱斗：大肥鱼＋奶蛙角色试玩版\r\n\r\n解压后，用桌面版 Chrome 或 Edge 双击打开“开始游戏.html”。无需安装 Node.js，无需联网加载游戏素材。\r\n先点击页面或按一次键，浏览器才会允许播放声音。\r\n支持同一台电脑的本地双人、人机对战和自由训练；当前没有跨电脑联机。\r\n\r\nP1：A/D移动，S防御，J普攻，K跳跃，L闪避，U技能1，I技能2，O大招；W＋U/I为上方向组合技。\r\n训练设置可以充满大招能量。页面内“操作说明”包含P2按键。\r\n\r\n版本提交：${commit}\r\nHTML SHA256：${sha(html)}\r\n\r\n仓库根目录的index.html是源码入口，不能当成成品直接打开。\r\n`,'utf8');
+const instructions=Buffer.from(`Meme 乱斗：四角色合并版 · 单层直播擂台\r\n\r\n解压后，用桌面版 Chrome 或 Edge 双击打开“开始游戏.html”。无需安装 Node.js，无需联网加载游戏素材。\r\n先点击页面或按一次键，浏览器才会允许播放声音。\r\n支持同一台电脑的本地双人、人机对战和自由训练；当前没有跨电脑联机。\r\n\r\nP1：A/D移动，S防御，J普攻，K跳跃，L闪避，U技能1，I技能2，O大招；W＋U/I为上方向组合技。\r\n训练设置可以充满大招能量。页面内“操作说明”包含P2按键。\r\n\r\n版本提交：${commit}\r\nHTML SHA256：${sha(html)}\r\n\r\n仓库根目录的index.html是源码入口，不能当成成品直接打开。\r\n`,'utf8');
 // Small dependency-free ZIP writer: UTF-8 names, raw deflate and CRC checksums.
 const crcTable=Array.from({length:256},(_,n)=>{for(let i=0;i<8;i++)n=n&1?0xedb88320^(n>>>1):n>>>1;return n>>>0;});
 function crc32(data){let n=0xffffffff;for(const b of data)n=crcTable[(n^b)&255]^(n>>>8);return(n^0xffffffff)>>>0;}

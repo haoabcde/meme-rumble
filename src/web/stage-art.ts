@@ -58,21 +58,33 @@ export function drawStageBackdrop(ctx: CanvasRenderingContext2D, arena: ArenaDef
   ctx.fillRect(0, 0, width, height);
   if (!img.naturalWidth) return;
   if (arena.theme === 'broadcast') {
-    // Keep the audience at readable scale in the combat camera; extend the two wings without duplicating the host screen.
-    const imageWidth = overview ? width : 1400;
+    // The physical floor meets the mat's front lip. Crowd, rails and screen stay behind the fight.
+    const imageWidth = overview ? width : 1000;
     const scale = imageWidth / img.naturalWidth;
-    const top = floor - img.naturalHeight * .8374 * scale;
+    const top = floor - 830 * scale;
+    const imageHeight = img.naturalHeight * scale;
     const x = (width - imageWidth) / 2 + (center - width / 2) * style.parallax;
+    const sourceWing = img.naturalWidth / 4;
     const wing = imageWidth / 4;
+    const paintWing = (sourceX: number, left: number, mirrored: boolean) => {
+      ctx.save();
+      ctx.translate(left + (mirrored ? wing : 0), top);
+      if (mirrored) ctx.scale(-1, 1);
+      ctx.drawImage(img, sourceX, 0, sourceWing, img.naturalHeight, 0, 0, wing, imageHeight);
+      ctx.restore();
+    };
+    let mirrored = true;
     for (let left = x - wing; left > -wing; left -= wing) {
-      ctx.drawImage(img, 0, 0, img.naturalWidth / 4, img.naturalHeight, left, top, wing, img.naturalHeight * scale);
+      paintWing(0, left, mirrored);
+      mirrored = !mirrored;
     }
+    mirrored = true;
     for (let right = x + imageWidth; right < width; right += wing) {
-      ctx.drawImage(img, img.naturalWidth * .75, 0, img.naturalWidth / 4, img.naturalHeight,
-        right, top, wing, img.naturalHeight * scale);
+      paintWing(img.naturalWidth * .75, right, mirrored);
+      mirrored = !mirrored;
     }
-    ctx.drawImage(img, x, top, imageWidth, img.naturalHeight * scale);
-    const edge = top + img.naturalHeight * scale;
+    ctx.drawImage(img, x, top, imageWidth, imageHeight);
+    const edge = top + imageHeight;
     ctx.fillStyle = style.edge;
     ctx.fillRect(0, edge, width, height - edge);
     return;
