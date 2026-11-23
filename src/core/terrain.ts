@@ -21,8 +21,8 @@ export function platformAt(platform: Platform, frame: number): Platform {
     : { ...platform, left: platform.left + offset, right: platform.right + offset };
 }
 
-export function platformContact(platform: Platform, frame: number, from: Point, to: Point) {
-  const start = platformAt(platform, frame - 1);
+export function platformContact(platform: Platform, frame: number, from: Point, to: Point, previousFrame = frame - 1) {
+  const start = platformAt(platform, previousFrame);
   const surface = platformAt(platform, frame);
   const gap = start.y - from.y;
   const closing = gap + to.y - surface.y;

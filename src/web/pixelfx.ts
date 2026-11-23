@@ -20,12 +20,13 @@ const atlases = {
 };
 
 export function drawPixelEffect(ctx: CanvasRenderingContext2D, effect: keyof typeof atlases,
-  frame: number, x: number, y: number, scaleX: number, scaleY = scaleX) {
+  frame: number, x: number, y: number, scaleX: number, scaleY = scaleX, smooth = false) {
   const { image, w, h, x: pivotX, y: pivotY, columns, count } = atlases[effect];
   if (!image.naturalWidth) return;
   const index = Math.max(0, Math.min(count - 1, Math.floor(frame)));
   ctx.save();
-  ctx.imageSmoothingEnabled = false;
+  // Enlarged effects blend instead of showing magnified pixels next to the painted fighters.
+  ctx.imageSmoothingEnabled = smooth;
   ctx.translate(x, y);
   ctx.scale(scaleX, scaleY);
   ctx.drawImage(image, index % columns * w, Math.floor(index / columns) * h, w, h, -pivotX, -pivotY, w, h);

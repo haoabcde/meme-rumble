@@ -163,7 +163,6 @@ export interface FighterDefinition {
   ultimateCost?: number;
   ultimateGain?: UltimateGain;
   usesTears?: boolean;
-  downSkillUltimate?: boolean;
 }
 
 export interface Platform {
@@ -244,7 +243,8 @@ export interface Attack {
   spawnedEntities?: string[];
 }
 
-export type Recovery = { phase: 'fall' } | { phase: 'down' | 'rise'; remaining: number };
+export type Recovery = { facing?: Side } &
+  ({ phase: 'fall' } | { phase: 'down' | 'rise'; remaining: number });
 
 export interface WalkState {
   direction: 'forward' | 'back';
@@ -390,6 +390,7 @@ export interface Summon {
 }
 
 export const TICK_RATE = 60;
+export const RISE_FRAMES = 12;
 export const ENERGY_PER_STOCK = 100;
 export const TEAR_UNITS_PER_POINT = TICK_RATE;
 export const MAX_TEARS = 100;

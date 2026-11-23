@@ -1,4 +1,4 @@
-import { readFile, rename, writeFile } from 'node:fs/promises';
+import { readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { roster } from '../dist/content/roster.js';
@@ -7,6 +7,11 @@ import { embedFighterImages } from './fighter-art.mjs';
 const root = new URL('../', import.meta.url);
 const pixelfxLicense = await readFile(new URL('assets/fx/pixelfx/LICENSE', root), 'utf8');
 const fighterImages = await embedFighterImages(roster, fileURLToPath(new URL('assets/fighters/', root)));
+const soundDirectory = new URL('assets/audio/gaga/', root);
+const soundFiles = (await readdir(soundDirectory)).filter(file => file.endsWith('.wav'));
+const gagaSounds = Object.fromEntries(await Promise.all(soundFiles.map(async file => [
+  file.slice(0, -4), (await readFile(new URL(file, soundDirectory))).toString('base64')
+])));
 async function bundleEntry(entry) {
   const result = await build({
     entryPoints: [fileURLToPath(new URL('src/web/' + entry, root))],
@@ -15,7 +20,7 @@ async function bundleEntry(entry) {
     format: 'iife',
     target: 'es2022',
     loader: { '.webp': 'dataurl' },
-    define: { __FIGHTER_IMAGES__: JSON.stringify(fighterImages) },
+    define: { __FIGHTER_IMAGES__: JSON.stringify(fighterImages), __GAGA_SOUNDS__: JSON.stringify(gagaSounds) },
     write: false
   });
   return result.outputFiles[0].text;

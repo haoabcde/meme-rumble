@@ -103,14 +103,14 @@ const wave: Omit<ActionDefinition, 'slot' | 'energyCost'> = {
   hitbox: { x: 0, y: 0, w: 0, h: 0 }, hitTimeline: [],
   projectile: { kind: 'wave', x: 105, y: -98, vx: 31, vy: 0, gravity: 0,
     reach: 0, radius: 98, halfWidth: 104, life: 40 },
-  damage: 240, hitstun: 34, blockstun: 18, guardCost: 28, push: 27, lift: 15,
+  damage: 240, hitstun: 34, blockstun: 18, guardCost: 28, push: 27, lift: 15, knockdown: true,
   stop: 6, advance: 0, pose: 'rise', swingOnActive: true, impact: 'heavy'
 };
 
 export const banana = defineFighter({
   id: 'banana', name: '香蕉猫', accent: '#ff9c62', height: 145,
   art: { portrait: 'banana-reference-portrait.webp', motion: 'banana-motion.webp' },
-  stats: { usesTears: true, downSkillUltimate: true, bodyWidth: 54 },
+  stats: { usesTears: true, bodyWidth: 54 },
   normalMoves, signatureMoves,
   moveSummary: bananaComboNames.join(' → '),
   ultimate: { cost: MAX_ENERGY, move: wave, gain: { onHit: 12, onHurt: 18 } }

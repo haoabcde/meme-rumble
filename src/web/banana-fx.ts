@@ -1,5 +1,6 @@
 import type { Box, CombatEvent, Projectile, ProjectileDefinition } from '../core/types.js';
 import { bananaActionIds } from '../content/fighters/banana.js';
+import { sparkle } from './banana-hit-art.js';
 import { drawPixelEffect } from './pixelfx.js';
 
 type Point = { x: number; y: number };
@@ -277,11 +278,20 @@ export function drawBananaEffect(ctx: CanvasRenderingContext2D, event: CombatEve
       ctx.clip();
       drawPixelEffect(ctx, 'waveCrash', 16 + t * 34, direction * 20, 43, direction * 2.3, 2.7);
     } else {
-      ctx.globalAlpha *= .67;
-      drawPixelEffect(ctx, 'splash', t * 18, direction * 8, 3, direction * .94);
+      // The crown stays raised through the hit stop, then spills over.
+      drawPixelEffect(ctx, 'splash', age < 3 ? 6 : 6 + (age - 3) * 1.05, direction * 12, 4,
+        direction * (rising ? 2 : 1.7), rising ? 2 : 1.7, true);
     }
     ctx.restore();
     ctx.save();
+    // A white-hot core marks the contact the way a claw hit does, so a jet that connects still reads as a hit.
+    if (!wave && age < 4) {
+      ctx.save();
+      ctx.globalAlpha *= age < 2 ? 1 : 1 - (age - 1) / 3;
+      ctx.rotate(rising ? -Math.PI / 2 : direction === 1 ? 0 : Math.PI);
+      sparkle(ctx, (rising ? 96 : 84) * (age === 0 ? .88 : 1 + Math.min(3, age) * .03), '#38bff0', '#bff6ff');
+      ctx.restore();
+    }
     ctx.globalAlpha *= 1 - t;
     ctx.rotate(rising ? -Math.PI / 2 : direction === 1 ? 0 : Math.PI);
     ctx.lineWidth = (rising ? 7 : 6) * (1 - t) + 1;
@@ -289,12 +299,12 @@ export function drawBananaEffect(ctx: CanvasRenderingContext2D, event: CombatEve
     ctx.beginPath();
     ctx.ellipse(8 + 31 * t, 0, 8 + 13 * t, 14 + 26 * t, 0, -1.26, 1.26);
     ctx.stroke();
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 26; i++) {
       const side = i % 2 ? 1 : -1;
       const spread = side * (.22 + (i % 7) * .17);
-      const distance = 11 + (wave ? 185 : rising ? 140 : 120) * t * (.54 + (i % 5) * .19);
+      const distance = 13 + (wave ? 185 : rising ? 190 : 165) * t * (.54 + (i % 5) * .19);
       droplet(ctx, 8 + Math.cos(spread) * distance, Math.sin(spread) * distance,
-        (2.4 + (i % 4) * 1.5) * (1 - t * .58), spread);
+        (3.4 + (i % 4) * 1.9) * (1 - t * .58), spread);
     }
     ctx.restore();
     return;
@@ -303,38 +313,52 @@ export function drawBananaEffect(ctx: CanvasRenderingContext2D, event: CombatEve
   const size = event.radius ?? 42;
   if (splash && !event.surface) {
     ctx.save();
+    // Bursting on a fighter throws water in every direction: a crown, a flash and a wide ring of drops.
+    drawPixelEffect(ctx, 'splash', Math.min(18, 7 + age * .9), 0, size * .3, size / 58, size / 58, true);
+    if (age < 3) {
+      ctx.save();
+      ctx.globalAlpha *= age < 2 ? 1 : .4;
+      sparkle(ctx, size * .8 * (age === 0 ? .88 : 1.04), '#38bff0', '#bff6ff');
+      ctx.restore();
+    }
     ctx.globalAlpha *= 1 - t;
     ctx.strokeStyle = '#c5f7ff';
-    ctx.lineWidth = 5 * (1 - t) + 1;
+    ctx.lineWidth = 6 * (1 - t) + 1;
     for (const [start, span] of [[-.5, 1], [1.1, .95], [2.7, .9], [4.1, .85]]) {
       ctx.beginPath();
-      ctx.arc(0, 0, size * (.11 + .56 * t), start, start + span);
+      ctx.arc(0, 0, size * (.14 + .72 * t), start, start + span);
       ctx.stroke();
     }
-    for (let i = 0; i < 14; i++) {
-      const angle = i * Math.PI * 2 / 14;
-      const distance = size * (.10 + t * (.52 + i % 4 * .15));
-      droplet(ctx, Math.cos(angle) * distance, Math.sin(angle) * distance + t * t * 14,
-        (3.2 + i % 3 * 1.1) * (1 - t * .55), angle);
+    for (let i = 0; i < 22; i++) {
+      const angle = i * Math.PI * 2 / 22;
+      const distance = size * (.12 + t * (.62 + i % 4 * .16));
+      droplet(ctx, Math.cos(angle) * distance, Math.sin(angle) * distance + t * t * 18,
+        (4.2 + i % 3 * 1.6) * (1 - t * .55), angle);
     }
     ctx.restore();
     return;
   }
+  if (splash) drawPixelEffect(ctx, 'splash', Math.min(18, 6 + age * .9), 0, 0, 1.7, 1.7, true);
   ctx.save(); ctx.globalAlpha *= 1 - t;
   ctx.strokeStyle = '#9aefff';
-  ctx.lineWidth = splash ? 4 * (1 - t) + 1 : 2;
-  ctx.beginPath(); ctx.ellipse(0, -3, size * (.25 + t * .75), (splash ? 15 : 7) * (.4 + t), 0, 0, Math.PI * 2); ctx.stroke();
-  for (let i = 0; i < (splash ? 14 : 7); i++) {
+  ctx.lineWidth = splash ? 5 * (1 - t) + 1 : 2;
+  ctx.beginPath(); ctx.ellipse(0, -3, size * (.25 + t * .75), (splash ? 22 : 7) * (.4 + t), 0, 0, Math.PI * 2); ctx.stroke();
+  for (let i = 0; i < (splash ? 20 : 10); i++) {
     const side = i % 2 ? 1 : -1;
-    const speed = .3 + (i % 6) * .13;
+    const speed = (.3 + (i % 6) * .13) * (splash ? 1.3 : 1.6);
     const x = side * size * t * speed;
-    const y = -5 - Math.sin(t * Math.PI) * (12 + i % 4 * 10);
-    droplet(ctx, x, y, (splash ? 5 : 3) * (1 - t * .5), Math.atan2(-1 + t * 2, side));
+    const y = -5 - Math.sin(t * Math.PI) * (12 + i % 4 * 10) * (splash ? 1.25 : 1.5);
+    droplet(ctx, x, y, (splash ? 6.5 : 4.2) * (1 - t * .5), Math.atan2(-1 + t * 2, side));
   }
   if (event.kind === 'hit' && event.actionId?.includes('scratch')) {
-    ctx.strokeStyle = '#fff2c9'; ctx.lineWidth = 3 * (1 - t) + 1;
-    for (let i = 0; i < 3; i++) {
-      ctx.beginPath(); ctx.moveTo(-16 + i * 9, -21); ctx.lineTo(-5 + i * 9, 19); ctx.stroke();
+    // Three parallel claw marks, rimmed so all three stay visible over a pale opponent.
+    ctx.lineCap = 'round';
+    for (const [color, width] of [['#2a2a4e', 8], ['#fff2c9', 4.5]] as const) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width * (1 - t * .8);
+      for (let i = 0; i < 3; i++) {
+        ctx.beginPath(); ctx.moveTo(-30 + i * 16, -32); ctx.lineTo(-10 + i * 16, 30); ctx.stroke();
+      }
     }
   }
   ctx.restore();

@@ -521,6 +521,7 @@ element('rematch').addEventListener('click', () => startMatch());
 element('reset-training').addEventListener('click', () => startMatch(true));
 fillTrainingEnergy.addEventListener('click', () => {
   if (screen !== 'match' || !config.training) return;
+  audio.enableFromGesture();
   canvas.focus();
   state.fighters[0].energy = MAX_ENERGY;
   renderHUD();
@@ -648,6 +649,7 @@ window.addEventListener('keydown', event => {
   if (!binding) return;
   event.preventDefault();
   if (held.has(event.code) || event.repeat || (binding.seat === 1 && mode !== 'local')) return;
+  audio.enableFromGesture();
   held.add(event.code);
   const { seat, control } = binding;
   if ((control === 'B' || control === 'C' || control === 'ULT') &&
@@ -909,7 +911,6 @@ export function openPractice(practiceParams: URLSearchParams) {
   confirmed.fill(true);
   configureMatch(true);
   enterMatch();
-  window.addEventListener('keydown', () => audio.enableFromGesture(), { once: true });
   return true;
 }
 if (!openPractice(new URLSearchParams(location.search))) go('title');

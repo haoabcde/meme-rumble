@@ -9,6 +9,58 @@ type Tone = [number, number, number, OscillatorType, number];
 type Noise = [frequency: number, duration: number, volume: number];
 type Wind = [start: number, peak: number, end: number, duration: number, volume: number];
 
+const sampleVolumes = {
+  jab: .45,
+  backhand: .48,
+  'pole-sweep': .42,
+  'pole-reverse': .42,
+  'pole-launch': .51,
+  'pole-hit': .38,
+  'pole-heavy-hit': .52,
+  'pole-ground': .42,
+  'feet-land': .24,
+  'body-land': .48,
+  guard: .38,
+  'slide-call': .62,
+  'turret-land': .35,
+  'turret-ready': .34,
+  'turret-bolt': .34,
+  'grenade-impact': .42,
+  'dijiang-impact': .55
+};
+type GagaSample = keyof typeof sampleVolumes;
+declare const __GAGA_SOUNDS__: Partial<Record<GagaSample, string>>;
+
+const poleSamples: Record<PoleSwing, GagaSample> = {
+  sweep: 'pole-sweep', reverse: 'pole-reverse', launch: 'pole-launch'
+};
+const gagaHitSamples: Partial<Record<string, GagaSample>> = {
+  [gagaActionIds.jab]: 'jab',
+  [gagaActionIds.backhand]: 'backhand',
+  [gagaActionIds.poleSweep]: 'pole-hit',
+  [gagaActionIds.poleBacksweep]: 'pole-hit',
+  [gagaActionIds.poleLaunch]: 'pole-heavy-hit',
+  [gagaActionIds.airThrow]: 'pole-heavy-hit'
+};
+const turretSamples: Partial<Record<EventKind, GagaSample>> = {
+  'turret-land': 'turret-land', 'turret-ready': 'turret-ready', 'grenade-impact': 'grenade-impact'
+};
+
+function gagaSampleFor(event: CombatEvent, fighters: MatchConfig['fighters'], swing?: PoleSwing): GagaSample | undefined {
+  const fromGaga = fighters[event.source].id === 'gaga';
+  if (event.kind === 'block' && (fromGaga || fighters[1 - event.source].id === 'gaga')) return 'guard';
+  if (!fromGaga) return;
+  if (event.kind === 'land') return 'feet-land';
+  if (event.kind === 'knockdown') return 'body-land';
+  if (event.kind === 'pole-impact') return 'pole-ground';
+  if (swing) return poleSamples[swing];
+  if (event.kind === 'swing' && event.actionId === gagaActionIds.airThrow) return 'pole-reverse';
+  if (event.kind === 'swing' && event.actionId === gagaActionIds.slide) return 'slide-call';
+  if (event.kind === 'hit' && event.actionId) return gagaHitSamples[event.actionId];
+  if (event.kind === 'turret-fire' && event.turretKind === 'bolt') return 'turret-bolt';
+  return turretSamples[event.kind];
+}
+
 const poleWind: Record<PoleSwing, Wind> = {
   sweep: [320, 1080, 190, .27, .58],
   reverse: [280, 890, 158, .29, .62],
@@ -108,11 +160,25 @@ export class FightAudio {
   volume = .7;
   private context: AudioContext | null = null;
   private noise: AudioBuffer | null = null;
+  private samples = new Map<GagaSample, AudioBuffer>();
 
   enableFromGesture() {
     if (!this.enabled || !globalThis.AudioContext) return;
-    this.context ??= new AudioContext();
+    if (!this.context) {
+      this.context = new AudioContext();
+      this.loadSamples(this.context);
+    }
     if (this.context.state === 'suspended') void this.context.resume().catch(() => {});
+  }
+
+  private loadSamples(ctx: AudioContext) {
+    if (typeof __GAGA_SOUNDS__ === 'undefined') return;
+    for (const name of Object.keys(sampleVolumes) as GagaSample[]) {
+      const encoded = __GAGA_SOUNDS__[name];
+      if (!encoded) continue;
+      const bytes = Uint8Array.from(atob(encoded), value => value.charCodeAt(0));
+      void ctx.decodeAudioData(bytes.buffer).then(buffer => this.samples.set(name, buffer)).catch(() => {});
+    }
   }
 
   play(events: CombatEvent[], fighters: MatchConfig['fighters']) {
@@ -120,6 +186,8 @@ export class FightAudio {
     if (!events.length || !this.enabled || this.volume <= 0 || !ctx || ctx.state !== 'running') return;
     const cues = new Map<EventKind, GagaContact | undefined>();
     const bananaCues = new Set<string>();
+    const samplesPlayed = new Set<string>();
+    let hasDijiangImpact = false;
     for (const event of events) {
       const bananaId = event.actionId && Object.hasOwn(bananaHits, event.actionId)
         ? event.actionId as BananaActionId : undefined;
@@ -145,6 +213,16 @@ export class FightAudio {
         continue;
       }
       const swing = poleSwingFor(event);
+      const sample = gagaSampleFor(event, fighters, swing);
+      if (sample) {
+        const key = event.kind + ':' + sample;
+        if (samplesPlayed.has(key)) continue;
+        if (this.playSample(ctx, sample, ctx.currentTime)) {
+          samplesPlayed.add(key);
+          continue;
+        }
+      }
+      if (event.kind === 'summon-impact' && fighters[event.source].id === 'gaga') hasDijiangImpact = true;
       if (swing) {
         this.playWind(ctx, poleWind[swing], ctx.currentTime);
         continue;
@@ -179,9 +257,23 @@ export class FightAudio {
       if (kind === 'summon-drop') this.playWind(ctx, dijiangDiveRoar, now, .78);
       if (kind === 'summon-impact') {
         this.playTransient(ctx, dijiangImpactCrack, now);
-        this.playTransient(ctx, dijiangImpactRumble, now + .03);
+        if (!hasDijiangImpact || !this.playSample(ctx, 'dijiang-impact', now)) {
+          this.playTransient(ctx, dijiangImpactRumble, now + .03);
+        }
       }
     }
+  }
+
+  private playSample(ctx: AudioContext, name: GagaSample, now: number) {
+    const buffer = this.samples.get(name);
+    if (!buffer) return false;
+    const source = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    source.buffer = buffer;
+    gain.gain.value = sampleVolumes[name] * this.volume;
+    source.connect(gain).connect(ctx.destination);
+    source.start(now);
+    return true;
   }
 
   private playTone(ctx: AudioContext, [head, tail, duration, wave, volume]: Tone, now: number) {

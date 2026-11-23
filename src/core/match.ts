@@ -7,13 +7,12 @@ import type {
   HitWindow, InputFrame, MatchConfig, MatchState, Projectile, RoundResult, Side, Stick, Summon
 } from './types.js';
 import { platformAt, platformContact, platformOffset } from './terrain.js';
-import { isAttack, MAX_ENERGY, MAX_TEARS, TEAR_UNITS_PER_POINT } from './types.js';
+import { isAttack, MAX_ENERGY, MAX_TEARS, NEUTRAL, RISE_FRAMES, TEAR_UNITS_PER_POINT } from './types.js';
 import { entityContacts, removeContactEntity, updateEntities } from './entities.js';
 
 const seats = [0, 1] as const;
 const slotPriority = ['ULT', 'C', 'B', 'A'] as const;
 const downFrames = 18;
-const riseFrames = 12;
 const other = (seat: 0 | 1) => seat === 0 ? 1 : 0;
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -117,11 +116,10 @@ function queueInputs(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     const action = attackFor(config, state, seat);
     if (!input.pressed.length) continue;
     const keys = [...new Set([...(input.held ?? []), ...input.pressed])];
-    for (const [index, pressed] of input.pressed.entries()) {
+    for (const [index, key] of input.pressed.entries()) {
       const sampled = input.sampled;
       const { x, y } = (Array.isArray(sampled) ? sampled[index] :
-        (sampled as Partial<Record<Command['key'], Stick>> | undefined)?.[pressed]) ?? input;
-      const key = pressed === 'C' && y === 1 && config.fighters[seat].downSkillUltimate ? 'ULT' : pressed;
+        (sampled as Partial<Record<Command['key'], Stick>> | undefined)?.[key]) ?? input;
       if (action?.channel && fighter.attack!.frame < action.startup + action.active &&
           (key === action.slot || key === 'dash')) continue;
       const directions: Direction[] = [];
@@ -167,8 +165,9 @@ function emitSwing(f: FighterState, action: ActionDefinition, seat: 0 | 1, event
 }
 
 function startKnockdown(fighter: FighterState) {
+  const facing = fighter.reaction?.facing ?? fighter.facing;
   delete fighter.reaction;
-  fighter.recovery = { phase: 'fall' };
+  fighter.recovery = { phase: 'fall', facing };
   fighter.hitstun = 0;
   fighter.blockstun = 0;
   fighter.attack = null;
@@ -185,7 +184,7 @@ function advanceRecovery(fighter: FighterState, seat: 0 | 1, events: CombatEvent
   if (!recovery) return false;
   if (recovery.phase === 'fall' || --recovery.remaining > 0) return true;
   if (recovery.phase === 'down') {
-    fighter.recovery = { phase: 'rise', remaining: riseFrames };
+    fighter.recovery = { ...recovery, phase: 'rise', remaining: RISE_FRAMES };
     events.push({ kind: 'rise', source: seat, x: fighter.x, y: fighter.y });
     return true;
   }
@@ -488,11 +487,11 @@ function releaseUnsupportedGround(fighter: FighterState, arena: ArenaDefinition,
   fighter.vy = 0;
 }
 
-function landingPlatform(arena: ArenaDefinition, fighter: FighterState, from: Position, frame: number) {
+function landingPlatform(arena: ArenaDefinition, fighter: FighterState, from: Position, frame: number, previousFrame: number) {
   let first: ReturnType<typeof platformContact>;
   for (const platform of arena.platforms) {
     if (platform.id === fighter.ignorePlatform) continue;
-    const contact = platformContact(platform, frame, from, fighter);
+    const contact = platformContact(platform, frame, from, fighter, previousFrame);
     if (!contact || (first && contact.time >= first.time)) continue;
     if (fighter.x >= contact.surface.left && fighter.x <= contact.surface.right) first = contact;
   }
@@ -500,7 +499,8 @@ function landingPlatform(arena: ArenaDefinition, fighter: FighterState, from: Po
 }
 
 function motion(
-  state: MatchState, config: MatchConfig, seat: 0 | 1, input: InputFrame, events: CombatEvent[]
+  state: MatchState, config: MatchConfig, seat: 0 | 1, input: InputFrame, events: CombatEvent[],
+  previousArenaFrame = state.arenaFrame - 1
 ) {
   const f = state.fighters[seat];
   const definition = config.fighters[seat];
@@ -541,7 +541,7 @@ function motion(
     f.vy += 1;
     f.y += f.vy;
   }
-  const platform = landingPlatform(arena, f, { x: previousX, y: previousY }, state.arenaFrame);
+  const platform = landingPlatform(arena, f, { x: previousX, y: previousY }, state.arenaFrame, previousArenaFrame);
   if (platform || (f.vy > 0 && f.y >= arena.floor)) {
     if (f.vy >= 5 && !f.recovery) events.push({
       kind: 'land', source: seat, x: f.x, y: platform?.y ?? arena.floor,
@@ -987,6 +987,19 @@ function roundResult(state: MatchState, config: MatchConfig): RoundResult | null
   return { winner: difference > 0 ? 0 : 1, reason: 'time' };
 }
 
+function updateKnockdownGround(fighter: FighterState, seat: 0 | 1, events: CombatEvent[]) {
+  const { recovery } = fighter;
+  if (!recovery) return;
+  if (!fighter.ground) {
+    if (recovery.phase !== 'fall') fighter.recovery = { phase: 'fall', facing: recovery.facing };
+    return;
+  }
+  if (recovery.phase !== 'fall') return;
+  fighter.recovery = { ...recovery, phase: 'down', remaining: downFrames };
+  fighter.push = 0;
+  events.push({ kind: 'knockdown', source: seat, x: fighter.x, y: fighter.y });
+}
+
 // Mutates only the supplied state. A structured clone of state is a restorable snapshot.
 export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchConfig): CombatEvent[] {
   const events: CombatEvent[] = [];
@@ -1008,7 +1021,17 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   }
   state.frame++;
   if (state.phase !== 'fight') {
-    if (--state.phaseTicks > 0) return events;
+    if (--state.phaseTicks > 0) {
+      if (state.phase === 'round-over') {
+        for (const seat of seats) {
+          const fighter = state.fighters[seat];
+          if (fighter.hp || fighter.recovery?.phase !== 'fall') continue;
+          motion(state, config, seat, NEUTRAL, events, state.arenaFrame);
+          updateKnockdownGround(fighter, seat, events);
+        }
+      }
+      return events;
+    }
     if (state.phase === 'ready') {
       state.phase = 'fight';
     } else if (state.winner !== null || state.draws >= 2) {
@@ -1091,17 +1114,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   moveProjectiles(state, config, contacts, events);
   if (summonContact) contacts.push(summonContact);
   settle(state, config, contacts, events);
-  for (const seat of seats) {
-    const fighter = state.fighters[seat];
-    if (!fighter.recovery) continue;
-    if (!fighter.ground) {
-      if (fighter.recovery.phase !== 'fall') fighter.recovery = { phase: 'fall' };
-    } else if (fighter.recovery.phase === 'fall') {
-      fighter.recovery = { phase: 'down', remaining: downFrames };
-      fighter.push = 0;
-      events.push({ kind: 'knockdown', source: seat, x: fighter.x, y: fighter.y });
-    }
-  }
+  for (const seat of seats) updateKnockdownGround(state.fighters[seat], seat, events);
 
   for (const seat of seats) {
     const f = state.fighters[seat];

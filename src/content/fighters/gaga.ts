@@ -54,7 +54,7 @@ export const gagaGroundCombo: NormalMove[] = [
     hitbox: poleLaunchBox,
     hitTimeline: [{ from: 15, to: 20, group: 'pole-launch', boxes: [poleLaunchBox] }],
     feedback: { color: '#fff1c0', shake: 10, flash: .45 },
-    damage: 114, hitstun: 27, blockstun: 14, guardCost: 18, push: 9, lift: 16,
+    damage: 114, hitstun: 27, blockstun: 14, guardCost: 18, push: 9, lift: 16, knockdown: true,
     stop: 5, advance: 13, advanceFrom: 12, activeAdvance: 5, pose: 'rise', swingOnActive: true, swingLead: 4,
     impact: 'heavy'
   }
@@ -126,14 +126,14 @@ const dijiang: Omit<ActionDefinition, 'slot' | 'energyCost'> = {
   id: gagaActionIds.dijiang, name: '帝江', posture: 'ground', summon: true,
   startup: summonFallFrames, active: 1, recovery: 22,
   hitbox: { x: 0, y: 0, w: 0, h: 0 }, hitTimeline: [],
-  damage: 320, hitstun: 30, blockstun: 0, guardCost: 0, push: 18, lift: 16,
+  damage: 320, hitstun: 30, blockstun: 0, guardCost: 0, push: 18, lift: 16, knockdown: true,
   stop: 6, advance: 0, impact: 'heavy', pose: 'rise'
 };
 
 export const gaga = defineFighter({
   id: 'gaga', name: '姑姑嘎嘎', accent: '#d7a5ff', height: 139,
   art: { portrait: 'gaga-arcade.webp', motion: 'gaga-motion.webp' },
-  stats: { downSkillUltimate: true, bodyWidth: 54 },
+  stats: { bodyWidth: 54 },
   normalMoves: [...gagaGroundCombo, ...gagaSpecials, gagaAirThrow],
   signatureMoves: gagaTurretActions,
   moveSummary: gagaComboNames.join(' → '),

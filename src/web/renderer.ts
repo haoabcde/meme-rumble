@@ -2,6 +2,7 @@ import { roster } from '../content/roster.js';
 import { bananaActionIds } from '../content/fighters/banana.js';
 import { drawBanana } from './banana-art.js';
 import { drawBananaImpact } from './banana-hit-art.js';
+import { drawKnockdownDust, drawKnockdownPose, knockdownPose } from './knockdown-art.js';
 import { drawBananaWaveCutIn } from './banana-wave-art.js';
 import { bananaEffectLife, drawBananaEffect, drawBananaProjectile, drawBananaWave, isTearJet } from './banana-fx.js';
 import { gagaActionIds } from '../content/fighters/gaga.js';
@@ -312,7 +313,7 @@ export class Renderer {
         const wet = jet || event.actionId === bananaActionIds.wave || event.actionId === bananaActionIds.tear;
         const bananaImpact = event.kind === 'land' ? fromBanana && event.reaction === 'air'
           : event.kind === 'hit' && Boolean(event.amount) && !wet && (fromBanana || fighters[1 - event.source].id === 'banana');
-        const life = bananaImpact ? (event.kind === 'land' ? 22 : 19) : jet ? bananaEffectLife(event)
+        const life = event.kind === 'knockdown' ? 22 : bananaImpact ? (event.kind === 'land' ? 22 : 19) : jet ? bananaEffectLife(event)
           : cue === 'light' || brief || event.impact === 'light' ? 14 : event.impact === 'heavy' ? 22 : 23;
         const gagaReceives = event.kind === 'hit' && fighters[1 - event.source].id === 'gaga';
         this.effects.push({ event, life, age: 0, cue, gagaReceives, bananaImpact });
@@ -445,6 +446,7 @@ export class Renderer {
       const walk = this.gagaWalks[seat];
       if (!allowedToWalk) walk.reset();
       const walkPose = allowedToWalk && !hurtPose ? walk.sample(f.walk, elapsed) : undefined;
+      const fallingPose = knockdownPose(def.id, f);
       const ground = decks.reduce((y, platform) =>
         f.x >= platform.left && f.x <= platform.right && platform.y >= f.y && platform.id !== f.ignorePlatform
           ? Math.min(y, platform.y) : y,
@@ -456,13 +458,14 @@ export class Renderer {
 
       ctx.save();
       ctx.translate(f.x, f.y);
-      ctx.scale(hurtPose && reaction ? reaction.facing : f.facing, 1);
+      ctx.scale(fallingPose?.facing ?? (hurtPose && reaction ? reaction.facing : f.facing), 1);
       const sways = f.moving && (def.id !== 'gaga' || !f.ground);
       const stride = sways ? Math.sin(state.frame * .68) : Math.sin(state.frame * .16) * .24;
       const height = heights[seat];
       const width = sprite?.naturalHeight ? height * sprite.naturalWidth / sprite.naturalHeight : 100;
       let yScale = drawnPose || walkPose ? 1 : 1 + stride * .035;
-      if (f.recovery?.phase === 'down') {
+      if (fallingPose) yScale = 1;
+      else if (f.recovery?.phase === 'down') {
         ctx.translate(height * .40, -height * .32);
         ctx.rotate(-1.24);
       } else if (f.recovery?.phase === 'fall') ctx.rotate(-.25);
@@ -480,7 +483,7 @@ export class Renderer {
       else if (!f.ground && !drawnPose) ctx.rotate(f.vy < 0 ? -.085 : .085);
       ctx.scale(2 - yScale, yScale);
       if (pose?.rotation) ctx.rotate(pose.rotation);
-      if (f.recovery?.phase === 'rise') ctx.globalAlpha = .83;
+      if (!fallingPose && f.recovery?.phase === 'rise') ctx.globalAlpha = .83;
       if (def.id === 'banana' || drawnPose?.image || sprite?.naturalWidth) {
         ctx.shadowColor = color + 'ca';
         ctx.shadowBlur = 8;
@@ -489,7 +492,9 @@ export class Renderer {
         if (flash !== undefined && f.hitstun) ctx.filter = 'brightness(' + (1 + Math.min(1, flash)) + ')';
         else if (hurtPose && reaction && reaction.elapsed < 2) ctx.filter = 'brightness(1.45) saturate(.7)';
         else if (f.hitstun && state.freeze > 0) ctx.filter = 'brightness(1.48)';
-        if (authoredPose && poseCell !== undefined) {
+        if (fallingPose) {
+          drawKnockdownPose(ctx, fallingPose, height, reducedMotion);
+        } else if (authoredPose && poseCell !== undefined) {
           drawPose(ctx, motionSheet, poseCell, height);
         } else if (def.id === 'banana') {
           drawBanana(ctx, f, action, state.frame, reducedMotion);
@@ -687,9 +692,11 @@ export class Renderer {
         ctx.fillStyle = seatColors[event.source];
         for (let i = 0; i < 4; i++) ctx.fillRect(-21 + i * 15, -10 - i * 3, i + 5, 2);
       } else if (event.kind === 'land' && effect.bananaImpact) {
-        drawBananaImpact(ctx, event, age);
+        drawBananaImpact(ctx, event, age, life, reducedMotion);
+      } else if (event.kind === 'knockdown') {
+        drawKnockdownDust(ctx, age);
       } else if (event.kind === 'land' || event.kind === 'drop' || event.kind === 'air-jump' ||
-        event.kind === 'knockdown' || event.kind === 'ultimate') {
+        event.kind === 'ultimate') {
         ctx.strokeStyle = event.kind === 'air-jump' ? seatColors[event.source] : '#fbdfb7cf';
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -716,7 +723,7 @@ export class Renderer {
           polygon(ctx, '#fff8e2', [[0, -17], [5, -5], [17, 0], [5, 4], [0, 17], [-6, 5], [-17, 0], [-5, -5]]);
           ctx.restore();
         }
-        if (effect.bananaImpact) drawBananaImpact(ctx, event, age);
+        if (effect.bananaImpact) drawBananaImpact(ctx, event, age, life, reducedMotion);
         if (effect.gagaReceives) drawGagaReceive(ctx, age, event.facing);
         if (training && event.amount) {
           ctx.font = '950 23px system-ui';

@@ -301,7 +301,7 @@ test('Air normal and U report their own costs when tears are insufficient', () =
   }
 });
 
-test('Banana gains tears and energy together and down + I with insufficient energy does not start crying', () => {
+test('Banana gains tears and energy together and an underfunded ultimate does not start crying', () => {
   const state = begin(bananaConfig), [f, target] = state.fighters;
   closeDistance(state);
   step(state, [input(['A']), NEUTRAL], bananaConfig);
@@ -309,7 +309,7 @@ test('Banana gains tears and energy together and down + I with insufficient ener
   assert.deepEqual([f.energy, target.energy], [12, 18]);
   assert.deepEqual([tears(f), tears(target)], [68, 65]);
   f.energy = MAX_ENERGY - 1;
-  const events = step(state, [hold('C', ['C'], 0, 1), NEUTRAL], bananaConfig);
+  const events = step(state, [input(['ULT']), NEUTRAL], bananaConfig);
   assert.equal(events.find(event => event.kind === 'ultimate-no-energy')?.amount, MAX_ENERGY);
   bananaStep(state, 10, [hold('C'), NEUTRAL]);
   assert.equal(f.attack, null);
@@ -325,7 +325,7 @@ test('Banana winds up on stage, pauses for a cut-in and sends one damaging wave 
     target.x = f.x + f.facing * 760;
     f.energy = MAX_ENERGY;
     const commands = [NEUTRAL, NEUTRAL];
-    commands[source] = input(['C'], 0, 1);
+    commands[source] = input(['ULT']);
     const remaining = state.remaining;
     assert.equal(step(state, commands, bananaConfig)[0]?.kind, 'wave-windup');
     assert.equal(f.energy, 0);
@@ -358,11 +358,57 @@ test('Banana winds up on stage, pauses for a cut-in and sends one damaging wave 
   }
 });
 
+test('a heavy wave knocks either fighter down, locks the pose direction, and allows movement after rising', () => {
+  for (const targetDefinition of [banana, gaga]) {
+    const settings = { ...bananaConfig, fighters: [banana, targetDefinition] };
+    const state = begin(settings);
+    const [caster, target] = state.fighters;
+    caster.energy = MAX_ENERGY;
+    step(state, [input(['ULT']), NEUTRAL], settings);
+    const phases = [];
+    const events = [];
+    for (let frame = 0; frame < 180; frame++) {
+      events.push(...step(state, [NEUTRAL, NEUTRAL], settings));
+      const phase = target.recovery?.phase ?? null;
+      if (phases.at(-1) !== phase) phases.push(phase);
+      if (phase) {
+        assert.equal(target.recovery.facing, -1);
+        assert.equal(Boolean(target.ground), phase !== 'fall');
+      }
+    }
+    assert.deepEqual(phases, [null, 'fall', 'down', 'rise', null]);
+    const landing = events.filter(event => event.kind === 'knockdown');
+    assert.equal(landing.length, 1);
+    assert.equal(landing[0].source, 1);
+    assert.equal(landing[0].y, settings.arena.floor);
+    assert.equal(events.filter(event => event.kind === 'rise').length, 1);
+    const x = target.x;
+    step(state, [NEUTRAL, input([], 1)], settings);
+    assert.ok(target.x > x);
+  }
+});
+
+test('a lethal launch finishes its landing during round-over without starting to rise', () => {
+  const settings = { ...bananaConfig, fighters: [banana, gaga] };
+  const state = begin(settings);
+  const [caster, target] = state.fighters;
+  caster.energy = MAX_ENERGY;
+  target.hp = 1;
+  step(state, [input(['ULT']), NEUTRAL], settings);
+  for (let tick = 0; state.phase === 'fight' && tick < 150; tick++) step(state, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(state.phase, 'round-over');
+  assert.equal(target.recovery.phase, 'fall');
+  const events = stepFor(state, 80, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(target.recovery.phase, 'down');
+  assert.equal(target.y, settings.arena.floor);
+  assert.deepEqual(events.map(event => event.kind), ['knockdown']);
+});
+
 test('The initial wave windup can be interrupted before the cut-in', () => {
   const state = begin(bananaConfig), [f] = state.fighters;
   closeDistance(state);
   f.energy = MAX_ENERGY;
-  step(state, [input(['C'], 0, 1), NEUTRAL], bananaConfig);
+  step(state, [input(['ULT']), NEUTRAL], bananaConfig);
   step(state, [NEUTRAL, input(['A'])], bananaConfig);
   const events = bananaStep(state, 95);
   assert.equal(events.some(event => event.kind === 'hit' && event.source === 1), true);
@@ -376,14 +422,14 @@ test('Banana can go directly from crying into the wave and gets a ground require
   f.energy = MAX_ENERGY;
   step(state, [hold('C', ['C']), NEUTRAL], bananaConfig);
   assert.equal(f.attack.id, bananaActionIds.recharge);
-  const events = step(state, [hold('C', ['C'], 0, 1), NEUTRAL], bananaConfig);
+  const events = step(state, [input(['ULT']), NEUTRAL], bananaConfig);
   assert.equal(events[0]?.kind, 'wave-windup');
   assert.equal(f.energy, 0);
 
   const air = begin(bananaConfig), [airFighter] = air.fighters;
   airFighter.energy = MAX_ENERGY;
   step(air, [input(['jump']), NEUTRAL], bananaConfig);
-  const refused = step(air, [input(['C'], 0, 1), NEUTRAL], bananaConfig);
+  const refused = step(air, [input(['ULT']), NEUTRAL], bananaConfig);
   assert.equal(refused.find(event => event.kind === 'wave-unavailable')?.requirement, 'ground');
   assert.equal(air.cutIn, undefined);
   assert.equal(airFighter.energy, MAX_ENERGY);
@@ -590,6 +636,29 @@ test('Gaga leaves U empty and selects the pole throw for air J', () => {
   assert.equal(state.fighters[0].attack.id, gagaActionIds.airThrow);
 });
 
+test('a downward direction keeps C on its own skill even with three full stocks', () => {
+  for (const [definition, skill, cost] of [
+    [banana, bananaActionIds.recharge, 0],
+    [gaga, gagaActionIds.turret, ENERGY_PER_STOCK]
+  ]) {
+    for (const source of [0, 1]) {
+      const settings = { ...config, fighters: [definition, definition] };
+      const state = begin(settings);
+      const fighter = state.fighters[source];
+      fighter.energy = MAX_ENERGY;
+      const commands = [NEUTRAL, NEUTRAL];
+      commands[source] = input(['C'], 0, 1);
+      const events = step(state, commands, settings);
+
+      assert.equal(fighter.attack?.id, skill);
+      assert.equal(fighter.energy, MAX_ENERGY - cost);
+      assert.ok(events.every(event => event.kind !== 'ultimate'));
+      assert.equal(state.cutIn, undefined);
+      assert.equal(state.summon, undefined);
+    }
+  }
+});
+
 const summonInput = input(['ULT']);
 
 test('ULT requires three bars and ground, without falling back to the C turrets', () => {
@@ -699,7 +768,8 @@ test('Dijiang catches fighters on fixed and moving upper platforms in the dive a
         lastY = target.y;
       }
       assert.ok(carriedTicks > 1, `${arena.id} ${platform.id}`);
-      assert.deepEqual(events.map(event => event.kind), ['summon-catch', 'summon-impact', 'hit']);
+      assert.deepEqual(events.map(event => event.kind), ['summon-catch', 'summon-impact', 'hit', 'knockdown']);
+      assert.equal(target.recovery.phase, 'down');
       assert.equal(events[1].y, arena.floor);
       assert.equal(events[2].amount, 320);
       assert.deepEqual([target.x, target.y, target.vy, target.ground], [landing, arena.floor, 0, 'floor']);
