@@ -219,6 +219,8 @@ export interface FighterState {
   ascendEndVisual?: { tick: number; x: number; y: number };
   frogCasts?: { id: string; tick: number; x: number; y: number; facing: Side; powered: boolean; startup: number; anchors?: {frame:number;x:number;y:number}[] }[];
   frogWarps?: {tick:number;fromX:number;fromY:number;toX:number;toY:number;powered:boolean;kind:'behind'|'burrow'}[];
+  /** Empowered dodge presentation follows the real dash endpoint, including walls and platforms. */
+  frogDodge?: {tick:number;fromX:number;fromY:number;toX:number;toY:number;arrivedAt?:number};
   frogFollowup?: boolean;
 
   bindUntil?: number;

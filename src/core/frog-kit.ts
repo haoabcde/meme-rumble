@@ -59,8 +59,17 @@ export function finishAscension(f:FighterState,state:MatchState){
 export function settleFrogWarp(f:FighterState,state:MatchState){
  const w=f.frogWarps?.at(-1);
  if(w?.kind==='burrow'&&state.arenaFrame-w.tick===FROG_RULES.warpHidden){w.toX=f.x;w.toY=f.y;}
+ const d=f.frogDodge;
+ if(d&&d.arrivedAt===undefined){
+  d.toX=f.x;d.toY=f.y;
+  if(!f.dash||!f.dashActive||f.hitstun||f.recovery)d.arrivedAt=state.arenaFrame;
+ }
+}
+export function startFrogDodge(f:FighterState,state:MatchState){
+ if(frogPowered(f,state))f.frogDodge={tick:state.arenaFrame,fromX:f.x,fromY:f.y,toX:f.x,toY:f.y};
 }
 export function tickAscension(f:FighterState,state:MatchState){
+ if(f.frogDodge&&state.arenaFrame-(f.frogDodge.arrivedAt??f.frogDodge.tick)>60)delete f.frogDodge;
  if(f.frogWarps?.length){f.frogWarps=f.frogWarps.filter(w=>state.arenaFrame-w.tick<150);if(!f.frogWarps.length)delete f.frogWarps;}
  if(f.ascendVisual&&state.arenaFrame-f.ascendVisual.tick>220)delete f.ascendVisual;
  if(f.ascendEndVisual&&state.arenaFrame-f.ascendEndVisual.tick>=FROG_RULES.fadeLife)delete f.ascendEndVisual;

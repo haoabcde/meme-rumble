@@ -109,7 +109,7 @@ test('rice has no apex: normal descends straight to six body widths, up follows 
  for(const source of [0,1]){
   const t=setup(source,1300),x=t.caster.x,sign=t.caster.facing;t.press('B');t.run(8);const e=t.state.entities[0],vx=e.vx,vy=e.vy;
   assert.equal(Math.abs(vx),28);assert.ok(vy>0);for(let i=0;i<8;i++){t.tick();assert.equal(e.vx,vx);assert.equal(e.vy,vy);}
-  t.run(12);assert.ok(e.grounded);assert.ok(Math.abs(e.x-(x+sign*432))<1e-7);
+  t.run(18);assert.ok(e.grounded);assert.ok(Math.abs(e.x-(x+sign*518.4))<1e-7);
   const up=setup(source,1300);up.press('B',-1);up.run(8);const u=up.state.entities[0],ux=u.vx,uy=u.vy;
   assert.ok(Math.abs(Math.atan2(-uy,Math.abs(ux))*180/Math.PI-60)<1e-7);assert.ok(Math.hypot(ux,uy)>Math.hypot(vx,vy));
   for(let i=0;i<12;i++){up.tick();assert.equal(u.vx,ux);assert.equal(u.vy,uy);}

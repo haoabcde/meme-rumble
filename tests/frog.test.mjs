@@ -235,6 +235,29 @@ test('burrow seal settles at the real emergence position after body separation, 
   const settled=w.toX;t.run(20);assert.equal(w.toX,settled);
  }
 });
+test('only empowered dodge records its real ground/air transit, preserving motion and replay through hitstop',()=>{
+ for(const source of [0,1])for(const air of [false,true]){
+  const plain=setup(source,1400),power=setup(source,1400);power.caster.ascendUntil=900;
+  if(air)for(const t of [plain,power]){t.caster.y=550;t.caster.ground=null;t.caster.vy=2;}
+  plain.press('dash');power.press('dash');assert.equal(plain.caster.frogDodge,undefined);
+  assert.ok(power.caster.frogDodge);assert.equal(power.caster.frogDodge.arrivedAt,undefined);
+  const clone=structuredClone(power.state);power.state.freeze=clone.freeze=3;
+  const start=structuredClone(power.caster.frogDodge);
+  for(let i=0;i<3;i++){assert.deepEqual(power.tick(),step(clone,[NEUTRAL,NEUTRAL],power.config));assert.deepEqual(power.state,clone);assert.deepEqual(power.caster.frogDodge,start);}
+  for(let i=0;i<(air?5:7);i++){plain.tick();assert.deepEqual(power.tick(),step(clone,[NEUTRAL,NEUTRAL],power.config));assert.deepEqual(power.state,clone);}
+  assert.ok(Math.abs(Math.abs(power.caster.x-power.caster.frogDodge.fromX)-2*Math.abs(plain.caster.x-power.caster.frogDodge.fromX))<1e-7);assert.equal(power.caster.y,plain.caster.y);
+  assert.equal(power.caster.frogDodge.toX,power.caster.x);assert.equal(power.caster.frogDodge.toY,power.caster.y);
+  assert.notEqual(power.caster.frogDodge.arrivedAt,undefined);
+  assert.equal(power.caster.frogWarps,undefined);assert.equal(power.caster.frogFollowup,undefined);assert.equal(power.caster.frogCasts,undefined);
+ }
+});
+test('empowered dodge seals stop at an actual wall and expire on arena time, without automatic attacks',()=>{
+ const t=setup(0,1400);t.caster.ascendUntil=900;t.caster.x=t.config.arena.right-10;t.caster.facing=1;
+ t.tick(input(['dash'],1));t.run(8);const d=t.caster.frogDodge;
+ assert.equal(d.toX,t.config.arena.right);assert.equal(d.toX,t.caster.x);
+ const arrival=d.arrivedAt;t.run(25);assert.equal(d.toX,t.config.arena.right);assert.equal(d.arrivedAt,arrival);
+ assert.equal(t.caster.frogCasts,undefined);assert.equal(t.target.hp,1000);t.run(40);assert.equal(t.caster.frogDodge,undefined);
+});
 
 test('empowered reactive warp automatically casts skill one once after reappearing; proactive warp does not',()=>{
  for(const source of [0,1]){

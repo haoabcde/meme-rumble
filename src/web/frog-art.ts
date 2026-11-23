@@ -1,10 +1,11 @@
+import normalGuardSource from '../../assets/角色/防御/奶蛙/常态掌架_V2/掌架防御_像素.png';
 import type {FighterAction,FighterState,MatchConfig,MatchState} from '../core/types.js';
 import {frogPowered,FROG_RULES,frogCrouching} from '../core/frog-kit.js';
 import {cutGrid} from './pixel-sprites.mjs';
 import {drawPixelFx} from './pixel-fx.mjs';
 import {holyFanSample} from './holy-fan.mjs';
 import {drawWarp,setWarpArt} from './frog-warp.mjs';
-import {drawTeleport,setTeleportArt} from './frog-teleport.mjs';
+import {drawTeleport,drawDodgeTeleport,setTeleportArt} from './frog-teleport.mjs';
 import {drawHeldStars,setStarArt} from './frog-stars.mjs';
 import {drawRuneGuard,setGuardArt} from './frog-guard.mjs';
 import crouchSource from '../../assets/角色/技能/奶蛙/二技能/调皮下蹲_像素姿态_V1.png';
@@ -19,9 +20,11 @@ import goldSource from '../../assets/角色/特效/奶蛙/金色符文_V1/星芒
 import travelSource from '../../assets/角色/常态/奶蛙/移动与悬浮_八帧_V1.png';
 import angelSource from '../../assets/角色/大招/奶娃/神了/天使_四姿态.png';
 import introSource from '../../assets/角色/大招/奶娃/神了/神性指尖_演出像素关键帧.png';
+let normalGuard:HTMLCanvasElement;
 let moves:HTMLCanvasElement[]=[],angels:HTMLCanvasElement[]=[],travel:HTMLCanvasElement[]=[],gold:HTMLCanvasElement[]=[],crouch:HTMLCanvasElement,thinking:HTMLCanvasElement,intro:HTMLImageElement;
 const load=(src:string)=>{const im=new Image();im.src=src;return im.decode().then(()=>im)};
 void Promise.all([load(moveSource),load(angelSource),load(introSource),load(travelSource),load(goldSource),load(crouchSource)]).then(([m,a,i,t,v,c])=>{moves=cutGrid(m,4,2);angels=cutGrid(a,2,2);travel=cutGrid(t,4,2);gold=cutGrid(v,2,2);crouch=cutGrid(c,1,1)[0];intro=i;});
+void load(normalGuardSource).then(im=>normalGuard=cutGrid(im,1,1)[0]);
 void load(thinkingSource).then(im=>thinking=cutGrid(im,1,1)[0]);
 void load(starSource).then(im=>setStarArt(im));
 void Promise.all([load(spiralSource),load(discSource)]).then(([s,d])=>setWarpArt(cutGrid(s,2,1),cutGrid(d,2,1)));
@@ -98,6 +101,9 @@ export function drawFrogActor(g:CanvasRenderingContext2D,f:FighterState,state:Ma
  const h=pose===5?100:130,evAge=state.arenaFrame-(f.poseEvent?.tick??-999);
  const warp=f.frogWarps?.at(-1),warpAge=state.arenaFrame-(warp?.tick??-999);
  g.save();g.imageSmoothingEnabled=false;
+ const dodge=f.frogDodge;
+ if(dodge&&dodge.arrivedAt===undefined&&f.dashActive&&f.hp>0&&!f.hitstun&&!f.recovery){g.restore();return;}
+ if(dodge?.arrivedAt!==undefined&&state.arenaFrame-dodge.arrivedAt<3)g.globalAlpha*=clamp((state.arenaFrame-dodge.arrivedAt+1)/3);
  if(warpAge<FROG_RULES.warpHidden){g.restore();return;}
  if(warpAge<16){
   const rise=clamp((warpAge-FROG_RULES.warpHidden+1)/10),height=powered?182:104;
@@ -119,7 +125,8 @@ export function drawFrogActor(g:CanvasRenderingContext2D,f:FighterState,state:Ma
   if(stage>=0&&action){const anticipation=clamp(frame/action.startup);if(frame<action.startup){pose=0;g.rotate((stage%2?1:-1)*anticipation*.09);g.scale(1+anticipation*.025,1-anticipation*.06);}}
   if(f.dashActive){g.save();g.globalAlpha=.18;actorImage(g,moves[0],130,-3);g.restore();g.translate(18,0);}
   const idle=state.arenaFrame%420,ponder=!action&&!f.moving&&!f.guarding&&!f.hitstun&&!f.recovery&&f.ground&&idle>=150&&idle<320;
-  if(ponder&&thinking){
+  if(f.guarding&&normalGuard){actorImage(g,normalGuard,130);}
+  else if(ponder&&thinking){
    const blend=clamp((idle-150)/8)*clamp((320-idle)/8);
    g.save();g.globalAlpha*=1-blend;actorImage(g,moves[0],130);g.restore();
    g.save();g.globalAlpha*=blend;g.translate(0,-Math.sin(idle*.075)*1.2);g.rotate(Math.sin(idle*.045)*.008);actorImage(g,thinking,130);g.restore();
@@ -153,12 +160,13 @@ export function drawFrogEffects(g:CanvasRenderingContext2D,state:MatchState,conf
    drawPixelFx(g,'feather',end.x,end.y-95,(state.arenaFrame-end.tick)/60,1.9,layer,true,.85);
   }
   drawCastEffects(g,f,state,config,layer);
+  if(f.frogDodge)drawDodgeTeleport(g,f.frogDodge,state.arenaFrame,layer);
   for(const w of f.frogWarps??[]){
    const age=state.arenaFrame-w.tick;
    if(w.powered)drawTeleport(g,w,age,layer);
    else drawWarp(g,w.fromX,w.fromY-70,age,false,layer);
    drawWarp(g,w.toX,w.toY-2,age,w.powered,layer,true);
-   if(w.powered)drawPixelFx(g,'feather',w.fromX,w.fromY-80,age/60,1.8,layer,true,.95);
+   if(w.powered)drawPixelFx(g,w.kind==='burrow'?'featherClean':'feather',w.fromX,w.fromY-80,age/60,1.8,layer,true,.95);
    if(w.powered&&layer==='back'&&age<34){
     const alpha=clamp((age-3)/4)*clamp((34-age)/18);
     g.save();const top=-config.arena.height-400;

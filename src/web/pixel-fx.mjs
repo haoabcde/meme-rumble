@@ -15,7 +15,8 @@ import * as wave from '../../assets/特效库/PixelFX/src/fx/water/wave-crash.js
 import * as whirlpool from '../../assets/特效库/PixelFX/src/fx/water/whirlpool.js';
 // Keep the raw library preview intact; the game supplies the tall fan in world space.
 const pillarTall={...pillar,create:options=>pillar.create({...options,fan:false})};
-export const selectedEffects={thunder,wave,whirlpool,blunt,burst,uppercut,pillar,pillarTall,halo,feather,rays,thrust,spark,smite,sun};
+const featherClean={...feather,create:options=>feather.create({...options,puff:false})};
+export const selectedEffects={featherClean,thunder,wave,whirlpool,blunt,burst,uppercut,pillar,pillarTall,halo,feather,rays,thrust,spark,smite,sun};
 export const GOLD=['#342032','#75402e','#b46c26','#e6a53a','#ffcf62','#ffeaa4','#fff8d8','#ffffff'];
 export const BLUE=['#142c58','#28598a','#467fb7','#68adde','#99d3f5','#c4eaff','#edfaff','#ffffff'];
 export const ICE=['#243e56','#3b6684','#5a90b0','#82b9d3','#a9d9e9','#d1eef5','#edfbff','#ffffff'];

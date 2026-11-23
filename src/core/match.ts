@@ -6,7 +6,7 @@ import { platformAt, platformOffset } from './terrain.js';
 import { MAX_ENERGY } from './types.js';
 import { entityContacts, resolveContactEntity, updateEntities, spawnEntities } from './entities.js';
 import {startWhale,cinematicOwner,WHALE_RULES} from './whale-kit.js';
-import {frogAction,frogCanStart,startFrog,finishAscension,tickAscension,frogPowered,frogCrouching,warpFrog,settleFrogWarp,FROG_RULES} from './frog-kit.js';
+import {frogAction,frogCanStart,startFrog,finishAscension,tickAscension,frogPowered,frogCrouching,warpFrog,settleFrogWarp,startFrogDodge,FROG_RULES} from './frog-kit.js';
 
 const seats = [0, 1] as const;
 const slotPriority = ['ULT', 'C', 'B', 'A'] as const;
@@ -280,6 +280,7 @@ function updateControl(
       }
       f.facing = dash.x || f.facing;
       f.dash = airborne ? 6 : 8;
+      if(definition.id==='frog')startFrogDodge(f,state);
       if (airborne) f.airActionUsed = true;
       f.guarding = false;
       events.push({ kind: 'dash', source: seat, x: f.x, y: f.y, direction: f.facing });
@@ -347,7 +348,7 @@ function motion(
     move = f.push;
     f.push -= Math.sign(f.push) * Math.min(1, Math.abs(f.push));
   } else if (f.dash > 0) {
-    move = definition.dash * f.facing;
+    move = definition.dash * f.facing * (definition.id==='frog'&&frogPowered(f,state)?2:1);
     f.dash--;
   } else if (f.attack && action) {
     if (!('counterTo' in action)) {

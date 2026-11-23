@@ -71,7 +71,7 @@ export function create(o) {
     drawBack(p) {
       loose.draw(p, F, "back");
       ps.draw(p, "back");
-      puff(p);
+      if(o.puff!==false)puff(p);
     },
     draw(p) {
       // the pop: a white flash and a ring of air
