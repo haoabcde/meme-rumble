@@ -300,7 +300,7 @@ export class FightAudio {
     const target=soundTarget(clipId),stats=this.levels.get(clip.src);
     gain.gain.value = level(clip.volume) * level(cue.volume) *
       (target!==undefined&&stats?calibratedGain(stats,target):1) *
-      (clipId==='ultimate-bgm'?10**(5/20):1);
+      (clipId==='ultimate-bgm'?10**(7/20):1);
     source.buffer = buffer;
     source.connect(gain).connect(bus);
     source.start();
