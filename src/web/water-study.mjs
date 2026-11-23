@@ -12,15 +12,10 @@ export function studySurface(g,e,age,fade,texture){
   if(!i)g.moveTo(x,y);else g.lineTo(x,y);
  }
  g.closePath();g.clip();
- // A shallow translucent water skin beneath the foam, with small travelling ripples.
- // Avoid the previous opaque radial-gradient plate and its uniformly raised rim.
- g.save();g.imageSmoothingEnabled=false;g.globalAlpha*=fade*.52;
- const strips=32;
- for(let i=0;i<strips;i++){
-  const u=(i+.5)/strips,dy=Math.sin(age*.11-u*10)*1.1;
-  g.drawImage(texture,i*texture.width/strips,0,texture.width/strips+1,texture.height,
-   e.x-POOL.rx+i/strips*POOL.rx*2,e.y-POOL.ry+dy,POOL.rx*2/strips+1,POOL.ry*2);
- }
+ // One translucent skin; overlapping alpha strips produced a glass-like vertical grid.
+ // The library foam supplies continuous motion without seams in the underlying water.
+ g.save();g.imageSmoothingEnabled=false;g.globalAlpha*=fade*.38;
+ g.drawImage(texture,e.x-POOL.rx,e.y-POOL.ry,POOL.rx*2,POOL.ry*2);
  g.restore();
  // Keep the field shallow and translucent; the native moving foam gives it material.
  g.translate(e.x,e.y);g.scale(POOL.rx/60,POOL.ry/36);

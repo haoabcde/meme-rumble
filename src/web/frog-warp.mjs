@@ -4,9 +4,9 @@ export function setWarpArt(swirl,disc){spirals=swirl;discs=disc;}
 const clamp=n=>Math.max(0,Math.min(1,n));
 // Expand and breathe uniformly; a ground seal must not rock or change its perspective.
 export function warpDiscScale(age){
- if(age<=6)return .42+.7*Math.sin(clamp(age/6)*Math.PI/2);
- if(age<=12)return 1.12-.12*clamp((age-6)/6);
- return 1+.065*Math.sin((age-12)*.28);
+ if(age<=6)return .38+.8*Math.sin(clamp(age/6)*Math.PI/2);
+ if(age<=12)return 1.18-.22*clamp((age-6)/6);
+ return .96+.13*Math.sin((age-12)*.34);
 }
 export function drawWarp(g,x,y,age,powered,layer,disc=false){
  if(age<0||age>38)return;

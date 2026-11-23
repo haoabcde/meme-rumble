@@ -5,14 +5,15 @@ import {teleportPoint,teleportWindow} from '../src/web/frog-teleport.mjs';
 test('gold teleport curve reaches the actual origin and endpoint on either side and different heights',()=>{
  for(const dx of [-600,600]){
   const w={fromX:900,fromY:500,toX:900+dx,toY:330};
-  assert.deepEqual(teleportPoint(w,0),{x:900,y:430});
+  assert.deepEqual(teleportPoint(w,0),{x:900,y:406});
   assert.equal(teleportPoint(w,1).x,w.toX);
-  assert.ok(Math.abs(teleportPoint(w,1).y-(w.toY-70))<1e-9);
+  assert.ok(Math.abs(teleportPoint(w,1).y-(w.toY-94))<1e-9);
   assert.ok(teleportPoint(w,.5).y<345);
  }
  assert.equal(teleportWindow(6).head,1);
- assert.equal(teleportWindow(32).alpha,0);
- assert.equal(teleportWindow(29).tail,1);
+ assert.equal(teleportWindow(44).alpha,0);
+ assert.equal(teleportWindow(42).tail,1);
+ assert.ok(teleportWindow(24).alpha>.9&&teleportWindow(24).tail<.5);
 });
 test('burrow disc expands then contracts without an orientation change',()=>{
  assert.ok(warpDiscScale(0)<warpDiscScale(3));
