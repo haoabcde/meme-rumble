@@ -17,6 +17,8 @@ import { backgrounds, harborProps, harborGantry, stageKits, drawEngineeringCrate
 import { frameCamera, frameDijiangLength, frameDijiangImpact, type CameraView } from './camera.js';
 import { drawGagaWalk, GagaWalk } from './gaga-walk.js';
 import { drawGagaContact, drawGagaReceive, gagaContact, type GagaContact } from './gaga-contact.js';
+import { drawGagaImpact, gagaStrike } from './gaga-hit-art.js';
+import { hitWeight, type Weight } from './hit-burst.js';
 import { drawPoleDust, drawPoleEarthBurst, drawPoleGroundMark, poleDustLife, poleImpactLife, poleSwingFor, type PoleSwing } from './gaga-pole-fx.js';
 import { drawTurretEffect, isTurretEffect, turretEffectLife } from './gaga-turret-fx.js';
 import { dijiangImpactLife, drawDijiang, drawDijiangGround, drawDijiangImpact, drawDijiangPressure,
@@ -29,6 +31,8 @@ import { drawStageBackdrop, drawStageMechanism, drawStageScenery } from './stage
 export const seatColors = ['#61d8ff', '#ff849e'];
 export const recoveryLabels = { fall: '击倒', down: '倒地', rise: '起身' };
 const arenaColors = { dorm: '#ffc08c', court: '#8faaff', harbor: '#8de9cd', station: '#bc9bff' };
+// Peak screen shake in pixels for each hit weight, matching the flash of the same weight in hit-burst.ts.
+const hitShake: Record<Weight, number> = { light: 4, medium: 6.5, heavy: 11, launch: 12 };
 const artSizes = new Map(roster.map(entry => [entry.fighter.id, entry.height]));
 type Point = [number, number];
 const poses = {
@@ -232,6 +236,7 @@ interface Effect {
   poleSwing?: PoleSwing;
   gagaReceives: boolean;
   bananaImpact?: boolean;
+  gagaImpact?: boolean;
 }
 
 export class Renderer {
@@ -239,7 +244,10 @@ export class Renderer {
   private background = document.createElement('canvas');
   private sceneryTop = 0;
   private effects: Effect[] = [];
+  /** Screen shake still to play out, in screen pixels. `shakePhase` drives its direction and restarts with each new blow. */
   private shake = 0;
+  private shakePhase = 0;
+  private shakeSign = 1;
   private camera: CameraView | null = null;
   private dive: { summon: Summon; length: number } | null = null;
   private gagaWalks = [new GagaWalk(), new GagaWalk()];
@@ -270,9 +278,18 @@ export class Renderer {
     }
     this.effects = [];
     this.shake = 0;
+    this.shakePhase = 0;
     this.camera = null;
     this.dive = null;
     this.gagaWalks.forEach(walk => walk.reset());
+  }
+
+  /** A new blow restarts the shake at full strength on its own frame and flips which way it first throws the view. */
+  private kick(strength: number) {
+    if (strength <= this.shake) return;
+    this.shake = strength;
+    this.shakePhase = 0;
+    this.shakeSign = -this.shakeSign;
   }
 
   add(events: CombatEvent[], fighters: MatchConfig['fighters']) {
@@ -280,24 +297,24 @@ export class Renderer {
       const jet = isTearJet(event.actionId);
       if (event.kind === 'tear-splash') {
         this.effects.push({ event, life: bananaEffectLife(event), age: 0, gagaReceives: false });
-        this.shake = Math.max(this.shake, 5);
+        this.kick(5);
       }
       if (jet && event.kind === 'swing') {
-        this.shake = Math.max(this.shake, event.actionId === bananaActionIds.uppercut ? 8 : 5.5);
+        this.kick(event.actionId === bananaActionIds.uppercut ? 8 : 5);
       }
       if (event.actionId === bananaActionIds.wave && (event.kind === 'swing' || event.kind === 'hit')) {
-        this.shake = Math.max(this.shake, event.kind === 'hit' ? 16 : 11);
+        this.kick(event.kind === 'hit' ? 16 : 11);
       }
       if (isTurretEffect(event)) {
         this.effects.push({ event, life: turretEffectLife[event.kind], age: 0, gagaReceives: false });
-        if (event.kind === 'grenade-impact') this.shake = Math.max(this.shake, 9);
-        if (event.kind === 'turret-burst' || event.kind === 'turret-ready') this.shake = Math.max(this.shake, 6);
+        if (event.kind === 'grenade-impact') this.kick(9);
+        if (event.kind === 'turret-burst' || event.kind === 'turret-ready') this.kick(6);
       }
       const poleSwing = poleSwingFor(event);
       if (poleSwing) this.effects.push({ event, life: poleDustLife, age: 0, poleSwing, gagaReceives: false });
       if (event.kind === 'pole-impact') {
         this.effects.push({ event, life: poleImpactLife, age: 0, gagaReceives: false });
-        this.shake = Math.max(this.shake, 8.5);
+        this.kick(6);
       }
       if (event.kind === 'summon-impact') {
         this.effects.push({ event, life: dijiangImpactLife, age: 0, gagaReceives: false });
@@ -310,18 +327,21 @@ export class Renderer {
         const brief = event.kind === 'dash' || event.kind === 'land' || event.kind === 'drop';
         const cue = gagaContact(event, fighters);
         const fromBanana = fighters[event.source].id === 'banana';
+        // A burst belongs to whoever landed the blow, so its colour tells the two fighters' hits apart.
+        const gagaImpact = cue === 'guard' || (fighters[event.source].id === 'gaga' && Boolean(gagaStrike(event)));
         const wet = jet || event.actionId === bananaActionIds.wave || event.actionId === bananaActionIds.tear;
         const bananaImpact = event.kind === 'land' ? fromBanana && event.reaction === 'air'
-          : event.kind === 'hit' && Boolean(event.amount) && !wet && (fromBanana || fighters[1 - event.source].id === 'banana');
-        const life = event.kind === 'knockdown' ? 22 : bananaImpact ? (event.kind === 'land' ? 22 : 19) : jet ? bananaEffectLife(event)
+          : event.kind === 'hit' && Boolean(event.amount) && !wet && !gagaImpact && (fromBanana || fighters[1 - event.source].id === 'banana');
+        const life = event.kind === 'knockdown' ? 22 : bananaImpact || gagaImpact ? (event.kind === 'land' ? 22 : 19)
+          : jet ? bananaEffectLife(event)
           : cue === 'light' || brief || event.impact === 'light' ? 14 : event.impact === 'heavy' ? 22 : 23;
         const gagaReceives = event.kind === 'hit' && fighters[1 - event.source].id === 'gaga';
-        this.effects.push({ event, life, age: 0, cue, gagaReceives, bananaImpact });
+        this.effects.push({ event, life, age: 0, cue, gagaReceives, bananaImpact, gagaImpact });
       }
       if (event.kind === 'hit' || event.kind === 'break') {
-        const strength = jet ? (event.actionId === bananaActionIds.uppercut ? 13 : 8)
-          : event.impact === 'heavy' ? 10 : event.impact === 'light' ? 2.5 : 4;
-        this.shake = Math.max(this.shake, event.feedback?.shake ?? strength);
+        const strength = jet ? (event.actionId === bananaActionIds.uppercut ? 12 : 8)
+          : hitShake[event.kind === 'break' ? 'medium' : hitWeight(event)];
+        this.kick(event.feedback?.shake ?? strength);
       }
     }
   }
@@ -357,15 +377,20 @@ export class Renderer {
     const impact = this.effects.find(effect => effect.event.kind === 'summon-impact');
     const { x, y, zoom } = impact && shakeEnabled ?
       frameDijiangImpact(config.arena, { width, height }, camera, impact.event, impact.age) : camera;
-    const shake = shakeEnabled ? Math.sin(this.shake * 3) * this.shake : 0;
-    const dx = Math.min(x * zoom, Math.max(width - (config.arena.width - x) * zoom, shake));
-    ctx.setTransform(zoom, 0, 0, zoom, -x * zoom + dx, -y * zoom);
+    // The shake alternates direction each frame on both axes and is hardest on the frame of the blow itself.
+    // Neither axis may push the view past the edge of the arena.
+    const force = shakeEnabled ? this.shake : 0;
+    const dx = Math.min(x * zoom, Math.max(width - (config.arena.width - x) * zoom,
+      force * this.shakeSign * Math.cos(this.shakePhase)));
+    const dy = Math.min(y * zoom, Math.max(height - (config.arena.height - y) * zoom,
+      force * .55 * Math.sin(this.shakePhase * 1.3 + .7)));
+    ctx.setTransform(zoom, 0, 0, zoom, -x * zoom + dx, -y * zoom + dy);
     const layers = layersFor(config.arena);
     layers.backdrop(ctx, config.arena, x + width / (2 * zoom));
     ctx.drawImage(this.background, 0, this.sceneryTop);
     layers.mechanism(ctx, config.arena, state.arenaFrame, state, config);
     ctx.fillStyle = '#10153312';
-    ctx.fillRect(x - dx / zoom, y, width / zoom, height / zoom);
+    ctx.fillRect(x - dx / zoom, y - dy / zoom, width / zoom, height / zoom);
 
     const decks = config.arena.platforms.map(p => platformAt(p, state.arenaFrame));
     if (summon?.phase === 'fall') {
@@ -627,7 +652,7 @@ export class Renderer {
       if (!f.hp) continue;
       const center = (f.x - x) * zoom + dx;
       const poseHeight = f.recovery?.phase === 'down' ? heights[seat] * .60 : heights[seat];
-      const markerY = (f.y - poseHeight - y) * zoom - 25;
+      const markerY = (f.y - poseHeight - y) * zoom - 25 - dy;
       const label = 'P' + (seat + 1) + (f.recovery ? ' ' + recoveryLabels[f.recovery.phase] : '');
       const labelWidth = f.recovery ? 70 : 34;
       ctx.fillStyle = '#111333e8';
@@ -645,6 +670,7 @@ export class Renderer {
     }
     this.drawPositionStrip(config.arena, [a.x, b.x], camera);
     this.shake = Math.max(0, this.shake - elapsed);
+    this.shakePhase += elapsed * 2.9;
   }
 
   private drawPositionStrip(arena: ArenaDefinition, fighters: [number, number], camera: CameraView) {
@@ -711,7 +737,9 @@ export class Renderer {
       } else {
         if (bananaEffectLife(event)) {
           drawBananaEffect(ctx, event, age, life);
-        } else if (cue) {
+        } else if (effect.gagaImpact) {
+          drawGagaImpact(ctx, event, age, life, reducedMotion);
+        } else if (cue && cue !== 'guard') {
           drawGagaContact(ctx, cue, age, event.facing);
         } else if (!effect.bananaImpact) {
           ctx.save();

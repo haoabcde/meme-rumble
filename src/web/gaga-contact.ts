@@ -2,6 +2,8 @@ import { gagaActionIds } from '../content/fighters/gaga.js';
 import type { CombatEvent, MatchConfig } from '../core/types.js';
 
 export type GagaContact = 'light' | 'medium' | 'heavy' | 'pole' | 'lift' | 'slide' | 'guard';
+/** Contacts still drawn as motion lines. Blocks get their own feedback in gaga-hit-art.ts. */
+type Streak = Exclude<GagaContact, 'guard'>;
 
 export function gagaContact(event: CombatEvent, fighters: MatchConfig['fighters']): GagaContact | undefined {
   const fromGaga = fighters[event.source].id === 'gaga';
@@ -13,14 +15,13 @@ export function gagaContact(event: CombatEvent, fighters: MatchConfig['fighters'
   return event.impact ?? 'light';
 }
 
-const look: Record<GagaContact, { color: string; width: number; height: number; spread: number }> = {
+const look: Record<Streak, { color: string; width: number; height: number; spread: number }> = {
   light: { color: '#ffdc91', width: 27, height: 19, spread: 39 },
   medium: { color: '#ffd08c', width: 43, height: 31, spread: 60 },
   heavy: { color: '#ffae61', width: 63, height: 40, spread: 90 },
   pole: { color: '#ffd477', width: 54, height: 22, spread: 63 },
   lift: { color: '#85e3ff', width: 31, height: 56, spread: 69 },
-  slide: { color: '#ffcf8d', width: 69, height: 16, spread: 81 },
-  guard: { color: '#84d5ff', width: 30, height: 34, spread: 44 }
+  slide: { color: '#ffcf8d', width: 69, height: 16, spread: 81 }
 };
 
 function streak(ctx: CanvasRenderingContext2D, x: number, y: number, length: number, width: number, angle: number) {
@@ -37,7 +38,8 @@ function streak(ctx: CanvasRenderingContext2D, x: number, y: number, length: num
   ctx.restore();
 }
 
-export function drawGagaContact(ctx: CanvasRenderingContext2D, cue: GagaContact, age: number, facing = 1) {
+/** Motion lines for contacts outside the burst table, such as the summon catch. */
+export function drawGagaContact(ctx: CanvasRenderingContext2D, cue: Streak, age: number, facing = 1) {
   if (age >= 13) return;
   const { color, width, height, spread } = look[cue];
   const phase = age / 13;
@@ -46,24 +48,21 @@ export function drawGagaContact(ctx: CanvasRenderingContext2D, cue: GagaContact,
   ctx.scale(facing, 1);
   ctx.fillStyle = color;
 
-  if (cue !== 'guard') {
-    const pop = .75 + phase * .48;
-    const angle = cue === 'lift' ? -1.5 : cue === 'slide' ? -.07 : -.23;
-    streak(ctx, 0, -age * (cue === 'lift' ? 1.5 : .2), Math.max(width, height) * 1.85 * pop, Math.min(width, height) * .38, angle);
-    streak(ctx, 0, 0, Math.min(width, height) * 1.32 * pop, Math.max(width, height) * .09, angle + Math.PI / 2);
-    if (age < 4) {
-      ctx.fillStyle = '#fff8df';
-      streak(ctx, 0, 0, Math.max(width, height) * .9, Math.min(width, height) * .2, angle);
-      ctx.fillStyle = color;
-    }
+  const angle = cue === 'lift' ? -1.5 : cue === 'slide' ? -.07 : -.23;
+  const pop = .75 + phase * .48;
+  streak(ctx, 0, -age * (cue === 'lift' ? 1.5 : .2), Math.max(width, height) * 1.85 * pop, Math.min(width, height) * .38, angle);
+  streak(ctx, 0, 0, Math.min(width, height) * 1.32 * pop, Math.max(width, height) * .09, angle + Math.PI / 2);
+  if (age < 4) {
+    ctx.fillStyle = '#fff8df';
+    streak(ctx, 0, 0, Math.max(width, height) * .9, Math.min(width, height) * .2, angle);
+    ctx.fillStyle = color;
   }
 
-  if (cue === 'heavy' || cue === 'medium' || cue === 'guard') {
+  if (cue === 'heavy' || cue === 'medium') {
     ctx.strokeStyle = color;
     ctx.lineWidth = cue === 'heavy' ? 4 - phase * 2 : 2.5;
     ctx.beginPath();
-    ctx.ellipse(0, 0, width * (.62 + phase), height * (.65 + phase * .84), -.14,
-      cue === 'guard' ? -Math.PI * .53 : 0, cue === 'guard' ? Math.PI * .53 : Math.PI * 2);
+    ctx.ellipse(0, 0, width * (.62 + phase), height * (.65 + phase * .84), -.14, 0, Math.PI * 2);
     ctx.stroke();
   }
 
