@@ -1,0 +1,22 @@
+{
+  "date": "2026-11-24",
+  "pdfSha256": "ac2e8bfb4ca680a7ea288e2fc8faca37d2aac2ce6386c6fad08c25475929b420",
+  "pages": 21,
+  "visualInspection": {
+    "allPageContactSheet": true,
+    "detailPages": [
+      1,
+      2,
+      8,
+      12,
+      14,
+      16,
+      21
+    ],
+    "result": "中文、表格、分页与引用可读；已修正连续引用编号不可区分的问题"
+  },
+  "textBoundaryOutliers": 0,
+  "uniqueSources": 64,
+  "localMarkdownLinks": "all targets exist",
+  "gameplayExecuted": false
+}

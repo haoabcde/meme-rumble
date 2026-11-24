@@ -1,0 +1,521 @@
+[
+  {
+    "number": 1,
+    "url": "../../玩法扩展研究_v0.1.md",
+    "text": "本项目《玩法扩展研究v0.1》。2026-11-24，本地前次提案；用于核对本轮判断如何调整，提案不是功能实现证据。",
+    "keys": [
+      "P2"
+    ]
+  },
+  {
+    "number": 2,
+    "url": "https://www.smashbros.com/en_GB/howtoplay/mode.html",
+    "text": "Nintendo Ultimate 官方模式页。作品事件 2018-12-07，页面更新未注明。厂商一手功能资料，支持 Classic、Squad Strike、Smashdown；页面含发售后追加项目。[模式](https://www.smashbros.com/en_GB/howtoplay/mode.html)",
+    "keys": [
+      "H10"
+    ]
+  },
+  {
+    "number": 3,
+    "url": "https://blog.playstation.com/2014/03/06/hands-on-with-towerfall-ascension-on-ps4-co-op-questing/",
+    "text": "PlayStation Blog 官方上手。事件为 PS4 发售前评测，出版 2014-03-06。平台一手体验，支持 Quest 波次与 Trials 靶标，无留存数据。[上手](https://blog.playstation.com/2014/03/06/hands-on-with-towerfall-ascension-on-ps4-co-op-questing/)",
+    "keys": [
+      "H15"
+    ]
+  },
+  {
+    "number": 4,
+    "url": "https://www.brawlhalla.com/news/battle-pass-season-6-enter-the-fangwild-patch-6-08",
+    "text": "[Brawlhalla Patch 6.08](https://www.brawlhalla.com/news/battle-pass-season-6-enter-the-fangwild-patch-6-08)。事件：2022-06-22；发布/状态：2022-06-22；开发者公告正文；武器收拢、贴壁限制、当期赛图，不能沿用为当前图单。",
+    "keys": [
+      "B2"
+    ]
+  },
+  {
+    "number": 5,
+    "url": "https://www.reddit.com/r/SmashBrosUltimate/comments/1s0uby7/if_squad_strike_gets_reintroduced_and_gets/",
+    "text": "[r/SmashBrosUltimate 原帖](https://www.reddit.com/r/SmashBrosUltimate/comments/1s0uby7/if_squad_strike_gets_reintroduced_and_gets/)。所列日历日期来自搜索索引；原帖快照多为相对时间，发布时间未独立核实。2026-03-23（搜索索引日期），KrackerJoe，自报经常打 Squad Strike、本地参赛圈玩家；玩家自选个案，所在本地圈用车轮战比赛取代常规三命。单圈自报，不能推导赛事总体频率。；同源补充：[同帖回帖](https://www.reddit.com/r/SmashBrosUltimate/comments/1s0uby7/if_squad_strike_gets_reintroduced_and_gets/)。所列日历日期来自搜索索引；原帖快照多为相对时间，发布时间未独立核实。回帖仅显示相对时间，绝对日期未核实。所属帖索引日期为 2026-03-23。Next-Significance-65，模式爱好者；玩家自选个案，这个人把它当最常玩的模式，存在频繁游玩的个体。",
+    "keys": [
+      "SM1",
+      "SM2"
+    ]
+  },
+  {
+    "number": 6,
+    "url": "https://steamcommunity.com/app/251470/discussions/0/523898291490892948/",
+    "text": "[同帖 #8](https://steamcommunity.com/app/251470/discussions/0/523898291490892948/)。2015-10-30，Arkatox，Steam 标记持有游戏；玩家自选个案，认为任务和暗黑世界值得购买，说明单人/合作挑战内容可以成为主价值。；同源补充：[Steam #2](https://steamcommunity.com/app/251470/discussions/0/523898291490892948/)。2015-09-23，Jakkauli，Steam 标记持有游戏；玩家自选个案，前句拒绝推荐单买，认为对抗或合作值得。",
+    "keys": [
+      "TF5",
+      "TF4"
+    ]
+  },
+  {
+    "number": 7,
+    "url": "evidence/项目结构核对.json",
+    "text": "本项目结构核对。2026-11-24，本地一手代码观察；记录已提交基线与在途源文件哈希。未进行新玩法试玩或复测当前未提交功能。",
+    "keys": [
+      "P1"
+    ]
+  },
+  {
+    "number": 8,
+    "url": "../../../design-qa.md",
+    "text": "本项目已提交验收记录。2026-11-24，本地一手历史记录；既有验收不能替代当前工作区改动或新玩法的复验。",
+    "keys": [
+      "P3"
+    ]
+  },
+  {
+    "number": 9,
+    "url": "https://www.nintendo.co.jp/n01/n64/software/nus_p_nalj/index.html",
+    "text": "Nintendo 初代 Smash 产品页。事件 1999-01-21，页面未注明更新。厂商一手资料，页面以日文旧编码发布；日期指日本 N64 版。[N64 官网](https://www.nintendo.co.jp/n01/n64/software/nus_p_nalj/index.html)",
+    "keys": [
+      "H6"
+    ]
+  },
+  {
+    "number": 10,
+    "url": "https://www.nintendo.co.jp/wii/vc/vc_dsb/vc_dsb_01.html",
+    "text": "Nintendo Virtual Console 介绍。事件为 N64 原版玩法，页面未注明出版更新。厂商官方回顾支持 VS 模式和四人限制，与初代发行日分别取证。[官方 VC 页](https://www.nintendo.co.jp/wii/vc/vc_dsb/vc_dsb_01.html)",
+    "keys": [
+      "H7"
+    ]
+  },
+  {
+    "number": 11,
+    "url": "https://ia601206.us.archive.org/27/items/Nintendo64GameManuals/SuperSmashBros.a_text.pdf",
+    "text": "Nintendo 64 美国原版《Super Smash Bros.》说明书，事件及原版 1999 年，扫描件上架时间不能代替手册发行时间。第三方托管的一手文档影印，支持 1P、训练及奖励关练习，以北美版为范围。[说明书](https://ia601206.us.archive.org/27/items/Nintendo64GameManuals/SuperSmashBros.a_text.pdf)",
+    "keys": [
+      "H8"
+    ]
+  },
+  {
+    "number": 12,
+    "url": "https://www.4399.com/special/1111.htm",
+    "text": "4399 双人游戏目录。事件 2008-04-25，页面更新未注明。分发平台一手目录，一手支持该平台收录 0.8，无法锁定作品首发。[目录](https://www.4399.com/special/1111.htm)",
+    "keys": [
+      "H1"
+    ]
+  },
+  {
+    "number": 13,
+    "url": "https://news.4399.com/xyxgl/201004-23-67120.html",
+    "text": "4399 BVN 1.0 攻略。事件及发表 2010-04-24。分发平台同期攻略，支持当时模式和按键，0.2 的首发说法无独立佐证。[攻略](https://news.4399.com/xyxgl/201004-23-67120.html)",
+    "keys": [
+      "H3"
+    ]
+  },
+  {
+    "number": 14,
+    "url": "https://blog.playstation.com/2013/11/14/towerfall-ascension-coming-to-ps4-in-early-2014/",
+    "text": "PlayStation Blog，Maddy Thorson 预告。事件和发布 2013-11-14，文中回顾初版；开发者自述，支持同机动机、战斗机制和新 Quest。[开发者预告](https://blog.playstation.com/2013/11/14/towerfall-ascension-coming-to-ps4-in-early-2014/)",
+    "keys": [
+      "H12"
+    ]
+  },
+  {
+    "number": 15,
+    "url": "https://blog.playstation.com/2014/03/11/towerfall-ascension-out-today-on-ps4/",
+    "text": "PlayStation Blog PS4 发布。事件 2014-03-11，页面 03-11 发布、03-12 更新。开发者一手，支持北美 PS4 上线及 Quest 人数，其他平台首发日另查。[PS4 发售](https://blog.playstation.com/2014/03/11/towerfall-ascension-out-today-on-ps4/)",
+    "keys": [
+      "H14"
+    ]
+  },
+  {
+    "number": 16,
+    "url": "https://www.gcores.com/articles/151199",
+    "text": "机核《截然不同的道路》。事件约 2007–2022，发表 2022-05-16。原创采访含当事人口述及记者回顾，支持 BVN 参考来源、3.0 小队和 3.5 无双，版本首发与动机仅按出处归属。[采访](https://www.gcores.com/articles/151199)",
+    "keys": [
+      "H2"
+    ]
+  },
+  {
+    "number": 17,
+    "url": "https://www.brawlhalla.com/news/new-test-features-emoji-skins-and-more-patch-6-06",
+    "text": "[Brawlhalla Patch 6.06](https://www.brawlhalla.com/news/new-test-features-emoji-skins-and-more-patch-6-06)。事件：2022-04-13；发布/状态：2022-04-13；开发者公告正文；先测试武器往中下方刷及设计动机。",
+    "keys": [
+      "B3"
+    ]
+  },
+  {
+    "number": 18,
+    "url": "https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/master/CHANGELOG.md#370010292026_alpha---2026-10-29",
+    "text": "5DPLAY 官方仓库。事件和日志日期 2026-10-29。开发方一手代码与日志，支持 3.7 Alpha 更新，发布包与竞技分支另有版本。[官方更新日志](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/master/CHANGELOG.md#370010292026_alpha---2026-10-29)",
+    "keys": [
+      "H5"
+    ]
+  },
+  {
+    "number": 19,
+    "url": "https://www.brawlhalla.com/news/patch-1101-morgwyn",
+    "text": "[Brawlhalla Patch 11.01](https://www.brawlhalla.com/news/patch-1101-morgwyn)。事件：2026-11-18；发布/状态：2026-11-18；开发者公告正文；Morgwyn、锦标赛封测、地图池变动；公测仅为安排。；同源补充：Brawlhalla 11.01。事件和发表 2026-11-18。开发方一手公告，支持部分出队列地图仍在自定义或其他队列，结论限公告说明的地图。[11.01](https://www.brawlhalla.com/news/patch-1101-morgwyn)",
+    "keys": [
+      "B4",
+      "H22"
+    ]
+  },
+  {
+    "number": 20,
+    "url": "https://store.steampowered.com/news/posts/?appgroupname=Vector&enddate=1791307712&feed=steam_community_announcements",
+    "text": "[Rivals II Workshop 1.0 补丁 1.7.3](https://store.steampowered.com/news/posts/?appgroupname=Vector&enddate=1791307712&feed=steam_community_announcements)。事件：2026-10-06；发布/状态：2026-10-06；开发者通过 Steam 发布的正文；角色、道具、自定义队列和房间。聚合页定位同名标题。",
+    "keys": [
+      "R4"
+    ]
+  },
+  {
+    "number": 21,
+    "url": "https://steamcommunity.com/app/2217000/announcements/",
+    "text": "[Rivals II 官方 Steam 公告索引](https://steamcommunity.com/app/2217000/announcements/)。事件：2026-11-03 调整，11-15 披露，12-01 预计上线；发布/状态：2026-11-03、11-15；核对官方发帖正文；1.7.5 格挡调整与 Burnette 预告，后者为计划。",
+    "keys": [
+      "R5"
+    ]
+  },
+  {
+    "number": 22,
+    "url": "https://www.adobe.com/products/flashplayer/end-of-life-alternative.html",
+    "text": "Adobe Flash Player EOL。事件 2020-12-31、2021-01-12，页面更新未注明。厂商一手声明，支持停止支持和拦截运行日期，范围为 Flash Player。[Adobe](https://www.adobe.com/products/flashplayer/end-of-life-alternative.html)",
+    "keys": [
+      "H4"
+    ]
+  },
+  {
+    "number": 23,
+    "url": "https://www.nintendo.com/en-gb/News/2018/November/New-fighters-features-and-DLC-announced-in-Super-Smash-Bros-Ultimate-Direct--1464747.html",
+    "text": "Nintendo UK 首发前 Direct 公告，事件及出版 2018-11-01。厂商一手，支持命魂和冒险公布。[首发前公告](https://www.nintendo.com/en-gb/News/2018/November/New-fighters-features-and-DLC-announced-in-Super-Smash-Bros-Ultimate-Direct--1464747.html)",
+    "keys": [
+      "H9"
+    ]
+  },
+  {
+    "number": 24,
+    "url": "https://en-americas-support.nintendo.com/app/answers/detail/a_id/45074/",
+    "text": "Nintendo Ultimate 更新记录。事件 2018-12-07、2018-12-13 等各版本日期，合集页面更新未注明。厂商一手，支持首日线上入口和 1.2.0 匹配取舍，无法报告玩家实际排队耗时。[更新历史](https://en-americas-support.nintendo.com/app/answers/detail/a_id/45074/)",
+    "keys": [
+      "H11"
+    ]
+  },
+  {
+    "number": 25,
+    "url": "https://blog.fr.playstation.com/2014/03/14/interview-du-developpeur-de-towerfall-ascension-le-meilleur-jeu-multijoueur-local-sur-ps4/",
+    "text": "PlayStation Blog 法语开发者访谈。事件为此前 Ouya 上线，出版 2014-03-14。开发者自述转载访谈，能确认在 Ouya 发行，无法据此锁定 2013 年具体日。[法语访谈](https://blog.fr.playstation.com/2014/03/14/interview-du-developpeur-de-towerfall-ascension-le-meilleur-jeu-multijoueur-local-sur-ps4/)",
+    "keys": [
+      "H13"
+    ]
+  },
+  {
+    "number": 26,
+    "url": "https://store.steampowered.com/oldnews/?appgroupname=TowerFall+Ascension&appids=251470&feed=steam_community_announcements",
+    "text": "TowerFall Steam 公告。事件和发表 2014-04-30。开发方一手变更，支持变体增加及随机池移除，未公布点选率。[开发者补丁日志](https://store.steampowered.com/oldnews/?appgroupname=TowerFall+Ascension&appids=251470&feed=steam_community_announcements)",
+    "keys": [
+      "H16"
+    ]
+  },
+  {
+    "number": 27,
+    "url": "https://www.brawlhalla.com/news/yumiko-update-patch-2-59",
+    "text": "Brawlhalla 2.59。事件和发表 2017-05-03。开发方一手，支持当时已有周斗，不能据此判定周斗首开。[2.59](https://www.brawlhalla.com/news/yumiko-update-patch-2-59)",
+    "keys": [
+      "H17"
+    ]
+  },
+  {
+    "number": 28,
+    "url": "https://cms.brawlhalla.com/news/patch-2-63-jumps-dodges-balance/",
+    "text": "Brawlhalla 2.63。事件和发表 2017-05-31。开发方一手，支持周斗 Dodgebomb 与同一补丁内并列的战斗规则更新。[2.63](https://cms.brawlhalla.com/news/patch-2-63-jumps-dodges-balance/)",
+    "keys": [
+      "H18"
+    ]
+  },
+  {
+    "number": 29,
+    "url": "https://www.brawlhalla.com/news/brawlhalla-x-street-fighter-are-ready-to-fight-patch-6-01",
+    "text": "Brawlhalla 6.01。事件和发表 2021-11-22。开发方一手公告，支持 Street Brawl 随联动进入周斗；章节不提供留存。[6.01](https://www.brawlhalla.com/news/brawlhalla-x-street-fighter-are-ready-to-fight-patch-6-01)",
+    "keys": [
+      "H19"
+    ]
+  },
+  {
+    "number": 30,
+    "url": "https://www.brawlhalla.com/news/synthwave-reloaded-bombsketball-refresh-more-patch-7-07",
+    "text": "Brawlhalla 7.07。事件和发表 2023-04-26。开发方一手公告，支持 Bombsketball 平台、篮板、出生计时和三入口，未披露人数。[7.07](https://www.brawlhalla.com/news/synthwave-reloaded-bombsketball-refresh-more-patch-7-07)",
+    "keys": [
+      "H20"
+    ]
+  },
+  {
+    "number": 31,
+    "url": "https://www.brawlhalla.com/news/patch-1100",
+    "text": "Brawlhalla 11.00。事件和发表 2026-10-13。开发方一手公告，支持 Elysium Arena 投入周斗、新图动态队列、自定义房。[11.00](https://www.brawlhalla.com/news/patch-1100)",
+    "keys": [
+      "H21"
+    ]
+  },
+  {
+    "number": 32,
+    "url": "https://steamcommunity.com/app/1818750/eventcomments/4346617656897669287/",
+    "text": "MultiVersus Steam 1.04 官方公告。事件及发表 2024-06-20。开发方一手公告，支持已有 PvE Rifts 与通行证经验变更。[开发方公告](https://steamcommunity.com/app/1818750/eventcomments/4346617656897669287/)",
+    "keys": [
+      "H23"
+    ]
+  },
+  {
+    "number": 33,
+    "url": "https://wbgamessupport.wbgames.com/hc/en-us/articles/41493370420755-MultiVersus-Season-5-FAQ",
+    "text": "WB Games《MultiVersus》第 5 季 FAQ。事件 2025-05-30，页面更新未注明，正文列 2025-01-31 停止真钱交易。厂商一手公告，支持线上结束、离线资格与下载限制，未给出经营归因。[WB Games FAQ](https://wbgamessupport.wbgames.com/hc/en-us/articles/41493370420755-MultiVersus-Season-5-FAQ)",
+    "keys": [
+      "H24"
+    ]
+  },
+  {
+    "number": 34,
+    "url": "https://www.smashbros.com/en_US/howtoplay/",
+    "text": "[Nintendo Gameplay Basics](https://www.smashbros.com/en_US/howtoplay/)。事件：本作机制；发布/状态：未标独立日期；官方教学，核对正文；击飞 KO、伤害百分比与回场介绍。",
+    "keys": [
+      "S1"
+    ]
+  },
+  {
+    "number": 35,
+    "url": "https://en-americas-support.nintendo.com/app/answers/detail/a_id/42835/",
+    "text": "[Nintendo Local or Online Multiplayer](https://en-americas-support.nintendo.com/app/answers/detail/a_id/42835/)。事件：在售版本的入口；发布/状态：未标独立日期；官方支持正文；本地人数、Quickplay、Arena 与在线会籍。",
+    "keys": [
+      "S3"
+    ]
+  },
+  {
+    "number": 36,
+    "url": "https://www.smashbros.com/en_US/howtoplay/mode.html",
+    "text": "[Nintendo Game Modes](https://www.smashbros.com/en_US/howtoplay/mode.html)。事件：本作模式；发布/状态：未标独立日期；官方正文；本地规则、Squad Strike、Tourney、Classic、训练与生存挑战。",
+    "keys": [
+      "S2"
+    ]
+  },
+  {
+    "number": 37,
+    "url": "https://store.steampowered.com/app/291550/Brawlhalla/",
+    "text": "[Brawlhalla Steam 产品页](https://store.steampowered.com/app/291550/Brawlhalla/)。事件：商店列 2017-10-17 上市；发布/状态：持续维护；开发商发布正文；免费、跨平台、本地/在线人数及对战入口。",
+    "keys": [
+      "B1"
+    ]
+  },
+  {
+    "number": 38,
+    "url": "https://store.steampowered.com/app/2217000/Rivals_of_Aether_II/",
+    "text": "[Rivals II Steam 产品页](https://store.steampowered.com/app/2217000/Rivals_of_Aether_II/)。事件：商店列 2024-10-23 上市；发布/状态：持续维护；开发商正文；付费本体、后续角色免费、三类对抗、盾/边缘/抓投。",
+    "keys": [
+      "R1"
+    ]
+  },
+  {
+    "number": 39,
+    "url": "https://rivals2.com/Rivals%202%20Championship%20Series%20Official%20Rules.pdf",
+    "text": "[R2CS 赛事规则 PDF](https://rivals2.com/Rivals%202%20Championship%20Series%20Official%20Rules.pdf)。事件：2026 赛事规则；发布/状态：核到 PDF 正文；未见明确发布日期；官方赛制；禁选流程、单打双打变体。赛事证据。",
+    "keys": [
+      "R2"
+    ]
+  },
+  {
+    "number": 40,
+    "url": "https://store.steampowered.com/news/posts/?enddate=1775581706&feed=steam_community_announcements",
+    "text": "[Rivals II Fun for All 补丁 1.6.0](https://store.steampowered.com/news/posts/?enddate=1775581706&feed=steam_community_announcements)。事件：2026-04-07；发布/状态：2026-04-07；开发者通过 Steam 发布的正文；十张休闲图、队列、投票、排位图替换。聚合页定位同名标题。",
+    "keys": [
+      "R3"
+    ]
+  },
+  {
+    "number": 41,
+    "url": "https://store.steampowered.com/app/251470/TowerFall_Ascension/",
+    "text": "[TowerFall Ascension Steam 产品页](https://store.steampowered.com/app/251470/TowerFall_Ascension/)。事件：商店列 2014-03-11 上市；发布/状态：持续维护；创作者发布的产品说明；对战、Quest、弹药与接箭。",
+    "keys": [
+      "T1"
+    ]
+  },
+  {
+    "number": 42,
+    "url": "https://www.reddit.com/r/mugen/comments/brmgak/so_bleach_vs_naruto_a_flash_game_thats_been_out/",
+    "text": "[r/mugen 帖](https://www.reddit.com/r/mugen/comments/brmgak/so_bleach_vs_naruto_a_flash_game_thats_been_out/)。所列日历日期来自搜索索引；原帖快照多为相对时间，发布时间未独立核实。2019-05-22，Noah13x，自报长期关注 BVN 更新、初涉 M.U.G.E.N；玩家自选个案，觉得尝试过的 Jump Force 招式与运作方式不同。主观手感比较，不能识别具体机制或模式偏好。",
+    "keys": [
+      "BV1"
+    ]
+  },
+  {
+    "number": 43,
+    "url": "https://www.bilibili.com/video/BV1YeUwBmEk8/",
+    "text": "[B 站视频](https://www.bilibili.com/video/BV1YeUwBmEk8/)。2025-11-23，B 站投稿者，自称拳皇迷、做对战和整活视频。依赖原帖索引，直读触发 412；玩家自选个案，把三个具体角色组成梗队，并作为投稿主题。支持玩家主动设计组合，不判断版本、轮替细节和游玩频率。",
+    "keys": [
+      "BV2"
+    ]
+  },
+  {
+    "number": 44,
+    "url": "https://www.bilibili.com/list/1959017721?bvid=BV1zb6RBpEnB&oid=115874124006734",
+    "text": "[B 站投稿与合集](https://www.bilibili.com/list/1959017721?bvid=BV1zb6RBpEnB&oid=115874124006734)。2026-08-29，风心奕-世一悟，创作者投稿。依赖原帖索引；玩家自选个案，有作者将带同学一起玩当作内容主题，且涉及两款游戏。无法确认落地或持续游玩。",
+    "keys": [
+      "BV3"
+    ]
+  },
+  {
+    "number": 45,
+    "url": "https://www.bilibili.com/video/BV1X2421P73v/",
+    "text": "[第四届线上赛录像](https://www.bilibili.com/video/BV1X2421P73v/)。2024-03-24，赛事录像发布者，赛事组织一方；玩家自选个案，组织方自报赛事实际举行，支持有组织的线上对抗。人数、局制和使用频率不从此推算。",
+    "keys": [
+      "BV4"
+    ]
+  },
+  {
+    "number": 46,
+    "url": "https://en-americas-support.nintendo.com/app/answers/detail/a_id/42809/p/988/c/120",
+    "text": "[Nintendo Update Notes](https://en-americas-support.nintendo.com/app/answers/detail/a_id/42809/p/988/c/120)。事件：2026-09-01，美区日志；发布/状态：维护页，单篇日期未标；官方更新正文；13.0.5 修复和重放提示，同时列出历年付费 DLC。",
+    "keys": [
+      "S5"
+    ]
+  },
+  {
+    "number": 47,
+    "url": "https://www.smashbros.com/en_US/stage/",
+    "text": "[Nintendo Stages](https://www.smashbros.com/en_US/stage/)。事件：本作场地功能；发布/状态：未标独立日期；官方正文；机关、Stage Morph、Stage Builder。",
+    "keys": [
+      "S4"
+    ]
+  },
+  {
+    "number": 48,
+    "url": "https://cdn.battlefy.com/nintendo/ssbu-naoo-october-2020.pdf",
+    "text": "[Nintendo North American Online Open October 2020](https://cdn.battlefy.com/nintendo/ssbu-naoo-october-2020.pdf) · [更新历史](https://en-americas-support.nintendo.com/app/answers/detail/a_id/45074/)。事件：2020-10-24 至 11-01 赛区赛；2020-08-04；发布/状态：赛事规则页未另标发布日期；更新历史持续维护；官方正文；特定赛事关机关、地图池；8.1.0 增 Small Battlefield。",
+    "keys": [
+      "S6"
+    ]
+  },
+  {
+    "number": 49,
+    "url": "https://www.reddit.com/r/SmashBrosUltimate/comments/1i95acs",
+    "text": "[赛事赛制讨论](https://www.reddit.com/r/SmashBrosUltimate/comments/1i95acs)。所列日历日期来自搜索索引；原帖快照多为相对时间，发布时间未独立核实。2025-01-25，和朋友休闲跑车轮战的回复者，索引未列网名，直读缓存缺失；玩家自选个案，和好友实际玩，原段也明确不赞成将它作为主赛制，顾虑多角色训练分散。反映一人两种场景的期待。",
+    "keys": [
+      "SM3"
+    ]
+  },
+  {
+    "number": 50,
+    "url": "https://www.reddit.com/r/SmashBrosUltimate/comments/1wr4enk/which_of_these_two_modes_do_you_enjoy_playing_the/",
+    "text": "[模式比较原帖](https://www.reddit.com/r/SmashBrosUltimate/comments/1wr4enk/which_of_these_two_modes_do_you_enjoy_playing_the/)。所列日历日期来自搜索索引；原帖快照多为相对时间，发布时间未独立核实。2026-09-26，模式比较帖楼主，索引未列网名，直读缓存缺失；玩家自选个案，希望线上也能玩，不能当作已有在线使用或潜在规模。",
+    "keys": [
+      "SM4"
+    ]
+  },
+  {
+    "number": 51,
+    "url": "https://www.reddit.com/r/SmashBrosUltimate/comments/g6z12f",
+    "text": "[绕圈拖延原帖](https://www.reddit.com/r/SmashBrosUltimate/comments/g6z12f)。所列日历日期来自搜索索引；原帖快照多为相对时间，发布时间未独立核实。2020-04-24，线上遇到绕圈拖延的楼主，索引未列网名；玩家自选个案，自述在开启机关的 Mario Kart 赛道上，Mario 一直绕跳到突然死亡。单地图、单对局。",
+    "keys": [
+      "SM5"
+    ]
+  },
+  {
+    "number": 52,
+    "url": "https://www.brawlhalla.com/news/patch-notes",
+    "text": "[Brawlhalla Patch Notes](https://www.brawlhalla.com/news/patch-notes)。事件：2026-09-15、10-13、11-18；发布/状态：目录持续维护；官方索引正文；前两项在此仅用标题和日期，未据此下更细结论。",
+    "keys": [
+      "B5"
+    ]
+  },
+  {
+    "number": 53,
+    "url": "https://www.reddit.com/r/Brawlhalla/comments/1wxmb2y/why_is_does_passive_playwaiting_feel_like_the/",
+    "text": "[r/Brawlhalla 原帖](https://www.reddit.com/r/Brawlhalla/comments/1wxmb2y/why_is_does_passive_playwaiting_feel_like_the/)。所列日历日期来自搜索索引；原帖快照多为相对时间，发布时间未独立核实。2026-10-04（搜索索引日期），ShareSubstantial2707，自报最高 2200，有其他格斗经验；玩家自选个案，主要靠确定能中的出手和打空惩罚赢，反映个体主动进攻体验，不证明机制强制等待。；同源补充：[同帖回帖](https://www.reddit.com/r/Brawlhalla/comments/1wxmb2y/why_is_does_passive_playwaiting_feel_like_the/)。所列日历日期来自搜索索引；原帖快照多为相对时间，发布时间未独立核实。2026-10-04（搜索索引日期），AmericanPragmatism，回复者，未报段位；玩家自选个案，出招前可以靠威胁和卡位进攻，提供观察走位是否主动的另一视角。",
+    "keys": [
+      "BR1",
+      "BR2"
+    ]
+  },
+  {
+    "number": 54,
+    "url": "https://www.reddit.com/r/Brawlhalla/comments/1wzt495/is_there_no_point_to_playing_if_im_casual/",
+    "text": "[r/Brawlhalla 休闲玩家原帖](https://www.reddit.com/r/Brawlhalla/comments/1wzt495/is_there_no_point_to_playing_if_im_casual/)。所列日历日期来自搜索索引；原帖快照多为相对时间，发布时间未独立核实。2026-10-07，银段 1184 的下班休闲玩家，带日期的原帖索引未列网名；玩家自选个案，楼主确认正排位，仍遇到令其挫败的局。无法验证对手段位或是否小号。；同源补充：[同帖回帖](https://www.reddit.com/r/Brawlhalla/comments/1wzt495/is_there_no_point_to_playing_if_im_casual/)。所列日历日期来自搜索索引；原帖快照多为相对时间，发布时间未独立核实。2026-10-07，同帖两名回复者，索引未列网名。一人重匹配水平，一人自报本赛季定级后停打排位；玩家自选个案，一个觉得排位的对手更接近，另一个觉得不掉分才轻松。只支撑两种体验并存。",
+    "keys": [
+      "BR3",
+      "BR4"
+    ]
+  },
+  {
+    "number": 55,
+    "url": "https://www.reddit.com/r/RivalsOfAether/comments/1x99n7z/noob_unfriendly/",
+    "text": "[r/RivalsOfAether 原帖](https://www.reddit.com/r/RivalsOfAether/comments/1x99n7z/noob_unfriendly/)。所列日历日期来自搜索索引；原帖快照多为相对时间，发布时间未独立核实。2026-10-18，Fist0fGuthix，自报有 Melee/Brawl 经验、Rivals II 约 10 小时的新玩家；玩家自选个案，定级后自述未匹配同段，未独立确认服务区和匹配记录。同帖 Seasosan 自报上月入坑，约银/金，主动约战。",
+    "keys": [
+      "RI1"
+    ]
+  },
+  {
+    "number": 56,
+    "url": "https://www.reddit.com/r/RivalsOfAether/comments/1pysduk/is_it_better_to_play_ranked_instead_of_casual_to/",
+    "text": "[r/RivalsOfAether 原帖](https://www.reddit.com/r/RivalsOfAether/comments/1pysduk/is_it_better_to_play_ranked_instead_of_casual_to/)。所列日历日期来自搜索索引；原帖快照多为相对时间，发布时间未独立核实。2025-12-29，RedshiftVance，自报相对新手；玩家自选个案，觉得被高手打也有意思，还能边打边学，反驳遇到高水平玩家必然破坏休闲体验。；同源补充：[同帖回帖](https://www.reddit.com/r/RivalsOfAether/comments/1pysduk/is_it_better_to_play_ranked_instead_of_casual_to/)。所列日历日期来自搜索索引；原帖快照多为相对时间，发布时间未独立核实。2025-12-29，Aeshtrixx，自报低银、加拿大西部、主要玩北美西北服；玩家自选个案，对局能找到，难找的是同段对手。只能用于说明等待和匹配质量是两个问题。",
+    "keys": [
+      "RI2",
+      "RI3"
+    ]
+  },
+  {
+    "number": 57,
+    "url": "https://blog.playstation.com/2014/03/14/towerfall-ascension-on-ps4-behind-the-arena/",
+    "text": "[PlayStation.Blog 创作者采访](https://blog.playstation.com/2014/03/14/towerfall-ascension-on-ps4-behind-the-arena/)。事件：2014-03-14 采访公开；发布/状态：2014-03-14；当事方访谈正文；解释 Quest 经多轮尝试、用对战核心获得不同体验。",
+    "keys": [
+      "T2"
+    ]
+  },
+  {
+    "number": 58,
+    "url": "https://steamcommunity.com/app/251470/announcements/",
+    "text": "[TowerFall 官方 Steam 公告](https://steamcommunity.com/app/251470/announcements/)。事件：历史更新，近窗未检到玩法改动；发布/状态：各条分别刊发；开发者公告正文；Dark World 扩展、变体，及更新缺口。",
+    "keys": [
+      "T3"
+    ]
+  },
+  {
+    "number": 59,
+    "url": "https://bsky.app/profile/maddymakesgames.com/post/3myzioij5vk2f",
+    "text": "[开发者 Bluesky 原帖](https://bsky.app/profile/maddymakesgames.com/post/3myzioij5vk2f) · [PC Gamer 报道](https://www.pcgamer.com/games/action/celeste-and-towerfall-have-delisted-from-xboxs-digital-storefronts-to-support-bds-boycott/)。事件：2026-10 下旬，准确下架日未确认；发布/状态：原帖正文未取得；报道 2026-10-31；直接当事方链接要求登录；正文由二手报道指向并转述。仅支持发行变动线索。",
+    "keys": [
+      "T4"
+    ]
+  },
+  {
+    "number": 60,
+    "url": "https://www.reddit.com/r/TowerFall/comments/1v28mg7/do_people_still_play_towerfall/",
+    "text": "[r/TowerFall 原帖回帖](https://www.reddit.com/r/TowerFall/comments/1v28mg7/do_people_still_play_towerfall/)。所列日历日期来自搜索索引；原帖快照多为相对时间，发布时间未独立核实。2026-07-21，Coxy100，自报和配偶孩子玩；玩家自选个案，家庭局的个人高频案例。",
+    "keys": [
+      "TF1"
+    ]
+  },
+  {
+    "number": 61,
+    "url": "https://www.reddit.com/r/AskGamers/comments/1wdgnnu/boomerang_fu_vs_towerfall_ascension_for_couch/",
+    "text": "[r/AskGamers 原帖回帖](https://www.reddit.com/r/AskGamers/comments/1wdgnnu/boomerang_fu_vs_towerfall_ascension_for_couch/)。所列日历日期来自搜索索引；原帖快照多为相对时间，发布时间未独立核实。2026-09-11，ProfessionalOven2311，自报两款都喜欢；玩家自选个案，喜欢规则组合，支持熟人桌对可配变体的需求实例。；同源补充：[同帖回帖](https://www.reddit.com/r/AskGamers/comments/1wdgnnu/boomerang_fu_vs_towerfall_ascension_for_couch/)。所列日历日期来自搜索索引；原帖快照多为相对时间，发布时间未独立核实。2026-09-11，Squish_the_android，比较聚会玩法的回复者，无其他自报；玩家自选个案，认为新手混合局里的 TowerFall 走位门槛较高，表达聚会选择理由。",
+    "keys": [
+      "TF2",
+      "TF3"
+    ]
+  },
+  {
+    "number": 62,
+    "url": "https://steamcommunity.com/groups/homestream/discussions/1/1660069015241649409/",
+    "text": "[Steam Remote Play 帖](https://steamcommunity.com/groups/homestream/discussions/1/1660069015241649409/)。2019-11-23，Melih aus Beeck，自报 RPT 主机方玩家；玩家自选个案，报告一位远程朋友时流畅，第二位接入后包括 TowerFall 在内出现卡顿。旧串流个案，不作原生联网评价。",
+    "keys": [
+      "TF6"
+    ]
+  },
+  {
+    "number": 63,
+    "url": "https://www.gamedeveloper.com/design/-rage-development-postmortem",
+    "text": "James Rowbotham，Rage Development Postmortem。发布2017-08-08，开发者本人复盘；记录先按1v1构建后取消四人功能的原因。历史项目，不是本项目工期证据。",
+    "keys": [
+      "D1"
+    ]
+  },
+  {
+    "number": 64,
+    "url": "https://www.gamedeveloper.com/business/postmortem-torpex-games-schizoid",
+    "text": "Jamie Fristrom，Postmortem: Torpex Games Schizoid。发布2008-09-24，开发者本人复盘；合作核心与单人定位、多人边界情况。历史Xbox环境，不作当下市场推断。",
+    "keys": [
+      "D2"
+    ]
+  }
+]

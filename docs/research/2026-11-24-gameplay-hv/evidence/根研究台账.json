@@ -1,0 +1,35 @@
+[
+  {
+    "id": "P1",
+    "title": "项目结构核对",
+    "url": "evidence/项目结构核对.json",
+    "eventDate": "2026-11-24 inspection; stable HEAD 68b20cc",
+    "publishedDate": "local repository",
+    "accessedDate": "2026-11-24",
+    "type": "本地一手代码观察",
+    "supports": "固定双席位、三种参与方式、KO/超时结算、现有地图结构",
+    "limit": "工作区有并行改动；本次未执行玩法、未证明新模式可玩或已平衡"
+  },
+  {
+    "id": "R1",
+    "title": "Postmortem: Torpex Games Schizoid",
+    "url": "https://www.gamedeveloper.com/business/postmortem-torpex-games-schizoid",
+    "eventDate": "2008 game development/release retrospective",
+    "publishedDate": "2008-09-24",
+    "accessedDate": "2026-11-24",
+    "type": "开发者本人复盘",
+    "supports": "合作产品的单人定位问题；本地/在线多人组合增加边界情况",
+    "limit": "历史Xbox认证与当时玩家结构不能用于推断2026本项目市场或工期"
+  },
+  {
+    "id": "R2",
+    "title": "Rage Development Postmortem",
+    "url": "https://www.gamedeveloper.com/design/-rage-development-postmortem",
+    "eventDate": "作者所述该作开发过程，具体起止日未核实",
+    "publishedDate": "2017-08-08",
+    "accessedDate": "2026-11-24",
+    "type": "独立开发者本人复盘",
+    "supports": "朋友角色格斗小项目；功能/美术范围扩展与原定开发周期偏离",
+    "limit": "不是本项目工期估算，也不是传统格斗产品的普遍统计"
+  }
+]

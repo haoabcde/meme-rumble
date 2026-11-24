@@ -1,0 +1,38 @@
+{
+  "researchDate": "2026-11-24 Asia/Shanghai",
+  "head": "68b20cc6868985841051b8e091493586f3f32342",
+  "scope": "Read-only structural inspection; active worktree differs from committed release. No new gameplay execution or regression tests in this research.",
+  "findings": [
+    "MatchConfig and MatchState keep two fighter seats.",
+    "RoundResult reasons are ko/double-ko/time/tie.",
+    "Local, CPU and training are participant modes in the page.",
+    "Arena definitions provide walkable surfaces and two spawn positions.",
+    "Teleport and global wave behaviours require separate objective-mode interaction rules."
+  ],
+  "files": [
+    {
+      "file": "src/core/types.ts",
+      "worktreeSha256": "795625aeaded695255fffe3beff66b10cdb31a72fdd339bd45274496715115ba"
+    },
+    {
+      "file": "src/core/match.ts",
+      "worktreeSha256": "8943db6ec44a72891a0cc936fae71f9d60871a3f0dd66191cf14bfec8c85a9c9"
+    },
+    {
+      "file": "src/content/arenas.ts",
+      "worktreeSha256": "3b1839e85179ae083498e4e52e1be8e4389b16cbcaec25be4f64f283a992121b"
+    },
+    {
+      "file": "src/web/game.ts",
+      "worktreeSha256": "9b738a2aaf9e758c7fd173bb4a859211f750b4e006c53df4eeefba344ed02e5c"
+    },
+    {
+      "file": "src/core/frog-kit.ts",
+      "worktreeSha256": "47f860116ce035969b1b43cba7ff3e1dfe4131d0f290b30d5c29b5b808a0ec88"
+    },
+    {
+      "file": "src/core/turret.ts",
+      "worktreeSha256": "a338037d7ff9c94ec21373d6c4d6ef8b50918bce0c2238d134f5512daa4159b5"
+    }
+  ]
+}
