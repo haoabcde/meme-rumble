@@ -3,6 +3,7 @@ import { arenas } from '../content/arenas.js';
 import { bananaWaveTitle } from '../content/fighters/banana.js';
 import { roster } from '../content/roster.js';
 import { actionFor, createMatch, step } from '../core/match.js';
+import { createRelayMatch, stepRelayMatch, type RelayRoster, type RelaySession } from '../core/relay.js';
 import {frogPowered} from '../core/frog-kit.js';
 import { ENERGY_PER_STOCK, MAX_ENERGY, MAX_TEARS, TEAR_UNITS_PER_POINT, NEUTRAL, type ActionKey, type Axis, type Duo, type FighterDefinition, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
 import { arcadeArt, comicArt, arenaArt, fighterArt } from './art.js';
@@ -35,6 +36,7 @@ const modeNames = { local: '本地双人', cpu: '人机对战', training: '自�
 type Mode = keyof typeof modeNames;
 const seats = [0, 1] as const;
 const namesSuffix = ['one', 'two'] as const;
+const relayPositions = ['首发', '后援'] as const;
 const reasons = { ko: '击倒', time: '超时 · 生命比例领先', tie: '超时 · 生命比例相同', 'double-ko': '双 KO' };
 const previousScreen: Partial<Record<Screen, Screen>> = {
   menu: 'title', roster: 'menu', maps: 'roster', versus: 'maps', result: 'menu'
@@ -55,6 +57,7 @@ const trainingSpeed = element<HTMLSelectElement>('training-speed');
 const trainingPanel = element<HTMLDetailsElement>('training-panel');
 const roundLimit = element<HTMLSelectElement>('round-limit');
 const roundWins = element<HTMLSelectElement>('round-wins');
+const battleFormat = element<HTMLSelectElement>('battle-format');
 const fillTrainingEnergy = element('fill-training-energy');
 const trainingGround = element('training-ground');
 const trainingBest = element('training-best');
@@ -75,6 +78,7 @@ const healthValues = namesSuffix.map(id => element('hp-value-' + id));
 const guardValues = namesSuffix.map(id => element('guard-value-' + id));
 const healthTrails = namesSuffix.map(id => element('hp-trail-' + id));
 const winPips = namesSuffix.map(id => element('wins-' + id));
+const relayStatus = namesSuffix.map(id => element('relay-status-' + id));
 const energyRows = namesSuffix.map(id => element('energy-row-' + id));
 const energyBars = namesSuffix.map(id => element('energy-' + id));
 const energyLabels = namesSuffix.map(id => element('energy-label-' + id));
@@ -85,14 +89,18 @@ const combos = namesSuffix.map(id => element('combo-' + id));
 const portraits = namesSuffix.map(id => element<HTMLImageElement>('portrait-' + id));
 const panels = namesSuffix.map(id => element('fighter-panel-' + id));
 const seatButtons = namesSuffix.map(id => element('seat-' + id));
-const lockButtons = namesSuffix.map(id => element('lock-' + id));
+const lockButtons = namesSuffix.map(id => element<HTMLButtonElement>('lock-' + id));
+const lineups = namesSuffix.map(id => element('lineup-' + id));
+const lineupButtons = lineups.map(lineup => lineup.querySelectorAll<HTMLButtonElement>('button'));
 const modeButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-mode]'));
 const stageTabs = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-stage-tab]'));
 const nav = element('preflight-nav');
 const screens = Object.fromEntries(screenIds.map(id => [id, element(id + '-screen')])) as Record<Screen, HTMLElement>;
 
-const config: MatchConfig = { rules, arena: arenas[0], fighters: [roster[0].fighter, roster[3].fighter] };
+let config: MatchConfig = { rules, arena: arenas[0], fighters: [roster[0].fighter, roster[3].fighter] };
 const selected: Duo<number> = [0, 3];
+const relayPicks: Duo<[number, number | null]> = [[0, null], [3, null]];
+const activeSlots: Duo<Seat> = [0, 0];
 const confirmed: Duo<boolean> = [false, false];
 const pending: Duo<Map<ActionKey, Stick>> = [new Map(), new Map()];
 const held = new Set<string>();
@@ -103,6 +111,7 @@ const preferences = loadPreferences();
 
 let bindings = bindingMap(preferences);
 let state = createMatch(config);
+let relay: RelaySession | null = null;
 let roundHistory: Array<RoundResult & { round: number }> = [];
 let lastChains: Duo<{ hits: number; until: number } | null> = [null, null];
 let lifeDisplay: Duo<{ hp: number; trail: number; holdUntil: number; frame: number } | null> = [null, null];
@@ -196,24 +205,32 @@ function seatName(seat: Seat) {
   return seat === 0 ? 'P1' : mode === 'cpu' ? '电脑' : mode === 'training' ? '陪练' : 'P2';
 }
 
-function trainingSkillHints(fighter: FighterDefinition) {
-  if(fighter.id==='whale')return whaleInputHints(0);
-  if(fighter.id==='frog')return frogInputHints(0);
-  if (fighter.id === 'gaga') return keyHint(preferences, 0, ['A']) + ' 五段连击 · ' +
-    keyHint(preferences, 0, ['C']) + ' 炮台 · ' + keyHint(preferences, 0, ['ULT']) + ' 帝江';
-  if (fighter.id === 'banana') return keyHint(preferences, 0, ['A']) + ' 四段连击 · ' +
-    keyHint(preferences, 0, ['B']) + ' 喷泪 · 按住' + keyHint(preferences, 0, ['C']) + ' 回泪 · ' +
-    keyHint(preferences, 0, ['ULT']) + ' 泪海';
+function relaySelected() {
+  return mode !== 'training' && battleFormat.value === 'relay';
+}
+
+function modeLabel() {
+  return modeNames[mode] + (relaySelected() ? ' · 双角色车轮战' : '');
+}
+
+function fighterSkillHints(fighter: FighterDefinition, seat: Seat) {
+  if (fighter.id === 'whale') return whaleInputHints(seat);
+  if (fighter.id === 'frog') return frogInputHints(seat);
+  if (fighter.id === 'gaga') return keyHint(preferences, seat, ['A']) + ' 五段连击 · ' +
+    keyHint(preferences, seat, ['C']) + ' 炮台 · ' + keyHint(preferences, seat, ['ULT']) + ' 帝江';
+  if (fighter.id === 'banana') return keyHint(preferences, seat, ['A']) + ' 四段连击 · ' +
+    keyHint(preferences, seat, ['B']) + ' 喷泪 · 按住' + keyHint(preferences, seat, ['C']) + ' 回泪 · ' +
+    keyHint(preferences, seat, ['ULT']) + ' 泪海';
   const hints: string[] = [];
-  if (acceptsSkillInput(fighter, 'ULT')) hints.push(keyHint(preferences, 0, ['ULT']) + ' 大招');
-  if (fighter.guardCounter) hints.push(keyHint(preferences, 0, ['down']) + ' 精准防反');
+  if (acceptsSkillInput(fighter, 'ULT')) hints.push(keyHint(preferences, seat, ['ULT']) + ' 大招');
+  if (fighter.guardCounter) hints.push(keyHint(preferences, seat, ['down']) + ' 精准防反');
   for (const move of fighter.actions) {
     if (!('counterTo' in move) || move.linkOnly) continue;
     const keys: string[] = [];
     if (move.direction === 'forward') keys.push('前');
     if (move.direction === 'back') keys.push('后');
-    if (move.direction === 'up' || move.direction === 'down') keys.push(keyHint(preferences, 0, [move.direction]));
-    keys.push(keyHint(preferences, 0, [move.slot]));
+    if (move.direction === 'up' || move.direction === 'down') keys.push(keyHint(preferences, seat, [move.direction]));
+    keys.push(keyHint(preferences, seat, [move.slot]));
     hints.push(keys.join(' + ') + ' 防反架势');
   }
   return hints.join(' · ');
@@ -232,18 +249,20 @@ function footer() {
   const confirmKey = keyHint(preferences, 0, ['A']);
   const backKey = keyHint(preferences, 0, ['jump']);
   const upDown = keyHint(preferences, 0, ['up', 'down']);
-  const skills = screen === 'match' && mode === 'training' ? trainingSkillHints(config.fighters[0]) : '';
-  text(element('footer-main'), fighting ? modeNames[mode] + ' · ' + config.arena.name : 'Meme 乱斗 · 抽象之王');
+  const skills = screen === 'match' && mode === 'training' ? 'P1 ' + fighterSkillHints(config.fighters[0], 0) : '';
+  text(element('footer-main'), fighting ? (relay ? '车轮战' : modeNames[mode]) + ' · ' + config.arena.name : 'Meme 乱斗 · 抽象之王');
   const hints = screen === 'roster'
     ? 'P1 ' + keyHint(preferences, 0, ['left', 'right', 'up', 'down'], ' ') + ' 移动 · ' +
-      keyHint(preferences, 0, ['A']) + ' 确认' + (mode === 'local'
+      keyHint(preferences, 0, ['A']) + ' 确认' + (relaySelected() ? ' · ' + keyHint(preferences, 0, ['B']) + ' 切换位置' : '') +
+      (mode === 'local'
         ? '　　P2 ' + keyHint(preferences, 1, ['left', 'right', 'up', 'down'], ' ') + ' 移动 · ' +
-          keyHint(preferences, 1, ['A']) + ' 确认' : '')
+          keyHint(preferences, 1, ['A']) + ' 确认' + (relaySelected() ? ' · ' + keyHint(preferences, 1, ['B']) + ' 切换位置' : '') : '')
     : screen === 'maps' ? upDown + ' 换图 · ' + confirmKey + ' 进场 · ' + backKey + ' 返回'
-    : screen === 'menu' ? upDown + ' 选模式 · ' + confirmKey + ' 确认'
+    : screen === 'menu' ? upDown + ' 选模式 · ' + confirmKey + ' 确认 · Shift+Tab 选赛制'
     : screen === 'title' ? confirmKey + ' 进入游戏'
     : screen === 'result' || screen === 'pause' ? upDown + ' 选择 · ' + confirmKey + ' 确认 · Esc 返回'
-    : skills ? 'P1 ' + skills
+    : screen === 'match' && relay ? 'Esc 暂停'
+    : skills ? skills
     : fighting && config.fighters[0].id==='frog' ? 'P1 '+frogInputHints(0)+(mode==='local'&&config.fighters[1].id==='frog'?'　P2 '+frogInputHints(1):'')
     : fighting && config.fighters[0].id==='whale' ? 'P1 '+whaleInputHints(0)+(mode==='local'&&config.fighters[1].id==='whale'?'　P2 '+whaleInputHints(1):'')
     : fighting ? 'P1 ' + keyHint(preferences, 0, ['A']) + ' 普攻 · ' +
@@ -292,17 +311,25 @@ function show(next: Screen) {
   if (next !== 'match') trainingPanel.open = false;
   stage.dataset.screen = next;
   stage.dataset.phase = next === 'match' ? state.phase : next;
+  stage.dataset.format = relaySelected() ? 'relay' : 'standard';
   for (const id of screenIds) {
     screens[id].hidden = id !== next && !(id === 'match' && next === 'pause');
   }
   screens.match.inert = next === 'pause';
-  const modeLabel = screens[next].querySelector<HTMLElement>('[data-mode-name]');
-  if (modeLabel) text(modeLabel, modeNames[mode]);
+  const label = screens[next].querySelector<HTMLElement>('[data-mode-name]');
+  if (label) text(label, modeLabel());
   if (next === 'roster') renderRoster();
   if (next === 'maps') {
-    text(element('map-matchup'), roster[selected[0]].fighter.name + '  VS  ' + roster[selected[1]].fighter.name);
+    text(element('map-matchup'), seats.map(seat => relaySelected()
+      ? relayPicks[seat].map(index => index === null ? '待选' : roster[index].fighter.name).join(' → ')
+      : roster[selected[seat]].fighter.name).join('  VS  '));
     element('map-rules').hidden = mode === 'training';
     element('training-rule').hidden = mode !== 'training';
+    element('round-wins-rule').hidden = relaySelected();
+    roundWins.disabled = relaySelected();
+    element('relay-rules').hidden = !relaySelected();
+    text(element('round-limit-label'), relaySelected() ? '单场时限' : '时限');
+    roundLimit.setAttribute('aria-label', relaySelected() ? '车轮战单场时限' : '单回合时限');
     selectArena(arenaIndex);
   }
   renderPreparationNav();
@@ -312,6 +339,7 @@ function show(next: Screen) {
 function go(next: Screen) {
   if (next === 'roster' && screen !== 'maps' && screen !== 'roster') {
     confirmed.fill(false);
+    activeSlots.fill(0);
     activeSeat = 0;
   }
   show(next);
@@ -331,46 +359,78 @@ function acceptsSkillInput(fighter: FighterDefinition, slot: 'B' | 'C' | 'ULT') 
     source.cancelOnHit?.includes(move.id) || source.cancelOnHit?.includes(slot))));
 }
 
+function pickedFighter(seat: Seat) {
+  return relaySelected() ? relayPicks[seat][activeSlots[seat]] : selected[seat];
+}
+
 function renderRoster() {
+  const choosingRelay = relaySelected();
+  element('roster-rule').hidden = choosingRelay;
   for (const seat of seats) {
-    const entry = roster[selected[seat]];
+    const index = pickedFighter(seat);
+    const entry = index === null ? undefined : roster[index];
     const who = seatName(seat);
     seatButtons[seat].textContent = who + (seat === 1 && mode !== 'local' ? '角色' : ' 选角');
     seatButtons[seat].setAttribute('aria-pressed', String(seat === activeSeat));
     const art = panels[seat].querySelector<HTMLImageElement>('.pick-art')!;
-    const src = fighterArt[entry.fighter.id];
-    if (art.getAttribute('src') !== src) art.src = src;
-    text(panels[seat].querySelector('h3')!, entry.fighter.name);
-    const enabledSlots = (['B', 'C'] as const).filter(slot => acceptsSkillInput(entry.fighter, slot));
+    art.style.visibility = entry ? '' : 'hidden';
+    if (entry && art.getAttribute('src') !== fighterArt[entry.fighter.id]) art.src = fighterArt[entry.fighter.id];
+    text(panels[seat].querySelector('h3')!, entry?.fighter.name ?? '待选后援');
+    const enabledSlots = entry ? (['B', 'C'] as const).filter(slot => acceptsSkillInput(entry.fighter, slot)) : [];
     const skills = enabledSlots.length ? ['可用专属槽 · ' + enabledSlots.join(' / ')] : [];
-    if (entry.fighter.guardCounter) skills.push(entry.fighter.guardCounter.whileGuarding?'铁盆防反':'精准防反');
-    if (acceptsSkillInput(entry.fighter, 'ULT')) {
+    if (entry?.fighter.guardCounter) skills.push(entry.fighter.guardCounter.whileGuarding?'铁盆防反':'精准防反');
+    if (entry && acceptsSkillInput(entry.fighter, 'ULT')) {
       const cost = entry.fighter.ultimateCost ?? 0;
       skills.push('大招 ' + keyHint(preferences, seat, ['ULT']) + (cost ? ' · 消耗 ' + cost : ' · 无消耗'));
     }
-    text(panels[seat].querySelector('p')!, [entry.moveSummary, ...skills].filter(Boolean).join(' · ') || '专属技能待接入');
+    text(panels[seat].querySelector('p')!, entry
+      ? [entry.moveSummary, ...skills].filter(Boolean).join(' · ') || '专属技能待接入'
+      : '从中间名单选择');
+    lineups[seat].hidden = !choosingRelay;
+    lineups[seat].setAttribute('aria-label', who + ' 出场顺序');
+    for (const slot of seats) {
+      const pick = relayPicks[seat][slot];
+      const button = lineupButtons[seat][slot];
+      text(button.querySelector('strong')!, pick === null ? '待选' : roster[pick].fighter.name);
+      button.setAttribute('aria-pressed', String(activeSeat === seat && activeSlots[seat] === slot));
+    }
+    const incomplete = choosingRelay && relayPicks[seat][1] === null;
+    lineupButtons[seat][2].disabled = incomplete;
+    lineupButtons[seat][2].setAttribute('aria-label', '调换 ' + who + ' 出场顺序');
     lockButtons[seat].setAttribute('aria-pressed', String(confirmed[seat]));
+    lockButtons[seat].disabled = incomplete;
     text(lockButtons[seat], confirmed[seat] ? who + ' 已确认' : '确认 ' + who);
   }
   for (const [index, { button, badges }] of tiles.entries()) {
-    button.dataset.p1 = String(selected[0] === index);
-    button.dataset.p2 = String(selected[1] === index);
-    button.setAttribute('aria-pressed', String(selected[activeSeat] === index));
+    const positions = seats.map(seat => choosingRelay ? relayPicks[seat].indexOf(index) : selected[seat] === index ? 0 : -1);
+    button.dataset.p1 = String(positions[0] >= 0);
+    button.dataset.p2 = String(positions[1] >= 0);
+    button.setAttribute('aria-pressed', String(pickedFighter(activeSeat) === index));
+    button.disabled = choosingRelay && relayPicks[activeSeat][1 - activeSlots[activeSeat]] === index;
     for (const seat of seats) {
       const badge = badges.children[seat] as HTMLElement;
-      badge.hidden = selected[seat] !== index;
-      badge.textContent = seatName(seat);
+      badge.hidden = positions[seat] < 0;
+      text(badge, seatName(seat) + (choosingRelay && positions[seat] >= 0 ? ' ' + relayPositions[positions[seat]] : ''));
     }
   }
   const ready = confirmed.every(Boolean);
   pickArena.disabled = !ready;
-  text(element('roster-help'), ready ? '双方已确认，按 ' + keyHint(preferences, 0, ['A']) + ' 选图' : '正在为 ' + seatName(activeSeat) + ' 选角');
+  element('roster-help').classList.toggle('visually-hidden', choosingRelay);
+  text(element('roster-help'), ready ? '双方已确认，按 ' + keyHint(preferences, 0, ['A']) + ' 选图'
+    : choosingRelay ? '正在选择 ' + seatName(activeSeat) + ' 的' + relayPositions[activeSlots[activeSeat]]
+      : '正在为 ' + seatName(activeSeat) + ' 选角');
   renderPreparationNav();
 }
 
 function selectFighter(seat: Seat, index: number) {
   activeSeat = seat;
-  if (selected[seat] !== index) {
+  if (relaySelected()) {
+    const slot = activeSlots[seat];
+    if (relayPicks[seat][1 - slot] !== index && relayPicks[seat][slot] !== index) {
+      relayPicks[seat][slot] = index;
+      confirmed[seat] = false;
+    }
+  } else if (selected[seat] !== index) {
     selected[seat] = index;
     confirmed[seat] = false;
   }
@@ -378,11 +438,22 @@ function selectFighter(seat: Seat, index: number) {
 }
 
 function confirmSeat(seat: Seat) {
+  if (relaySelected() && relayPicks[seat][1] === null) {
+    editRelaySlot(seat, 1);
+    lineupButtons[seat][1].focus();
+    return;
+  }
   const partner = seat === 0 ? 1 : 0;
   confirmed[seat] = !confirmed[seat];
   activeSeat = confirmed[seat] && !confirmed[partner] ? partner : seat;
   renderRoster();
   if (confirmed.every(Boolean)) pickArena.focus();
+}
+
+function editRelaySlot(seat: Seat, slot: Seat) {
+  activeSeat = seat;
+  activeSlots[seat] = slot;
+  renderRoster();
 }
 
 function selectArena(index: number) {
@@ -410,42 +481,82 @@ function selectArena(index: number) {
 }
 
 function configureMatch(immediate: boolean) {
-  config.randomSeed = crypto.getRandomValues(new Uint32Array(1))[0] || 1;
-  audio.configure([roster[selected[0]].audio, roster[selected[1]].audio], __FIGHTER_AUDIO__);
-  config.arena = arenas[arenaIndex];
+  const training = mode === 'training';
+  config = {
+    arena: arenas[arenaIndex],
+    fighters: [roster[selected[0]].fighter, roster[selected[1]].fighter],
+    rules: training ? rules : {
+      ...rules,
+      roundSeconds: Number(roundLimit.value),
+      winsToFinish: Number(roundWins.value)
+    },
+    training,
+    randomSeed: crypto.getRandomValues(new Uint32Array(1))[0] || 1
+  };
+  relay = null;
+  if (relaySelected()) {
+    const teams: RelayRoster = [relayTeam(0), relayTeam(1)];
+    relay = createRelayMatch(config, teams);
+    config = relay.config;
+  }
+  state = relay?.state ?? createMatch(config);
   stage.dataset.mode = mode;
   stage.dataset.arena = config.arena.id;
-  config.fighters = [roster[selected[0]].fighter, roster[selected[1]].fighter];
-  config.training = mode === 'training';
-  config.rules = config.training ? rules : {
-    ...rules,
-    roundSeconds: Number(roundLimit.value),
-    winsToFinish: Number(roundWins.value)
-  };
-  state = createMatch(config);
   roundHistory = [];
-  lastChains = [null, null];
-  lifeDisplay = [null, null];
   trainingInputs.length = 0;
   trainingDownHeld = false;
   bestTier = 0;
-  fightCueUntil = 0;
   if (immediate) state.phase = 'fight';
+  refreshCombatants();
+  element('training-tools').hidden = !training;
+  trainingPanel.hidden = !training;
+  fillTrainingEnergy.hidden = !training;
+  element('step-training').hidden = !training;
+  element('match-tag').hidden = training;
+  text(element('match-tag'), config.arena.name);
+}
+
+function relayTeam(seat: Seat): RelayRoster[Seat] {
+  const [lead, reserve] = relayPicks[seat];
+  if (reserve === null) throw new Error('Relay lineup requires a reserve');
+  return [roster[lead].fighter, roster[reserve].fighter];
+}
+
+function refreshCombatants() {
+  audio.configure([
+    roster.find(entry => entry.fighter.id === config.fighters[0].id)?.audio,
+    roster.find(entry => entry.fighter.id === config.fighters[1].id)?.audio
+  ], __FIGHTER_AUDIO__);
+  renderer.load(config.arena);
+  lastChains = [null, null];
+  lifeDisplay = [null, null];
+  fightCueUntil = 0;
   for (const seat of seats) {
     const def = config.fighters[seat];
     portraits[seat].dataset.fighter = def.id;
     portraits[seat].src = fighterArt[def.id];
     healthBars[seat].parentElement!.setAttribute('aria-valuemax', String(def.maxHp));
     guardBars[seat].parentElement!.setAttribute('aria-valuemax', String(rules.guardMax));
-    winPips[seat].replaceChildren(...Array.from({ length: config.rules.winsToFinish }, () => document.createElement('span')));
+    winPips[seat].hidden = Boolean(relay);
+    relayStatus[seat].hidden = !relay;
+    scores[seat].hidden = Boolean(relay);
+    winPips[seat].replaceChildren(...Array.from(
+      { length: relay ? 0 : config.rules.winsToFinish }, () => document.createElement('span')));
+    if (relay) {
+      for (const slot of seats) {
+        const status = relayStatus[seat].children[slot] as HTMLElement;
+        const thumb = status.querySelector('img')!;
+        const fighter = relay.teams[seat][slot];
+        const eliminated = slot < relay.eliminated[seat];
+        const label = eliminated ? '出局' : slot === relay.indices[seat] ? '在场' : '后援';
+        status.dataset.status = eliminated ? 'out' : slot === relay.indices[seat] ? 'active' : 'reserve';
+        status.title = fighter.name + ' · ' + label;
+        status.setAttribute('aria-label', status.title);
+        thumb.src = fighterArt[fighter.id];
+        thumb.dataset.fighter = fighter.id;
+      }
+    }
   }
-  renderer.load(config.arena);
-  element('training-tools').hidden = !config.training;
-  trainingPanel.hidden = !config.training;
-  fillTrainingEnergy.hidden = !config.training;
-  element('step-training').hidden = !config.training;
-  element('match-tag').hidden = Boolean(config.training);
-  text(element('match-tag'), config.arena.name);
 }
 
 function enterMatch() {
@@ -456,6 +567,7 @@ function enterMatch() {
 }
 
 function startMatch(immediate = false) {
+  if (relaySelected() && !confirmed.every(Boolean)) return;
   audio.enableFromGesture();
   configureMatch(immediate);
   if (immediate || reducedMotion.matches) {
@@ -467,12 +579,13 @@ function startMatch(immediate = false) {
     const def = config.fighters[seat];
     element<HTMLImageElement>('versus-art-' + side).src = fighterArt[def.id];
     text(element('versus-seat-' + side), seatName(seat));
-    text(element('versus-fighter-' + side), def.name);
+    text(element('versus-fighter-' + side), relay ? relay.teams[seat].map(fighter => fighter.name).join(' → ') : def.name);
   }
   text(element('versus-title'), config.arena.name);
   const format = config.rules.winsToFinish === 1 ? '一回合决胜' : '先赢 ' + config.rules.winsToFinish + ' 回合';
   text(element('versus-rules'), config.training ? '自由训练 · 无时限' :
-    modeNames[mode] + ' · ' + config.rules.roundSeconds + ' 秒 / 回合 · ' + format);
+    relay ? '车轮战 · 每场 ' + config.rules.roundSeconds + ' 秒' :
+      modeNames[mode] + ' · ' + config.rules.roundSeconds + ' 秒 / 回合 · ' + format);
   introRemaining = 1650;
   show('versus');
   element('skip-versus').focus();
@@ -481,6 +594,7 @@ function startMatch(immediate = false) {
 function pauseSummary() {
   text(element('pause-summary'), config.arena.name + (config.training
     ? ' · 第 ' + state.frame + ' 帧'
+    : relay ? ' · 第 ' + (relay.generation + 1) + ' 场 · ' + config.fighters.map(fighter => fighter.name).join(' VS ')
     : ' · 第 ' + state.round + ' 回合 · ' + state.wins.join(' : ')));
 }
 
@@ -491,16 +605,28 @@ function pauseMatch() {
 }
 
 function endMatch() {
-  const winner = state.winner;
+  const winner = relay ? relay.winner : state.winner;
   screens.result.classList.toggle('no-winner', winner === null);
   element('result-art-frame').hidden = winner === null;
-  if (winner !== null) element<HTMLImageElement>('result-art').src = fighterArt[config.fighters[winner].id];
-  text(element('result-map'), modeNames[mode] + ' · ' + config.arena.name);
-  text(element('result-title'), winner === null ? '整场平局' : seatName(winner) + ' 获胜');
-  text(element('result-one'), config.fighters[0].name);
-  text(element('result-two'), config.fighters[1].name);
+  if (winner !== null) {
+    const champion = relay ? relay.teams[winner][relay.eliminated[winner]] : config.fighters[winner];
+    element<HTMLImageElement>('result-art').src = fighterArt[champion.id];
+  }
+  text(element('result-map'), (relay ? '车轮战' : modeNames[mode]) + ' · ' + config.arena.name);
+  text(element('result-title'), winner === null ? '整场平局' : seatName(winner) + (relay ? ' 队获胜' : ' 获胜'));
+  if (relay) renderRelayResult(relay);
+  else renderStandardResult();
+  show('result');
+  element('rematch').focus();
+}
+
+function renderStandardResult() {
+  for (const seat of seats) text(element('result-' + namesSuffix[seat]), config.fighters[seat].name);
+  element('result-score').removeAttribute('aria-label');
   text(element('result-score'), state.wins.join(' : '));
+  element('result-reason').hidden = false;
   text(element('result-reason'), state.result ? '最后回合 · ' + reasons[state.result.reason] : '');
+  element('round-history').setAttribute('aria-label', '回合记录');
   element('round-history').replaceChildren(...roundHistory.map(record => {
     const item = document.createElement('li');
     const who = record.winner === null ? '平局' : seatName(record.winner);
@@ -508,8 +634,28 @@ function endMatch() {
     item.dataset.outcome = record.winner === null ? 'draw' : String(record.winner + 1);
     return item;
   }));
-  show('result');
-  element('rematch').focus();
+}
+
+function remainingFighters(session: RelaySession): Duo<number> {
+  return [2 - session.eliminated[0], 2 - session.eliminated[1]];
+}
+
+function renderRelayResult(session: RelaySession) {
+  for (const seat of seats) text(element('result-' + namesSuffix[seat]), seatName(seat) + ' 队');
+  element('result-score').setAttribute('aria-label', '双方剩余角色数');
+  text(element('result-score'), remainingFighters(session).join(' : '));
+  element('result-reason').hidden = true;
+  const history = element('round-history');
+  history.setAttribute('aria-label', '车轮战对局记录');
+  const compactReasons = { ko: 'KO', time: '超时', tie: '平局', 'double-ko': '双 KO' };
+  history.replaceChildren(...session.history.map(({ indices, result }) => {
+    const item = document.createElement('li');
+    const pairing = seats.map(seat => session.teams[seat][indices[seat]].name).join(' VS ');
+    const outcome = result.winner === null ? '双方出局' : seatName(result.winner === 0 ? 1 : 0) + ' 出局';
+    text(item, pairing + ' · ' + compactReasons[result.reason] + ' · ' + outcome);
+    item.dataset.outcome = result.winner === null ? 'draw' : String(result.winner + 1);
+    return item;
+  }));
 }
 
 function toggleDebug() {
@@ -540,6 +686,14 @@ for (const button of document.querySelectorAll<HTMLButtonElement>('[data-go]')) 
 for (const seat of seats) {
   seatButtons[seat].addEventListener('click', () => { activeSeat = seat; renderRoster(); });
   lockButtons[seat].addEventListener('click', () => confirmSeat(seat));
+  for (const slot of seats) lineupButtons[seat][slot].addEventListener('click', () => editRelaySlot(seat, slot));
+  lineupButtons[seat][2].addEventListener('click', () => {
+    const [lead, reserve] = relayPicks[seat];
+    if (reserve === null) return;
+    relayPicks[seat] = [reserve, lead];
+    confirmed[seat] = false;
+    editRelaySlot(seat, 0);
+  });
 }
 
 pickArena.addEventListener('click', () => go('maps'));
@@ -620,9 +774,18 @@ function rosterKey(event: KeyboardEvent) {
     if (confirmed[seat]) confirmSeat(seat);
     else if (mode !== 'local' && confirmed[0]) confirmSeat(0);
     else if (binding.seat === 0) go('menu');
-  } else if (control === 'left' || control === 'right') selectFighter(seat, selected[seat] ^ 1);
-  else if (control === 'up' || control === 'down') selectFighter(seat, selected[seat] ^ 2);
-  else return false;
+  } else if (control === 'B' && relaySelected()) {
+    const slot = activeSlots[seat] === 0 ? 1 : 0;
+    editRelaySlot(seat, slot);
+    lineupButtons[seat][slot].focus();
+  } else {
+    const horizontal = control === 'left' || control === 'right';
+    if (!horizontal && control !== 'up' && control !== 'down') return false;
+    const current = pickedFighter(seat) ?? relayPicks[seat][0];
+    const candidate = current ^ (horizontal ? 1 : 2);
+    const unavailable = relaySelected() && relayPicks[seat][1 - activeSlots[seat]] === candidate;
+    selectFighter(seat, unavailable ? candidate ^ 3 : candidate);
+  }
   event.preventDefault();
   return true;
 }
@@ -680,6 +843,7 @@ window.addEventListener('keydown', event => {
   const binding = bindings.get(event.code);
   if (!binding) return;
   event.preventDefault();
+  if (relay && state.phase !== 'fight') return;
   if (held.has(event.code) || event.repeat || (binding.seat === 1 && mode !== 'local')) return;
   audio.enableFromGesture();
   held.add(event.code);
@@ -766,7 +930,7 @@ function trainingState(seat: Seat) {
 
 function renderHUD() {
   if (stage.dataset.phase !== state.phase) stage.dataset.phase = state.phase;
-  text(roundLabel, config.training ? '自由训练' : '第 ' + state.round + ' 回合');
+  text(roundLabel, config.training ? '自由训练' : relay ? '第 ' + (relay.generation + 1) + ' 场' : '第 ' + state.round + ' 回合');
   text(timer, config.training ? '∞' : String(Math.ceil(state.remaining / config.rules.ticksPerSecond)).padStart(2, '0'));
   for (const seat of seats) {
     const fighter = state.fighters[seat];
@@ -837,8 +1001,16 @@ function renderHUD() {
   let display = '';
   let caption = '';
   if (state.phase === 'ready') {
-    display = state.phaseTicks > 65 && !config.training ? '第 ' + state.round + ' 回合' : '准备';
-    caption = config.arena.name;
+    const previousBout = relay?.history.at(-1);
+    if (relay && previousBout) {
+      const { indices } = relay;
+      display = '后援接战';
+      caption = seats.filter(seat => indices[seat] !== previousBout.indices[seat])
+        .map(seat => seatName(seat) + ' · ' + config.fighters[seat].name).join('　 /　 ');
+    } else {
+      display = state.phaseTicks > 65 && !config.training ? relay ? '第 1 场' : '第 ' + state.round + ' 回合' : '准备';
+      caption = config.arena.name;
+    }
   } else if (state.phase === 'round-over' && result) {
     display = result.reason === 'ko' ? 'K.O.' : result.reason === 'double-ko' ? '双 K.O.' :
       result.winner === null ? '平局' : seatName(result.winner) + ' 领先';
@@ -854,7 +1026,20 @@ function renderHUD() {
 
 function tick(player: InputFrame) {
   const previous = state.phase;
-  const events = step(state, [player, opponentInput()], config);
+  const generation = relay?.generation;
+  const inputs: Duo<InputFrame> = relay && previous !== 'fight' ? [NEUTRAL, NEUTRAL] : [player, opponentInput()];
+  const events = relay ? stepRelayMatch(relay, inputs) : step(state, inputs, config);
+  if (relay && relay.generation !== generation) {
+    state = relay.state;
+    config = relay.config;
+    clearInputs();
+    window.clearTimeout(toastTimer);
+    element('ui-notice').hidden = true;
+    refreshCombatants();
+    footer();
+    return;
+  }
+  if (relay && previous !== state.phase) clearInputs();
   const shortage = events.find(event => (event.kind === 'ultimate-no-energy' || event.kind === 'tears-short') &&
     (event.source === 0 || mode === 'local'));
   if (shortage?.amount) notify(seatName(shortage.source) + ' 需要 ' + (shortage.kind === 'tears-short'
@@ -894,7 +1079,7 @@ function tick(player: InputFrame) {
     if (trainingInputs.length > 4) trainingInputs.splice(0, trainingInputs.length - 4);
   }
   if (previous === 'ready' && state.phase === 'fight') fightCueUntil = state.frame + 30;
-  if (previous === 'fight' && state.phase === 'round-over' && state.result) {
+  if (!relay && previous === 'fight' && state.phase === 'round-over' && state.result) {
     roundHistory.push({ ...state.result, round: state.round });
   }
   renderer.add(events, state.arenaFrame, config.fighters);
@@ -905,7 +1090,8 @@ function draw(elapsed: number) {
   stage.toggleAttribute('data-cinematic', Boolean(state.cutIn) || state.summon?.phase === 'cut-in');
   const opening = state.phase === 'ready' && !config.training && !reducedMotion.matches
     ? Math.max(0, Math.min(1, (state.phaseTicks - 18) / 74)) : 0;
-  renderer.draw(config, state, debug, elapsed, preferences.shake && !reducedMotion.matches,
+  const presentationState = relay ? { ...state, wins: remainingFighters(relay) } : state;
+  renderer.draw(config, presentationState, debug, elapsed, preferences.shake && !reducedMotion.matches,
     preferences.camera === 'focus' && !reducedMotion.matches, reducedMotion.matches, opening, debt / (1000 / rules.ticksPerSecond));
 }
 
@@ -922,7 +1108,7 @@ function frame(now: number) {
     while (debt >= tickMs) {
       tick(readInput(0));
       debt -= tickMs;
-      if (state.phase === 'match-over') {
+      if (relay ? relay.phase === 'finished' : state.phase === 'match-over') {
         endMatch();
         break;
       }
@@ -950,5 +1136,11 @@ export function openPractice(practiceParams: URLSearchParams) {
   enterMatch();
   return true;
 }
-if (!openPractice(new URLSearchParams(location.search))) go('title');
+const launchParams = new URLSearchParams(location.search);
+if (!openPractice(launchParams)) {
+  if (launchParams.get('format') === 'relay') {
+    battleFormat.value = 'relay';
+    go('menu');
+  } else go('title');
+}
 requestAnimationFrame(frame);

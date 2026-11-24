@@ -1163,7 +1163,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     if (--state.phaseTicks > 0 || (stillFalling && state.phaseTicks > -roundOverMaxExtraTicks)) return events;
     if (state.phase === 'ready') {
       state.phase = 'fight';
-    } else if (state.winner !== null || state.draws >= 2) {
+    } else if (state.winner !== null || state.draws >= (config.rules.drawsToFinish ?? 2)) {
       state.phase = 'match-over';
     } else {
       rampToNextRound(state, config);

@@ -227,6 +227,8 @@ export interface Ruleset {
   ticksPerSecond: number;
   roundSeconds: number;
   winsToFinish: number;
+  /** Consecutive draws that end the match. Defaults to two. */
+  drawsToFinish?: number;
   guardMax: number;
   guardDelay: number;
   guardBreak: number;
