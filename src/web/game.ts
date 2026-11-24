@@ -5,11 +5,13 @@ import { roster } from '../content/roster.js';
 import { actionFor, createMatch, step } from '../core/match.js';
 import { ENERGY_PER_STOCK, MAX_ENERGY, MAX_TEARS, NEUTRAL, TEAR_UNITS_PER_POINT, type ActionKey, type Axis, type Duo, type FighterDefinition, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
 import { arcadeArt, arenaArt, fighterArt } from './art.js';
-import { FightAudio } from './audio.js';
+import { FightAudio, type SampleVoice } from './audio.js';
 import { cpuInput } from './cpu.js';
 import { tierAt } from '../core/terrain.js';
-import { previewArena, recoveryLabels, Renderer } from './renderer.js';
+import { entranceFor, openingFrame, openingTicks, previewArena, recoveryLabels, Renderer, seatColors } from './renderer.js';
 import { bindingMap, installSettings, keyHint, loadPreferences, renderGuide, type Control, type Seat } from './settings.js';
+import { Tempo, shotFading, type Cinematic, type FeatureShot } from './cinematics.js';
+import { gagaVictory } from './gaga-cinematics.js';
 
 function element<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
@@ -36,6 +38,11 @@ const reasons = { ko: '击倒', time: '超时 · 生命比例领先', tie: '超�
 const previousScreen: Partial<Record<Screen, Screen>> = {
   menu: 'title', roster: 'menu', maps: 'roster', versus: 'maps', result: 'menu'
 };
+// Full-screen victory shots by fighter. One freezes the match for its whole run.
+const victories: Partial<Record<string, Cinematic>> = { gaga: gagaVictory };
+/** Frame of the round-over countdown, counted down from 105, at which the winner takes their victory shot. */
+const victoryCue = 52;
+type Feature = { shot: FeatureShot; cinematic: Cinematic; voice: SampleVoice | null; seat: 0 | 1 };
 
 const stage = element('stage');
 const canvas = element<HTMLCanvasElement>('arena');
@@ -116,6 +123,7 @@ let lastTime = 0;
 let debt = 0;
 let introRemaining = 0;
 let fightCueUntil = 0;
+let feature: Feature | null = null;
 let toastTimer = 0;
 let windowFit = false;
 
@@ -380,6 +388,7 @@ function selectArena(index: number) {
 }
 
 function configureMatch(immediate: boolean) {
+  finishFeature();
   config.arena = arenas[arenaIndex];
   stage.dataset.mode = mode;
   stage.dataset.arena = config.arena.id;
@@ -399,6 +408,9 @@ function configureMatch(immediate: boolean) {
   bestTier = 0;
   fightCueUntil = 0;
   if (immediate) state.phase = 'fight';
+  // A round opens long enough for whichever fighter brings an entrance to finish it. Without the animation
+  // there is nothing to wait for.
+  else if (!config.training && !reducedMotion.matches) state.phaseTicks = openingTicks(config.fighters);
   for (const seat of seats) {
     const def = config.fighters[seat];
     portraits[seat].dataset.fighter = def.id;
@@ -453,9 +465,64 @@ function pauseSummary() {
 }
 
 function pauseMatch() {
+  // Pausing ends a character shot, so its sound never plays on over a frozen frame.
+  finishFeature();
   show('pause');
   pauseSummary();
   element('resume').focus();
+}
+
+/** Starts the winner's victory shot once the loser is down. The match stays frozen until the shot ends or is skipped. */
+function startFeature(): boolean {
+  if (reducedMotion.matches || config.training) return false;
+  const seat = state.phase === 'round-over' && state.phaseTicks === victoryCue ? state.result?.winner : undefined;
+  if (seat === undefined || seat === null) return false;
+  const cinematic = victories[config.fighters[seat].id];
+  if (!cinematic) return false;
+  const voice = cinematic.sound ? audio.startSample(cinematic.sound, (cinematic.soundAt ?? 0) / rules.ticksPerSecond) : null;
+  // A recorded voice sets the length; the stand-in keeps the length written for the shot.
+  const frames = voice ? Math.max(cinematic.frames, (cinematic.soundAt ?? 0) +
+    Math.ceil(voice.duration * rules.ticksPerSecond) + cinematic.fade + 8) : cinematic.frames;
+  const shot: FeatureShot = {
+    frame: 0, frames, fade: cinematic.fade, name: config.fighters[seat].name,
+    seat: seatName(seat), color: seatColors[seat],
+    skip: keyHint(preferences, 0, ['A']) + ' 跳过',
+    tempo: new Tempo(cinematic.beatFrom ?? 0),
+    paint: ctx => cinematic.paint(ctx, shot)
+  };
+  feature = { shot, cinematic, voice, seat };
+  return true;
+}
+
+/** A shot stands in for the end-of-round announcement, so the clock resumes near the end of that announcement. */
+function handOver(run: Feature) {
+  state.phaseTicks = Math.min(state.phaseTicks, 18);
+}
+
+function advanceFeature() {
+  const run = feature!;
+  const { frame } = run.shot;
+  for (const { at, sound } of run.cinematic.cues ?? []) {
+    if (at === frame) audio.play([{ kind: sound, source: run.seat, x: 0, y: 0 }], config.fighters);
+  }
+  const beat = run.shot.tempo.hear(run.voice?.level(), frame);
+  if (beat && run.cinematic.sound && !run.voice) audio.call(run.shot.tempo.count);
+  if (frame + 1 >= run.shot.frames) {
+    finishFeature();
+    return;
+  }
+  run.shot.frame++;
+  if (shotFading(run.shot)) handOver(run);
+}
+
+function finishFeature() {
+  const run = feature;
+  if (!run) return;
+  feature = null;
+  run.voice?.stop();
+  // The key that skipped the shot must not also throw the first attack.
+  clearInputs();
+  handOver(run);
 }
 
 function endMatch() {
@@ -648,6 +715,10 @@ window.addEventListener('keydown', event => {
   const binding = bindings.get(event.code);
   if (!binding) return;
   event.preventDefault();
+  if (feature && ['A', 'B', 'C', 'ULT', 'jump', 'dash'].includes(binding.control)) {
+    if (!event.repeat && !held.has(event.code) && (binding.seat === 0 || mode === 'local')) finishFeature();
+    return;
+  }
   if (held.has(event.code) || event.repeat || (binding.seat === 1 && mode !== 'local')) return;
   audio.enableFromGesture();
   held.add(event.code);
@@ -665,6 +736,7 @@ window.addEventListener('keydown', event => {
 });
 window.addEventListener('keyup', event => held.delete(event.code));
 canvas.addEventListener('blur', clearInputs);
+canvas.addEventListener('click', () => finishFeature());
 function pauseOnHide() {
   if (screen === 'match') pauseMatch();
   else clearInputs();
@@ -825,7 +897,14 @@ function tick(player: InputFrame) {
   const blockedWave = events.find(event => event.kind === 'wave-unavailable' && (event.source === 0 || mode === 'local'));
   if (blockedWave) notify(blockedWave.requirement === 'ground' ? '落地后才能发动' + bananaWaveTitle
     : '等当前动作结束再发动' + bananaWaveTitle);
-  if (state.phase === 'ready' && previous !== 'ready') lastChains = [null, null];
+  if (state.phase === 'ready' && previous !== 'ready') {
+    lastChains = [null, null];
+    if (!config.training && !reducedMotion.matches) state.phaseTicks = openingTicks(config.fighters);
+  }
+  if (state.phase === 'round-over' && previous !== 'round-over' &&
+    state.result?.winner != null && config.fighters[state.result.winner].id === 'banana') {
+    state.phaseTicks = 192;
+  }
   for (const event of events) {
     if (event.kind === 'ultimate-no-energy' && !event.amount) {
       notify(seatName(event.source) + ' 技能能量不足');
@@ -862,14 +941,26 @@ function tick(player: InputFrame) {
   }
   renderer.add(events, config.fighters);
   audio.play(events, config.fighters);
+  // An entrance plays inside the countdown, so its sounds are fired by frame rather than by the simulation.
+  const entrance = reducedMotion.matches ? -1 : openingFrame(state, config.fighters);
+  if (entrance >= 0) {
+    for (const seat of seats) {
+      const fighter = state.fighters[seat];
+      for (const { at, sound } of entranceFor(config.fighters[seat])?.cues ?? []) {
+        if (at === entrance) audio.play([{ ...sound, source: seat, x: fighter.x, y: fighter.y }], config.fighters);
+      }
+    }
+  }
 }
 
 function draw(elapsed: number) {
-  stage.toggleAttribute('data-cinematic', Boolean(state.cutIn) || state.summon?.phase === 'cut-in');
+  const shot = feature?.shot;
+  stage.toggleAttribute('data-cinematic', Boolean(state.cutIn) || state.summon?.phase === 'cut-in' ||
+    Boolean(shot && !shotFading(shot)));
   const opening = state.phase === 'ready' && !config.training && !reducedMotion.matches
     ? Math.max(0, Math.min(1, (state.phaseTicks - 18) / 74)) : 0;
   renderer.draw(config, state, debug, elapsed, preferences.shake && !reducedMotion.matches,
-    preferences.camera === 'focus' && !reducedMotion.matches, reducedMotion.matches, opening);
+    preferences.camera === 'focus' && !reducedMotion.matches, reducedMotion.matches, opening, shot);
 }
 
 function frame(now: number) {
@@ -883,11 +974,15 @@ function frame(now: number) {
   if (screen === 'match') {
     debt += elapsed * (config.training ? Number(trainingSpeed.value) : 1);
     while (debt >= tickMs) {
-      tick(readInput(0));
       debt -= tickMs;
-      if (state.phase === 'match-over') {
-        endMatch();
-        break;
+      if (feature) {
+        advanceFeature();
+      } else if (!startFeature()) {
+        tick(readInput(0));
+        if (state.phase === 'match-over') {
+          endMatch();
+          break;
+        }
       }
     }
     if (screen === 'match') {

@@ -65,58 +65,88 @@ const waveShadow = new Path2D('M-117-12 C-69-24-36-57-22-84 C1-128 12-152 41-165
 export function drawBananaWave(ctx: CanvasRenderingContext2D, p: Projectile, data: ProjectileDefinition,
   reducedMotion: boolean) {
   const age = p.age ?? 0;
-  const phase = reducedMotion ? 0 : age * .28;
+  const phase = reducedMotion ? 0 : age * .34;
   const fade = Math.min(1, Math.max(.10, ((data.life ?? 40) - age) / 7));
-  const swell = .8 + .2 * (1 - Math.max(0, 1 - age / 8) ** 2);
-  const crestHeight = swell * (.77 + fade * .23);
+  const swell = .85 + .22 * (1 - Math.max(0, 1 - age / 8) ** 2);
+  const pulse = reducedMotion ? 0 : Math.sin(age * .42) * .06;
+  const crestHeight = swell * (.84 + fade * .22 + pulse) * 1.24;
+  const waveSpan = (data.halfWidth ?? data.radius) / 104 * 1.28;
   ctx.save();
   ctx.translate(p.x, p.y + data.radius);
-  ctx.scale(p.facing * (data.halfWidth ?? data.radius) / 104, data.radius / 98 * crestHeight);
+  ctx.scale(p.facing * waveSpan, data.radius / 98 * crestHeight);
   ctx.globalAlpha *= fade;
-  ctx.fillStyle = '#14396078';
+
+  // Flooded ground wake & roaring floor spray behind the advancing tsunami.
+  ctx.fillStyle = '#14396094';
   ctx.beginPath();
-  ctx.ellipse(-55, 6, 123, 11, 0, 0, Math.PI * 2);
+  ctx.ellipse(-65, 6, 155, 13, 0, 0, Math.PI * 2);
   ctx.fill();
-  const water = ctx.createLinearGradient(0, -172, 0, 0);
-  water.addColorStop(0, '#8aeeff');
-  water.addColorStop(.45, '#2fb4e4');
-  water.addColorStop(1, '#1a61a9');
+  if (!reducedMotion) {
+    const wake = ctx.createLinearGradient(-320, 0, 40, 0);
+    wake.addColorStop(0, '#2eaee800');
+    wake.addColorStop(.55, '#48c8f588');
+    wake.addColorStop(1, '#d8fbffbb');
+    ctx.fillStyle = wake;
+    ctx.fillRect(-320, -11, 360, 14);
+    for (const [offset, alpha] of [[-78, .22], [-40, .38]] as const) {
+      ctx.save();
+      ctx.translate(offset, 0);
+      ctx.scale(.94, .92);
+      ctx.globalAlpha *= alpha;
+      ctx.fillStyle = '#2587c9';
+      ctx.fill(waveCrest);
+      ctx.restore();
+    }
+  }
+  const water = ctx.createLinearGradient(0, -182, 0, 0);
+  water.addColorStop(0, '#aef5ff');
+  water.addColorStop(.4, '#2bb3e6');
+  water.addColorStop(1, '#125096');
   ctx.fillStyle = water;
-  ctx.strokeStyle = '#1b3a68';
-  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#142f59';
+  ctx.lineWidth = 4.5;
   ctx.lineJoin = 'round';
   ctx.fill(waveCrest);
   ctx.stroke(waveCrest);
-  ctx.fillStyle = '#216daea8';
+  ctx.fillStyle = '#1b5f9eb8';
   ctx.fill(waveShadow);
-  ctx.fillStyle = '#e2fdff';
+  ctx.fillStyle = '#ebfeff';
   ctx.fill(waveFoam);
   ctx.save();
   ctx.clip(waveCrest);
-  ctx.globalAlpha *= .8;
+  ctx.globalAlpha *= .85;
   ctx.globalCompositeOperation = 'screen';
   const surfFrame = Math.min(13, Math.floor(age * .34));
-  // Pivot the source swell by its rising crest so the foam rides on the travelling wave.
   const surfPhase = (20 + surfFrame) / 36;
   const sourceCrest = -80 + 36 * (1 - Math.cos(Math.PI * surfPhase));
   drawPixelEffect(ctx, 'waveCrash', surfFrame, 38 - sourceCrest * 2.45, 0, 2.45, 5.05);
   ctx.restore();
-  ctx.strokeStyle = '#92efff';
+  ctx.strokeStyle = '#a6f4ff';
   ctx.lineCap = 'round';
-  for (let i = 0; i < 5; i++) {
-    const x = -104 + i * 24 + Math.sin(phase + i) * 7;
-    const y = -13 - i % 3 * 10;
-    ctx.lineWidth = 2.4 + i % 3;
+  for (let i = 0; i < 7; i++) {
+    const x = -140 + i * 26 + Math.sin(phase + i) * 9;
+    const y = -12 - i % 3 * 11;
+    ctx.lineWidth = 2.8 + i % 3;
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.quadraticCurveTo(x + 19, y - 9, x + 35, y - 8);
+    ctx.quadraticCurveTo(x + 22, y - 11, x + 42, y - 9);
     ctx.stroke();
   }
-  for (let i = 0; i < 15; i++) {
-    const t = (i * .19 + phase * .21) % 1;
-    const x = i < 8 ? 36 + (i % 4) * 24 + t * 28 : -128 + (i % 4) * 66 + t * 28;
-    const y = i < 8 ? -195 + t * t * 60 - i % 2 * 9 : -13 - Math.sin(t * Math.PI) * (16 + i % 3 * 14);
-    droplet(ctx, x, y, 2.2 + i % 4 * 1.3, i < 8 ? -.48 + t : -.3);
+  for (let i = 0; i < 22; i++) {
+    const t = (i * .17 + phase * .24) % 1;
+    const x = i < 11 ? 30 + (i % 5) * 24 + t * 34 : -150 + (i % 5) * 62 + t * 32;
+    const y = i < 11 ? -200 + t * t * 68 - i % 2 * 10 : -14 - Math.sin(t * Math.PI) * (20 + i % 3 * 16);
+    droplet(ctx, x, y, 2.4 + i % 4 * 1.4, i < 11 ? -.48 + t : -.3);
+  }
+  // Leading hydro-wind arcs slicing ahead of the crest.
+  ctx.strokeStyle = '#e2fcff';
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 4; i++) {
+    ctx.globalAlpha = .72 - i * .15;
+    ctx.lineWidth = 3.5 - i * .7;
+    ctx.beginPath();
+    ctx.arc(44 + i * 20, -112 + i * 24, 52 + i * 16, -.7, .48);
+    ctx.stroke();
   }
   ctx.restore();
 }
@@ -274,9 +304,10 @@ export function drawBananaEffect(ctx: CanvasRenderingContext2D, event: CombatEve
     ctx.save();
     if (wave) {
       ctx.beginPath();
-      ctx.ellipse(direction * 32, 28, 130, 102, 0, 0, Math.PI * 2);
+      ctx.ellipse(direction * 32, 24, 175, 138, 0, 0, Math.PI * 2);
       ctx.clip();
-      drawPixelEffect(ctx, 'waveCrash', 16 + t * 34, direction * 20, 43, direction * 2.3, 2.7);
+      drawPixelEffect(ctx, 'waveCrash', 14 + t * 36, direction * 20, 48, direction * 3.1, 3.6);
+      drawPixelEffect(ctx, 'splash', Math.min(18, 6 + age * 1.1), direction * 18, 16, direction * 2.6, 2.8, true);
     } else {
       // The crown stays raised through the hit stop, then spills over.
       drawPixelEffect(ctx, 'splash', age < 3 ? 6 : 6 + (age - 3) * 1.05, direction * 12, 4,
@@ -285,7 +316,12 @@ export function drawBananaEffect(ctx: CanvasRenderingContext2D, event: CombatEve
     ctx.restore();
     ctx.save();
     // A white-hot core marks the contact the way a claw hit does, so a jet that connects still reads as a hit.
-    if (!wave && age < 4) {
+    if (wave && age < 6) {
+      ctx.save();
+      ctx.globalAlpha *= 1 - age / 6;
+      sparkle(ctx, 132, '#2ec4f6', '#ffffff');
+      ctx.restore();
+    } else if (!wave && age < 4) {
       ctx.save();
       ctx.globalAlpha *= age < 2 ? 1 : 1 - (age - 1) / 3;
       ctx.rotate(rising ? -Math.PI / 2 : direction === 1 ? 0 : Math.PI);

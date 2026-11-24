@@ -44,6 +44,23 @@ export function frameDijiangImpact(
   };
 }
 
+export function frameEntrance(
+  arena: Size, viewport: Size, camera: CameraView, subjects: Duo<Subject>, amount: number
+): CameraView {
+  // Room for a fighter's own width either side, and clear air above the taller one.
+  const [a, b] = subjects;
+  const zoom = Math.min(viewport.width / (Math.abs(a.x - b.x) + 168),
+    viewport.height * .76 / (Math.max(a.height, b.height) + 44));
+  const visibleWidth = viewport.width / zoom, visibleHeight = viewport.height / zoom;
+  const x = clamp((a.x + b.x - visibleWidth) / 2, 0, Math.max(0, arena.width - visibleWidth));
+  const y = clamp(Math.max(a.y, b.y) - viewport.height * .84 / zoom, 0, Math.max(0, arena.height - visibleHeight));
+  return {
+    x: camera.x + (x - camera.x) * amount,
+    y: camera.y + (y - camera.y) * amount,
+    zoom: camera.zoom + (zoom - camera.zoom) * amount
+  };
+}
+
 export function frameCamera(
   arena: Size, viewport: Size, subjects: Duo<Subject>,
   previous: CameraView | null, elapsed: number, focus: boolean, opening = 0, anchor?: Pick<Subject, 'x' | 'y'>,

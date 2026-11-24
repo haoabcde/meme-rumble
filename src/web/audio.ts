@@ -26,9 +26,20 @@ const sampleVolumes = {
   'turret-ready': .34,
   'turret-bolt': .34,
   'grenade-impact': .42,
-  'dijiang-impact': .55
+  'dijiang-impact': .55,
+  'victory-lalala': .8
 };
-type GagaSample = keyof typeof sampleVolumes;
+export type GagaSample = keyof typeof sampleVolumes;
+
+/** A sample playing to the end while a character shot runs. */
+export interface SampleVoice {
+  /** Length of the sample in seconds. */
+  duration: number;
+  /** Peak loudness heard this frame, from 0 to 1. */
+  level(): number;
+  /** Fades out quickly instead of playing to the end. */
+  stop(): void;
+}
 declare const __GAGA_SOUNDS__: Partial<Record<GagaSample, string>>;
 
 const poleSamples: Record<PoleSwing, GagaSample> = {
@@ -262,6 +273,50 @@ export class FightAudio {
         }
       }
     }
+  }
+
+  /** Runs the checks every sound passes before anything reaches the speakers. */
+  private output() {
+    const ctx = this.context;
+    return ctx && ctx.state === 'running' && this.enabled && this.volume > 0 ? ctx : null;
+  }
+
+  /** Plays a sample through, from now or a little later, and reports how loud it sounds while it runs. */
+  startSample(name: GagaSample, delay = 0): SampleVoice | null {
+    const ctx = this.output();
+    const buffer = this.samples.get(name);
+    if (!ctx || !buffer) return null;
+    const source = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    const meter = ctx.createAnalyser();
+    const wave = new Float32Array(meter.fftSize);
+    source.buffer = buffer;
+    gain.gain.value = sampleVolumes[name] * this.volume;
+    source.connect(gain);
+    gain.connect(meter);
+    meter.connect(ctx.destination);
+    source.start(ctx.currentTime + delay);
+    return {
+      duration: buffer.duration,
+      level: () => {
+        meter.getFloatTimeDomainData(wave);
+        let total = 0;
+        for (const value of wave) total += value * value;
+        return Math.min(1, Math.sqrt(total / wave.length) * 6);
+      },
+      stop: () => {
+        gain.gain.setTargetAtTime(0, ctx.currentTime, .03);
+        source.stop(ctx.currentTime + .12);
+      }
+    };
+  }
+
+  /** Notes standing in for a victory recording that has not been added to the fighter yet. */
+  call(step: number) {
+    const ctx = this.output();
+    if (!ctx) return;
+    const pitch = [523, 659, 784, 1047, 784, 1047][step % 6];
+    this.playTone(ctx, [pitch, pitch * 1.02, .2, 'triangle', .17], ctx.currentTime);
   }
 
   private playSample(ctx: AudioContext, name: GagaSample, now: number) {

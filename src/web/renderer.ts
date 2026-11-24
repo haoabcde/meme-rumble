@@ -14,8 +14,9 @@ import { summonFallFrames } from '../core/summon.js';
 import { turretBuildTicks } from '../core/turret.js';
 import type { ActionDefinition, ArenaDefinition, CombatEvent, MatchConfig, MatchState, Summon } from '../core/types.js';
 import { backgrounds, harborProps, harborGantry, stageKits, drawEngineeringCrate, drawGagaLaunchTrail, drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose, gagaReactionPose, motionArt, sprites, type PolePose } from './art.js';
-import { frameCamera, frameDijiangLength, frameDijiangImpact, type CameraView } from './camera.js';
+import { frameCamera, frameDijiangLength, frameDijiangImpact, frameEntrance, type CameraView } from './camera.js';
 import { drawGagaWalk, GagaWalk } from './gaga-walk.js';
+import { gagaIntro } from './gaga-intro.js';
 import { drawGagaContact, drawGagaReceive, gagaContact, type GagaContact } from './gaga-contact.js';
 import { drawGagaImpact, gagaStrike } from './gaga-hit-art.js';
 import { hitWeight, type Weight } from './hit-burst.js';
@@ -25,11 +26,23 @@ import { dijiangImpactLife, drawDijiang, drawDijiangGround, drawDijiangImpact, d
   drawSummonCutIn } from './dijiang.js';
 
 import { platformAt } from '../core/terrain.js';
+import { shotFading, shotOpacity, type FeatureShot, type FighterIntro } from './cinematics.js';
 import { drawHarborScenery, drawHarborLift, drawQuay } from './harbor-art.js';
 import { drawStageBackdrop, drawStageMechanism, drawStageScenery } from './stage-art.js';
 
 export const seatColors = ['#61d8ff', '#ff849e'];
 export const recoveryLabels = { fall: '击倒', down: '倒地', rise: '起身' };
+// Entrances performed on the stage, by fighter. They play inside the opening countdown with both fighters in view.
+const entrances: Partial<Record<string, FighterIntro>> = { gaga: gagaIntro };
+/** The banana cat brings its own entrance, drawn by its own art. */
+const stageEntrance = (fighter: MatchConfig['fighters'][number]) => fighter.id === 'banana' || Boolean(entrances[fighter.id]);
+/** Length of each round's opening. It stretches from the usual 120 frames whenever a fighter performs an entrance. */
+export const openingTicks = (fighters: MatchConfig['fighters']) => fighters.some(stageEntrance) ? 192 : 120;
+/** Frame of the entrance, counted from the first frame of the opening, or -1 once the round is under way. */
+export const openingFrame = (state: MatchState, fighters: MatchConfig['fighters']) =>
+  state.phase === 'ready' ? openingTicks(fighters) - state.phaseTicks : -1;
+/** The entrance a fighter performs on the stage, when it brings one. */
+export const entranceFor = (fighter: MatchConfig['fighters'][number]) => entrances[fighter.id];
 const arenaColors = { dorm: '#ffc08c', court: '#8faaff', harbor: '#8de9cd', station: '#bc9bff' };
 // Peak screen shake in pixels for each hit weight, matching the flash of the same weight in hit-burst.ts.
 const hitShake: Record<Weight, number> = { light: 4, medium: 6.5, heavy: 11, launch: 12 };
@@ -339,7 +352,8 @@ export class Renderer {
         this.effects.push({ event, life, age: 0, cue, gagaReceives, bananaImpact, gagaImpact });
       }
       if (event.kind === 'hit' || event.kind === 'break') {
-        const strength = jet ? (event.actionId === bananaActionIds.uppercut ? 12 : 8)
+        const strength = event.actionId === bananaActionIds.wave ? 18
+          : jet ? (event.actionId === bananaActionIds.uppercut ? 12 : 8)
           : hitShake[event.kind === 'break' ? 'medium' : hitWeight(event)];
         this.kick(event.feedback?.shake ?? strength);
       }
@@ -347,16 +361,21 @@ export class Renderer {
   }
 
   draw(config: MatchConfig, state: MatchState, debug: boolean, elapsed: number, shakeEnabled: boolean, focus = false,
-    reducedMotion = false, opening = 0) {
+    reducedMotion = false, opening = 0, shot?: FeatureShot) {
     const ctx = this.ctx;
     const { width, height } = ctx.canvas;
+    // A character shot covers the frozen match, then lets it fade back in under its last frames.
+    if (shot && !shotFading(shot)) {
+      shot.paint(ctx);
+      return;
+    }
     if (state.cutIn) {
       drawBananaWaveCutIn(ctx, state.cutIn, reducedMotion);
       return;
     }
     const summon = state.summon;
     if (summon?.phase === 'cut-in') {
-      drawSummonCutIn(ctx, summon.frame, reducedMotion);
+      drawSummonCutIn(ctx, summon.frame, summon.facing, reducedMotion);
       return;
     }
     const [a, b] = state.fighters;
@@ -373,10 +392,22 @@ export class Renderer {
     const camera = frameCamera(config.arena, { width, height },
       [{ x: a.x, y: a.y, height: heights[0] }, { x: b.x, y: b.y, height: heights[1] }],
       this.camera, elapsed, focus, opening, summon, jetTips);
-    this.camera = camera;
+    // An entrance takes a closer two-shot that still holds both fighters, then hands back to the play camera.
+    const frame = reducedMotion ? -1 : openingFrame(state, config.fighters);
+    const shown = ([0, 1] as const).map(seat => {
+      const entrance = entranceFor(config.fighters[seat]);
+      return entrance && frame >= 0 && frame < entrance.frames ? entrance : undefined;
+    });
+    const close = shown.find(Boolean)?.close(frame);
+    const sight = close ? frameEntrance(config.arena, { width, height }, camera,
+      [{ x: a.x, y: a.y, height: heights[0] }, { x: b.x, y: b.y, height: heights[1] }], close) : camera;
+    this.camera = sight;
+    // A walked-in entrance is drawn behind the opening mark. The simulation never moves the fighter.
+    const standing = (seat: 0 | 1) =>
+      state.fighters[seat].x + (shown[seat]?.shift(frame) ?? 0) * state.fighters[seat].facing;
     const impact = this.effects.find(effect => effect.event.kind === 'summon-impact');
     const { x, y, zoom } = impact && shakeEnabled ?
-      frameDijiangImpact(config.arena, { width, height }, camera, impact.event, impact.age) : camera;
+      frameDijiangImpact(config.arena, { width, height }, sight, impact.event, impact.age) : sight;
     // The shake alternates direction each frame on both axes and is hardest on the frame of the blow itself.
     // Neither axis may push the view past the edge of the arena.
     const force = shakeEnabled ? this.shake : 0;
@@ -393,6 +424,18 @@ export class Renderer {
     ctx.fillRect(x - dx / zoom, y - dy / zoom, width / zoom, height / zoom);
 
     const decks = config.arena.platforms.map(p => platformAt(p, state.arenaFrame));
+    const waveLive = state.projectiles.some(p => p.actionId === bananaActionIds.wave) ||
+      state.fighters.some((fighter, seat) => {
+        const move = actionFor(config, state, seat as 0 | 1);
+        return isAttack(move) && move.id === bananaActionIds.wave && Boolean(fighter.attack);
+      });
+    if (waveLive) {
+      ctx.save();
+      ctx.resetTransform();
+      ctx.fillStyle = reducedMotion ? '#0a1f3f44' : '#081b3a6e';
+      ctx.fillRect(0, 0, width, height);
+      ctx.restore();
+    }
     if (summon?.phase === 'fall') {
       drawDijiangPressure(ctx, summon.x, summon.y, summon.frame / summonFallFrames, reducedMotion);
     } else if (impact && impact.age < 24) {
@@ -462,7 +505,10 @@ export class Renderer {
       const poseCell = poseFor(f, move, state.arenaFrame);
       const motionSheet = motionArt[def.id];
       const authoredPose = Boolean(move?.animation?.length && motionSheet?.naturalWidth && poseCell !== undefined);
-      const pose = !authoredPose && def.id === 'gaga' && action ? gagaActionPose(action, phase, Boolean(f.ground)) : undefined;
+      // An entrance takes the place of the idle stance until its last pose.
+      const entrance = shown[seat];
+      const attackPose = !authoredPose && def.id === 'gaga' && action ? gagaActionPose(action, phase, Boolean(f.ground)) : undefined;
+      const pose = entrance ? entrance.pose(frame) ?? attackPose : attackPose;
       const reaction = def.id === 'gaga' && f.hp && !action && !f.walk && !f.dash && !f.guarding ? f.reaction : undefined;
       const hurtPose = reaction ? gagaReactionPose(reaction, f.vy) : undefined;
       const drawnPose = hurtPose ?? pose;
@@ -470,19 +516,23 @@ export class Renderer {
         !f.guarding && !f.dash && !f.hitstun && !f.blockstun && !f.guardBreak && !f.recovery;
       const walk = this.gagaWalks[seat];
       if (!allowedToWalk) walk.reset();
-      const walkPose = allowedToWalk && !hurtPose ? walk.sample(f.walk, elapsed) : undefined;
+      // The walk-in reports how much ground it has covered; afterwards the gait follows the simulation again.
+      const gait = entrance && entrance.travelled(frame) > 0 && frame < 40
+        ? { direction: 'forward' as const, distance: entrance.travelled(frame) } : f.walk;
+      const walkPose = allowedToWalk && !hurtPose ? walk.sample(gait, elapsed) : undefined;
       const fallingPose = knockdownPose(def.id, f);
+      const at = standing(seat);
       const ground = decks.reduce((y, platform) =>
-        f.x >= platform.left && f.x <= platform.right && platform.y >= f.y && platform.id !== f.ignorePlatform
+        at >= platform.left && at <= platform.right && platform.y >= f.y && platform.id !== f.ignorePlatform
           ? Math.min(y, platform.y) : y,
         config.arena.floor);
       ctx.fillStyle = '#08091cc9';
       ctx.beginPath();
-      ctx.ellipse(f.x, ground + 3, f.ground ? 39 : 23, f.ground ? 8 : 5, 0, 0, Math.PI * 2);
+      ctx.ellipse(at, ground + 3, f.ground ? 39 : 23, f.ground ? 8 : 5, 0, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.save();
-      ctx.translate(f.x, f.y);
+      ctx.translate(at, f.y);
       ctx.scale(fallingPose?.facing ?? (hurtPose && reaction ? reaction.facing : f.facing), 1);
       const sways = f.moving && (def.id !== 'gaga' || !f.ground);
       const stride = sways ? Math.sin(state.frame * .68) : Math.sin(state.frame * .16) * .24;
@@ -522,7 +572,13 @@ export class Renderer {
         } else if (authoredPose && poseCell !== undefined) {
           drawPose(ctx, motionSheet, poseCell, height);
         } else if (def.id === 'banana') {
-          drawBanana(ctx, f, action, state.frame, reducedMotion);
+          const readyTotal = openingTicks(config.fighters);
+          const stageCue = state.phase === 'ready'
+            ? { kind: 'entrance' as const, frame: Math.max(0, readyTotal - state.phaseTicks) }
+            : state.phase === 'round-over' && state.result?.winner === seat
+              ? { kind: 'victory' as const, frame: Math.max(0, 192 - state.phaseTicks) }
+              : undefined;
+          drawBanana(ctx, f, action, state.frame, reducedMotion, stageCue);
         } else if (drawnPose?.image) {
           const { image, region, scaleX, scaleY } = drawnPose;
           ctx.drawImage(image, region.x, region.y, region.width, region.height,
@@ -645,12 +701,13 @@ export class Renderer {
     if (!carrying && summon && this.dive) {
       drawDijiang(ctx, summon, this.dive.length, debug, reducedMotion);
     }
+    for (const seat of [0, 1] as const) shown[seat]?.effect?.(ctx, frame, state.fighters[seat]);
     this.drawEffects(elapsed, Boolean(config.training), reducedMotion);
     ctx.resetTransform();
     for (const seat of [0, 1] as const) {
       const f = state.fighters[seat];
       if (!f.hp) continue;
-      const center = (f.x - x) * zoom + dx;
+      const center = (standing(seat) - x) * zoom + dx;
       const poseHeight = f.recovery?.phase === 'down' ? heights[seat] * .60 : heights[seat];
       const markerY = (f.y - poseHeight - y) * zoom - 25 - dy;
       const label = 'P' + (seat + 1) + (f.recovery ? ' ' + recoveryLabels[f.recovery.phase] : '');
@@ -671,6 +728,12 @@ export class Renderer {
     this.drawPositionStrip(config.arena, [a.x, b.x], camera);
     this.shake = Math.max(0, this.shake - elapsed);
     this.shakePhase += elapsed * 2.9;
+    if (shot) {
+      ctx.save();
+      ctx.globalAlpha = shotOpacity(shot);
+      shot.paint(ctx);
+      ctx.restore();
+    }
   }
 
   private drawPositionStrip(arena: ArenaDefinition, fighters: [number, number], camera: CameraView) {

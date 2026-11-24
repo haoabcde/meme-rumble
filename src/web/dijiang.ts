@@ -3,6 +3,8 @@ import ship from '../../assets/props/dijiang-impact.webp';
 import { dijiangPitch, dijiangTip, summonArea, summonFallFrames, summonImpactFrames } from '../core/summon.js';
 import type { Summon } from '../core/types.js';
 import { dijiangBurialTip } from './camera.js';
+import { drawFocusLines, drawPoseFlash } from './cutin-art.js';
+import { easeIn, easeOut, easeOutBack, fadeSince } from './cinematics.js';
 
 export const dijiangImpactLife = 84;
 
@@ -11,55 +13,269 @@ summonAtlas.src = portrait;
 const shipArt = new Image();
 shipArt.src = ship;
 
-const portraits = [
+/** Close-ups in the order the summon is performed: reaching for a pocket, raising the terminal, pressing it, clenching a fist. */
+export const summonPoses = [
   [195, 8, 399, 393], [935, 8, 389, 386], [159, 520, 447, 387], [934, 517, 413, 382]
 ] as const;
+// Where the pressed key and the lit screen sit inside the third close-up.
+export const summonTerminal = { key: [.633, .783], screen: [.778, .320] } as const;
 
-export function drawSummonCutIn(ctx: CanvasRenderingContext2D, frame: number, reducedMotion: boolean) {
+/** Rings running out from the pressed key, and a flare on the lit screen, of the third close-up. */
+export function drawTerminalPress(ctx: CanvasRenderingContext2D, age: number, x: number, y: number, w: number, h: number,
+  facing: number, unit: number) {
+  if (age < 0) return;
+  const at = ([u, v]: readonly [number, number]) =>
+    ({ x: x + w * (facing === 1 ? u : 1 - u), y: y + h * v });
+  const key = at(summonTerminal.key), screen = at(summonTerminal.screen);
+  ctx.save();
+  if (age < 10) {
+    const flare = ctx.createRadialGradient(screen.x, screen.y, 0, screen.x, screen.y, 110 * unit);
+    flare.addColorStop(0, `rgba(225, 255, 255, ${.95 * (1 - age / 10)})`);
+    flare.addColorStop(.5, `rgba(91, 217, 255, ${.6 * (1 - age / 10)})`);
+    flare.addColorStop(1, '#5bd9ff00');
+    ctx.fillStyle = flare;
+    ctx.fillRect(screen.x - 110 * unit, screen.y - 110 * unit, 220 * unit, 220 * unit);
+  }
+  ctx.lineCap = 'round';
+  for (let ring = 0; ring < 3; ring++) {
+    const t = (age - ring * 3) / 14;
+    if (t < 0 || t >= 1) continue;
+    ctx.globalAlpha = (1 - t) ** 1.2;
+    ctx.strokeStyle = ring === 2 ? '#ffffff' : '#5bd9ff';
+    ctx.lineWidth = (10 - ring * 2.6) * unit * (1 - t) + 1;
+    ctx.beginPath();
+    ctx.ellipse(key.x, key.y, easeOut(t) * 520 * unit, easeOut(t) * 330 * unit, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** Range rings and a sweep behind the fighter, reading the ground the ship will fall on. */
+function drawRadar(ctx: CanvasRenderingContext2D, sweep: number, unit: number, width: number, height: number) {
+  const middle = width / 2, centre = height * .45;
+  const reach = 470 * unit;
+  ctx.save();
+  ctx.strokeStyle = '#5bd9ff';
+  ctx.lineWidth = 1.5 * unit;
+  for (const [index, radius] of [170, 320, 470].entries()) {
+    ctx.globalAlpha = .3 - index * .06;
+    ctx.beginPath();
+    ctx.arc(middle, centre, radius * unit, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = .26;
+  ctx.beginPath();
+  ctx.moveTo(middle - reach, centre);
+  ctx.lineTo(middle + reach, centre);
+  ctx.moveTo(middle, centre - reach);
+  ctx.lineTo(middle, centre + reach);
+  ctx.stroke();
+  for (let i = 0; i < 16; i++) {
+    const angle = sweep * .11 - i * .05;
+    ctx.globalAlpha = .42 * (1 - i / 16);
+    ctx.beginPath();
+    ctx.moveTo(middle, centre);
+    ctx.lineTo(middle + Math.cos(angle) * reach, centre + Math.sin(angle) * reach);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+const shadowPad = 40;
+let shadow: { glow: HTMLCanvasElement; body: HTMLCanvasElement } | null = null;
+/** The ship's outline glowing behind the fighter once the course is locked. */
+function drawShipShadow(ctx: CanvasRenderingContext2D, age: number, facing: -1 | 1, width: number, height: number) {
+  if (!shipArt.naturalWidth) return;
+  if (!shadow) {
+    const glow = document.createElement('canvas');
+    glow.width = shipArt.naturalWidth + shadowPad * 2;
+    glow.height = shipArt.naturalHeight + shadowPad * 2;
+    const halo = glow.getContext('2d')!;
+    // Draw the ship with a glow, then punch the ship itself out again, leaving only the glow around its outline.
+    halo.shadowColor = '#7fe4ff';
+    halo.shadowBlur = 22;
+    halo.drawImage(shipArt, shadowPad, shadowPad);
+    halo.shadowColor = 'transparent';
+    halo.globalCompositeOperation = 'destination-out';
+    halo.drawImage(shipArt, shadowPad, shadowPad);
+    const body = document.createElement('canvas');
+    body.width = shipArt.naturalWidth;
+    body.height = shipArt.naturalHeight;
+    const fill = body.getContext('2d')!;
+    fill.drawImage(shipArt, 0, 0);
+    fill.globalCompositeOperation = 'source-in';
+    fill.fillStyle = '#0b1a3c';
+    fill.fillRect(0, 0, body.width, body.height);
+    shadow = { glow, body };
+  }
+  const grown = age / 19;
+  const scale = width * 1.55 / shadow.body.width * (.9 + .14 * grown);
+  ctx.save();
+  // The bow points where the fighter is sending it.
+  ctx.translate(width / 2, height * .40);
+  ctx.scale(facing, 1);
+  ctx.rotate(dijiangPitch - Math.PI);
+  ctx.globalAlpha = .85 * Math.min(1, grown * 5);
+  ctx.drawImage(shadow.glow, (-shadowPad - 16) * scale, (-shadowPad - 283) * scale,
+    shadow.glow.width * scale, shadow.glow.height * scale);
+  ctx.drawImage(shadow.body, -16 * scale, -283 * scale, shadow.body.width * scale, shadow.body.height * scale);
+  ctx.restore();
+}
+
+/** The 48 frames before the dive: the fighter calls the ship up, locks its course on the terminal, then hands over to the fall. */
+export function drawSummonCutIn(ctx: CanvasRenderingContext2D, frame: number, facing: -1 | 1, reducedMotion: boolean) {
   const { width, height } = ctx.canvas;
   const unit = height / 720;
+  const middle = width / 2;
+  const raised = 12, pressed = 29, clenched = 38;
   const actionShot = frame >= 16;
-  const pose = frame < 10 ? 0 : frame < 29 ? 1 : frame < 38 ? 2 : 3;
+  const pose = frame < raised ? 0 : frame < pressed ? 1 : frame < clenched ? 2 : 3;
+  const locked = frame >= pressed;
+  const live = reducedMotion ? 0 : 1;
+  // Raising the terminal and pressing it each land a blow that the whole picture shakes off.
+  const quiver = (4 * fadeSince(frame, raised, 5) + 7 * fadeSince(frame, pressed, 9)) * unit * live;
+  // Black curtains part over the first frames instead of the shot cutting straight in.
+  const curtain = 1 - easeOut(frame / 5) * live;
+
   ctx.save();
   ctx.resetTransform();
   ctx.fillStyle = '#060a1cf5';
   ctx.fillRect(0, 0, width, height);
-
-  const light = ctx.createRadialGradient(width / 2, height * .45, 0, width / 2, height * .45, height * .7);
+  const light = ctx.createRadialGradient(middle, height * .45, 0, middle, height * .45, height * .7);
   light.addColorStop(0, actionShot ? '#2086a7a3' : '#273f7eb3');
   light.addColorStop(1, '#080d23');
   ctx.fillStyle = light;
   ctx.fillRect(0, 0, width, height);
+  drawRadar(ctx, live ? frame : 0, unit, width, height);
+  if (locked) drawShipShadow(ctx, live ? frame - pressed : 10, facing, width, height);
   if (!reducedMotion) {
-    ctx.strokeStyle = '#5bd9ff37';
+    // Streaks lengthen and hurry up once the course is locked.
+    const lines = locked ? 12 : pose > 0 ? 9 : 7;
+    const speed = locked ? 24 : pose > 0 ? 16 : 11;
+    ctx.strokeStyle = '#5bd9ff47';
     ctx.lineWidth = 2 * unit;
     for (const side of [-1, 1]) {
-      for (let n = 0; n < 7; n++) {
-        const y = height * (.14 + n * .112);
-        const offset = ((frame * 11 + n * 29) % 145) * unit;
-        const x = width / 2 + side * (width * .29 + offset);
+      for (let n = 0; n < lines; n++) {
+        const y = height * (.11 + n * .78 / (lines - 1));
+        const offset = ((frame * speed + n * 29) % 190) * unit;
+        const x = middle + side * (width * .3 + offset);
         ctx.beginPath();
         ctx.moveTo(x, y);
-        ctx.lineTo(x + side * (42 + n * 6) * unit, y - 21 * unit);
+        ctx.lineTo(x + side * (52 + n * 7) * unit, y - 25 * unit);
         ctx.stroke();
       }
     }
   }
+
+  ctx.save();
+  ctx.translate(Math.sin(frame * 9.3) * quiver, Math.cos(frame * 7.7) * quiver);
   if (summonAtlas.naturalWidth) {
-    const [sx, sy, sw, sh] = portraits[pose];
-    const scale = Math.min((actionShot ? 1.62 : 1.35) * unit, width * .83 / sw);
-    const drift = reducedMotion ? 0 : Math.min(frame % 16, 7) * .45 * unit;
-    ctx.drawImage(summonAtlas, sx, sy, sw, sh,
-      (width - sw * scale) / 2, (height - sh * scale) * .45 + drift, sw * scale, sh * scale);
+    const [sx, sy, sw, sh] = summonPoses[pose];
+    // The second half is a closer shot. It pushes in rather than jumping to the new size.
+    const push = live ? easeOut((frame - 16) / 5) : 1;
+    const scale = Math.min((actionShot ? 1.35 + .27 * push : 1.35) * unit, width * .83 / sw);
+    const drift = live * Math.min(frame % 16, 7) * .45 * unit;
+    // The first close-up rushes in from the lower right and overshoots its mark, once the curtains have parted.
+    const rush = frame < 4 ? live : (1 - easeOutBack((frame - 3) / 7)) * live;
+    const x = (width - sw * scale) / 2 + rush * width * .75;
+    const y = (height - sh * scale) * .45 + drift + rush * height * .85;
+    // Each new pose lands as a white silhouette for two frames.
+    const lands = pose > 0 && frame - [raised, pressed, clenched][pose - 1] < 2;
+    // The fighter faces the opponent, whichever side they were called from.
+    ctx.save();
+    ctx.translate(middle, 0);
+    ctx.scale(facing, 1);
+    ctx.translate(-middle, 0);
+    if (lands && live) drawPoseFlash(ctx, summonAtlas, summonPoses[pose], x, y, sw * scale, sh * scale, '#f4fdff');
+    else ctx.drawImage(summonAtlas, sx, sy, sw, sh, x, y, sw * scale, sh * scale);
+    ctx.restore();
+    // The terminal reads the same from both sides, so its light is placed outside the mirroring above.
+    if (pose === 1) {
+      const gx = x + sw * scale * (facing === 1 ? .71 : .29), gy = y + sh * scale * .37;
+      const shine = .3 + .18 * Math.sin(frame * .55) * live;
+      const glow = ctx.createRadialGradient(gx, gy, 0, gx, gy, 120 * unit);
+      glow.addColorStop(0, `rgba(150, 240, 255, ${shine})`);
+      glow.addColorStop(1, '#5bd9ff00');
+      ctx.fillStyle = glow;
+      ctx.fillRect(gx - 120 * unit, gy - 120 * unit, 240 * unit, 240 * unit);
+    }
+    if (pose === 2) drawTerminalPress(ctx, frame - pressed, x, y, sw * scale, sh * scale, facing, unit);
   }
+  ctx.restore();
+
+  drawFocusLines(ctx, middle, height * .45, (fadeSince(frame, raised, 7) + fadeSince(frame, pressed, 8)) * live, 100, unit);
+
   ctx.fillStyle = '#030718';
-  ctx.fillRect(0, 0, width, height * .065);
-  ctx.fillRect(0, height * .86, width, height * .14);
+  ctx.fillRect(0, 0, width, height * (.065 + .435 * curtain));
+  ctx.fillRect(0, height * (.86 - .36 * curtain), width, height * (.14 + .36 * curtain));
+  if (locked) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, height * .86, width, 12 * unit);
+    ctx.clip();
+    ctx.strokeStyle = '#ff8e57';
+    ctx.lineWidth = 8 * unit;
+    ctx.globalAlpha = .75;
+    const slide = frame * 7 * unit * live;
+    for (let x = -60 * unit; x < width + 60 * unit; x += 32 * unit) {
+      ctx.beginPath();
+      ctx.moveTo(x - slide, height * .86 + 20 * unit);
+      ctx.lineTo(x - slide + 20 * unit, height * .86 - 8 * unit);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.translate(middle + Math.sin(frame * 11) * fadeSince(frame, pressed, 5) * 3 * unit * live, height * .933);
+  const arrive = live ? easeOutBack(frame / 8) : 1;
+  const stress = 1 + .14 * fadeSince(frame, pressed, 4) * live;
+  ctx.translate(0, (1 - arrive) * 44 * unit);
+  ctx.scale(stress, stress);
   ctx.fillStyle = '#e6f8ff';
   ctx.font = `900 ${38 * unit}px system-ui`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('召唤 · 帝江号', width / 2, height * .933);
+  ctx.fillText('召唤 · 帝江号', 0, 0);
+  ctx.restore();
+  if (locked) {
+    const word = '航线锁定';
+    ctx.font = `900 ${26 * unit}px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ff9d6b';
+    for (const [index, letter] of [...word].entries()) {
+      if (frame < 31 + index * 2) continue;
+      const pop = 1 + .7 * fadeSince(frame, 31 + index * 2, 4) * live;
+      ctx.save();
+      ctx.translate(middle + (index - (word.length - 1) / 2) * 30 * unit, height * .933 - 44 * unit);
+      ctx.scale(pop, pop);
+      ctx.fillText(letter, 0, 0);
+      ctx.restore();
+    }
+  }
+
+  // Each flash comes off the back of a silhouette, so the white shape keeps its contrast. The opening one also
+  // hides the curtains parting.
+  ctx.fillStyle = '#eafcff';
+  ctx.globalAlpha = Math.min(1, .9 * fadeSince(frame, 0, 4) + .55 * fadeSince(frame, raised + 2, 3)) * live;
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = '#5bd9ff';
+  ctx.globalAlpha = .3 * fadeSince(frame, pressed + 2, 3) * live;
+  ctx.fillRect(0, 0, width, height);
+  ctx.globalAlpha = 1;
+
+  if (live && frame >= 40) {
+    const cover = easeIn((frame - 40) / 7);
+    const span = Math.hypot(width, height) * .58;
+    ctx.save();
+    ctx.translate(middle, height / 2);
+    // The shutter sweeps along the dive, so the next frame continues in its direction.
+    ctx.rotate(facing * dijiangPitch);
+    ctx.fillStyle = '#060a1c';
+    ctx.fillRect(-span, -span, span * 2 * cover, span * 2);
+    ctx.restore();
+  }
   ctx.restore();
 }
 
