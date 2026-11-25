@@ -3,7 +3,8 @@ import basicSource from '../../assets/角色/基础动作/奶蛙/V19/跳跃受�
 import sceneSource from '../../assets/角色/出场与胜负/奶蛙/V19/侧躺出场与胜负_八帧.png';
 import {frogMotionSample} from './frog-motion.mjs';
 import holyComboSource from '../../assets/角色/特效/奶蛙/强化普攻_V22/白金焰羽_八部件.png';
-import {drawHolyCombo} from './frog-combo.mjs';
+import dragonRiseSource from '../../assets/角色/特效/奶蛙/强化普攻_V23/金龙抬头_六帧.png';
+import {drawHolyCombo,registeredDragonFrames} from './frog-combo.mjs';
 import type {FighterAction,FighterState,MatchConfig,MatchState} from '../core/types.js';
 import {frogPowered,FROG_RULES,frogCrouching} from '../core/frog-kit.js';
 import {cutGrid} from './pixel-sprites.mjs';
@@ -28,12 +29,14 @@ import introSource from '../../assets/角色/大招/奶娃/神了/神性指尖_�
 let normalGuard:HTMLCanvasElement;
 let basics:HTMLCanvasElement[]=[],scenes:HTMLCanvasElement[]=[];
 let holyComboArt:HTMLCanvasElement[]=[];
+let dragonRiseArt:HTMLCanvasElement[]=[];
 let moves:HTMLCanvasElement[]=[],angels:HTMLCanvasElement[]=[],travel:HTMLCanvasElement[]=[],gold:HTMLCanvasElement[]=[],crouch:HTMLCanvasElement,thinking:HTMLCanvasElement,intro:HTMLImageElement;
 const load=(src:string)=>{const im=new Image();im.src=src;return im.decode().then(()=>im)};
 void Promise.all([load(moveSource),load(angelSource),load(introSource),load(travelSource),load(goldSource),load(crouchSource)]).then(([m,a,i,t,v,c])=>{moves=cutGrid(m,4,2);angels=cutGrid(a,2,2);travel=cutGrid(t,4,2);gold=cutGrid(v,2,2);crouch=cutGrid(c,1,1)[0];intro=i;});
 void load(normalGuardSource).then(im=>normalGuard=cutGrid(im,1,1)[0]);
 void load(basicSource).then(im=>basics=cutGrid(im,4,4));
 void load(holyComboSource).then(im=>holyComboArt=cutGrid(im,4,2));
+void load(dragonRiseSource).then(im=>dragonRiseArt=registeredDragonFrames(im));
 void load(sceneSource).then(im=>scenes=cutGrid(im,4,2));
 void load(thinkingSource).then(im=>thinking=cutGrid(im,1,1)[0]);
 void load(starSource).then(im=>setStarArt(im));
@@ -240,7 +243,7 @@ function drawCastEffects(g:CanvasRenderingContext2D,f:FighterState,state:MatchSt
   if(stage<0&&c.id!=='common-air')continue;
   const t=(age-c.startup)/60;
   g.save();g.translate(c.x,c.y);g.scale(c.facing,1);
-  if(c.powered){drawHolyCombo(g,holyComboArt,stage<0?2:stage,age-c.startup,layer);g.restore();continue;}
+  if(c.powered){drawHolyCombo(g,holyComboArt,stage<0?2:stage,age-c.startup,layer,dragonRiseArt);g.restore();continue;}
   if(stage===0||stage===1){
    g.save();g.translate(10,stage===0?-51:-43);g.rotate(stage===0?-.12:.1);
    drawPixelFx(g,'thrust',0,0,t+.07,c.powered?1.85:1.22,layer,true,c.powered?.9:.62);g.restore();
@@ -253,6 +256,7 @@ function drawCastEffects(g:CanvasRenderingContext2D,f:FighterState,state:MatchSt
 }
 
 export function frogComboFrames(){return holyComboArt;}
+export function frogDragonFrames(){return dragonRiseArt;}
 export function frogGoldFrame(index:number){return gold[index];}
 // Review uses the same trimmed sprites and height as the live actor renderer.
 export function frogBodyComparison(){return [moves[0],normalGuard];}

@@ -21,14 +21,22 @@ test('empowered five hits each have a distinct new swing and separate hit timbre
  assert.equal(skill.entities[0].feedback.audio.clip,'holy-hit');
 });
 
-test('gold effects open, bend and decay once, and the finisher has longer follow-through',()=>{
- for(let i=0;i<5;i++){
+test('first four empowered effects strike solidly then vanish promptly without floating',()=>{
+ for(let i=0;i<4;i++){
   assert.equal(holyComboSample(i,-4),null);
-  const early=holyComboSample(i,-2),peak=holyComboSample(i,5),tail=holyComboSample(i,21);
-  assert.ok(peak.width>early.width);assert.ok(tail.alpha<peak.alpha);
-  assert.notEqual(peak.angle,tail.angle);assert.equal(holyComboSample(i,33),null);
+  const pre=holyComboSample(i,-2),hit=holyComboSample(i,0),tail=holyComboSample(i,10);
+  assert.equal(hit.alpha,1);assert.equal(hit.impact,1);assert.ok(tail.alpha<hit.alpha);
+  assert.equal(pre.x,hit.x);assert.equal(pre.y,hit.y);assert.equal(tail.y,hit.y);
+  assert.equal(holyComboSample(i,16),null);
  }
- assert.ok(holyComboSample(4,29));assert.equal(holyComboSample(0,29),null);
+});
+
+test('dragon uses six sequential registered poses with a fixed ground and no rescaling',()=>{
+ const samples=[-7,-2,3,8,13,18].map(t=>holyComboSample(4,t));
+ assert.deepEqual(samples.map(s=>s.dragonFrame),[0,1,2,3,4,5]);
+ for(const s of samples){assert.equal(s.baseY,6);assert.equal(s.width,310);assert.equal(s.height,310);assert.equal(s.x,160);}
+ assert.equal(holyComboSample(4,38).dragonFrame,5);assert.equal(holyComboSample(4,39),null);
+ assert.ok(holyComboSample(4,38).alpha<holyComboSample(4,18).alpha);
 });
 
 test('whale supplied voices use the voice channel with a louder cinematic tier and playable WAVs',()=>{
@@ -43,4 +51,15 @@ test('whale supplied voices use the voice channel with a louder cinematic tier a
  const clips=Array.from({length:5},(_,i)=>frog.audio['holy-combo-'+(i+1)].src);
  assert.equal(new Set(clips).size,5);
  assert.ok(clips.every(src=>readFileSync(new URL('../'+src,import.meta.url)).length>4000));
+});
+
+test('rice stealing voice has only a short two-syllable excerpt, under one second',()=>{
+ const data=readFileSync(new URL('../'+whale.audio['eat-voice'].src,import.meta.url));
+ let offset=12,rate,align,length;
+ while(offset+8<=data.length){const id=data.toString('ascii',offset,offset+4),size=data.readUInt32LE(offset+4);
+  if(id==='fmt '){rate=data.readUInt32LE(offset+12);align=data.readUInt16LE(offset+20);}
+  if(id==='data'){length=size;break;}offset+=8+size+(size%2);
+ }
+ const seconds=length/rate/align;assert.ok(seconds>.4&&seconds<.55,`duration ${seconds}`);
+ assert.ok(whale.audio['eat-voice'].src.includes('V23'));
 });

@@ -15,7 +15,7 @@ document.body.innerHTML=`<main><h1>大肥鱼 · 完整接入试玩</h1><p>此页
 const style=document.createElement('style');style.textContent=`*{box-sizing:border-box}body{margin:0;background:#091321;color:#d8eafa;font:14px/1.6 'Microsoft YaHei',sans-serif}main{max-width:1250px;padding:18px 20px;margin:auto}h1{font-size:24px;margin:0}p{color:#a9bfd2;margin:7px 0 12px}nav,.bar{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}button,a,select{font:inherit;border:1px solid #375772;border-radius:6px;padding:6px 10px;background:#172e45;color:#dfedfa;text-decoration:none;cursor:pointer}button[aria-pressed=true]{border-color:#8edfff;background:#245774}canvas{display:block;width:100%;height:auto;border:1px solid #34506b;border-radius:8px;image-rendering:pixelated}label{display:flex;align-items:center;gap:6px}.hint{font-size:12px;color:#9bb4c9}#stats{color:#b4e5ff;min-height:24px}`;document.head.append(style);
 const $=<T extends HTMLElement>(s:string)=>document.querySelector<T>(s)!;
 const canvas=$<HTMLCanvasElement>('#arena'),renderer=new Renderer(canvas,arenas[2]);
-const voiceShelf=document.createElement('details');voiceShelf.innerHTML='<summary>V22 大肥鱼配音 · 欧 / 鲸 / 鲸、鲸鲸与偷吃（展开试听）</summary><p>三段普攻逐段发声；大招演出使用更响的鲸鲸，偷吃使用两声喃喃。独立播放器为原素材试听，实战采用阶梯混音。</p><div style="display:flex;flex-wrap:wrap;gap:18px"></div>';
+const voiceShelf=document.createElement('details');voiceShelf.innerHTML='<summary>V23 大肥鱼配音 · 欧 / 鲸 / 鲸、鲸鲸与偷吃（展开试听）</summary><p>三段普攻逐段发声；大招演出使用更响的鲸鲸，偷吃只截取连续两声较响的喃喃，合计约0.46秒。独立播放器为原素材试听，实战采用阶梯混音。</p><div style="display:flex;flex-wrap:wrap;gap:18px"></div>';
 $('main').append(voiceShelf);
 for(const [id,label]of [['tail-voice-1','普攻一 · 欧'],['tail-voice-2','普攻二 · 鲸'],['tail-voice-3','普攻三 · 鲸'],['ultimate-voice','大招演出 · 鲸鲸'],['eat-voice','偷吃 · 两声喃喃']]){
  const box=document.createElement('div'),p=document.createElement('p'),a=document.createElement('audio');p.textContent=label;a.controls=true;a.preload='none';a.src=__FIGHTER_AUDIO__[whale.audio![id].src];a.setAttribute('aria-label',label);box.append(p,a);voiceShelf.querySelector('div')!.append(box);
@@ -25,7 +25,7 @@ const scenes=[['tail','三段普攻','三段均45伤害，第三段上挑；每�
 let scene:string='tail',mirror=false,paused=false,debug=false,speed=1,clock=0,loopTick=0,hitCount=0,damage=0,seen=new Set<string>();
 const requestedScene=new URLSearchParams(location.search).get('scene');
 const waterStudy=true; // Final material is shared; legacy waterpreview links remain compatible.
-if(waterStudy){document.title='大肥鱼 · 水潭与欧鲸鲸配音 V22';$('h1').textContent='大肥鱼 · 水潭与欧鲸鲸配音 V22';$('h1').nextElementSibling!.textContent='正式游戏与此页已统一：流动泡沫、双向卷浪、白沫飞溅与纵深破水水膜，所有入口使用相同水潭材质。';}
+if(waterStudy){document.title='大肥鱼 · 配音与短促偷吃 V23';$('h1').textContent='大肥鱼 · 配音与短促偷吃 V23';$('h1').nextElementSibling!.textContent='正式游戏与此页已统一：流动泡沫、双向卷浪、白沫飞溅与纵深破水水膜，所有入口使用相同水潭材质。';}
 let closeUp=false;
 if(waterStudy){
  const button=document.createElement('button');button.id='water-closeup';button.textContent='水体近景';button.onclick=()=>{closeUp=!closeUp;button.textContent=closeUp?'返回实战':'水体近景';draw()};$('.bar').append(button);
