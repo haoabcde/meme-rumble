@@ -3,7 +3,7 @@ import basicSource from '../../assets/角色/基础动作/奶蛙/V19/跳跃受�
 import sceneSource from '../../assets/角色/出场与胜负/奶蛙/V19/侧躺出场与胜负_八帧.png';
 import {frogMotionSample} from './frog-motion.mjs';
 import holyComboSource from '../../assets/角色/特效/奶蛙/强化普攻_V22/白金焰羽_八部件.png';
-import dragonRiseSource from '../../assets/角色/特效/奶蛙/强化普攻_V23/金龙抬头_六帧.png';
+import dragonRiseSource from '../../assets/角色/特效/奶蛙/强化普攻_V24/金白流光_龙抬头六帧.png';
 import {drawHolyCombo,registeredDragonFrames} from './frog-combo.mjs';
 import type {FighterAction,FighterState,MatchConfig,MatchState} from '../core/types.js';
 import {frogPowered,FROG_RULES,frogCrouching} from '../core/frog-kit.js';

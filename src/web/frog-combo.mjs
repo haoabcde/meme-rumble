@@ -2,10 +2,10 @@
 const clamp=n=>Math.max(0,Math.min(1,n));
 export function holyComboSample(stage,age){
  if(stage===4){
-  if(age< -7||age>=39)return null;
-  const frame=Math.min(5,Math.floor((age+7)/5));
+  if(age< -7||age>=24)return null;
+  const frame=Math.min(5,Math.floor((age+7)/3));
   return{stage,age,dragonFrame:frame,open:1,width:310,height:310,x:160,y:-149,baseY:6,
-   alpha:clamp((age+8)/3)*clamp((39-age)/12),impact:age>=0&&age<4?1-age/4:age>=18&&age<22?1-(age-18)/4:0};
+   alpha:clamp((age+8)/3)*clamp((24-age)/9),impact:age>=0&&age<4?1-age/4:age>=8&&age<12?1-(age-8)/4:0};
  }
  const life=[12,14,16,15][stage];
  if(age< -3||age>=life)return null;
@@ -22,6 +22,14 @@ export function registeredDragonFrames(im){
   const c=document.createElement('canvas');c.width=c.height=256;
   const g=c.getContext('2d');g.imageSmoothingEnabled=false;
   g.drawImage(im,(i%3)*im.width/3,Math.floor(i/3)*im.height/2,im.width/3,im.height/2,0,0,256,256);
+  // Align the bright rooted stroke, keeping the complete cell scale and silhouette.
+  // Soft outer glow is ignored so the energy's foot remains on the floor.
+  const p=g.getImageData(0,0,256,256).data;let foot=251;
+  findFoot:for(let y=255;y>=160;y--)for(let x=32;x<224;x++){
+   const at=(y*256+x)*4;
+   if(p[at]>225&&p[at+1]>185&&p[at+2]>80&&p[at+3]>180){foot=y;break findFoot;}
+  }
+  if(foot!==251){g.clearRect(0,0,256,256);g.drawImage(im,(i%3)*im.width/3,Math.floor(i/3)*im.height/2,im.width/3,im.height/2,0,251-foot,256,256);}
   return c;
  });
 }
@@ -46,7 +54,7 @@ export function drawHolyCombo(g,art,stage,age,layer,dragons=[]){
   g.save();g.imageSmoothingEnabled=false;g.globalAlpha*=s.alpha;
   if(front){
    g.drawImage(dragons[s.dragonFrame],s.x-s.width/2,s.baseY-s.height,s.width,s.height);
-   groundImpact(g,s.x,age+1,.9);groundImpact(g,s.x,age-18,.8);
+   groundImpact(g,s.x,age+1,.9);groundImpact(g,s.x,age-8,.8);
   }else{
    g.globalAlpha*=.8;g.strokeStyle='#ffeaba';g.lineWidth=3;
    for(let n=0;n<3;n++){

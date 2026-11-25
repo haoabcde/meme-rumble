@@ -31,12 +31,12 @@ test('first four empowered effects strike solidly then vanish promptly without f
  }
 });
 
-test('dragon uses six sequential registered poses with a fixed ground and no rescaling',()=>{
- const samples=[-7,-2,3,8,13,18].map(t=>holyComboSample(4,t));
+test('dragon rises through six registered poses in 15 ticks with a fixed ground and no rescaling',()=>{
+ const samples=[-7,-4,-1,2,5,8].map(t=>holyComboSample(4,t));
  assert.deepEqual(samples.map(s=>s.dragonFrame),[0,1,2,3,4,5]);
  for(const s of samples){assert.equal(s.baseY,6);assert.equal(s.width,310);assert.equal(s.height,310);assert.equal(s.x,160);}
- assert.equal(holyComboSample(4,38).dragonFrame,5);assert.equal(holyComboSample(4,39),null);
- assert.ok(holyComboSample(4,38).alpha<holyComboSample(4,18).alpha);
+ assert.equal(holyComboSample(4,23).dragonFrame,5);assert.equal(holyComboSample(4,24),null);
+ assert.ok(holyComboSample(4,23).alpha<holyComboSample(4,8).alpha);
 });
 
 test('whale supplied voices use the voice channel with a louder cinematic tier and playable WAVs',()=>{
