@@ -31,7 +31,7 @@ for(const [id,clip]of Object.entries(frog.audio??{})){
  player.controls=true;player.preload='metadata';player.src=__FIGHTER_AUDIO__[clip.src];player.setAttribute('aria-label',label.textContent);
  box.append(label,player);voices.querySelector('.voice-grid')!.append(box);
 }
-const soundShelf=document.createElement('details');soundShelf.innerHTML='<summary>两位角色战斗音效 · 23段原素材试听（实战使用阶梯音量）</summary><div style="display:flex;flex-wrap:wrap;gap:14px"></div>';$('#effects').before(soundShelf);
+const soundShelf=document.createElement('details');soundShelf.innerHTML='<summary>两位角色战斗音效 · 22段原素材试听（实战使用阶梯音量）</summary><div style="display:flex;flex-wrap:wrap;gap:14px"></div>';$('#effects').before(soundShelf);
 const listedSounds=new Set<string>();
 for(const [name,bank]of [['奶蛙',frog.audio],['大肥鱼',whale.audio]] as const)for(const [id,clip]of Object.entries(bank??{})){
  if(['laugh','ha','ultimate-bgm'].includes(id)||id.startsWith('skill2-')||listedSounds.has(clip.src))continue;listedSounds.add(clip.src);

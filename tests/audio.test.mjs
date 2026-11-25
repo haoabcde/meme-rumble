@@ -414,3 +414,10 @@ test('frog ultimate music survives transformation and attacks, fades at buff end
  state.arenaFrame=900;audio.update(config,state,[]);assert.equal(music.stopTime,context.currentTime+.3);
  audio.stopAll();assert.equal(music.stopped,true);
 });
+
+test('opening a scene or starting a round never automatically plays scene-entry audio',async t=>{
+ const {audio,context}=audioFixture(t,[{'event-entry':bank.opening},undefined],sources);await finishPreload(context);
+ const config={rules,arena:arenas[0],fighters:[testFighter,testFighter]},state=createMatch(config);
+ audio.update(config,state,[]);state.frame++;audio.update(config,state,[]);state.phase='fight';audio.update(config,state,[]);
+ state.round++;state.phase='ready';audio.update(config,state,[]);assert.equal(context.clips.length,0);
+});
