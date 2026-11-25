@@ -1,4 +1,4 @@
-import portrait from '../../assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-dijiang.webp';
+import portrait from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-dijiang.webp';
 import ship from '../../assets/props/dijiang-impact.webp';
 import { dijiangPitch, dijiangTip, summonArea, summonFallFrames, summonImpactFrames } from '../core/summon.js';
 import type { Summon } from '../core/types.js';
@@ -12,7 +12,7 @@ const shipArt = new Image();
 shipArt.src = ship;
 
 const portraits = [
-  [195, 8, 399, 393], [935, 8, 389, 386], [159, 520, 447, 387], [934, 517, 413, 382]
+  [160, 8, 445, 393], [920, 8, 437, 386], [163, 520, 464, 387], [932, 516, 431, 382]
 ] as const;
 
 export function drawSummonCutIn(ctx: CanvasRenderingContext2D, frame: number, reducedMotion: boolean) {

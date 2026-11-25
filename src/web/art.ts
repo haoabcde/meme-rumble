@@ -1,17 +1,17 @@
 import arcade from '../../assets/ui/arcade.webp';
 import comic from '../../assets/ui/comic-paper.webp';
 import { roster } from '../content/roster.js';
-import gagaActions from '../../assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-actions.webp';
-import gagaCombo from '../../assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-basic-combo.webp';
-import gagaFinish from '../../assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-combo-finish.webp';
-import gagaPoleAttacks from '../../assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-pole-attacks.webp';
-import gagaPoleLaunch from '../../assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-pole-launch.webp';
-import gagaAirPole from '../../assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-air-pole.webp';
-import gagaTurretTerminal from '../../assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-turret-terminal.webp';
+import gagaActions from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-actions.webp';
+import gagaCombo from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-basic-combo.webp';
+import gagaFinish from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-combo-finish.webp';
+import gagaPoleAttacks from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-pole-attacks.webp';
+import gagaPoleLaunch from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-pole-launch.webp';
+import gagaAirPole from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-air-pole.webp';
+import gagaTurretTerminal from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-turret-terminal.webp';
 import gagaTurretDeploy from '../../assets/props/gaga-turret-deploy.webp';
 import gagaHowitzerDeploy from '../../assets/props/gaga-howitzer-deploy.webp';
 import gagaPole from '../../assets/fighters/gaga-pole.webp';
-import gagaReactions from '../../assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-hit-reactions.webp';
+import gagaReactions from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-hit-reactions.webp';
 import dorm from '../../assets/arenas/dorm-bg.webp';
 import court from '../../assets/arenas/court-bg.webp';
 import harbor from '../../assets/arenas/harbor-quay.webp';
@@ -273,10 +273,10 @@ export function drawGrenade(ctx: CanvasRenderingContext2D, { x, y, vx, vy }: Pro
 
 const launchScale = .266;
 const launchFrames = [
-  { region: pose(118, 95, 417, 449, 325), handX: 307, handY: 467 },
-  { region: pose(705, 103, 521, 440, 952), handX: 1176, handY: 366 },
-  { region: pose(105, 655, 435, 492, 350), handX: 501, handY: 782 },
-  { region: pose(750, 615, 417, 531, 962), handX: 788, handY: 734 }
+  { region: pose(118, 95, 417, 449, 325), handX: 290, handY: 489 },
+  { region: pose(705, 103, 521, 440, 952), handX: 1163, handY: 358 },
+  { region: pose(105, 655, 435, 492, 350), handX: 440, handY: 832 },
+  { region: pose(750, 615, 417, 531, 962), handX: 784, handY: 792 }
 ] as const;
 
 function launchPose(action: ActionDefinition, frame: number) {
@@ -452,7 +452,13 @@ comboAtlas.src = gagaCombo;
 const finishAtlas = new Image();
 finishAtlas.src = gagaFinish;
 
-const summonFinish = pose(938, 520, 407, 486, 1128);
+const summonFinish = pose(936, 519, 423, 488, 1128);
+
+export function gagaIdlePose() {
+  if (!comboAtlas.naturalWidth) return undefined;
+  const region = gagaComboPoses[gagaActionIds.jab]![0];
+  return { image: comboAtlas, region, scaleX: .465, scaleY: .465 };
+}
 
 export function gagaActionPose(action: ActionDefinition, frame: number, grounded: boolean): GagaActionPose | undefined {
   if (action.summon && summonAtlas.naturalWidth && frame < action.startup + 11) {

@@ -12,7 +12,7 @@ import { DEFAULT_RISE_FRAMES, isAttack } from '../core/types.js';
 import type { ActionDefinition, ArenaDefinition, Box, CombatEvent, FighterAction, FighterState, MatchConfig, MatchState, Summon } from '../core/types.js';
 import { cinematicOwner } from '../core/whale-kit.js';
 import { backgrounds, harborProps, harborGantry, stageKits, drawEngineeringCrate, drawGagaLaunchTrail,
-  drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose, gagaReactionPose,
+  drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose, gagaIdlePose, gagaReactionPose,
   motionArt, sprites, type PolePose } from './art.js';
 import { drawBanana } from './banana-art.js';
 import { bananaEffectLife, drawBananaEffect, drawBananaProjectile, drawBananaWave, isTearJet } from './banana-fx.js';
@@ -26,7 +26,7 @@ import { drawGagaContact, drawGagaReceive, gagaContact, type GagaContact } from 
 import { drawPoleDust, drawPoleEarthBurst, drawPoleGroundMark, poleDustLife, poleImpactLife,
   poleSwingFor, type PoleSwing } from './gaga-pole-fx.js';
 import { drawTurretEffect, isTurretEffect, turretEffectLife } from './gaga-turret-fx.js';
-import { drawGagaWalk, GagaWalk } from './gaga-walk.js';
+import { drawGagaMovement, gagaMovement, GagaWalk } from './gaga-walk.js';
 import { drawHarborScenery, drawHarborLift, drawQuay } from './harbor-art.js';
 import { drawKnockdownDust, drawKnockdownPose, knockdownPose } from './knockdown-art.js';
 import { drawStageBackdrop, drawStageMechanism, drawStageScenery } from './stage-art.js';
@@ -615,6 +615,14 @@ export class Renderer {
       const walk = this.gagaWalks[seat];
       if (!canWalk) walk.reset();
       const walkPose = canWalk && !hurtPose ? walk.sample(f.walk, motionFrames) : undefined;
+      const movementFrame = isGaga && sheet?.naturalWidth && !fallingPose && !drawnPose?.image
+        ? f.guarding || f.blockstun ? gagaMovement.guard
+          : f.dash ? gagaMovement.dash
+          : !f.ground ? f.vy < 0 ? gagaMovement.jump : gagaMovement.fall
+          : walkPose?.frame
+        : undefined;
+      const bodyPose = drawnPose?.image ? drawnPose
+        : isGaga && !fallingPose && movementFrame === undefined ? gagaIdlePose() : undefined;
       const ground = decks.reduce((y, platform) =>
         f.x >= platform.left && f.x <= platform.right && platform.y >= f.y && platform.id !== f.ignorePlatform
           ? Math.min(y, platform.y) : y,
@@ -647,7 +655,7 @@ export class Renderer {
           ctx.translate(height * .43 * recline, -bottom * postureHeight);
           ctx.scale(1, postureHeight);
           ctx.rotate(tilt);
-        } else if (isGaga && !fallingPose) {
+        } else if (isGaga && !fallingPose && movementFrame === undefined) {
           let scaleY = drawnPose || walkPose ? 1 : 1 + Math.sin(arenaFrame * .16) * .0084;
           if (f.hitstun && !hurtPose) {
             const reeling = Math.abs(f.push) >= 15;
@@ -682,12 +690,12 @@ export class Renderer {
           drawKnockdownPose(ctx, fallingPose, height, reducedMotion);
         } else if (isBanana) {
           drawBanana(ctx, f, action, arenaFrame, reducedMotion);
-        } else if (drawnPose?.image) {
-          const { image, region, scaleX, scaleY } = drawnPose;
+        } else if (bodyPose?.image) {
+          const { image, region, scaleX, scaleY } = bodyPose;
           ctx.drawImage(image, region.x, region.y, region.width, region.height,
             -region.footX * scaleX, -region.footY * scaleY, region.width * scaleX, region.height * scaleY);
-        } else if (walkPose && spriteWidth) {
-          drawGagaWalk(ctx, sprite, height, walkPose);
+        } else if (movementFrame !== undefined) {
+          drawGagaMovement(ctx, sheet, height, movementFrame, walkPose);
         } else if (drawFromSheet) {
           drawPose(ctx, sheet, pose, height, strike && hitboxes.length && !strike.animation?.length ? 8 : 0);
         } else if (spriteWidth) {

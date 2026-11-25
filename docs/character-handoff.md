@@ -9,7 +9,9 @@
 | 大肥鱼 | [whale.ts](../src/content/fighters/whale.ts) | [whale.webp](../assets/fighters/unified-handdrawn-v1/whale.webp) | [两倍源像素图集](../assets/fighters/unified-handdrawn-v1/motion/whale/atlas.webp) |
 | 奶蛙 | [frog.ts](../src/content/fighters/frog.ts) | [frog-reference.webp](../assets/fighters/unified-handdrawn-v1/frog-reference.webp) | [专用动作与演出](../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/) |
 | 香蕉猫 | [banana.ts](../src/content/fighters/banana.ts) | [banana.webp](../assets/fighters/unified-handdrawn-v1/banana.webp) | [专用动作与演出](../assets/fighters/unified-handdrawn-v1/motion/banana/registered/) |
-| 姑姑嘎嘎 | [gaga.ts](../src/content/fighters/gaga.ts) | [gaga-arcade.webp](../assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-arcade.webp) | [专用动作与演出](../assets/fighters/unified-handdrawn-v1/motion/gaga/registered/) |
+| 姑姑嘎嘎 | [gaga.ts](../src/content/fighters/gaga.ts) | [gaga-portrait.webp](../assets/fighters/gaga-original-handdrawn-v1/gaga-portrait.webp) | [专用动作与演出](../assets/fighters/gaga-original-handdrawn-v1/motion/registered/) |
+
+姑姑嘎嘎的战斗图集以[确认版母图](../assets/fighters/gaga-original-handdrawn-v1/gaga-portrait.png)为造型依据。移动图集前两行依次为四帧步行、疾跑、起跳、下落和防御，每格 432×432，地面锚点为 (216, 416)。普攻、受击和道具演出各有专用图集，调整姿势时一起检查脚底和持杆、持箱的位置。
 
 保留表中四个文件现有的 `id`，它也是训练链接使用的角色标识。`name` 是显示名，`accent` 是界面配色，`height` 控制画面中的角色高度。
 

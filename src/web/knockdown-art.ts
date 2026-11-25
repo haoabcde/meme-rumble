@@ -1,5 +1,5 @@
 import banana from '../../assets/fighters/unified-handdrawn-v1/motion/banana/registered/banana-knockdown.webp';
-import gaga from '../../assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-knockdown.webp';
+import gaga from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-knockdown.webp';
 import type { FighterState } from '../core/types.js';
 import { drawPixelEffect } from './pixelfx.js';
 
