@@ -7,10 +7,14 @@ export function frogBox(box:Box,scale:number):Box{return {x:box.x*scale,y:(box.y
 export function frogAction(action:FighterAction|undefined,f:FighterState,state:MatchState):FighterAction|undefined{
  if(!action||'counterTo' in action||!frogPowered(f,state))return action;
  const reach='frog' in action&&action.frog==='laugh'?FROG_RULES.poweredLaughRange:1.5;
+ const basic=action.slot==='A';
+ const combo=['common-jab','common-sweep','frog-left-kick','frog-ha','common-finish'].indexOf(action.id);
+ const attackBox=(box:Box)=>{const b=frogBox(box,1.5);return basic?{...b,x:b.x*1.2,w:b.w*1.2}:b;};
+ const hitClip=basic?'holy-melee-hit':'holy-hit';
  const damage=action.frog==='laugh'||action.frog==='global'?FROG_RULES.poweredLaughDamage:1.5;
  const scaleDamage=(n:number)=>Math.round(n*damage*1000)/1000;
- return {...action,audioTimeline:action.audioTimeline?.map(c=>c.channel==='sfx'?{...c,clip:['wave','global-wave'].includes(c.clip)?'holy-wave':c.clip}:c),feedback:action.feedback?{...action.feedback,audio:{clip:'holy-hit'}}:action.feedback,damage:scaleDamage(action.damage),hitbox:frogBox(action.hitbox,1.5),
-  hitTimeline:action.hitTimeline?.map(w=>({...w,boxes:w.boxes.map(b=>frogBox(b,1.5)),...(w.damage!==undefined?{damage:scaleDamage(w.damage)}:{})})),
+ return {...action,audioTimeline:action.audioTimeline?.map(c=>c.channel==='sfx'?{...c,clip:basic&&c.clip==='melee-swing'?'holy-combo-'+(combo<0?3:combo+1):['wave','global-wave'].includes(c.clip)?'holy-wave':c.clip}:c),feedback:action.feedback?{...action.feedback,audio:{clip:hitClip}}:action.feedback,damage:scaleDamage(action.damage),hitbox:attackBox(action.hitbox),
+  hitTimeline:action.hitTimeline?.map(w=>({...w,boxes:w.boxes.map(attackBox),...(w.damage!==undefined?{damage:scaleDamage(w.damage)}:{})})),
   entities:action.entities?.map(e=>({...e,feedback:e.feedback?{...e.feedback,audio:{clip:'holy-hit'}}:e.feedback,damage:scaleDamage(e.damage),hitbox:e.behavior==='frog-global'?e.hitbox:{x:e.hitbox.x*reach,y:e.hitbox.y*reach,w:e.hitbox.w*reach,h:e.hitbox.h*reach}}))};
 }
 export function frogCanStart(action:FighterAction,f:FighterState,state:MatchState){

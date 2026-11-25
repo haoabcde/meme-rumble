@@ -15,11 +15,17 @@ document.body.innerHTML=`<main><h1>大肥鱼 · 完整接入试玩</h1><p>此页
 const style=document.createElement('style');style.textContent=`*{box-sizing:border-box}body{margin:0;background:#091321;color:#d8eafa;font:14px/1.6 'Microsoft YaHei',sans-serif}main{max-width:1250px;padding:18px 20px;margin:auto}h1{font-size:24px;margin:0}p{color:#a9bfd2;margin:7px 0 12px}nav,.bar{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}button,a,select{font:inherit;border:1px solid #375772;border-radius:6px;padding:6px 10px;background:#172e45;color:#dfedfa;text-decoration:none;cursor:pointer}button[aria-pressed=true]{border-color:#8edfff;background:#245774}canvas{display:block;width:100%;height:auto;border:1px solid #34506b;border-radius:8px;image-rendering:pixelated}label{display:flex;align-items:center;gap:6px}.hint{font-size:12px;color:#9bb4c9}#stats{color:#b4e5ff;min-height:24px}`;document.head.append(style);
 const $=<T extends HTMLElement>(s:string)=>document.querySelector<T>(s)!;
 const canvas=$<HTMLCanvasElement>('#arena'),renderer=new Renderer(canvas,arenas[2]);
+const voiceShelf=document.createElement('details');voiceShelf.innerHTML='<summary>V22 大肥鱼配音 · 欧 / 鲸 / 鲸、鲸鲸与偷吃（展开试听）</summary><p>三段普攻逐段发声；大招演出使用更响的鲸鲸，偷吃使用两声喃喃。独立播放器为原素材试听，实战采用阶梯混音。</p><div style="display:flex;flex-wrap:wrap;gap:18px"></div>';
+$('main').append(voiceShelf);
+for(const [id,label]of [['tail-voice-1','普攻一 · 欧'],['tail-voice-2','普攻二 · 鲸'],['tail-voice-3','普攻三 · 鲸'],['ultimate-voice','大招演出 · 鲸鲸'],['eat-voice','偷吃 · 两声喃喃']]){
+ const box=document.createElement('div'),p=document.createElement('p'),a=document.createElement('audio');p.textContent=label;a.controls=true;a.preload='none';a.src=__FIGHTER_AUDIO__[whale.audio![id].src];a.setAttribute('aria-label',label);box.append(p,a);voiceShelf.querySelector('div')!.append(box);
+}
+
 const scenes=[['tail','三段普攻','三段均45伤害，第三段上挑；每段向前小移。'],['guard','两段格挡后破防','前两次实际格挡零伤害、轻推；第二次破防，后续命中才有正常效果。'],['counter','旋风防反','持续按住防御受击后原地成风，每隔45°向八个方向发射饭团；风柱20帧，鲸影48帧。'],['rice','米饭直投','直接命中30伤害、粘住1.2秒；地面米饭只束缚。'],['rice-up','↑＋技能1','以约60°直线快速对空投掷，普通/上投、地面/空中每次独立20%概率偷吃。'],['step-rice','踩中米饭','饭团落地后敌人走入，只束缚不扣血。'],['greed','随机偷吃','每次独立20%概率偷吃，没有连续投掷计数或冷却。'],['spin','技能2高速推进','大肥鱼原地成风；风柱独立快速远行，命中后继续推进；鲸影与上＋技能二共用48帧姿态、旋转与升高节奏，长距离推进时循环。'],['spin-up','↑＋技能2定点','简单抬手，在敌人横坐标与自身高度生成；风柱与防反同形同寿命。'],['ult','水潭十二段','梁文峰演出时整个战场静止；演出结束即在敌人脚下生成固定水潭，完整预警0.6秒。水潭分前后沿，大小鲸鱼从前后不同的破水口游出，水膜和卷浪遮住水下部分，带鱼群以不超过30°的角度冲出画面；最后巨鲸从潭心垂直冲出，根部水花和水面冲击环限定在潭内，第12段额外击飞。梁文峰演出保留；共12段，每段35伤害。'],['ult-dodge','水潭预警走避','预警期可离开水潭；水潭不追踪，未处于范围内就不会受到伤害。'],['rice-ult','米饭接水潭','先用米饭束缚1.2秒，再接大招。演出不消耗束缚时间，预警0.6秒后开始十二段攻击。'],['air-rice','空中投饭','跳跃中也能普通投掷或上投；独立20%概率偷吃。'],['jump','基础移动与二段跳','跑动、起跳、二段跳、落地和冲刺；使用同一套公共动作图集。'],['spin-chain','技能2连续释放','普通→强化→普通；收招后可以立刻再出，没有额外冷却。']] as const;
 let scene:string='tail',mirror=false,paused=false,debug=false,speed=1,clock=0,loopTick=0,hitCount=0,damage=0,seen=new Set<string>();
 const requestedScene=new URLSearchParams(location.search).get('scene');
 const waterStudy=true; // Final material is shared; legacy waterpreview links remain compatible.
-if(waterStudy){document.title='大肥鱼 · 正式水潭与角色收尾 V19';$('h1').textContent='大肥鱼 · 正式水潭与角色收尾 V19';$('h1').nextElementSibling!.textContent='正式游戏与此页已统一：流动泡沫、双向卷浪、白沫飞溅与纵深破水水膜，所有入口使用相同水潭材质。';}
+if(waterStudy){document.title='大肥鱼 · 水潭与欧鲸鲸配音 V22';$('h1').textContent='大肥鱼 · 水潭与欧鲸鲸配音 V22';$('h1').nextElementSibling!.textContent='正式游戏与此页已统一：流动泡沫、双向卷浪、白沫飞溅与纵深破水水膜，所有入口使用相同水潭材质。';}
 let closeUp=false;
 if(waterStudy){
  const button=document.createElement('button');button.id='water-closeup';button.textContent='水体近景';button.onclick=()=>{closeUp=!closeUp;button.textContent=closeUp?'返回实战':'水体近景';draw()};$('.bar').append(button);

@@ -79,13 +79,21 @@ test('buff expires on time while feather dissolution has an independent paused, 
  const next=setup(0,1200);next.caster.ascendUntil=1;next.tick();next.caster.energy=300;
  next.press('ULT');next.run(60);assert.equal(next.caster.ascendEndVisual,undefined);assert.ok(next.caster.ascendVisual);
 });
-test('angel basics retain 1.5x while skill one has its own 1.4x damage',()=>{
+test('angel basics extend horizontal reach another 1.2x, keeping damage and skill one unchanged',()=>{
  const t=setup();t.caster.ascendUntil=900;
- for(const raw of frog.fighter.actions.filter(a=>a.slot==='A')){t.caster.attack={id:raw.id,frame:0,connected:false,landed:false};const a=actionFor(t.config,t.state,0);assert.equal(a.damage,raw.damage*1.5);assert.equal(a.hitbox.w,raw.hitbox.w*1.5);assert.equal(a.hitbox.h,raw.hitbox.h*1.5);}
+ for(const raw of frog.fighter.actions.filter(a=>a.slot==='A')){t.caster.attack={id:raw.id,frame:0,connected:false,landed:false};const a=actionFor(t.config,t.state,0);assert.equal(a.damage,raw.damage*1.5);assert.ok(Math.abs(a.hitbox.w-raw.hitbox.w*1.8)<1e-9);assert.equal(a.hitbox.h,raw.hitbox.h*1.5);}
  t.caster.attack={id:'frog-laugh-global',frame:0,connected:false,landed:false};assert.equal(actionFor(t.config,t.state,0).entities[0].damage,35);
  const near=setup(0,330);near.caster.ascendUntil=900;near.caster.energy=300;near.press('B');const hits=near.run(85).filter(e=>e.kind==='hit');assert.deepEqual(hits.map(e=>e.amount),[39.2,39.2,61.6]);assert.equal(near.target.hp,860);
  assert.ok(near.caster.energy<300&&near.caster.energy>260);
 });
+test('extra empowered jab reach actually connects beyond the former range on both facings',()=>{
+ for(const seat of [0,1])for(const powered of [false,true]){
+  const t=setup(seat,240);if(powered)t.caster.ascendUntil=900;
+  t.caster.attack={id:'common-jab',frame:4,connected:false,landed:false};
+  assert.equal(t.tick().some(e=>e.kind==='hit'&&e.source===seat),powered);
+ }
+});
+
 test('buff does not change the hurtbox, platform movement or jump budget and cannot be refreshed',()=>{
  const t=setup();t.caster.ascendUntil=900;t.caster.energy=300;const box=structuredClone(t.config.fighters[0].hurtbox);t.press('jump');assert.equal(t.caster.ground,null);t.run(5);t.press('jump');assert.equal(t.caster.jumpCount,2);assert.equal(t.caster.airActionUsed,true);assert.deepEqual(t.config.fighters[0].hurtbox,box);
 });

@@ -2,6 +2,8 @@
 export const SOUND_LEVELS=Object.freeze({movement:-32,swing:-29,hit:-26,skill:-23,powered:-20,ultimate:-17,finale:-14});
 type Tier=keyof typeof SOUND_LEVELS;
 const tiers:Record<string,Tier>={
+ 'tail-voice-1':'skill','tail-voice-2':'skill','tail-voice-3':'skill','ultimate-voice':'finale','eat-voice':'hit',
+ 'holy-combo-1':'powered','holy-combo-2':'powered','holy-combo-3':'powered','holy-combo-4':'powered','holy-combo-5':'powered','holy-melee-hit':'powered',
  'event-jump':'movement','event-air-jump':'movement','event-land':'movement','event-dash':'movement',eat:'movement',
  'tail-swing':'swing','melee-swing':'swing','tail-hit':'hit','melee-hit':'hit','event-block':'hit','event-break':'hit','event-knockdown':'hit',
  'rice-throw':'skill','rice-hit':'skill',wind:'skill',wave:'skill','wave-hit':'skill','global-wave':'skill',teleport:'skill','event-parry':'skill',
