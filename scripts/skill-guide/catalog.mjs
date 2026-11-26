@@ -1,0 +1,40 @@
+// Player-facing copy follows the approved character branch, not the captain's remapped main branch.
+export const revisions={characters:'4af7d13a09a4c848fbfaee140da12f4bc7d641ab',captain:'d2d09fd7e1421a489707b2da0af537185b287105'};
+const entry=(character,id,name,category,p1,p2,description,scenario,seconds,extra={})=>({id:character+'.'+id,character,name,category,p1,p2,description,scenario,seconds,...extra});
+export const skills=[
+ entry('whale','combo','三段甩尾','普攻','连续按 J，最多三段','连续按小键盘 1，最多三段','左转抽尾→右转反抽→向上甩尾。每段基础伤害相同，最后一段挑飞。攻击防御中的对手时，需先让其吃到两次格挡接触，破防后的后续攻击才造成正常伤害。','combo',3.6,{actionIds:['common-jab','common-sweep','common-finish'],command:{key:'A',repeat:3},tips:['每段略微前移；第三段不会无条件穿透防御。']}),
+ entry('whale','air','空中尾击','普攻','空中按 J','空中按小键盘 1','在空中挥尾攻击身前。','air',2.8,{actionIds:['common-air'],command:{key:'A',posture:'air'}}),
+ entry('whale','guard','铁盆防御与旋风反击','防御','地面持续按住 S，正面受击触发','地面持续按住 ↓，正面受击触发','按防御立即戴盆。成功接住正面攻击后，原地快速旋转形成蓝色龙卷风，造成伤害和击退，并沿八个方向各射出一团米饭。','guard',3.8,{actionIds:['whale-counter'],command:{key:'down',hold:true,trigger:'incoming-frontal-hit'},tips:['背后攻击不能靠正面铁盆防御接住。','散射米饭沿用命中伤害与束缚规则。']}),
+ entry('whale','rice','米饭投手','技能一','按 U；地面、空中均可','按小键盘 4；地面、空中均可','向前快速直投米饭。直接击中造成伤害并束缚1.2秒；落地后踩中只束缚、不造成伤害。米饭自生成起最多存在2秒。','rice',3.8,{actionIds:['rice'],command:{key:'B'},tips:['每次独立有20%概率偷吃，没有五次计数冷却。','束缚中的空中敌人会向下落地。']}),
+ entry('whale','ground-rice','踩中落地米饭','技能一','U 先投到地面，等待敌人踩中','小键盘 4先投到地面，等待敌人踩中','地上的米饭可作为短暂陷阱。敌人踩中后束缚1.2秒，不附加投掷命中的伤害。','ground-rice',3.8,{actionIds:['rice'],command:{key:'B'},tips:['存在时间从投出时计算，不是落地后重新计时。']}),
+ entry('whale','rice-up','向上投米饭','方向变招','W＋U','↑＋小键盘 4','向身前上方约60°快速直投，适合拦截跳起的敌人；命中、踩中和偷吃规则与普通投饭相同。','rice-up',3.5,{actionIds:['rice-up'],command:{key:'B',direction:'up'}}),
+ entry('whale','eat','贪吃反噬','被动','释放任一种投饭时，20%概率自动触发','释放任一种投饭时，20%概率自动触发','这次米饭被自己吃掉，不产生攻击、束缚或恢复。下一次投掷仍独立判定。','eat',2,{actionIds:['whale-eat'],command:{trigger:'rice-random-roll'},tips:['视频用固定随机种子展示一次偷吃，不代表必定发生。']}),
+ entry('whale','tornado','旋风推进','技能二','地面按 I','地面按小键盘 5','本体原地旋转出风，龙卷风独立高速向前远行，命中造成伤害和击飞。人物不会随龙卷风移动。','tornado',3.8,{actionIds:['tornado'],command:{key:'C'},tips:['收招结束后可以再次释放；已有旋风不阻止下一次施法。']}),
+ entry('whale','tornado-up','定点旋风','方向变招','地面 W＋I','地面 ↑＋小键盘 5','人物留在原地，在“敌人横向位置＋自己当前高度”的交点生成固定龙卷风，命中造成伤害和击飞。','tornado-up',3.5,{actionIds:['tornado-up'],command:{key:'C',direction:'up'},tips:['此旋风不向前移动。鲸影比风柱消失得稍晚。']}),
+ entry('whale','ultimate','水潭与巨鲸','大招','三格气时按 O','三格气时按小键盘 6','梁文峰演出期间战场时停。演出结束，在敌人脚下的地面或平台生成固定水潭，预警0.6秒后开始12段攻击；最后巨鲸的一段额外击飞，不增加第13段伤害。','ultimate',5.3,{actionIds:['open-source'],command:{key:'ULT'},cost:'三格气',tips:['水潭位置锁定后不追踪敌人。','演出不显示“开源！”文字。']}),
+ entry('whale','rice-ultimate','投饭接水潭','连招提示','U 命中后衔接 O','小键盘 4命中后衔接小键盘 6','先用米饭束缚敌人，再衔接大招。演出时停不会消耗束缚时间；预警结束后由水潭进行连续攻击。','rice-ultimate',5.8,{actionIds:['rice','open-source'],command:{sequence:['B','ULT'],condition:'rice-hit'},cost:'大招消耗三格气',tips:['这是一种提高命中率的用法，不是无条件必中保证。'] }),
+ entry('frog','combo','五段拳脚','普攻','连续按 J，最多五段','连续按小键盘 1，最多五段','左拳→右拳→左踢腿→短促“哈！”震退周围敌人→右脚飞踢追击。','combo',4.4,{actionIds:['common-jab','common-sweep','frog-left-kick','frog-ha','common-finish'],command:{key:'A',repeat:5},tips:['“哈！”覆盖身边约一个身位；最后飞踢向前追上被推开的敌人。']}),
+ entry('frog','air','空中踢腿','普攻','空中按 J','空中按小键盘 1','在空中踢击身前对手。','air',2.8,{actionIds:['common-air'],command:{key:'A',posture:'air'}}),
+ entry('frog','guard','护腹防御','防御','地面持续按住 S','地面持续按住 ↓','护住大肚子，格挡来自正面的攻击。普通防御和二技能下蹲绕背是两种不同操作。','normal-guard',2.7,{actionIds:[],command:{key:'down',hold:true}}),
+ entry('frog','laugh','捧腹大笑','技能一','地面按 U','地面按小键盘 4','以自己为中心，在约三个身位半径内发出三次快速冲击波；前两波留人，第三波强力击飞。','laugh',3.5,{actionIds:['frog-laugh'],command:{key:'B',posture:'ground'},tips:['常态不能在空中释放技能一。']}),
+ entry('frog','global','响彻天地','方向变招','地面 W＋U','地面 ↑＋小键盘 4','蓄力后释放一次覆盖整张地图的冲击波，命中造成伤害和击飞。','global',3.3,{actionIds:['frog-laugh-global'],command:{key:'B',direction:'up',posture:'ground'},tips:['整张地图有效，不受镜头范围限制。','没有额外冷却，仍需完成本次起手和收招。']}),
+ entry('frog','counter','调皮下蹲与绕背','技能二','地面持续按住 I，受击触发；松开解除','地面持续按住小键盘 5，受击触发','保持下蹲时，受到近战或远程攻击会瞬间消失，转移到攻击者背后。成功触发获得大招能量；仅保持下蹲不会攒气。','counter',3.8,{actionIds:['frog-crouch','frog-evade'],command:{key:'C',hold:true,trigger:'incoming-hit'},tips:['常态下蹲绕背本身不造成伤害。']}),
+ entry('frog','burrow','脚下钻出','方向变招','地面 W＋I','地面 ↑＋小键盘 5','主动消失，从敌人脚下钻出。敌人在空中时，会选择其脚下最近的地面或平台。','burrow',3.3,{actionIds:['frog-burrow'],command:{key:'C',direction:'up',posture:'ground'},tips:['主动钻出本身不造成伤害，也不因移动本身攒气。']}),
+ entry('frog','ultimate','神圣变身','大招','三格气时按 O；空中也可发动','三格气时按小键盘 6；空中也可发动','演出时战场时停。演出结束才变身，获得15秒强化：低空悬浮移动，移动速度1.5倍、承受伤害0.7倍。普通攻击伤害1.5倍、横向攻击距离1.8倍；技能一伤害1.4倍，普通三波范围1.4倍。','ultimate',6,{actionIds:['frog-ascend'],command:{key:'ULT'},cost:'三格气',tips:['强化时间由气条消散表示；演出不占用15秒。','强化期间专属BGM持续，技能不播放角色配音。','不恢复生命。']}),
+ entry('frog','power-combo','神圣五段重击','强化普攻','强化期间连续按 J','强化期间连续按小键盘 1','保持神圣姿态，以五段金白重击攻击。最后一段金龙抬头，强化普攻伤害与攻击距离提升。','power-combo',4.4,{actionIds:['common-jab','common-sweep','frog-left-kick','frog-ha','common-finish'],command:{key:'A',repeat:5,form:'powered'},tips:['身体保持神圣常态，攻击由特效表现。']}),
+ entry('frog','power-laugh','神圣三连波','强化技能一','强化期间按 U；空中也可','强化期间按小键盘 4；空中也可','三波冲击伤害与范围各为常态1.4倍。可以在空中施放，施法期间悬停，结束后恢复下落；保留黄白羽毛与强化命中星芒。','power-laugh',4.3,{actionIds:['frog-laugh'],command:{key:'B',form:'powered'}}),
+ entry('frog','power-global','神圣全图波','强化方向变招','强化期间 W＋U；空中也可','强化期间 ↑＋小键盘 4；空中也可','释放一次全地图强化冲击波，伤害为常态全图波的1.4倍。','power-global',3.5,{actionIds:['frog-laugh-global'],command:{key:'B',direction:'up',form:'powered'}}),
+ entry('frog','power-counter','神圣绕背与追击','强化技能二','强化期间地面按住 I，受击触发','强化期间地面按住小键盘 5，受击触发','持按时身边出现立体星图。成功受击绕背后，出现符文法阵和金色拖尾，并自动接一次强化技能一。','power-counter',4.6,{actionIds:['frog-crouch','frog-evade','frog-laugh'],command:{key:'C',hold:true,form:'powered',trigger:'incoming-hit'}}),
+ entry('frog','power-burrow','神圣钻出','强化方向变招','强化期间地面 W＋I','强化期间地面 ↑＋小键盘 5','主动从敌人脚下钻出，出现更重的符文法阵、垂直光束和原地羽毛爆散；法阵在人物出现后稍作停留再缩小消失。','power-burrow',3.7,{actionIds:['frog-burrow'],command:{key:'C',direction:'up',form:'powered',posture:'ground'},tips:['主动钻出不会自动接技能一；自动追击只属于受击绕背。']}),
+ entry('frog','power-dodge','神圣瞬移闪避','强化移动','强化期间按 L','强化期间按 Enter／小键盘3','强化闪避带金色线条拖尾和落点符文法阵，距离为常态闪避的两倍。','power-dodge',3.3,{actionIds:[],command:{key:'dash',form:'powered'},tips:['仍受原有耐力和空中行动次数限制。']}),
+ entry('frog','power-end','强化结束','形态变化','15秒强化结束时自动发生','15秒强化结束时自动发生','神圣形态化作黄白羽毛消散，恢复为普通奶蛙。','power-end',3.4,{actionIds:[],command:{trigger:'buff-expired'},tips:['视频单独展示强化末段，不代表强化仅持续这段视频的长度。']})
+];
+export const characters=[{id:'whale',name:'大肥鱼',tagline:'投饭束缚、旋风控场、水潭终结。'},{id:'frog',name:'奶蛙',tagline:'拳脚连段、笑声震波、绕背与神圣强化。'}];
+export const commonControls=[
+ {name:'移动／方向修饰',p1:'A／D 移动，W／S 修饰方向',p2:'←／→ 移动，↑／↓ 修饰方向'},
+ {name:'跳跃／二段跳',p1:'K',p2:'小键盘 2'},
+ {name:'防御',p1:'地面按住 S',p2:'地面按住 ↓'},
+ {name:'地面／空中冲刺',p1:'L',p2:'Enter／小键盘3'},
+ {name:'下穿平台',p1:'S＋K',p2:'↓＋小键盘 2'},
+ {name:'普攻／技能一／技能二／大招',p1:'J／U／I／O',p2:'小键盘 1／4／5／6'}
+];
