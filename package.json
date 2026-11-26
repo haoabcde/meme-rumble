@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node scripts/serve-web.mjs",
+    "start:online": "node scripts/serve-online.mjs",
     "build": "tsc && node scripts/build-web.mjs",
     "test": "npm run build && node --test tests/*.test.mjs",
     "package:characters": "npm run build && node scripts/package-characters.mjs"
@@ -13,5 +14,8 @@
     "esbuild": "0.25.12",
     "image-size": "2.1.0",
     "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "ws": "8.23.0"
   }
 }

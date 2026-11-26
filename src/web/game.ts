@@ -10,6 +10,7 @@ import { arcadeArt, fighterArt } from './art.js';
 import { fighterPresentation, fitPresentationArt } from './fighter-presentation.js';
 import { closeDialogSmooth, inkSymbol, setRansomText } from './ui-art.js';
 import { FightAudio } from './audio.js';
+import { OnlineRoom, type OnlineStart } from './online-room.js';
 import { cpuInput } from './cpu.js';
 import { tierAt } from '../core/terrain.js';
 import { openingTicks, previewArena, recoveryLabels, Renderer, seatColors } from './renderer.js';
@@ -36,7 +37,7 @@ function image(src: string) {
 
 type Screen = 'title' | 'menu' | 'roster' | 'maps' | 'versus' | 'match' | 'pause' | 'result';
 const screenIds: Screen[] = ['title', 'menu', 'roster', 'maps', 'versus', 'match', 'pause', 'result'];
-const modeNames = { local: '本地双人', cpu: '人机对战', training: '自由训练' };
+const modeNames = { local: '本地双人', cpu: '人机对战', training: '自由训练', online: '联机对战' };
 type Mode = keyof typeof modeNames;
 type BattleFormat = 'standard' | 'relay';
 const seats = [0, 1] as const;
@@ -182,6 +183,8 @@ let lifeDisplay: Duo<{ hp: number; trail: number; holdUntil: number; frame: numb
 const trainingInputs: string[] = [];
 let trainingDownHeld = false;
 let mode: Mode = 'local';
+let onlineSeat: Seat = 0;
+let lastOnlineInputAt = -Infinity;
 let format: BattleFormat = 'standard';
 let screen: Screen = 'title';
 let activeSeat: Seat = 0;
@@ -240,7 +243,53 @@ setRansomText(element('roster-heading'), '选择角色', 2);
 setRansomText(element('maps-heading'), '选择地图', 2);
 setRansomText(element('pause-title-text'), '已暂停', 1);
 const menuFeature = element<HTMLImageElement>('menu-feature');
-const modeArt = { local: fighterArt.whale, cpu: fighterArt.gaga, training: fighterArt.frog };
+const modeArt = { local: fighterArt.whale, cpu: fighterArt.gaga, training: fighterArt.frog, online: fighterArt.banana };
+const onlineRoom = new OnlineRoom(enterOnlineMatch, ({ state: next, events }) => {
+  if (mode !== 'online' || screen !== 'match') return;
+  const previous = state.phase;
+  state = next;
+  if (previous === 'ready' && state.phase === 'fight') fightCueUntil = state.frame + 30;
+  if (previous === 'fight' && state.phase === 'round-over' && state.result) {
+    roundHistory.push({ ...state.result, round: state.round });
+  }
+  renderer.add(events, state, config.fighters);
+  audio.update(config, state, events);
+  if (state.phase === 'match-over') endMatch();
+}, leaveOnlineMatch);
+
+function enterOnlineMatch(packet: OnlineStart) {
+  const arena = arenas.find(candidate => candidate.id === packet.arena);
+  const one = roster.find(entry => entry.fighter.id === packet.selections[0]);
+  const two = roster.find(entry => entry.fighter.id === packet.selections[1]);
+  if (!arena || !one || !two) {
+    leaveOnlineMatch('联机配置与当前网页不一致。');
+    return;
+  }
+  mode = 'online';
+  onlineSeat = packet.seat;
+  relay = null;
+  config = { rules, arena, fighters: [one.fighter, two.fighter] };
+  state = packet.state;
+  roundHistory = [];
+  stage.dataset.mode = 'online';
+  stage.dataset.arena = arena.id;
+  element('training-tools').hidden = true;
+  trainingPanel.hidden = true;
+  fillTrainingEnergy.hidden = true;
+  element('step-training').hidden = true;
+  element('match-tag').hidden = false;
+  text(element('match-tag'), '你是 P' + (onlineSeat + 1) + ' · ' + arena.name);
+  refreshCombatants();
+  enterMatch();
+}
+
+function leaveOnlineMatch(notice = '') {
+  onlineRoom.disconnect();
+  mode = 'local';
+  stage.dataset.mode = mode;
+  go('menu');
+  if (notice) notify(notice);
+}
 
 function previewMode(next: Mode) {
   for (const button of modeButtons) {
@@ -334,7 +383,7 @@ function setBattleFormat(next: BattleFormat) {
 }
 
 function relaySelected() {
-  return mode !== 'training' && format === 'relay';
+  return mode !== 'training' && mode !== 'online' && format === 'relay';
 }
 
 function modeTitle() {
@@ -365,7 +414,7 @@ function commandHint(seat: Seat, move: MovePrompt, comboKeys: Slot[] = []) {
   const keys: Control[] = [...comboKeys, move.slot];
   if (move.direction === 'up' || move.direction === 'down') keys.unshift(move.direction);
   const prefix = move.direction === 'forward' ? '前+' : move.direction === 'back' ? '后+' : '';
-  return prefix + keyHint(preferences, seat, keys, '+');
+  return prefix + keyHint(preferences, mode === 'online' && seat === onlineSeat ? 0 : seat, keys, '+');
 }
 
 function directMoves(fighter: FighterDefinition, move: MovePrompt) {
@@ -497,7 +546,10 @@ function footer() {
   const confirmKey = keyHint(preferences, 0, ['A']);
   const backKey = keyHint(preferences, 0, ['jump']);
   const upDown = keyHint(preferences, 0, ['up', 'down']);
-  text(element('footer-main'), fighting ? (relay ? '双角色车轮战' : modeNames[mode]) + ' · ' + config.arena.name : 'Meme 乱斗 · 抽象之王');
+  const onlineRole = mode === 'online' ? ' · 你是 P' + (onlineSeat + 1) : '';
+  text(element('footer-main'), fighting
+    ? (relay ? '双角色车轮战' : modeNames[mode]) + ' · ' + config.arena.name + onlineRole
+    : 'Meme 乱斗 · 抽象之王');
   const playing = screen === 'match';
   element('fight-key-hints').hidden = !playing;
   element('footer-detail').hidden = playing;
@@ -507,7 +559,7 @@ function footer() {
       const fighter = config.fighters[seat];
       const hints = commonMovePrompts.filter(prompt =>
         (prompt.slot === 'B' || prompt.slot === 'C') && directMoves(fighter, prompt).length);
-      node.hidden = !hints.length || (seat === 1 && mode !== 'local');
+      node.hidden = !hints.length || (mode === 'online' ? seat !== onlineSeat : seat === 1 && mode !== 'local');
       node.replaceChildren(seatName(seat), ...hints.map(prompt => {
         const hint = document.createElement('span');
         const key = document.createElement('kbd');
@@ -606,6 +658,11 @@ function show(next: Screen) {
 }
 
 function go(next: Screen) {
+  if (mode === 'online' && next !== 'match' && next !== 'result') {
+    onlineRoom.disconnect();
+    mode = 'local';
+    stage.dataset.mode = mode;
+  }
   if (next === 'roster' && screen !== 'maps' && screen !== 'roster') {
     confirmed.fill(false);
     activeSlots.fill(0);
@@ -619,6 +676,11 @@ function go(next: Screen) {
 }
 
 function selectMode(next: Mode) {
+  if (next === 'online') {
+    audio.enableFromGesture();
+    onlineRoom.show();
+    return;
+  }
   mode = next;
   go('roster');
 }
@@ -840,6 +902,7 @@ function refreshCombatants() {
 
 function enterMatch() {
   show('match');
+  element('pause').firstChild!.textContent = mode === 'online' ? '离开房间 ' : '暂停 ';
   buildUltimateCues();
   renderHUD();
   draw(0);
@@ -879,6 +942,12 @@ function pauseSummary() {
 }
 
 function pauseMatch() {
+  if (mode === 'online') {
+    clearInputs();
+    onlineRoom.sendInput(NEUTRAL);
+    if (window.confirm('离开房间会结束本场联机对战。确定离开吗？')) leaveOnlineMatch();
+    return;
+  }
   // Pausing ends a character shot, so its sound never plays on over a frozen frame.
   finishFeature();
   show('pause');
@@ -950,7 +1019,8 @@ function endMatch() {
   if (relay) renderRelayResult(relay);
   else renderStandardResult();
   show('result');
-  element('rematch').focus();
+  element('rematch').hidden = mode === 'online';
+  (mode === 'online' ? screens.result.querySelector<HTMLButtonElement>('[data-go="menu"]') : element('rematch'))?.focus();
 }
 
 function renderStandardResult() {
@@ -998,7 +1068,7 @@ function toggleDebug() {
 }
 
 function openSettings() {
-  if (screen === 'match') pauseMatch();
+  if (screen === 'match' && mode !== 'online') pauseMatch();
   else clearInputs();
   settings.open();
 }
@@ -1064,7 +1134,7 @@ trainingPanel.addEventListener('toggle', () => {
 });
 debugButton.addEventListener('click', toggleDebug);
 function openGuide(moves: boolean) {
-  if (screen === 'match') pauseMatch();
+  if (screen === 'match' && mode !== 'online') pauseMatch();
   clearInputs();
   text(element('guide-title'), moves ? '招式表' : '操作说明');
   element('guide-controls').hidden = moves;
@@ -1180,7 +1250,7 @@ function stickFor(seat: Seat): Stick {
 }
 
 window.addEventListener('keydown', event => {
-  if (guide.open || settings.dialog.open || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (guide.open || settings.dialog.open || onlineRoom.open || event.metaKey || event.ctrlKey || event.altKey) return;
   if (event.code === 'Escape' && !event.repeat) {
     event.preventDefault();
     if (screen === 'match') pauseMatch();
@@ -1200,9 +1270,10 @@ window.addEventListener('keydown', event => {
   audio.enableFromGesture();
   held.add(event.code);
   const { seat, control } = binding;
+  const actor = mode === 'online' ? onlineSeat : seat;
   if ((control === 'B' || control === 'C' || control === 'ULT') &&
-      !acceptsSkillInput(config.fighters[seat], control)) {
-    if (config.fighters[seat].actions.some(action => action.comboKeys?.includes(control))) return;
+      !acceptsSkillInput(config.fighters[actor], control)) {
+    if (config.fighters[actor].actions.some(action => action.comboKeys?.includes(control))) return;
     const skill = control === 'ULT' ? '大招' : control === 'B' ? '进攻技' : '特色技';
     notify(seatName(seat) + ' 的' + skill + '待接入');
     return;
@@ -1215,7 +1286,10 @@ window.addEventListener('keyup', event => held.delete(event.code));
 canvas.addEventListener('blur', clearInputs);
 canvas.addEventListener('pointerdown', () => audio.enableFromGesture());
 function pauseOnHide() {
-  if (screen === 'match') pauseMatch();
+  if (screen === 'match' && mode === 'online') {
+    clearInputs();
+    onlineRoom.sendInput(NEUTRAL);
+  } else if (screen === 'match') pauseMatch();
   else clearInputs();
 }
 window.addEventListener('blur', pauseOnHide);
@@ -1510,7 +1584,14 @@ function frame(now: number) {
     introRemaining -= elapsed;
     if (introRemaining <= 0) enterMatch();
   }
-  if (screen === 'match') {
+  if (screen === 'match' && mode === 'online') {
+    if (now - lastOnlineInputAt >= tickMs - 1) {
+      onlineRoom.sendInput(readInput(0));
+      lastOnlineInputAt = now;
+    }
+    renderHUD();
+    draw(elapsed / tickMs);
+  } else if (screen === 'match') {
     debt += elapsed * (config.training ? Number(trainingSpeed.value) : 1);
     while (debt >= tickMs) {
       debt -= tickMs;

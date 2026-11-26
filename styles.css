@@ -2504,3 +2504,40 @@ kbd {
 .p2 .tear-row { flex-direction: row-reverse; }
 .p2 .tear-track i { transform-origin: right; }
 .stage[data-cinematic] :is(.hud, .announcement, .training-readout, .fight-deck, .combo) { visibility: hidden; }
+#online-room {
+  max-width: min(420px, calc(100vw - 32px));
+  width: 100%;
+  padding: 28px;
+  border: 3px solid #f7e7ee;
+  background: #221a38;
+  color: #fff4f4;
+  box-shadow: 7px 8px 0 #c92b57;
+}
+
+#online-room::backdrop { background: #110919c9; }
+
+#online-room label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+#online-room input, #online-room select {
+  max-width: 65%;
+  padding: 6px 9px;
+  border: 1px solid #706878;
+  color: #fff;
+  background: #25203a;
+}
+
+#online-room input {
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+
+#online-status {
+  min-height: 1.5em;
+  color: #ffe38c;
+}

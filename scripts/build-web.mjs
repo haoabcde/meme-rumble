@@ -1,4 +1,5 @@
-import { readFile, rename, writeFile } from 'node:fs/promises';
+import { readdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { audioDemoRoster } from '../dist/content/audio-demo.js';
@@ -7,6 +8,15 @@ import { embedFighterImages } from './fighter-art.mjs';
 import { embedFighterAudio } from './fighter-audio.mjs';
 
 const root = new URL('../', import.meta.url);
+const onlineSourceHash = createHash('sha256');
+for (const folder of ['src/core/', 'src/content/', 'src/web/online-room.ts', 'scripts/serve-online.mjs']) {
+  const paths = folder.endsWith('/') ? (await readdir(new URL(folder, root), { recursive: true }))
+    .filter(name => /\.[cm]?tsx?$/.test(name) || name.endsWith('.mjs')).sort().map(name => folder + name) : [folder];
+  for (const path of paths) onlineSourceHash.update(path).update(await readFile(new URL(path, root)));
+}
+const onlineBuild = onlineSourceHash.digest('hex').slice(0, 20);
+const onlineUrl = process.env.ONLINE_SERVICE_URL?.trim() ?? '';
+if (onlineUrl && !/^wss:\/\//.test(onlineUrl)) throw Error('ONLINE_SERVICE_URL must be a wss:// address');
 const demoRoster = roster.map(entry => audioDemoRoster.find(demo => demo.fighter.id === entry.fighter.id) ?? entry);
 const [fighterImages, fighterAudio, demoAudio] = await Promise.all([
   embedFighterImages(roster, fileURLToPath(new URL('assets/fighters/', root))),
@@ -22,7 +32,8 @@ async function bundleEntry(entry, audio = fighterAudio) {
     format: 'iife',
     target: 'es2022',
     loader: { '.webp': 'dataurl', '.png':'dataurl' },
-    define: { __FIGHTER_IMAGES__: JSON.stringify(fighterImages), __FIGHTER_AUDIO__: JSON.stringify(audio) },
+    define: { __FIGHTER_IMAGES__: JSON.stringify(fighterImages), __FIGHTER_AUDIO__: JSON.stringify(audio),
+      __ONLINE_BUILD__: JSON.stringify(onlineBuild), __ONLINE_URL__: JSON.stringify(onlineUrl) },
     write: false
   });
   return result.outputFiles[0].text;
@@ -47,6 +58,7 @@ async function publish(file, content) {
   await rename(pending, new URL('dist/' + file, root));
 }
 await Promise.all([
+  publish('online-version.txt', onlineBuild + '\n'),
   publish('game.bundle.js', game), publish('index.html', standalone(game)),
   publish('frog-review.bundle.js', frogReview),
   publish('frog-review-dev.html','<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>奶蛙造型审阅</title><body><script src="./dist/frog-review.bundle.js"></script></body></html>'),

@@ -218,6 +218,7 @@
             <button class="mode" type="button" data-mode="local"><span>本地双人</span><small>同一台电脑，两人对战</small></button>
             <button class="mode" type="button" data-mode="cpu"><span>人机对战</span><small>单人挑战电脑</small></button>
             <button class="mode" type="button" data-mode="training"><span>自由训练</span><small>练连段、反打与登台</small></button>
+            <button class="mode" type="button" data-mode="online"><span>联机对战</span><small>用房间码邀请好友</small></button>
           </div>
           <button class="subtle" data-go="title" type="button">返回标题</button>
         </div>
@@ -478,6 +479,16 @@
         <span id="fight-keys-two" class="p2"></span>
       </div>
     </footer>
+    <dialog id="online-room" aria-labelledby="online-title">
+      <h2 id="online-title">好友联机 · 1V1</h2>
+      <label>你的角色 <select id="online-fighter"></select></label>
+      <label>房主地图 <select id="online-arena"></select></label>
+      <button id="online-create" class="primary" type="button">创建房间</button>
+      <label>房间码 <input id="online-code" maxlength="8" autocomplete="off" spellcheck="false"></label>
+      <button id="online-join" class="subtle" type="button">加入房间</button>
+      <p id="online-status" role="status"></p>
+      <button id="online-close" class="subtle" type="button">返回</button>
+    </dialog>
   </main>
   <script src="./dist/game.bundle.js"></script>
 </body>
