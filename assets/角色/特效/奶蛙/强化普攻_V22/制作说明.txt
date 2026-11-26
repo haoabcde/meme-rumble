@@ -1,0 +1,9 @@
+白金焰羽八部件：4列2行，透明像素素材。
+第一行：穿光、双弧、升羽、环震。
+第二行：长虹、流线备选、命中星备选、尾羽。
+实战使用前五种与尾羽，旧有强化命中星芒继续保留。
+
+构形参考：用户提供 3d8e94bfe5cb79aec7c43a8535e0377e.jpg 与 0bdd1518829d0631f90920615cf8010a.jpg。
+生成提示：transparent pixel-art VFX atlas, four columns two rows, isolated holy white-gold energy, ivory cores, gold bodies, amber edges, pixel clusters and stepped outlines. Piercing crescent, doubled opposing arcs, rising feather wing, hollow radial flare, enormous streaming phoenix-shaped surge, curled ribbon, impact star and drifting tail feathers. No characters, text, watermark, background or red fire. Reference shapes reinterpreted for holy fighting-game energy.
+
+运行时逐列弯曲流线，展开与余辉跟随真实施法时间，左右统一镜像。

@@ -194,7 +194,6 @@ export class FightAudio {
   private effectVolume = 1;
   private dialogueVolume = 1;
   private entityAges = new Map<number, number>();
-  private lastPhase: MatchState['phase'] | undefined;
 
   get enabled() { return this.soundEnabled; }
   set enabled(value: boolean) {
@@ -244,7 +243,6 @@ export class FightAudio {
     this.actions = [undefined, undefined];
     this.round = undefined;
     this.entityAges.clear();
-    this.lastPhase = undefined;
   }
 
   setPaused(value: boolean) {
@@ -327,10 +325,6 @@ export class FightAudio {
   update(config: MatchConfig, state: MatchState, events: readonly CombatEvent[]) {
     if (this.round !== undefined && this.round !== state.round) this.stopAll();
     this.round = state.round;
-    if (state.phase === 'ready' && this.lastPhase !== 'ready') {
-      for (const seat of seats) this.playNamed(seat, 'event-entry');
-    }
-    this.lastPhase = state.phase;
     for (const seat of seats) this.updateAction(config, state, seat);
     const silentVoices = seats.filter(seat => config.fighters[seat]?.id === 'frog' &&
       (frogPowered(state.fighters[seat], state) || state.fighters[seat].attack?.id === 'frog-ascend'));

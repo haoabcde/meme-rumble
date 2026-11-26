@@ -1,10 +1,13 @@
 // Atlas slicing and silhouette-aligned mesh interpolation for authored pixel sprites.
-export function cutGrid(im,columns,rows,{pixelate=true}={}){
+import {removeDetachedPixels} from './sprite-cleanup.mjs';
+export function cutGrid(im,columns,rows,{pixelate=true,cleanCells=[]}={}){
  const w=Math.floor(im.width/columns),h=Math.floor(im.height/rows);
  return Array.from({length:columns*rows},(_,i)=>{
   const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d',{willReadFrequently:true});
   g.drawImage(im,(i%columns)*w,Math.floor(i/columns)*h,w,h,0,0,w,h);
-  const p=g.getImageData(0,0,w,h).data;let l=w,t=h,r=0,b=0;
+  const data=g.getImageData(0,0,w,h),p=data.data;
+  if(cleanCells.includes(i)){removeDetachedPixels(p,w,h);g.putImageData(data,0,0);}
+  let l=w,t=h,r=0,b=0;
   for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(p[(y*w+x)*4+3]>120){l=Math.min(l,x);r=Math.max(r,x);t=Math.min(t,y);b=Math.max(b,y);}
   const divisor=pixelate?3:1;
   const out=document.createElement('canvas');out.width=Math.max(1,Math.ceil((r-l+1)/divisor));out.height=Math.max(1,Math.ceil((b-t+1)/divisor));

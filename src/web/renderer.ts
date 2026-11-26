@@ -791,11 +791,11 @@ export class Renderer {
       if (def.id === 'whale') {
         if (flash > 0) ctx.filter = `brightness(${1 + flash * .36})`;
         const poseMove = action?.id === 'whale-shelter' ? { ...action, whale: undefined } : move;
-        drawWhaleActor(ctx, f, state, seat, poseMove);
+        drawWhaleActor(ctx, f, state, seat, poseMove, def.actions);
       } else if (def.id === 'frog') {
         if (flash > 0) ctx.filter = `brightness(${1 + flash * .36})`;
         const poseMove = action?.id === 'common-launch' ? { ...action, id: 'common-finish' } : move;
-        drawFrogActor(ctx, f, state, poseMove, seat);
+        drawFrogActor(ctx, f, state, poseMove, seat, def.actions);
       } else {
         const spriteWidth = sprite?.naturalHeight ? height * sprite.naturalWidth / sprite.naturalHeight : 0;
         const drawFromSheet = !isGaga && !isBanana && Boolean(sheet?.naturalWidth) && pose !== undefined;

@@ -9,6 +9,7 @@ import type {
 } from './types.js';
 import { platformAt, platformContact, platformOffset } from './terrain.js';
 import { DEFAULT_KNOCKDOWN_FRAMES, DEFAULT_RISE_FRAMES, isAttack, MAX_ENERGY, MAX_TEARS, NEUTRAL, TEAR_UNITS_PER_POINT } from './types.js';
+import { updateActorPresentation } from './actor-presentation.js';
 import { entityContacts, resolveContactEntity, updateEntities, spawnEntities } from './entities.js';
 import {startWhale} from './whale-kit.js';
 import {frogAction,frogCanStart,startFrog,finishAscension,tickAscension,frogPowered,frogCrouching,warpFrog,settleFrogWarp,startFrogDodge,FROG_RULES} from './frog-kit.js';
@@ -1450,6 +1451,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   }
 
   for(const event of events)if(['jump','air-jump','land','dash','knockdown','rise'].includes(event.kind))state.fighters[event.source].poseEvent={kind:event.kind,tick:state.arenaFrame};
+  updateActorPresentation(state, config);
   if (!config.training) state.remaining--;
   const result = config.training ? null : roundResult(state, config);
   if (!result) {
