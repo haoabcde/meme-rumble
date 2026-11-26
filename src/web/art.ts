@@ -1,5 +1,9 @@
 import arcade from '../../assets/ui/arcade.webp';
 import gagaActions from '../../assets/fighters/gaga-actions.webp';
+import gagaBase from '../../assets/fighters/gaga-base.webp';
+import gagaSword from '../../assets/fighters/gaga-sword.webp';
+import gagaXiranite from '../../assets/fighters/gaga-xiranite.webp';
+import gagaDive from '../../assets/fighters/gaga-dive.webp';
 import gagaCombo from '../../assets/fighters/gaga-basic-combo.webp';
 import gagaFinish from '../../assets/fighters/gaga-combo-finish.webp';
 import gagaPoleAttacks from '../../assets/fighters/gaga-pole-attacks.webp';
@@ -16,11 +20,14 @@ import harbor from '../../assets/arenas/harbor-quay.webp';
 import dockProps from '../../assets/arenas/harbor-props.webp';
 import gantry from '../../assets/arenas/harbor-gantry.webp';
 import station from '../../assets/arenas/station-bg.webp';
+import ring from '../../assets/arenas/ring-clean.webp';
+import ringCast from '../../assets/arenas/ring-performers.webp';
 import dormKit from '../../assets/arenas/dorm-kit.webp';
 import courtKit from '../../assets/arenas/court-kit.webp';
 import stationKit from '../../assets/arenas/station-kit.webp';
 import { roster } from '../content/roster.js';
-import type { ActionDefinition, ArenaDefinition, HitReaction, Projectile, ProjectileDefinition, Turret, TurretKind } from '../core/types.js';
+import type { ActionDefinition, ArenaDefinition, FighterAction, FighterState, HitReaction, Projectile, ProjectileDefinition, Turret, TurretKind } from '../core/types.js';
+import { isAttack } from '../core/types.js';
 import { turretFrame } from '../core/turret.js';
 import { summonAtlas } from './dijiang.js';
 import { gagaActionIds } from '../content/fighters/gaga.js';
@@ -28,7 +35,7 @@ import { gagaActionIds } from '../content/fighters/gaga.js';
 export const arcadeArt = arcade;
 declare const __FIGHTER_IMAGES__: Record<string, string>;
 export const fighterArt = Object.fromEntries(roster.map(({ fighter, art }) => [fighter.id, __FIGHTER_IMAGES__[art.portrait]]));
-export const arenaArt: Record<ArenaDefinition['theme'], string> = { dorm, court, harbor, station };
+export const arenaArt: Record<ArenaDefinition['theme'], string> = { dorm, court, harbor, station, ring };
 
 function loadImages(sources: Record<string, string>) {
   return Object.fromEntries(Object.entries(sources).map(([id, src]) => {
@@ -42,6 +49,7 @@ export const sprites = loadImages(fighterArt);
 export const motionArt = loadImages(Object.fromEntries(roster.map(({ fighter, art }) =>
   [fighter.id, __FIGHTER_IMAGES__[art.motion]])));
 export const backgrounds = loadImages(arenaArt);
+export const { ringPerformers } = loadImages({ ringPerformers: ringCast });
 export const { dockProps: harborProps, gantry: harborGantry } = loadImages({ dockProps, gantry });
 export const stageKits = loadImages({ dorm: dormKit, court: courtKit, station: stationKit });
 
@@ -173,6 +181,63 @@ const howitzerAtlas = new Image();
 howitzerAtlas.src = gagaHowitzerDeploy;
 const poleSprite = new Image();
 poleSprite.src = gagaPole;
+const baseAtlas = new Image();
+baseAtlas.src = gagaBase;
+const swordAtlas = new Image();
+swordAtlas.src = gagaSword;
+const xiraniteAtlas = new Image();
+xiraniteAtlas.src = gagaXiranite;
+const diveAtlas = new Image();
+diveAtlas.src = gagaDive;
+
+const gagaBaseScale = .60;
+const gagaBaseWalk = [
+  pose(37, 5, 183, 230, 141),
+  pose(299, 5, 176, 233, 400),
+  pose(554, 5, 177, 229, 649),
+  pose(818, 5, 170, 231, 908)
+] as const;
+const gagaBaseStates = {
+  dash: pose(25, 290, 222, 199, 127),
+  jump: pose(305, 257, 173, 219, 383),
+  fall: pose(560, 276, 176, 199, 656),
+  guard: pose(797, 291, 182, 209, 899)
+} as const;
+
+const gagaSwordPoses = {
+  slash: [
+    pose(16, 58, 279, 232, 136),
+    pose(360, 57, 302, 231, 468),
+    pose(736, 55, 245, 236, 872)
+  ],
+  rise: [
+    pose(55, 423, 250, 215, 151),
+    pose(368, 358, 261, 262, 466),
+    pose(720, 366, 203, 245, 852)
+  ]
+} as const;
+
+const gagaXiranitePoses = [
+  pose(26, 80, 228, 210, 100),
+  pose(359, 77, 324, 218, 455),
+  pose(683, 80, 329, 202, 749)
+] as const;
+
+const gagaDivePoses = [
+  pose(34, 20, 253, 223, 198),
+  pose(379, 51, 258, 233, 515),
+  pose(713, 59, 261, 228, 847)
+] as const;
+
+export function gagaStatePose(fighter: FighterState, walkDistance?: number): GagaActionPose | undefined {
+  if (!baseAtlas.naturalWidth) return undefined;
+  let region: ActionPose | undefined;
+  if (fighter.dash > 0) region = gagaBaseStates.dash;
+  else if (!fighter.ground) region = fighter.vy < 0 ? gagaBaseStates.jump : gagaBaseStates.fall;
+  else if (fighter.guarding) region = gagaBaseStates.guard;
+  else if (walkDistance !== undefined) region = gagaBaseWalk[Math.floor(walkDistance / 34) % gagaBaseWalk.length];
+  return region ? { image: baseAtlas, region, scaleX: gagaBaseScale, scaleY: gagaBaseScale } : undefined;
+}
 
 const terminalFrames = [
   pose(87, 31, 326, 458, 250),
@@ -448,11 +513,45 @@ finishAtlas.src = gagaFinish;
 
 const summonFinish = pose(938, 520, 407, 486, 1128);
 
-export function gagaActionPose(action: ActionDefinition, frame: number, grounded: boolean): GagaActionPose | undefined {
+export function gagaActionPose(move: FighterAction, frame: number, grounded: boolean): GagaActionPose | undefined {
+  if (!isAttack(move)) {
+    if (move.id === gagaActionIds.xiraniteGuard && xiraniteAtlas.naturalWidth) {
+      const index = frame < move.startup ? 0 : frame < move.startup + move.active ? 1 : 0;
+      return { image: xiraniteAtlas, region: gagaXiranitePoses[index], scaleX: gagaBaseScale, scaleY: gagaBaseScale };
+    }
+    return undefined;
+  }
+  const action = move;
   if (action.summon && summonAtlas.naturalWidth && frame < action.startup + 11) {
     return { image: summonAtlas, region: summonFinish, scaleX: .28, scaleY: .28 };
   }
-  if (action.id === gagaActionIds.turret && terminalAtlas.naturalWidth) return terminalPose(action, frame);
+  if ((action.id === gagaActionIds.turret || action.id === gagaActionIds.overclock) && terminalAtlas.naturalWidth) {
+    return terminalPose(action, frame);
+  }
+  if (action.id === gagaActionIds.swordSlash && swordAtlas.naturalWidth) {
+    const recoveryFrame = frame - action.startup - action.active;
+    if (recoveryFrame >= Math.ceil(action.recovery * .78)) return undefined;
+    const index = frame < action.startup ? 0 : recoveryFrame < 0 ? 1 : 2;
+    return { image: swordAtlas, region: gagaSwordPoses.slash[index], scaleX: gagaBaseScale, scaleY: gagaBaseScale };
+  }
+  if (action.id === gagaActionIds.swordRise && swordAtlas.naturalWidth) {
+    const recoveryFrame = frame - action.startup - action.active;
+    if (grounded && recoveryFrame >= 2) return undefined;
+    const index = frame < action.startup ? 0 : recoveryFrame < 0 ? 1 : 2;
+    return { image: swordAtlas, region: gagaSwordPoses.rise[index], scaleX: gagaBaseScale, scaleY: gagaBaseScale };
+  }
+  if (action.id === gagaActionIds.xiraniteBurst && xiraniteAtlas.naturalWidth) {
+    const recoveryFrame = frame - action.startup - action.active;
+    if (recoveryFrame >= Math.ceil(action.recovery * .78)) return undefined;
+    const index = frame < action.startup + action.active + 5 ? 2 : 0;
+    return { image: xiraniteAtlas, region: gagaXiranitePoses[index], scaleX: gagaBaseScale, scaleY: gagaBaseScale };
+  }
+  if (action.id === gagaActionIds.airDive && diveAtlas.naturalWidth) {
+    const recoveryFrame = frame - action.startup - action.active;
+    if (recoveryFrame >= Math.ceil(action.recovery * .85)) return undefined;
+    const index = frame < action.startup ? 0 : recoveryFrame < 0 ? 1 : 2;
+    return { image: diveAtlas, region: gagaDivePoses[index], scaleX: gagaBaseScale, scaleY: gagaBaseScale };
+  }
   if ((action.id === gagaActionIds.airThrow || action.id === gagaActionIds.howitzer) && airPoleAtlas.naturalWidth) {
     return grounded && frame >= action.startup + 7 ? undefined : airPolePose(action, frame);
   }

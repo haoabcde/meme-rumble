@@ -74,10 +74,12 @@ interface ActionTiming {
 }
 
 export interface ProjectileDefinition {
-  kind?: 'crate' | 'bolt' | 'grenade' | 'tear' | 'wave';
+  kind?: 'crate' | 'bolt' | 'grenade' | 'tear' | 'wave' | 'kq-orb' | 'sheer-heart' | 'spark';
   life?: number;
   turret?: TurretKind;
   blastRadius?: number;
+  homing?: number;
+  markFrames?: number;
   x: number;
   y: number;
   vx: number;
@@ -92,6 +94,21 @@ export interface ActionDefinition extends ActionTiming {
   hitbox: Box;
   summon?: true;
   cutIn?: { at: number; duration: number };
+  timeStop?: { teleportAt: number; flickAt: number; releaseAt: number };
+  awakenJo?: boolean;
+  requiresJo?: boolean;
+  joReplacement?: string;
+  joDetonateReplacement?: string;
+  detonateBomb?: boolean;
+  applyCrystalMark?: number;
+  shatterCrystal?: { bonusDamage: number; bonusLift?: number; bonusPush?: number };
+  overclockTurrets?: boolean;
+  dive?: { vx: number; vy: number; piercePlatforms?: boolean; carryTarget?: boolean };
+  rise?: { at: number; vx: number; vy: number };
+  passThrough?: boolean;
+  liftRequiresPrevHit?: boolean;
+  standAttack?: 'jab' | 'hook' | 'uppercut' | 'ora' | 'dive' | 'slide' | 'sheer-heart' | 'upper-ora';
+  energyGain?: number;
   unblockable?: boolean;
   tearCost?: number;
   channel?: 'spray' | 'cry';
@@ -99,7 +116,7 @@ export interface ActionDefinition extends ActionTiming {
   advanceFrom?: number;
   advanceUntil?: number;
   activeAdvance?: number;
-  chain?: { actionId: string; open: number; close: number };
+  chain?: { actionId: string; open: number; close: number; requiresHit?: boolean };
   swingOnActive?: boolean;
   swingLead?: number;
   projectile?: ProjectileDefinition;
@@ -186,7 +203,7 @@ export interface ArenaDefinition {
   terrain: string;
   // A ground-to-top route from each side of the opening.
   routes: Duo<string[]>;
-  theme: 'dorm' | 'court' | 'harbor' | 'station';
+  theme: 'dorm' | 'court' | 'harbor' | 'station' | 'ring';
   artFrame: { sourceY: number; worldY: number }[];
   width: number;
   height: number;
@@ -234,6 +251,7 @@ export interface Attack {
   frame: number;
   connected: boolean;
   landed: boolean;
+  prevLanded?: boolean;
   connectedGroups?: string[];
   queuedChain?: string[];
   released?: boolean;
@@ -241,6 +259,10 @@ export interface Attack {
   hitTurrets?: TurretKind[];
   projectileSpawned?: boolean;
   spawnedEntities?: string[];
+  diveCarry?: boolean;
+  standX?: number;
+  standY?: number;
+  standFacing?: Side;
 }
 
 export type Recovery = { facing?: Side } &
@@ -267,6 +289,10 @@ export interface FighterState {
   ignorePlatform: string | null;
   hp: number;
   energy: number;
+  joAwakened?: boolean;
+  bombMark?: { source: 0 | 1; remaining: number };
+  crystalMark?: { source: 0 | 1; remaining: number };
+  overclockCooldown?: number;
   slow: number;
   tearUnits?: number;
   walk?: WalkState;
@@ -304,7 +330,9 @@ export interface Projectile {
   vx: number;
   vy: number;
   connected: boolean;
+  boosted?: boolean;
   age?: number;
+  locked?: number;
   hitTurrets?: TurretKind[];
 }
 
@@ -321,7 +349,10 @@ export interface Turret {
 
 export type EventKind = 'swing' | 'ultimate' | 'ultimate-no-energy' | 'hit' | 'block' | 'parry' | 'break' | 'whiff' | 'dash' | 'dash-no-stamina' | 'jump' | 'air-jump' |
   'pole-impact' | 'turret-land' | 'turret-ready' | 'turret-fire' | 'turret-burst' | 'grenade-impact' |
-  'tear-splash' | 'tears-short' | 'wave-windup' | 'wave-cut-in' | 'wave-unavailable' |
+  'tear-splash' | 'tears-short' | 'wave-windup' | 'wave-cut-in' | 'wave-unavailable' | 'jo-shatter' |
+  'kq-plant' | 'kq-lock' | 'kq-detonate' |
+  'crystal-plant' | 'crystal-shatter' | 'xiranite-burst' | 'turret-overclock' |
+  'time-stop-start' | 'time-stop-warp' | 'time-stop-flick' | 'time-stop-hit' | 'time-stop-release' |
   'summon-start' | 'summon-confirm' | 'summon-drop' | 'summon-catch' | 'summon-impact' |
   'drop' | 'land' | 'knockdown' | 'rise' | 'ko';
 export interface CombatEvent {
@@ -329,6 +360,8 @@ export interface CombatEvent {
   source: 0 | 1;
   x: number;
   y: number;
+  targetX?: number;
+  targetY?: number;
   amount?: number;
   impact?: Impact;
   actionId?: string;
@@ -367,8 +400,21 @@ export interface MatchState {
   turrets: Record<TurretKind, Turret | null>;
   summon?: Summon;
   cutIn?: CutIn;
+  timeStop?: TimeStop;
   entities?: EntityState[];
   nextEntityId?: number;
+}
+
+export interface TimeStop {
+  source: 0 | 1;
+  actionId: string;
+  frame: number;
+  teleportAt: number;
+  flickAt: number;
+  releaseAt: number;
+  originX?: number;
+  originY?: number;
+  flicked?: boolean;
 }
 
 export interface CutIn {

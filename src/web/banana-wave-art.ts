@@ -3,6 +3,7 @@ import type { CutIn } from '../core/types.js';
 import sprites from '../../assets/fighters/banana-wave-actions.webp';
 import expressions from '../../assets/fighters/banana-wave-expressions.webp';
 import ukiyoeArt from '../../assets/fighters/banana-wave-ukiyoe.webp';
+import joCutInArt from '../../assets/fighters/banana-jo-cutin.webp';
 import { easeIn, easeOut, easeOutBack, fadeSince, noise } from './cinematics.js';
 import { drawFocusLines, drawPoseFlash, drawSparkle } from './cutin-art.js';
 import { drawPixelEffect } from './pixelfx.js';
@@ -13,6 +14,8 @@ const portraits = new Image();
 portraits.src = expressions;
 const ukiyoe = new Image();
 ukiyoe.src = ukiyoeArt;
+const joCutIn = new Image();
+joCutIn.src = joCutInArt;
 
 const tile = { w: 384, h: 352, x: 176, y: 334, scale: .5 };
 const hands = [[26, -40], [14, -11], [11, -43], [50, -85], [83, -63], [12, -20]] as const;
@@ -349,5 +352,213 @@ export function drawBananaWaveCutIn(ctx: CanvasRenderingContext2D, cutIn: CutIn,
   ctx.fillStyle = '#131634';
   ctx.fillRect(0, 0, 1280, 46 + 314 * curtain);
   ctx.fillRect(0, 674 - 314 * curtain, 1280, 46 + 314 * curtain);
+  ctx.restore();
+}
+
+const joPanels: readonly { at: number; tilt: number; poly: readonly [number, number][] }[] = [
+  { at: 0, tilt: -.04, poly: [[16, 16], [803, 16], [803, 218], [16, 316]] },
+  { at: 14, tilt: .035, poly: [[16, 302], [803, 204], [803, 592], [16, 540]] },
+  { at: 28, tilt: -.045, poly: [[16, 530], [390, 558], [354, 1004], [16, 1004]] },
+  { at: 42, tilt: .05, poly: [[380, 558], [803, 584], [803, 1004], [344, 1004]] }
+];
+
+export function drawBananaJoCutIn(ctx: CanvasRenderingContext2D, cutIn: CutIn, reducedMotion: boolean) {
+  const { width, height } = ctx.canvas;
+  const frame = cutIn.frame;
+  const live = reducedMotion ? 0 : 1;
+  const crackT = live ? Math.max(0, Math.min(1, (frame - 52) / Math.max(1, cutIn.duration - 53))) : 0;
+
+  ctx.resetTransform();
+  ctx.save();
+  ctx.scale(width / 1280, height / 720);
+  if (crackT > 0) {
+    ctx.translate(Math.sin(frame * 19.3) * crackT * 14, Math.cos(frame * 15.7) * crackT * 10);
+  }
+
+  // Dark purple JO menacing backdrop.
+  ctx.fillStyle = '#120722';
+  ctx.fillRect(-20, -20, 1320, 760);
+  drawFocusLines(ctx, 640, 360, .65 + crackT * .35, frame, 36);
+
+  if (joCutIn.naturalWidth) {
+    const scale = Math.min(1280 / joCutIn.naturalWidth, 680 / joCutIn.naturalHeight);
+    const dw = joCutIn.naturalWidth * scale;
+    const dh = joCutIn.naturalHeight * scale;
+    const ox = 640 - dw * .5;
+    const oy = 360 - dh * .5;
+
+    // Cream manga page backing once the first panel lands.
+    ctx.fillStyle = '#faf3e0';
+    ctx.fillRect(ox + 6, oy + 6, dw - 12, dh - 12);
+
+    for (const [panelIdx, panel] of joPanels.entries()) {
+      if (frame < panel.at && live) continue;
+      const age = frame - panel.at;
+      const snap = live ? easeOut(Math.min(1, age / 7)) : 1;
+      const pop = 1 + (1 - snap) * .32 + crackT * .05;
+      const shake = live ? fadeSince(frame, panel.at, 8) * 6 + crackT * 8 : 0;
+      const cx = panel.poly.reduce((s, p) => s + p[0], 0) / panel.poly.length * scale + ox;
+      const cy = panel.poly.reduce((s, p) => s + p[1], 0) / panel.poly.length * scale + oy;
+      const splitX = crackT * (cx - 640) * .06;
+      const splitY = crackT * (cy - 360) * .06;
+
+      ctx.save();
+      ctx.translate(cx + splitX + Math.sin(frame * 9.3 + panelIdx) * shake,
+        cy + splitY + Math.cos(frame * 7.7 + panelIdx) * shake);
+      ctx.rotate(panel.tilt * (1 - snap) + crackT * (panelIdx % 2 ? .035 : -.035));
+      ctx.scale(pop, pop);
+      ctx.translate(-cx, -cy);
+
+      ctx.beginPath();
+      panel.poly.forEach(([px, py], idx) => {
+        const sx = ox + px * scale;
+        const sy = oy + py * scale;
+        if (idx === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+      });
+      ctx.closePath();
+      ctx.save();
+      ctx.clip();
+      ctx.drawImage(joCutIn, ox, oy, dw, dh);
+      if (live && age < 4) {
+        ctx.fillStyle = `rgba(253, 224, 71, ${(1 - age / 4) * .45})`;
+        ctx.fillRect(ox, oy, dw, dh);
+      }
+      ctx.restore();
+      ctx.strokeStyle = '#120722';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // Menacing katakana & title callout.
+  ctx.save();
+  ctx.font = '900 52px "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'left';
+  ctx.strokeStyle = '#1a0533';
+  ctx.lineWidth = 10;
+  ctx.fillStyle = '#d946ef';
+  const pulse = 1 + Math.sin(frame * .35) * .04 * live;
+  ctx.translate(72, 130);
+  ctx.scale(pulse, pulse);
+  ctx.strokeText('ゴゴゴゴ', 0, 0);
+  ctx.fillText('ゴゴゴゴ', 0, 0);
+  ctx.restore();
+
+  if (!live || frame >= 42) {
+    ctx.save();
+    ctx.font = '900 44px "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'right';
+    ctx.strokeStyle = '#1a0533';
+    ctx.lineWidth = 9;
+    ctx.fillStyle = '#fde047';
+    ctx.strokeText('JO 化觉醒！', 1208, 650);
+    ctx.fillText('JO 化觉醒！', 1208, 650);
+    ctx.restore();
+  }
+
+  // Rising fracture lines & blinding golden-violet glow right before shattering the manga page.
+  if (crackT > 0) {
+    const reach = crackT * 760;
+    for (let i = 0; i < 12; i++) {
+      const a = i * (Math.PI * 2 / 12) + noise(i * 11) * .28;
+      const r1 = reach * (.34 + noise(i * 3) * .16);
+      const r2 = reach * (.68 + noise(i * 5) * .20);
+      const r3 = reach;
+      const kink1 = (noise(i * 7) - .5) * 44;
+      const kink2 = (noise(i * 13) - .5) * 56;
+      const drawRay = (color: string, widthPx: number) => {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = widthPx;
+        ctx.beginPath();
+        ctx.moveTo(640, 360);
+        ctx.lineTo(640 + Math.cos(a) * r1 - Math.sin(a) * kink1, 360 + Math.sin(a) * r1 + Math.cos(a) * kink1);
+        ctx.lineTo(640 + Math.cos(a) * r2 + Math.sin(a) * kink2, 360 + Math.sin(a) * r2 - Math.cos(a) * kink2);
+        ctx.lineTo(640 + Math.cos(a) * r3, 360 + Math.sin(a) * r3);
+        ctx.stroke();
+      };
+      drawRay('#d946ef', 5 + crackT * 8);
+      drawRay('#fde047', 2.5 + crackT * 4.5);
+      drawRay('#ffffff', 1.2 + crackT * 2.5);
+    }
+    if (crackT > .45) {
+      const flash = Math.pow((crackT - .45) / .55, 1.5) * .82;
+      ctx.fillStyle = `rgba(254, 240, 138, ${flash})`;
+      ctx.fillRect(-20, -20, 1320, 760);
+    }
+  }
+  ctx.restore();
+}
+
+/** Shatters lingering manga shards outward across the arena to reveal JO Banana Cat. */
+export function drawJoShatterBurst(ctx: CanvasRenderingContext2D, age: number, life: number, reducedMotion: boolean) {
+  const t = Math.min(1, age / Math.max(1, life));
+  const fade = 1 - t;
+  if (reducedMotion) {
+    ctx.strokeStyle = `rgba(253, 224, 71, ${fade * .7})`;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, 48 + t * 90, 0, Math.PI * 2);
+    ctx.stroke();
+    return;
+  }
+  ctx.save();
+  // Explosive purple-gold awakening shockwave rings centered on Banana Cat.
+  const coreFade = Math.max(0, 1 - age / 9);
+  if (coreFade > 0) {
+    ctx.fillStyle = `rgba(254, 240, 138, ${coreFade * .75})`;
+    ctx.beginPath();
+    ctx.arc(0, 0, 56 + age * 14, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  for (const [radius, lw, color] of [
+    [40 + t * 280, Math.max(1.5, 9 * fade), '#ffffff'],
+    [24 + t * 340, Math.max(2, 11 * fade), '#fde047'],
+    [12 + t * 220, Math.max(1.5, 7 * fade), '#d946ef']
+  ] as const) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lw;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // 18 jagged comic paper shards blasting outward and tumbling away.
+  const e = easeOut(t);
+  for (let i = 0; i < 18; i++) {
+    const angle = i * (Math.PI * 2 / 18) + (noise(i * 7 + 3) - .5) * .35;
+    const speed = 220 + noise(i * 13 + 9) * 340;
+    const sx = Math.cos(angle) * speed * e;
+    const sy = Math.sin(angle) * speed * e + t * t * 140;
+    const rot = angle + (i % 2 ? 1 : -1) * t * (2.5 + noise(i * 5) * 4);
+    const sz = (18 + noise(i * 19) * 28) * (1 - t * .3);
+
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(rot);
+    ctx.globalAlpha = Math.min(1, fade * 1.45);
+    ctx.beginPath();
+    ctx.moveTo(-sz, -sz * .55);
+    ctx.lineTo(sz * .85, -sz * .8);
+    ctx.lineTo(sz * 1.05, sz * .35);
+    ctx.lineTo(-sz * .4, sz * .85);
+    ctx.closePath();
+    ctx.fillStyle = i % 3 === 0 ? '#fdf2ff' : '#faf3e0';
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#120722';
+    ctx.stroke();
+    // Comic panel halftone / speed accent inside shard.
+    ctx.strokeStyle = i % 2 === 0 ? '#d946ef' : '#a855f7';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-sz * .55, -sz * .1);
+    ctx.lineTo(sz * .5, -sz * .3);
+    ctx.moveTo(-sz * .4, sz * .25);
+    ctx.lineTo(sz * .6, sz * .05);
+    ctx.stroke();
+    ctx.restore();
+  }
   ctx.restore();
 }

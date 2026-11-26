@@ -44,6 +44,25 @@ export function frameDijiangImpact(
   };
 }
 
+export function frameTimeStopCamera(
+  arena: Size, viewport: Size, camera: CameraView, caster: Subject, opp: Subject,
+  ts: { frame: number; teleportAt: number; flickAt: number; releaseAt: number }
+): CameraView {
+  const focusCaster = ts.frame < ts.teleportAt;
+  const focusX = focusCaster ? caster.x - 24 : (caster.x + opp.x) / 2;
+  const focusY = focusCaster ? caster.y - 84 : (caster.y + opp.y) / 2 - 76;
+  const ramp = ts.frame < 12 ? ts.frame / 12 : ts.frame > ts.releaseAt - 8 ? Math.max(.2, (ts.releaseAt - ts.frame) / 8) : 1;
+  const zoomBoost = focusCaster ? 1.12 : 1.24;
+  const targetZoom = Math.min(2.2, camera.zoom * (1 + (zoomBoost - 1) * ramp));
+  const visibleWidth = viewport.width / targetZoom;
+  const visibleHeight = viewport.height / targetZoom;
+  return {
+    x: clamp(focusX - visibleWidth / 2, 0, Math.max(0, arena.width - visibleWidth)),
+    y: clamp(focusY - visibleHeight * .56, 0, Math.max(0, arena.height - visibleHeight)),
+    zoom: targetZoom
+  };
+}
+
 export function frameEntrance(
   arena: Size, viewport: Size, camera: CameraView, subjects: Duo<Subject>, amount: number
 ): CameraView {

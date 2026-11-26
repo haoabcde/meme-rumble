@@ -1,5 +1,5 @@
 import { floorImpact, landingImpact, segmentBoxTime } from './projectile.js';
-import { damageTurret, deployTurret, opposingTurrets, stepTurrets, turretBox } from './turret.js';
+import { damageTurret, deployTurret, fireTurretShot, opposingTurrets, stepTurrets, turretBox, turretBuildTicks } from './turret.js';
 import { aimSummon, dijiangTip, summonArea, summonCatchRadius, summonCutInFrames, summonFallFrames,
   summonImpactFrames } from './summon.js';
 import type {
@@ -7,7 +7,7 @@ import type {
   HitWindow, InputFrame, MatchConfig, MatchState, Projectile, RoundResult, Side, Stick, Summon
 } from './types.js';
 import { platformAt, platformContact, platformOffset } from './terrain.js';
-import { isAttack, MAX_ENERGY, MAX_TEARS, NEUTRAL, RISE_FRAMES, TEAR_UNITS_PER_POINT } from './types.js';
+import { isAttack, MAX_ENERGY, MAX_TEARS, NEUTRAL, RISE_FRAMES, TEAR_UNITS_PER_POINT, turretKinds } from './types.js';
 import { entityContacts, removeContactEntity, updateEntities } from './entities.js';
 
 const seats = [0, 1] as const;
@@ -21,7 +21,7 @@ const buildWave = {
   push: 18, lift: 0, stop: 3, impact: 'medium'
 } as const;
 type Position = Pick<FighterState, 'x' | 'y'>;
-const cryUnitsPerTick = 20;
+const cryEnergyPerTick = 2;
 const sprayUnitsPerTick = 10;
 const sprayHitInterval = 18;
 const spraySpeed = .45;
@@ -39,6 +39,15 @@ function isHeld(input: InputFrame, key: ActionDefinition['slot']) {
 function carriedBySummon(state: MatchState, seat: 0 | 1) {
   const summon = state.summon;
   return Boolean(summon?.carry && summon.source !== seat && (summon.phase === 'fall' || summon.frame === 0));
+}
+
+function diveCarrierFor(state: MatchState, config: MatchConfig, seat: 0 | 1) {
+  const carrier = other(seat);
+  const attacker = state.fighters[carrier];
+  const action = attackFor(config, state, carrier);
+  return attacker.attack?.diveCarry && isAttack(action) && action.dive &&
+    attacker.attack.frame >= action.startup && attacker.attack.frame < action.startup + action.active
+    ? carrier : undefined;
 }
 
 function spawn(config: MatchConfig, seat: 0 | 1, round: number): FighterState {
@@ -206,9 +215,11 @@ function startAction(f: FighterState, action: FighterAction, seat: 0 | 1, events
       source: seat, x: f.x, y: f.y, actionId: action.id, amount: cost });
     return false;
   }
+  const prevLanded = f.attack?.landed;
   f.energy -= cost;
   if (tearCost) addTearUnits(f, -tearCost * TEAR_UNITS_PER_POINT);
   f.attack = { id: action.id, frame: 0, connected: false, landed: false };
+  if (prevLanded) f.attack.prevLanded = true;
   if (queuedChain?.length) f.attack.queuedChain = queuedChain;
   f.guarding = false;
   f.dash = 0;
@@ -217,6 +228,9 @@ function startAction(f: FighterState, action: FighterAction, seat: 0 | 1, events
     events.push({ kind: 'ultimate', source: seat, x: f.x, y: f.y, actionId: action.id });
   } else if (!attack?.summon && (!attack?.swingOnActive || attack.startup <= (attack.swingLead ?? 0))) {
     events.push({ kind: 'swing', source: seat, x: f.x, y: f.y, actionId: action.id, facing: f.facing });
+  }
+  if (action.id === 'gaga-xiranite-burst') {
+    events.push({ kind: 'xiranite-burst', source: seat, x: f.x, y: f.y, actionId: action.id, facing: f.facing });
   }
   return true;
 }
@@ -227,8 +241,9 @@ function advanceAttack(fighter: FighterState, attack: Attack, action: ActionDefi
     if (!isHeld(input, action.slot)) attack.released = true;
     if (!attack.released && attack.frame === end - 1) {
       if (action.channel === 'cry') return;
-      addTearUnits(fighter, -sprayUnitsPerTick);
-      if (fighter.tearUnits) {
+      const zeroTearCost = (action.tearCost ?? 0) === 0;
+      if (!zeroTearCost) addTearUnits(fighter, -sprayUnitsPerTick);
+      if (zeroTearCost ? (attack.sustainedFrames ?? 0) < 42 : fighter.tearUnits) {
         attack.sustainedFrames = (attack.sustainedFrames ?? 0) + 1;
         if (attack.sustainedFrames % sprayHitInterval === 0) {
           attack.connected = false;
@@ -246,14 +261,23 @@ function summonEvent(summon: Summon, kind: CombatEvent['kind']): CombatEvent {
   return { kind, source, x, y, facing, actionId };
 }
 
+function matchesCinematic(move: ActionDefinition, command: Command, fighter: FighterState) {
+  return move.awakenJo
+    ? command.key === 'C' && !command.directions.includes('up') && !command.directions.includes('down') &&
+      fighter.energy >= (move.energyCost ?? MAX_ENERGY)
+    : matchesCommand(move, command);
+}
+
 function tryStartCinematic(state: MatchState, config: MatchConfig, events: CombatEvent[]) {
   const priority = state.round % 2 === 1 ? seats : [1, 0] as const;
   for (const seat of priority) {
-    const action = config.fighters[seat].actions.filter(isAttack).find(move => (move.summon || move.cutIn) &&
-      state.fighters[seat].buffer.some(command => matchesCommand(move, command)));
-    if (!action) continue;
     const fighter = state.fighters[seat];
-    const command = fighter.buffer.find(item => matchesCommand(action, item));
+    const action = config.fighters[seat].actions.filter(isAttack).find(move => (move.summon || move.cutIn || move.timeStop) &&
+      !(move.awakenJo && fighter.joAwakened) &&
+      !(move.requiresJo && !fighter.joAwakened) &&
+      fighter.buffer.some(command => matchesCinematic(move, command, fighter)));
+    if (!action) continue;
+    const command = fighter.buffer.find(item => matchesCinematic(action, item, fighter));
     if (!command) continue;
     fighter.buffer = fighter.buffer.filter(item => item !== command);
     const canCancelCry = action.cutIn && attackFor(config, state, seat)?.channel === 'cry';
@@ -261,7 +285,7 @@ function tryStartCinematic(state: MatchState, config: MatchConfig, events: Comba
       const pending = attackFor(config, state, source)?.cutIn;
       return pending && state.fighters[source].attack!.frame < pending.at;
     });
-    if (state.summon || pendingCutIn || !fighter.ground || (fighter.attack && !canCancelCry) || fighter.dash || fighter.push ||
+    if (state.summon || state.timeStop || pendingCutIn || !fighter.ground || (fighter.attack && !canCancelCry) || fighter.dash || fighter.push ||
       fighter.hitstun || fighter.blockstun || fighter.guardBreak || fighter.recovery) {
       if (action.cutIn) events.push({ kind: 'wave-unavailable', source: seat, x: fighter.x, y: fighter.y,
         actionId: action.id, requirement: fighter.ground ? 'recovery' : 'ground' });
@@ -274,7 +298,15 @@ function tryStartCinematic(state: MatchState, config: MatchConfig, events: Comba
     fighter.moving = false;
     delete fighter.walk;
     for (const player of state.fighters) player.buffer = [];
-    if (action.cutIn) {
+    if (action.timeStop) {
+      state.timeStop = {
+        source: seat, actionId: action.id, frame: 0,
+        teleportAt: action.timeStop.teleportAt,
+        flickAt: action.timeStop.flickAt,
+        releaseAt: action.timeStop.releaseAt
+      };
+      events.push({ kind: 'time-stop-start', source: seat, x: fighter.x, y: fighter.y, facing, actionId: action.id });
+    } else if (action.cutIn) {
       events.push({ kind: 'wave-windup', source: seat, actionId: action.id,
         x: fighter.x, y: fighter.y, facing });
     } else {
@@ -295,6 +327,7 @@ function beginActionCutIn(state: MatchState, config: MatchConfig, events: Combat
     const fighter = state.fighters[source];
     const action = attackFor(config, state, source);
     if (!action?.cutIn || fighter.attack?.frame !== action.cutIn.at) continue;
+    if (action.awakenJo) fighter.joAwakened = true;
     state.cutIn = { source, frame: 0, duration: action.cutIn.duration };
     for (const player of state.fighters) player.buffer = [];
     events.push({ kind: 'wave-cut-in', source, actionId: action.id, x: fighter.x, y: fighter.y,
@@ -330,6 +363,9 @@ function updateControl(
   for (const counter of ['hitstun', 'blockstun', 'guardWait', 'slow'] as const) {
     if (f[counter] > 0) f[counter]--;
   }
+  if (f.bombMark && --f.bombMark.remaining <= 0) delete f.bombMark;
+  if (f.crystalMark && --f.crystalMark.remaining <= 0) delete f.crystalMark;
+  if (f.overclockCooldown && f.overclockCooldown > 0) f.overclockCooldown--;
   if (f.guardBreak > 0 && --f.guardBreak === 0) {
     f.guard = Math.ceil(config.rules.guardMax / 2);
     f.guardWait = config.rules.guardDelay;
@@ -366,14 +402,22 @@ function updateControl(
     const oldFrame = f.attack.frame;
     if (isAttack(previousAction)) {
       advanceAttack(f, f.attack, previousAction, input);
-      if (previousAction.swingOnActive && f.attack.frame !== oldFrame &&
-        f.attack.frame === previousAction.startup - (previousAction.swingLead ?? 0)) {
-        emitSwing(f, previousAction, seat, events);
+      if (previousAction.swingOnActive && f.attack.frame !== oldFrame) {
+        if (f.attack.frame === previousAction.startup - (previousAction.swingLead ?? 0)) {
+          emitSwing(f, previousAction, seat, events);
+        } else if ((previousAction.standAttack === 'ora' || previousAction.standAttack === 'upper-ora') &&
+          previousAction.hitTimeline?.some(window => window.from === f.attack!.frame)) {
+          events.push({
+            kind: 'swing', source: seat, x: f.x, y: f.y, facing: f.facing,
+            actionId: previousAction.id, heavy: f.attack.frame >= 36
+          });
+        }
       }
     } else {
       f.attack.frame++;
     }
-    const special = isAttack(previousAction) && (previousAction.summon || previousAction.projectile || previousAction.channel);
+    const special = isAttack(previousAction) &&
+      (previousAction.summon || previousAction.projectile || previousAction.channel || previousAction.detonateBomb);
     if (!special && f.attack.frame >= previousAction.startup + previousAction.active && !f.attack.connected) {
       events.push({ kind: 'whiff', source: seat, x: f.x, y: f.y });
       f.attack.connected = true;
@@ -392,7 +436,8 @@ function updateControl(
 
   const chain = isAttack(previousAction) ? previousAction.chain : undefined;
   const currentAttack = f.attack;
-  if (f.ground && currentAttack && chain && currentAttack.frame >= chain.open &&
+  if (f.ground && currentAttack && chain && (!chain.requiresHit || currentAttack.landed) &&
+    currentAttack.frame >= chain.open &&
     currentAttack.frame <= chain.close && currentAttack.queuedChain?.[0] === chain.actionId) {
     const next = definition.actions.find(action => action.id === chain.actionId);
     if (next && startAction(f, next, seat, events, 0, currentAttack.queuedChain.slice(1))) return;
@@ -401,16 +446,29 @@ function updateControl(
 
   const cancels = f.attack?.landed ? previousAction?.cancelOnHit : undefined;
   const candidates = definition.actions.filter(action =>
-    !(isAttack(action) && (action.summon || action.cutIn)) &&
+    !(isAttack(action) && (action.summon || action.cutIn || action.timeStop)) &&
     (action.posture === 'any' || (action.posture === 'ground') === Boolean(f.ground)) &&
     (f.attack ? cancels?.includes(action.id) || cancels?.includes(action.slot) : !action.linkOnly)
   );
   candidates.sort((a, b) => (b.comboKeys?.length ?? 0) - (a.comboKeys?.length ?? 0) ||
     Number(Boolean(b.direction)) - Number(Boolean(a.direction)) ||
     slotPriority.indexOf(a.slot) - slotPriority.indexOf(b.slot));
-  for (const action of candidates) {
-    const command = f.buffer.find(item => matchesCommand(action, item));
+  for (const candidate of candidates) {
+    const command = f.buffer.find(item => matchesCommand(candidate, item));
     if (!command) continue;
+    let action = candidate;
+    if (f.joAwakened && isAttack(candidate)) {
+      const hasActiveBomb = Boolean(candidate.joDetonateReplacement) &&
+        (opponent.bombMark?.source === seat ||
+          state.projectiles.some(p => p.source === seat && p.actionId === candidate.joReplacement));
+      const targetId = hasActiveBomb ? candidate.joDetonateReplacement : candidate.joReplacement;
+      if (targetId) action = definition.actions.find(move => move.id === targetId) ?? candidate;
+    }
+    if (isAttack(action) && action.projectile?.kind === 'sheer-heart' &&
+        state.projectiles.some(p => p.source === seat && p.actionId === action.id)) {
+      f.buffer = f.buffer.filter(item => item !== command);
+      continue;
+    }
     const legacyCost = action.slot === 'ULT' ? definition.ultimateCost ?? 0 : 0;
     if (!startAction(f, action, seat, events, legacyCost)) {
       f.buffer = f.buffer.filter(item => item !== command);
@@ -464,7 +522,7 @@ function updateControl(
       f.dash = airborne ? 6 : 8;
       if (airborne) f.airActionUsed = true;
       f.guarding = false;
-      events.push({ kind: 'dash', source: seat, x: f.x, y: f.y, direction: f.facing });
+      events.push({ kind: 'dash', source: seat, x: f.x, y: f.y, direction: f.facing, ...(f.joAwakened && { heavy: true }) });
       return;
     }
   }
@@ -523,7 +581,37 @@ function motion(
     if (frame >= action.startup && frame < action.startup + action.active) {
       move = f.facing * (action.activeAdvance ?? 0);
     }
+    const opp = state.fighters[other(seat)];
+    // Keep 3A pounce from overshooting 200px+ once it already crossed behind the struck foe.
+    if (action.id === 'banana-jo-pounce' && f.attack.landed && (f.x - opp.x) * f.facing >= 58) {
+      move = 0;
+    }
+    // Keep 4A uppercut from stepping past a cornered foe chained right out of 3A.
+    if (action.id === 'banana-jo-uppercut' && f.attack.prevLanded && frame < action.startup && move * f.facing > 0) {
+      const gap = (opp.x - f.x) * f.facing;
+      if (gap >= 0 && gap <= 54) move = 0;
+    }
+    if (action.standAttack === 'ora' && frame >= 28 && frame < 36 &&
+        f.attack.standX !== undefined && f.attack.standFacing !== undefined) {
+      f.facing = f.attack.standFacing;
+      move = clamp((f.attack.standX - f.attack.standFacing * 28) - f.x, -42, 42);
+    }
     if (!f.ground) move += Math.round(definition.airSpeed * (action.airControl ?? 0)) * input.x;
+    if (action.rise && frame === action.rise.at) {
+      f.ground = null;
+      f.vy = -action.rise.vy;
+      f.ignorePlatform = null;
+      move = f.facing * action.rise.vx;
+    }
+    if (action.dive) {
+      if (frame < action.startup) {
+        move = 0;
+        f.vy = 0;
+      } else if (frame < action.startup + action.active) {
+        move = f.facing * action.dive.vx;
+        f.vy = action.dive.vy;
+      }
+    }
     if (action.channel === 'spray' && frame < action.startup + action.active) {
       move = input.x * (f.ground ? definition.run : definition.airSpeed) * spraySpeed;
       walking = Boolean(f.ground && move);
@@ -537,22 +625,43 @@ function motion(
   releaseUnsupportedGround(f, arena, state.arenaFrame);
   if (f.ground) return walking;
   const previousY = f.y;
-  if (!(config.rules.airDashPauseGravity && f.dashActive && f.airActionUsed)) {
+  const fixedDive = Boolean(f.attack && action?.dive && f.attack.frame < action.startup + action.active);
+  if (!fixedDive && !(config.rules.airDashPauseGravity && f.dashActive && f.airActionUsed)) {
     f.vy += 1;
     f.y += f.vy;
+  } else if (fixedDive) {
+    f.y += f.vy;
   }
-  const platform = landingPlatform(arena, f, { x: previousX, y: previousY }, state.arenaFrame, previousArenaFrame);
+  const platform = fixedDive && action?.dive?.piercePlatforms
+    ? undefined
+    : landingPlatform(arena, f, { x: previousX, y: previousY }, state.arenaFrame, previousArenaFrame);
   if (platform || (f.vy > 0 && f.y >= arena.floor)) {
     if (f.vy >= 5 && !f.recovery) events.push({
       kind: 'land', source: seat, x: f.x, y: platform?.y ?? arena.floor,
-      ...(f.reaction?.kind === 'air' ? { reaction: 'air' as const } : {})
+      ...(f.reaction?.kind === 'air' ? { reaction: 'air' as const } : {}),
+      ...(action?.dive ? { actionId: action.id } : {})
     });
+    const wasDiveCarry = Boolean(action?.dive && f.attack?.diveCarry);
+    if (action?.dive && f.attack && f.attack.frame < action.startup + action.active) {
+      f.attack.frame = action.startup + action.active;
+      delete f.attack.diveCarry;
+    }
     f.ground = platform?.id ?? 'floor';
     f.y = platform?.y ?? arena.floor;
     f.vy = 0;
     f.ignorePlatform = null;
     f.airActionUsed = false;
     if (f.reaction?.kind === 'air') f.reaction.landedAt = f.reaction.elapsed;
+    if (wasDiveCarry) {
+      const victim = state.fighters[other(seat)];
+      victim.x = clamp(f.x + f.facing * 44, arena.left, arena.right);
+      victim.y = f.y;
+      victim.ground = f.ground;
+      victim.vy = 0;
+      victim.ignorePlatform = null;
+      victim.push = f.facing * 8;
+      startKnockdown(victim);
+    }
   }
   return false;
 }
@@ -560,6 +669,7 @@ function motion(
 function separate(state: MatchState, config: MatchConfig, previous: Duo<Position>) {
   const [a, b] = state.fighters;
   if (config.rules.dashPassThrough && (a.dashActive || b.dashActive)) return;
+  if (attackFor(config, state, 0)?.passThrough || attackFor(config, state, 1)?.passThrough) return;
   const arena = config.arena;
   const width = (config.fighters[0].bodyWidth + config.fighters[1].bodyWidth) / 2;
   if (Math.abs(a.y - b.y) >= 82 || a.recovery?.phase === 'down' || b.recovery?.phase === 'down') return;
@@ -576,7 +686,7 @@ function separate(state: MatchState, config: MatchConfig, previous: Duo<Position
 
 type HitProfile = Pick<ActionDefinition, 'id' | 'damage' | 'hitstun' | 'blockstun' | 'guardCost' |
   'push' | 'lift' | 'stop' | 'impact' | 'unblockable' | 'slow' | 'hitTimeline' | 'knockdown' | 'feedback'> &
-  Partial<Pick<ActionDefinition, 'slot' | 'pose'>>;
+  Partial<Pick<ActionDefinition, 'slot' | 'pose' | 'dive' | 'energyGain' | 'applyCrystalMark' | 'shatterCrystal'>>;
 
 interface Contact {
   entityId?: number;
@@ -624,21 +734,24 @@ function collectContacts(state: MatchState, config: MatchConfig, events: CombatE
     const attack = f.attack;
     if (!isAttack(action) || !attack || !isActiveFrame(action, attack.frame)) return [];
     const windows = hitWindowsFor(action, attack.frame);
+    const ox = attack.standX ?? f.x;
+    const oy = attack.standY ?? f.y;
+    const ofacing = attack.standFacing ?? f.facing;
     for (const turret of opposingTurrets(state, source)) {
       if (attack.hitTurrets?.includes(turret.kind) || !windows.some(window => window.boxes.some(box =>
-        overlap(worldBox(box, f.x, f.y, f.facing), turretBox(turret))))) continue;
+        overlap(worldBox(box, ox, oy, ofacing), turretBox(turret))))) continue;
       (attack.hitTurrets ??= []).push(turret.kind);
       damageTurret(state, turret.kind, events);
     }
     if ((attack.connected && !attack.connectedGroups) || protectedFromHit(state, config, target)) return [];
     const hurtboxes = contactHurtboxes(state, config, target);
-    const facing = defender.x === f.x ? f.facing : defender.x > f.x ? 1 : -1;
+    const facing = defender.x === ox ? ofacing : defender.x > ox ? 1 : -1;
     const frontal = !action.unblockable && defender.facing === -facing;
     const counterAction = frontal ? counterForContact(state, config, target) : undefined;
     for (const window of windows) {
       if (attack.connectedGroups?.includes(window.group)) continue;
       for (const box of window.boxes) {
-        const hitbox = worldBox(box, f.x, f.y, f.facing);
+        const hitbox = worldBox(box, ox, oy, ofacing);
         const hurtbox = hurtboxes.find(hurt => overlap(hitbox, hurt));
         if (!hurtbox) continue;
         return [{
@@ -650,7 +763,7 @@ function collectContacts(state: MatchState, config: MatchConfig, events: CombatE
             blockstun: window.blockstun ?? action.blockstun,
             guardCost: window.guardCost ?? action.guardCost,
             push: window.push ?? action.push,
-            lift: window.lift ?? action.lift,
+            lift: (action.liftRequiresPrevHit && !attack.prevLanded) ? 0 : (window.lift ?? action.lift),
             stop: window.stop ?? action.stop,
             knockdown: window.knockdown ?? action.knockdown
           },
@@ -779,22 +892,25 @@ function advanceProjectile(state: MatchState, config: MatchConfig, projectile: P
   const { source, facing } = projectile;
   const next = { x: clamp(nextX, arena.left, arena.right), y: nextY };
   const { kind, radius, halfWidth, turret, blastRadius } = action.projectile!;
-  const impact = kind === 'crate' || kind === 'grenade' || kind === 'tear'
-    ? landingImpact(arena, projectile, next, radius, state.arenaFrame, turret === 'howitzer' || kind === 'tear')
+  const impact = kind === 'kq-orb'
+    ? null
+    : kind === 'crate' || kind === 'grenade' || kind === 'tear' || kind === 'sheer-heart'
+    ? landingImpact(arena, projectile, next, kind === 'sheer-heart' ? 0 : radius, state.arenaFrame,
+        turret === 'howitzer' || kind === 'tear')
     : floorImpact(arena, projectile, next);
   const explodesOnLanding = kind === 'grenade' || kind === 'tear';
-  const disappearsOnHit = kind === 'bolt';
+  const disappearsOnHit = kind === 'bolt' || kind === 'kq-orb' || kind === 'spark';
   const travel = impact?.time ?? 1;
   const target = other(source);
   const defender = state.fighters[target];
   let hit: { box: Box; time: number } | undefined;
-  if (kind !== 'grenade' && !projectile.connected && !protectedFromHit(state, config, target)) {
+  if (kind !== 'grenade' && kind !== 'sheer-heart' && !projectile.connected && !protectedFromHit(state, config, target)) {
     for (const box of contactHurtboxes(state, config, target)) {
       const time = segmentBoxTime(projectile, next, box, radius, halfWidth);
       if (time !== undefined && (!hit || time < hit.time)) hit = { box, time };
     }
   }
-  const crossedTurrets = explodesOnLanding ? [] : opposingTurrets(state, source)
+  const crossedTurrets = explodesOnLanding || kind === 'sheer-heart' ? [] : opposingTurrets(state, source)
     .filter(tower => !projectile.hitTurrets?.includes(tower.kind))
     .map(tower => ({ tower, time: segmentBoxTime(projectile, next, turretBox(tower), radius, halfWidth) ?? Infinity }))
     .sort((a, b) => a.time - b.time);
@@ -814,15 +930,27 @@ function advanceProjectile(state: MatchState, config: MatchConfig, projectile: P
       return false;
     }
     projectile.connected = true;
+    const blocked = !action.unblockable && defender.guarding && defender.facing === -facing;
+    const counterAction = !action.unblockable && defender.facing === -facing ? counterForContact(state, config, target) : undefined;
+    if (kind === 'kq-orb' && !blocked && !counterAction && action.projectile?.markFrames) {
+      defender.bombMark = { source, remaining: action.projectile.markFrames };
+      events.push({ kind: 'kq-plant', source, x: contact.x, y: contact.y, facing, actionId: action.id });
+    }
     contacts.push({
       source, target, action, facing, earnsTears: action.slot === 'A',
-      counterAction: !action.unblockable && defender.facing === -facing ? counterForContact(state, config, target) : undefined,
-      blocked: !action.unblockable && defender.guarding && defender.facing === -facing,
+      counterAction,
+      blocked,
       ...contact
     });
     if (disappearsOnHit) return false;
   }
   if (impact) {
+    if (kind === 'sheer-heart') {
+      projectile.x = next.x;
+      projectile.y = impact.surface.y;
+      projectile.vy = 0;
+      return true;
+    }
     if (kind === 'crate' && turret) {
       const support = arena.platforms.find(platform => platform.travel && platform.id === impact.surface.id);
       deployTurret(state, turret, source, impact.x, impact.surface.y, facing, events, support?.id);
@@ -831,14 +959,20 @@ function advanceProjectile(state: MatchState, config: MatchConfig, projectile: P
         facing, radius: blastRadius, actionId: action.id };
       if (kind === 'tear') event.surface = { left: impact.surface.left, right: impact.surface.right };
       explodeProjectile(state, config, action, event, contacts, events);
-    } else if (kind !== 'bolt') {
+    } else if (kind !== 'bolt' && kind !== 'spark') {
       const { y, left, right } = impact.surface;
       events.push({ kind: 'pole-impact', source, x: impact.x, y, actionId: action.id, facing, surface: { left, right } });
       if (!projectile.connected) events.push({ kind: 'whiff', source, x: impact.x, y, actionId: action.id, facing });
     }
     return false;
   }
-  if ((kind === 'bolt' || kind === 'wave') && (next.x !== nextX || nextY < 0 || nextY > arena.floor)) return false;
+  if ((kind === 'bolt' || kind === 'wave' || kind === 'spark') && (next.x !== nextX || nextY < 0 || nextY > arena.floor)) return false;
+  if (kind === 'kq-orb') {
+    if (next.x !== nextX) return false;
+    projectile.x = next.x;
+    projectile.y = clamp(next.y, 48, arena.floor - radius);
+    return true;
+  }
   projectile.x = next.x;
   projectile.y = next.y;
   if (next.x !== nextX) projectile.vx = 0;
@@ -849,12 +983,87 @@ function moveProjectiles(state: MatchState, config: MatchConfig, contacts: Conta
   state.projectiles = state.projectiles.filter(projectile => {
     const action = config.fighters[projectile.source].actions.filter(isAttack).find(move => move.id === projectile.actionId);
     if (!action?.projectile) return false;
+    if (action.projectile.kind === 'kq-orb') {
+      const caster = state.fighters[projectile.source];
+      const casterAction = attackFor(config, state, projectile.source);
+      if (!projectile.boosted && isAttack(casterAction) && !casterAction.projectile && caster.attack &&
+          isActiveFrame(casterAction, caster.attack.frame)) {
+        const orbBox: Box = { x: projectile.x - 24, y: projectile.y - 24, w: 48, h: 48 };
+        const hitsOrb = hitWindowsFor(casterAction, caster.attack.frame).some(win =>
+          win.boxes.some(b => overlap(worldBox(b, caster.x, caster.y, caster.facing), orbBox)));
+        if (hitsOrb) {
+          projectile.vx = caster.facing * 20;
+          projectile.vy = 0;
+          projectile.facing = caster.facing;
+          projectile.boosted = true;
+        }
+      }
+      if (!projectile.boosted && action.projectile.homing && (projectile.age ?? 0) < 90) {
+        const opp = state.fighters[other(projectile.source)];
+        const ahead = (opp.x - projectile.x) * projectile.facing;
+        const dy = (opp.y - 68) - projectile.y;
+        // Soft forward homing only while the target is ahead within 360 units; never U-turns backward.
+        if (ahead > 0 && ahead <= 360) {
+          const steer = Math.min(.22, action.projectile.homing);
+          projectile.vy = clamp(projectile.vy + clamp(dy * .02, -steer, steer), -2.2, 2.2);
+          projectile.vx = projectile.facing * clamp(Math.abs(projectile.vx) + .05, 6.5, 9.5);
+        } else {
+          projectile.vy *= .92;
+        }
+      }
+    }
+    if (action.projectile.kind === 'sheer-heart') {
+      const opp = state.fighters[other(projectile.source)];
+      if (projectile.locked === undefined) {
+        // Patrol straight in spawn direction without tracking until enemy enters sensor radius.
+        const dist = Math.hypot(opp.x - projectile.x, (opp.y - 40) - (projectile.y - 20));
+        if (dist <= 225 && !protectedFromHit(state, config, other(projectile.source))) {
+          projectile.locked = 0;
+          events.push({
+            kind: 'kq-lock', source: projectile.source, x: projectile.x, y: projectile.y - 24,
+            facing: opp.x >= projectile.x ? 1 : -1, actionId: action.id
+          });
+        } else {
+          projectile.vx = projectile.facing * 4.6;
+        }
+      }
+      if (projectile.locked !== undefined) {
+        const dx = opp.x - projectile.x;
+        if (Math.abs(dx) > 14) {
+          const dir: Side = dx > 0 ? 1 : -1;
+          projectile.vx = dir * 11.5;
+          projectile.facing = dir;
+        } else {
+          projectile.vx = 0;
+        }
+      }
+    }
     const flies = advanceProjectile(state, config, projectile, action,
       projectile.x + projectile.vx, projectile.y + projectile.vy, contacts, events);
     projectile.vy += action.projectile.gravity;
+    if (projectile.locked !== undefined) {
+      projectile.locked++;
+      if (flies && projectile.locked >= 42) {
+        explodeProjectile(state, config, action, {
+          kind: 'kq-detonate', source: projectile.source, x: projectile.x, y: projectile.y - 20,
+          facing: projectile.facing, radius: action.projectile.blastRadius ?? 165, actionId: action.id
+        }, contacts, events);
+        return false;
+      }
+      return flies;
+    }
     if (action.projectile.life !== undefined) {
       projectile.age = (projectile.age ?? 0) + 1;
-      return flies && projectile.age < action.projectile.life;
+      if (flies && projectile.age >= action.projectile.life) {
+        if (action.projectile.kind === 'sheer-heart') {
+          explodeProjectile(state, config, action, {
+            kind: 'kq-detonate', source: projectile.source, x: projectile.x, y: projectile.y - 20,
+            facing: projectile.facing, radius: action.projectile.blastRadius ?? 155, actionId: action.id
+          }, contacts, events);
+        }
+        return false;
+      }
+      return flies;
     }
     return flies;
   });
@@ -862,8 +1071,32 @@ function moveProjectiles(state: MatchState, config: MatchConfig, contacts: Conta
     const fighter = state.fighters[source];
     const action = attackFor(config, state, source);
     const throwData = action?.projectile;
-    if (!action || !throwData || fighter.attack?.frame !== action.startup || fighter.attack.projectileSpawned) continue;
+    if (!action || fighter.attack?.frame !== action.startup || fighter.attack.projectileSpawned) continue;
+    if (action.overclockTurrets) {
+      fighter.attack.projectileSpawned = true;
+      let overclocked = false;
+      if (!(fighter.overclockCooldown && fighter.overclockCooldown > 0)) {
+        for (const kind of turretKinds) {
+          const turret = state.turrets[kind];
+          if (!turret || turret.owner !== source || turret.age < turretBuildTicks) continue;
+          if (fireTurretShot(state, config, turret, events)) {
+            overclocked = true;
+            events.push({
+              kind: 'turret-overclock', source, x: fighter.x + fighter.facing * 24, y: fighter.y - 68,
+              targetX: turret.x, targetY: turret.y - 84, turretKind: turret.kind,
+              facing: fighter.facing, actionId: action.id
+            });
+          }
+        }
+        if (overclocked) fighter.overclockCooldown = 90;
+      }
+      if (overclocked || !throwData) continue;
+    }
+    if (!throwData) continue;
     fighter.attack.projectileSpawned = true;
+    if (throwData.kind === 'sheer-heart') {
+      state.projectiles = state.projectiles.filter(p => !(p.source === source && p.actionId === action.id));
+    }
     const { facing } = fighter;
     const projectile: Projectile = {
       actionId: action.id, source, facing, connected: false,
@@ -896,7 +1129,7 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
     attack.landed ||= !contact.blocked && !contact.counterAction;
   }
   let maxStop = 0;
-  for (const { source, target, action, blocked, counterAction, facing, x, y, earnsTears } of contacts) {
+  for (const { source, target, action, attack, blocked, counterAction, facing, x, y, earnsTears } of contacts) {
     const defender = state.fighters[target];
     defender.dash = 0;
     if (defender.guardCounterLeft !== undefined) defender.guardCounterLeft = 0;
@@ -921,12 +1154,23 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
       }
       continue;
     }
-    const amount = Math.min(defender.hp, Math.floor(action.damage * Math.max(35, 100 - 8 * defender.combo) / 100));
+    const shatter = action.shatterCrystal && defender.crystalMark?.source === source
+      ? action.shatterCrystal : undefined;
+    if (shatter) delete defender.crystalMark;
+    else if (action.applyCrystalMark) {
+      defender.crystalMark = { source, remaining: action.applyCrystalMark };
+      events.push({ kind: 'crystal-plant', source, x, y, facing, actionId: action.id });
+    }
+    const baseDamage = action.damage + (shatter?.bonusDamage ?? 0);
+    const amount = Math.min(defender.hp, Math.floor(baseDamage * Math.max(35, 100 - 8 * defender.combo) / 100));
     defender.hp -= amount;
+    if (shatter && amount > 0) {
+      events.push({ kind: 'crystal-shatter', source, x: defender.x, y: defender.y - 68, facing, actionId: action.id });
+    }
     if (amount > 0) {
       const attacker = state.fighters[source];
       if (action.slot && action.slot !== 'ULT') {
-        attacker.energy = Math.min(MAX_ENERGY, attacker.energy + (config.fighters[source].ultimateGain?.onHit ?? 20));
+        attacker.energy = Math.min(MAX_ENERGY, attacker.energy + (action.energyGain ?? config.fighters[source].ultimateGain?.onHit ?? 20));
       }
       defender.energy = Math.min(MAX_ENERGY, defender.energy + (config.fighters[target].ultimateGain?.onHurt ?? 10));
       addTearUnits(defender, 5 * TEAR_UNITS_PER_POINT);
@@ -938,15 +1182,24 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
     defender.hitstun = action.hitstun;
     defender.blockstun = 0;
     defender.guarding = false;
-    defender.push = facing * action.push;
-    if (action.lift) {
+    defender.push = facing * (action.push + (shatter?.bonusPush ?? 0));
+    const totalLift = action.lift + (shatter?.bonusLift ?? 0);
+    if (totalLift) {
       defender.ground = null;
-      defender.vy = -action.lift;
+      defender.vy = -totalLift;
+    }
+    const carryDive = Boolean(action.dive?.carryTarget && attack);
+    if (carryDive) {
+      attack!.diveCarry = true;
+      defender.ground = null;
+      defender.vy = action.dive!.vy;
+      defender.push = 0;
+      defender.hitstun = Math.max(defender.hitstun, 30);
     }
     const heavy = action.impact === 'heavy' || action.pose === 'rise' || action.pose === 'finish';
     const reaction = !defender.ground ? 'air' : heavy || action.push >= 12 ? 'heavy' : 'light';
     defender.reaction = { kind: reaction, elapsed: 0, facing: facing === 1 ? -1 : 1 };
-    if (action.knockdown) startKnockdown(defender);
+    if (action.knockdown && !carryDive) startKnockdown(defender);
     events.push({
       kind: 'hit', source, x, y, amount, chain, direction: facing, facing, actionId: action.id, reaction,
       impact: action.impact, heavy, ...(action.feedback && { feedback: action.feedback })
@@ -970,6 +1223,7 @@ function rampToNextRound(state: MatchState, config: MatchConfig) {
   state.turrets = { bolt: null, howitzer: null };
   delete state.summon;
   delete state.cutIn;
+  delete state.timeStop;
   state.freeze = 0;
   state.comboFreeze = 0;
   state.result = null;
@@ -1005,7 +1259,91 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   const events: CombatEvent[] = [];
   if (state.phase === 'match-over') return events;
   if (state.cutIn) {
-    if (++state.cutIn.frame >= state.cutIn.duration) delete state.cutIn;
+    if (++state.cutIn.frame >= state.cutIn.duration) {
+      const ended = state.cutIn;
+      delete state.cutIn;
+      const fighter = state.fighters[ended.source];
+      const action = actionFor(config, state, ended.source);
+      if (isAttack(action) && action.awakenJo) {
+        events.push({
+          kind: 'jo-shatter', source: ended.source, x: fighter.x, y: fighter.y - 72,
+          facing: fighter.facing, actionId: action.id
+        });
+      }
+    }
+    return events;
+  }
+  const ts = state.timeStop;
+  if (ts) {
+    ts.frame++;
+    const caster = state.fighters[ts.source];
+    const oppSeat = other(ts.source);
+    const opp = state.fighters[oppSeat];
+    const action = config.fighters[ts.source].actions.filter(isAttack).find(move => move.id === ts.actionId);
+    if (caster.attack) caster.attack.frame = ts.frame;
+    if (ts.frame === ts.teleportAt) {
+      ts.originX = caster.x;
+      ts.originY = caster.y;
+      const dir = opp.x === caster.x ? caster.facing : opp.x > caster.x ? 1 : -1;
+      caster.x = clamp(opp.x - dir * 58, config.arena.left, config.arena.right);
+      caster.y = Math.min(opp.y, config.arena.floor);
+      caster.vy = 0;
+      caster.ground = opp.ground;
+      caster.facing = opp.x === caster.x ? dir : opp.x > caster.x ? 1 : -1;
+      releaseUnsupportedGround(caster, config.arena, state.arenaFrame);
+      events.push({ kind: 'time-stop-warp', source: ts.source, x: caster.x, y: caster.y, facing: caster.facing, actionId: ts.actionId });
+    }
+    if (ts.frame === ts.flickAt) {
+      ts.flicked = true;
+      events.push({ kind: 'time-stop-flick', source: ts.source, x: opp.x, y: opp.y - 68, facing: caster.facing, actionId: ts.actionId });
+    }
+    if (ts.flicked && ts.frame < ts.releaseAt) {
+      const barrageOffset = ts.frame - ts.flickAt;
+      const barrageSpan = Math.max(0, ts.releaseAt - ts.flickAt - 51);
+      const isBarrageHit = barrageOffset > 0 && barrageOffset <= barrageSpan && barrageOffset % 7 === 0;
+      const isFinisherHit = ts.frame === ts.releaseAt - 26;
+      if (isBarrageHit || isFinisherHit) {
+        events.push({
+          kind: 'time-stop-hit', source: ts.source, x: opp.x, y: opp.y - 68,
+          facing: caster.facing, actionId: ts.actionId, heavy: isFinisherHit
+        });
+      }
+    }
+    if (ts.frame >= ts.releaseAt) {
+      delete state.timeStop;
+      caster.attack = null;
+      releaseUnsupportedGround(caster, config.arena, state.arenaFrame);
+      events.push({ kind: 'time-stop-release', source: ts.source, x: opp.x, y: opp.y - 68, facing: caster.facing, actionId: ts.actionId });
+      if (action) {
+        const dir = opp.x === caster.x ? caster.facing : opp.x > caster.x ? 1 : -1;
+        opp.recovery = null;
+        settle(state, config, [{
+          source: ts.source, target: oppSeat,
+          action: { ...action, unblockable: true },
+          facing: dir, blocked: false, x: opp.x, y: opp.y - 68
+        }], events);
+        const result = config.training ? null : roundResult(state, config);
+        if (result) {
+          state.result = result;
+          if (result.winner === null) state.draws++;
+          else {
+            state.draws = 0;
+            state.wins[result.winner]++;
+            if (state.wins[result.winner] === config.rules.winsToFinish) state.winner = result.winner;
+          }
+          if (result.reason === 'ko' || result.reason === 'double-ko') {
+            events.push({ kind: 'ko', source: result.winner ?? 0, x: 0, y: 0 });
+          }
+          state.projectiles = [];
+          state.turrets = { bolt: null, howitzer: null };
+          delete state.summon;
+          delete state.cutIn;
+          delete state.entities;
+          state.phase = 'round-over';
+          state.phaseTicks = 105;
+        }
+      }
+    }
     return events;
   }
   const summon = state.summon;
@@ -1071,11 +1409,20 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     }
   }
   for (const seat of seats) {
-    if (carriedBySummon(state, seat)) continue;
+    if (carriedBySummon(state, seat) || diveCarrierFor(state, config, seat) !== undefined) continue;
     updateControl(state, config, seat, inputs[seat], events);
     const fighter = state.fighters[seat];
     if (fighter.attack?.frame === 0 && !fighter.attack.released && attackFor(config, state, seat)?.channel === 'cry') {
-      addTearUnits(fighter, cryUnitsPerTick);
+      fighter.energy = clamp(fighter.energy + cryEnergyPerTick, 0, MAX_ENERGY);
+    }
+    const currentAct = attackFor(config, state, seat);
+    if (fighter.attack && currentAct?.standAttack === 'ora' &&
+        (fighter.attack.standX === undefined || fighter.attack.frame < currentAct.startup + currentAct.active - 8)) {
+      const opp = state.fighters[other(seat)];
+      const dir = opp.x === fighter.x ? fighter.facing : opp.x > fighter.x ? 1 : -1;
+      fighter.attack.standX = clamp(opp.x - dir * 68, config.arena.left, config.arena.right);
+      fighter.attack.standY = Math.min(opp.y, config.arena.floor);
+      fighter.attack.standFacing = dir;
     }
     const guardCounter = config.fighters[seat].guardCounter;
     if (guardCounter) updateGuardWindow(fighter, inputs[seat], guardCounter.windowFrames);
@@ -1088,11 +1435,36 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   const walking = seats.map(seat => {
     const fighter = state.fighters[seat];
     fighter.dashActive = fighter.dash > 0;
-    return !carriedBySummon(state, seat) && motion(state, config, seat, inputs[seat], events);
+    return !carriedBySummon(state, seat) && diveCarrierFor(state, config, seat) === undefined &&
+      motion(state, config, seat, inputs[seat], events);
   });
-  if (!seats.some(seat => carriedBySummon(state, seat))) separate(state, config, previous);
+  for (const seat of seats) {
+    const carrierSeat = diveCarrierFor(state, config, seat);
+    if (carrierSeat === undefined) continue;
+    const carrier = state.fighters[carrierSeat];
+    const carrierAct = attackFor(config, state, carrierSeat);
+    const victim = state.fighters[seat];
+    victim.x = clamp(carrier.x + carrier.facing * 44, config.arena.left, config.arena.right);
+    victim.y = clamp(carrier.y + 4, 0, config.arena.floor);
+    victim.ground = null;
+    victim.vy = isAttack(carrierAct) && carrierAct.dive ? carrierAct.dive.vy : 16;
+    victim.push = 0;
+    victim.dash = 0;
+    victim.hitstun = Math.max(victim.hitstun, 18);
+  }
+  if (!seats.some(seat => carriedBySummon(state, seat) || diveCarrierFor(state, config, seat) !== undefined)) {
+    separate(state, config, previous);
+  }
   for (const fighter of state.fighters) releaseUnsupportedGround(fighter, config.arena, state.arenaFrame);
   for (const seat of seats) faceOpponentWhenFree(state.fighters[seat], state.fighters[other(seat)]);
+  for (const seat of seats) {
+    const f = state.fighters[seat];
+    const act = attackFor(config, state, seat);
+    if (f.attack && act?.passThrough && f.attack.frame === act.startup + act.active - 1) {
+      const opp = state.fighters[other(seat)];
+      if (opp.x !== f.x) f.facing = opp.x > f.x ? 1 : -1;
+    }
+  }
   const summonContact = advanceSummon(state, config, previous, events);
   updateEntities(state, config);
   const contacts = collectContacts(state, config, events);
@@ -1112,6 +1484,36 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     if (event.kind === 'turret-ready') collectBlastContact(state, config, event, buildWave, contacts);
   }
   moveProjectiles(state, config, contacts, events);
+  for (const seat of seats) {
+    const f = state.fighters[seat];
+    const act = attackFor(config, state, seat);
+    if (!act?.detonateBomb || f.attack?.frame !== act.startup) continue;
+    const target = other(seat);
+    const defender = state.fighters[target];
+    if (defender.bombMark?.source === seat) {
+      delete defender.bombMark;
+      const dir = defender.x === f.x ? f.facing : defender.x > f.x ? 1 : -1;
+      events.push({ kind: 'kq-detonate', source: seat, x: defender.x, y: defender.y - 68, facing: dir, actionId: act.id });
+      if (!protectedFromHit(state, config, target)) {
+        contacts.push({
+          source: seat, target, action: { ...act, unblockable: true },
+          facing: dir, blocked: false, x: defender.x, y: defender.y - 68
+        });
+      }
+    }
+    state.projectiles = state.projectiles.filter(orb => {
+      if (orb.source !== seat) return true;
+      const orbAct = config.fighters[seat].actions.filter(isAttack).find(m => m.id === orb.actionId);
+      if (orbAct?.projectile?.kind !== 'kq-orb') return true;
+      const blastEvent: CombatEvent = {
+        kind: 'kq-detonate', source: seat, x: orb.x, y: orb.y, facing: f.facing,
+        radius: orbAct.projectile.blastRadius ?? 155, actionId: act.id
+      };
+      events.push(blastEvent);
+      collectBlastContact(state, config, blastEvent, act, contacts);
+      return false;
+    });
+  }
   if (summonContact) contacts.push(summonContact);
   settle(state, config, contacts, events);
   for (const seat of seats) updateKnockdownGround(state.fighters[seat], seat, events);
@@ -1147,12 +1549,16 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   for (const seat of seats) {
     const fighter = state.fighters[seat];
     fighter.buffer = [];
+    delete fighter.bombMark;
+    delete fighter.crystalMark;
+    delete fighter.overclockCooldown;
     if (attackFor(config, state, seat)?.channel) fighter.attack = null;
   }
   state.projectiles = [];
   state.turrets = { bolt: null, howitzer: null };
   delete state.summon;
   delete state.cutIn;
+  delete state.timeStop;
   delete state.entities;
   state.phase = 'round-over';
   state.phaseTicks = 105;

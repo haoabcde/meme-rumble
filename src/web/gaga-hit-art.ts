@@ -8,6 +8,12 @@ const lavender: BurstPalette = {
   outer: '#9b5dff', inner: '#cfa8ff', ring: '#e3d0ff', shards: ['#b98cff', '#e9dcff', '#9fd6ff']
 };
 const pole: BurstPalette = { ...lavender, shards: ['#b98cff', '#e9dcff', '#ffd84d'] };
+const grandVision: BurstPalette = {
+  outer: '#f59e0b', inner: '#fef08a', ring: '#fde68a', shards: ['#fbbf24', '#fffbeb', '#d97706']
+};
+const xiranite: BurstPalette = {
+  outer: '#10b981', inner: '#a7f3d0', ring: '#5eead4', shards: ['#38f2c9', '#d1fae5', '#0d9488']
+};
 const hardware: BurstPalette = {
   outer: '#2fa6f0', inner: '#9fdcff', ring: '#c4ecff', shards: ['#6fcbff', '#dff6ff', '#ffffff']
 };
@@ -32,6 +38,11 @@ const strikes: Record<string, Strike> = {
   [gagaActionIds.lift]: { burst: burstWeights.launch, palette: lavender, tilt: -.9 },
   [gagaActionIds.slide]: { burst: burstWeights.heavy, palette: lavender, tilt: 0 },
   [gagaActionIds.airThrow]: { burst: burstWeights.heavy, palette: pole, tilt: .6 },
+  [gagaActionIds.swordSlash]: { burst: burstWeights.medium, palette: grandVision, tilt: -.1 },
+  [gagaActionIds.swordRise]: { burst: burstWeights.launch, palette: grandVision, tilt: -1.15 },
+  [gagaActionIds.xiraniteBurst]: { burst: burstWeights.heavy, palette: xiranite, tilt: 0 },
+  [gagaActionIds.airDive]: { burst: burstWeights.heavy, palette: grandVision, tilt: .75 },
+  [gagaActionIds.overclock]: { burst: burstWeights.light, palette: hardware, tilt: 0 },
   [gagaActionIds.turret]: { burst: burstWeights.medium, palette: hardware, tilt: 1.1 },
   [gagaActionIds.howitzer]: { burst: burstWeights.medium, palette: hardware, tilt: 1.1 },
   [gagaActionIds.turretBolt]: { burst: { size: 54, hold: 2, shards: 7, run: 80, ring: false }, palette: hardware, tilt: 0 },

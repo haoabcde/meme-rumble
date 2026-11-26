@@ -54,6 +54,24 @@ export function cpuInput(state: MatchState, config: MatchConfig): InputFrame {
   if (!cpu.ground && distance < 127 && higher > -95 && higher < 92 && (opponent.hitstun > 0 || beat % 9 === 2)) {
     return { x: direction, y: 0, pressed: ['A'] };
   }
+  if (config.fighters[1].id === 'gaga') {
+    if (cpu.ground && opponent.attack && opponent.attack.frame >= 2 && distance < 145 && beat % 16 === 6) {
+      return { x: 0, y: 1, pressed: ['B'] };
+    }
+    if (cpu.ground && opponent.crystalMark?.source === 1 && distance < 130 && Math.abs(higher) < 110) {
+      return { x: direction, y: -1, pressed: ['B'] };
+    }
+    if (!cpu.ground && higher < -70 && distance < 165 && beat % 11 === 4) {
+      return { x: direction, y: 0, pressed: ['B'] };
+    }
+    if (cpu.ground && distance >= 120 && distance < 220 && Math.abs(higher) < 60 && beat % 18 === 9) {
+      return { x: direction, y: 0, pressed: ['B'] };
+    }
+    if (cpu.ground && distance >= 240 && !cpu.overclockCooldown &&
+        (state.turrets.bolt?.owner === 1 || state.turrets.howitzer?.owner === 1) && beat % 20 === 5) {
+      return { x: direction, y: 0, pressed: ['C'], sampled: { C: { x: direction, y: -1 } } };
+    }
+  }
   if (cpu.tearUnits !== undefined && cpu.ground) {
     if (cpu.energy >= MAX_ENERGY && distance < 840 && higher > -41 && higher < 150 && beat % 12 === 3) {
       return { x: 0, y: 0, pressed: ['ULT'] };

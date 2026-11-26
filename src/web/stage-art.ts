@@ -2,7 +2,7 @@ import { platformAt } from '../core/terrain.js';
 import type { ArenaDefinition, MatchConfig, MatchState, Platform } from '../core/types.js';
 import { backgrounds, stageKits } from './art.js';
 
-type CampusTheme = Exclude<ArenaDefinition['theme'], 'harbor'>;
+type CampusTheme = Exclude<ArenaDefinition['theme'], 'harbor' | 'ring'>;
 type Prop = NonNullable<Platform['prop']>;
 interface Sprite {
   box: [number, number, number, number];

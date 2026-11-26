@@ -120,6 +120,7 @@ let routeVisible = true;
 let debug = false;
 let bestTier = 0;
 let lastTime = 0;
+let lastRingPreview = 0;
 let debt = 0;
 let introRemaining = 0;
 let fightCueUntil = 0;
@@ -374,7 +375,7 @@ function selectArena(index: number) {
   text(element('map-name'), arena.name);
   const screens = ((arena.right - arena.left) / canvas.width).toFixed(1);
   const tiers = new Set(arena.platforms.map(platform => platform.tier)).size;
-  text(element('map-count'), screens + ' 屏宽 · ' + tiers + ' 层 · ' + arena.platforms.length + ' 处平台');
+  text(element('map-count'), tiers ? screens + ' 屏宽 · ' + tiers + ' 层 · ' + arena.platforms.length + ' 处平台' : '单层地面擂台');
   text(element('start'), mode === 'training' ? '进入训练 ›' : '开始对战 ›');
   text(element('map-description'), arena.description);
   const routeLine = element('map-route');
@@ -382,9 +383,10 @@ function selectArena(index: number) {
     const routeNames = arena.routes[side].map(id => arena.platforms.find(platform => platform.id === id)!.name);
     text(element('map-route-' + suffix), routeNames.join(' → '));
   }
-  routeLine.hidden = !routeVisible;
+  routeToggle.hidden = !tiers;
+  routeLine.hidden = !tiers || !routeVisible;
   routeToggle.setAttribute('aria-pressed', String(routeVisible));
-  previewArena(mapCanvas, arena, routeVisible);
+  previewArena(mapCanvas, arena, Boolean(tiers) && routeVisible);
 }
 
 function configureMatch(immediate: boolean) {
@@ -736,7 +738,8 @@ window.addEventListener('keydown', event => {
 });
 window.addEventListener('keyup', event => held.delete(event.code));
 canvas.addEventListener('blur', clearInputs);
-canvas.addEventListener('click', () => finishFeature());
+canvas.addEventListener('click', () => { audio.enableFromGesture(); finishFeature(); });
+window.addEventListener('pointerdown', () => audio.enableFromGesture());
 function pauseOnHide() {
   if (screen === 'match') pauseMatch();
   else clearInputs();
@@ -964,6 +967,11 @@ function draw(elapsed: number) {
 }
 
 function frame(now: number) {
+  if (screen === 'maps' && arenas[arenaIndex].theme === 'ring' && !reducedMotion.matches &&
+    !document.hidden && now - lastRingPreview >= 85) {
+    previewArena(mapCanvas, arenas[arenaIndex], false, Math.floor(now * .06));
+    lastRingPreview = now;
+  }
   const elapsed = Math.min(now - (lastTime || now), 100);
   const tickMs = 1000 / rules.ticksPerSecond;
   lastTime = now;

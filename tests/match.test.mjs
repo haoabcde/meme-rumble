@@ -10,6 +10,7 @@ import { frameCamera } from '../dist/web/camera.js';
 import { cpuInput } from '../dist/web/cpu.js';
 import { platformAt, platformOffset, tierAt } from '../dist/core/terrain.js';
 
+const multiLevelArenas = arenas.filter(arena => arena.id !== 'neon-ring');
 const config = { rules, arena: arenas[0], fighters: [testFighter, testFighter] };
 const input = (pressed = [], x = 0, y = 0) => ({ pressed, x, y });
 // Public movement and combat have their own fixture so character authors can tune individual stats.
@@ -511,7 +512,7 @@ function landAfter(state, command, settings, seat = 0, airDirection = 0) {
   return first;
 }
 
-for (const arena of arenas) {
+for (const arena of multiLevelArenas) {
   test(arena.name + ' · public jumps reach every tier and descend one surface per command', () => {
     const settings = trainingOn(arena);
     const state = begin(settings);
@@ -596,7 +597,7 @@ test('walking off a ledge clears its support and lands on the next reachable tie
   assert.equal(fighter.ground, 'press-west');
 });
 
-for (const arena of arenas) {
+for (const arena of multiLevelArenas) {
   test(arena.name + ' · P2 can also reach the upper platform from the right side', () => {
     const settings = trainingOn(arena);
     const state = begin(settings);
@@ -611,7 +612,7 @@ for (const arena of arenas) {
 }
 
 test('both opening positions can reach their advertised first platform in one ordinary jump', () => {
-  for (const arena of arenas) {
+  for (const arena of multiLevelArenas) {
     const settings = trainingOn(arena);
     const state = begin(settings);
     for (const seat of [0, 1]) {
@@ -672,7 +673,7 @@ test('the station towers have separate upper bays with a reachable middle crossi
 });
 
 test('every expanded floor is traversable and both players can reach their own edge', () => {
-  for (const arena of arenas) {
+  for (const arena of multiLevelArenas) {
     const settings = trainingOn(arena);
     const state = begin(settings);
     const [a, b] = state.fighters;
@@ -690,7 +691,7 @@ test('every expanded floor is traversable and both players can reach their own e
 
 test('the camera follows the fight across viewports and fits players at opposite corners immediately', () => {
   const viewport = { width: 1280, height: 720 };
-  for (const arena of arenas) {
+  for (const arena of multiLevelArenas) {
     const center = arena.spawn.map(x => ({ x, y: arena.floor, height: 145 }));
     const near = frameCamera(arena, viewport, center, null, 0, true);
     assert.ok(near.zoom > 1);
@@ -719,9 +720,23 @@ test('the camera follows the fight across viewports and fits players at opposite
   }
 });
 
+test('the single-screen duel ring keeps its fighters on the mat through jumps and corner pressure', () => {
+  const arena = arenas.find(a => a.id === 'neon-ring');
+  const settings = trainingOn(arena);
+  const state = begin(settings);
+  assert.deepEqual(arena.routes, [[], []]);
+  assert.equal(arena.platforms.length, 0);
+  step(state, [input(['jump']), input(['jump'])], settings);
+  assert.ok(state.fighters.every(f => f.y < arena.floor));
+  stepFor(state, 180, [input([], -1), input([], 1)], settings);
+  assert.deepEqual(state.fighters.map(f => [f.x, f.y, f.ground]), [
+    [arena.left, arena.floor, 'floor'], [arena.right, arena.floor, 'floor']
+  ]);
+});
+
 test('each round opens on its approach routes and the combat camera holds still through small hops', () => {
   const viewport = { width: 1280, height: 720 };
-  for (const arena of arenas) {
+  for (const arena of multiLevelArenas) {
     const players = arena.spawn.map(x => ({ x, y: arena.floor, height: 142 }));
     const opening = frameCamera(arena, viewport, players, null, 1, false, 1);
     const close = frameCamera(arena, viewport, players, null, 1, false);
@@ -985,7 +1000,7 @@ test('either opening seat can board the station lift and step off onto its own t
 });
 
 test('the computer can approach an opponent occupying either upper route from the opening floor on every map', () => {
-  for (const arena of arenas) {
+  for (const arena of multiLevelArenas) {
     const settings = trainingOn(arena);
     const goals = new Set(arena.routes.map(route => route.at(-1)));
     if (arena.id === 'harbor') goals.add('crane');

@@ -7,11 +7,22 @@ import { embedFighterImages } from './fighter-art.mjs';
 const root = new URL('../', import.meta.url);
 const pixelfxLicense = await readFile(new URL('assets/fx/pixelfx/LICENSE', root), 'utf8');
 const fighterImages = await embedFighterImages(roster, fileURLToPath(new URL('assets/fighters/', root)));
-const soundDirectory = new URL('assets/audio/gaga/', root);
-const soundFiles = (await readdir(soundDirectory)).filter(file => file.endsWith('.wav'));
-const gagaSounds = Object.fromEntries(await Promise.all(soundFiles.map(async file => [
-  file.slice(0, -4), (await readFile(new URL(file, soundDirectory))).toString('base64')
-])));
+async function loadSoundBank(subpath, extensions) {
+  const directory = new URL(subpath, root);
+  try {
+    const files = (await readdir(directory)).filter(file => extensions.some(ext => file.endsWith(ext)));
+    return Object.fromEntries(await Promise.all(files.map(async file => [
+      file.replace(/\.[^.]+$/, ''), (await readFile(new URL(file, directory))).toString('base64')
+    ])));
+  } catch {
+    return {};
+  }
+}
+
+const [gagaSounds, bananaSounds] = await Promise.all([
+  loadSoundBank('assets/audio/gaga/', ['.wav']),
+  loadSoundBank('assets/audio/banana/', ['.mp3', '.wav'])
+]);
 async function bundleEntry(entry) {
   const result = await build({
     entryPoints: [fileURLToPath(new URL('src/web/' + entry, root))],
@@ -19,8 +30,12 @@ async function bundleEntry(entry) {
     platform: 'browser',
     format: 'iife',
     target: 'es2022',
-    loader: { '.webp': 'dataurl' },
-    define: { __FIGHTER_IMAGES__: JSON.stringify(fighterImages), __GAGA_SOUNDS__: JSON.stringify(gagaSounds) },
+    loader: { '.webp': 'dataurl', '.png': 'dataurl' },
+    define: {
+      __FIGHTER_IMAGES__: JSON.stringify(fighterImages),
+      __GAGA_SOUNDS__: JSON.stringify(gagaSounds),
+      __BANANA_SOUNDS__: JSON.stringify(bananaSounds)
+    },
     write: false
   });
   return result.outputFiles[0].text;

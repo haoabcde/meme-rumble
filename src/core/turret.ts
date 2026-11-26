@@ -44,6 +44,38 @@ export function damageTurret(state: MatchState, kind: TurretKind, events: Combat
   if (turret && --turret.hp === 0) clearTurret(state, kind, events);
 }
 
+export function fireTurretShot(state: MatchState, config: MatchConfig, turret: Turret, events: CombatEvent[]) {
+  const source = turret.owner;
+  const target = state.fighters[1 - source];
+  const dx = target.x - turret.x;
+  turret.facing = dx === 0 ? turret.facing : dx > 0 ? 1 : -1;
+  const projectileKind = turret.kind === 'bolt' ? 'bolt' : 'grenade';
+  const shot = config.fighters[source].actions.filter(isAttack).find(move => move.projectile?.kind === projectileKind);
+  const data = shot?.projectile;
+  if (!shot || !data) return false;
+  const x = turret.x + Math.min(Math.abs(dx) * .5, data.x) * turret.facing;
+  const y = turret.y + data.y;
+  let vx: number;
+  let vy: number;
+  if (projectileKind === 'grenade') {
+    const initial = data.vy - data.gravity / 2;
+    const fall = config.arena.floor - y - data.radius;
+    const flight = (-initial + Math.sqrt(initial ** 2 + 2 * data.gravity * fall)) / data.gravity;
+    vx = turret.facing * Math.min(data.vx, Math.abs(target.x - x) / flight);
+    vy = data.vy;
+  } else {
+    const dy = target.y - 62 - y;
+    const distance = Math.hypot(target.x - x, dy);
+    const speed = data.vx / (distance || 1);
+    vx = (target.x - x) * speed;
+    vy = distance === 0 ? data.vx : dy * speed;
+  }
+  state.projectiles.push({ actionId: shot.id, source, facing: turret.facing, x, y,
+    vx, vy, connected: false });
+  events.push({ kind: 'turret-fire', source, turretKind: turret.kind, x, y, actionId: shot.id, facing: turret.facing });
+  return true;
+}
+
 export function stepTurrets(state: MatchState, config: MatchConfig, events: CombatEvent[]) {
   const { ticksPerSecond } = config.rules;
   for (const kind of turretKinds) {
@@ -64,29 +96,6 @@ export function stepTurrets(state: MatchState, config: MatchConfig, events: Comb
         facing: turret.facing, radius: buildWaveRadius });
     }
     if (readyAge <= 0 || readyAge % (turretIntervalSeconds * ticksPerSecond) !== 0) continue;
-    const projectileKind = kind === 'bolt' ? 'bolt' : 'grenade';
-    const shot = config.fighters[source].actions.filter(isAttack).find(move => move.projectile?.kind === projectileKind);
-    const data = shot?.projectile;
-    if (!shot || !data) continue;
-    const x = turret.x + Math.min(Math.abs(dx) * .5, data.x) * turret.facing;
-    const y = turret.y + data.y;
-    let vx: number;
-    let vy: number;
-    if (projectileKind === 'grenade') {
-      const initial = data.vy - data.gravity / 2;
-      const fall = config.arena.floor - y - data.radius;
-      const flight = (-initial + Math.sqrt(initial ** 2 + 2 * data.gravity * fall)) / data.gravity;
-      vx = turret.facing * Math.min(data.vx, Math.abs(target.x - x) / flight);
-      vy = data.vy;
-    } else {
-      const dy = target.y - 62 - y;
-      const distance = Math.hypot(target.x - x, dy);
-      const speed = data.vx / (distance || 1);
-      vx = (target.x - x) * speed;
-      vy = distance === 0 ? data.vx : dy * speed;
-    }
-    state.projectiles.push({ actionId: shot.id, source, facing: turret.facing, x, y,
-      vx, vy, connected: false });
-    events.push({ kind: 'turret-fire', source, turretKind: kind, x, y, actionId: shot.id, facing: turret.facing });
+    fireTurretShot(state, config, turret, events);
   }
 }

@@ -1,10 +1,14 @@
 import { roster } from '../content/roster.js';
+import { ringLayers } from './ring-art.js';
+import { ringPerformers } from './art.js';
 import { bananaActionIds } from '../content/fighters/banana.js';
-import { drawBanana } from './banana-art.js';
+import { drawBanana, drawBananaJoDashTrail, drawBananaTheWorldStrike, drawBananaWorldStand, type StandLinger } from './banana-art.js';
 import { drawBananaImpact } from './banana-hit-art.js';
 import { drawKnockdownDust, drawKnockdownPose, knockdownPose } from './knockdown-art.js';
-import { drawBananaWaveCutIn } from './banana-wave-art.js';
-import { bananaEffectLife, drawBananaEffect, drawBananaProjectile, drawBananaWave, isTearJet } from './banana-fx.js';
+import { drawBananaJoCutIn, drawBananaWaveCutIn, drawJoShatterBurst } from './banana-wave-art.js';
+import { bananaEffectLife, drawBananaEffect, drawBananaProjectile, drawBananaWave,
+  drawKillerQueenDetonation, drawKillerQueenMark, drawKillerQueenOrb, drawKillerQueenPlant,
+  drawSheerHeartAttack, drawSheerHeartLock, drawTimeStopOverlay, drawTimeStopPunchImpact, drawTimeStopReleaseBurst, isTearJet } from './banana-fx.js';
 import { gagaActionIds } from '../content/fighters/gaga.js';
 import { actionFor, hitRegionsFor, hurtRegionsFor, isActiveFrame, worldBox } from '../core/match.js';
 import { motionGrid } from '../content/fighter-kit.js';
@@ -13,9 +17,10 @@ import { isAttack, type FighterAction, type FighterState } from '../core/types.j
 import { summonFallFrames } from '../core/summon.js';
 import { turretBuildTicks } from '../core/turret.js';
 import type { ActionDefinition, ArenaDefinition, CombatEvent, MatchConfig, MatchState, Summon } from '../core/types.js';
-import { backgrounds, harborProps, harborGantry, stageKits, drawEngineeringCrate, drawGagaLaunchTrail, drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose, gagaReactionPose, motionArt, sprites, type PolePose } from './art.js';
-import { frameCamera, frameDijiangLength, frameDijiangImpact, frameEntrance, type CameraView } from './camera.js';
+import { backgrounds, harborProps, harborGantry, stageKits, drawEngineeringCrate, drawGagaLaunchTrail, drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose, gagaReactionPose, gagaStatePose, motionArt, sprites, type PolePose } from './art.js';
+import { frameCamera, frameDijiangLength, frameDijiangImpact, frameEntrance, frameTimeStopCamera, type CameraView } from './camera.js';
 import { drawGagaWalk, GagaWalk } from './gaga-walk.js';
+import { drawCrystalPlant, drawCrystalShatter, drawDiveLandImpact, drawOriginiumCrystalMark, drawOverclockArc, drawSparkProjectile, drawXiraniteBurstEffect } from './gaga-fx.js';
 import { gagaIntro } from './gaga-intro.js';
 import { drawGagaContact, drawGagaReceive, gagaContact, type GagaContact } from './gaga-contact.js';
 import { drawGagaImpact, gagaStrike } from './gaga-hit-art.js';
@@ -43,7 +48,7 @@ export const openingFrame = (state: MatchState, fighters: MatchConfig['fighters'
   state.phase === 'ready' ? openingTicks(fighters) - state.phaseTicks : -1;
 /** The entrance a fighter performs on the stage, when it brings one. */
 export const entranceFor = (fighter: MatchConfig['fighters'][number]) => entrances[fighter.id];
-const arenaColors = { dorm: '#ffc08c', court: '#8faaff', harbor: '#8de9cd', station: '#bc9bff' };
+const arenaColors = { dorm: '#ffc08c', court: '#8faaff', harbor: '#8de9cd', station: '#bc9bff', ring: '#fe72be' };
 // Peak screen shake in pixels for each hit weight, matching the flash of the same weight in hit-burst.ts.
 const hitShake: Record<Weight, number> = { light: 4, medium: 6.5, heavy: 11, launch: 12 };
 const artSizes = new Map(roster.map(entry => [entry.fighter.id, entry.height]));
@@ -91,7 +96,9 @@ const attackTrails: Partial<Record<string, Trail[]>> = {
   [gagaActionIds.poleSweep]: [[[24, -50], [147, -19], [266, -84]]],
   [gagaActionIds.poleBacksweep]: [[[25, -72], [162, -91], [265, -24]]],
   [gagaActionIds.lift]: [[[24, -48], [48, -73], [78, -127]]],
-  [gagaActionIds.slide]: [[[-91, -12], [-46, -5], [28, -10]], [[-68, -21], [-38, -18], [-12, -18]]]
+  [gagaActionIds.slide]: [[[-91, -12], [-46, -5], [28, -10]], [[-68, -21], [-38, -18], [-12, -18]]],
+  [gagaActionIds.swordSlash]: [[[24, -64], [104, -76], [176, -54]], [[36, -50], [108, -60], [164, -44]]],
+  [gagaActionIds.swordRise]: [[[24, -22], [96, -86], [122, -172]], [[16, -42], [78, -104], [102, -166]]]
 };
 const rushTrails: Trail[] = [[[-89, -22], [-64, -28], [-37, -31]], [[-101, -10], [-72, -10], [-48, -13]]];
 
@@ -106,8 +113,14 @@ function polygon(ctx: CanvasRenderingContext2D, color: string, points: Point[]) 
 
 const harborLayers = { backdrop: drawQuay, scenery: drawHarborScenery, mechanism: drawHarborLift };
 const campusLayers = { backdrop: drawStageBackdrop, scenery: drawStageScenery, mechanism: drawStageMechanism };
-const layersFor = (arena: ArenaDefinition) => arena.theme === 'harbor' ? harborLayers : campusLayers;
-const sheetsFor = (arena: ArenaDefinition) => arena.theme === 'harbor' ? [harborProps, harborGantry] : [stageKits[arena.theme]];
+const layersFor = (arena: ArenaDefinition) => {
+  if (arena.theme === 'ring') return ringLayers;
+  return arena.theme === 'harbor' ? harborLayers : campusLayers;
+};
+const sheetsFor = (arena: ArenaDefinition) => {
+  if (arena.theme === 'ring') return [ringPerformers];
+  return arena.theme === 'harbor' ? [harborProps, harborGantry] : [stageKits[arena.theme]];
+};
 
 export function paintArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {
   const { width, height, left, right, floor } = arena;
@@ -219,7 +232,7 @@ function paintRoute(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, side:
   ctx.restore();
 }
 
-export function previewArena(canvas: HTMLCanvasElement, arena: ArenaDefinition, route = false) {
+export function previewArena(canvas: HTMLCanvasElement, arena: ArenaDefinition, route = false, frame = 0) {
   const ctx = canvas.getContext('2d')!;
   const variant = arena.id + (route ? '-route' : '');
   canvas.dataset.variant = variant;
@@ -227,7 +240,7 @@ export function previewArena(canvas: HTMLCanvasElement, arena: ArenaDefinition, 
     if (canvas.dataset.variant !== variant) return;
     ctx.setTransform(canvas.width / arena.width, 0, 0, canvas.height / arena.height, 0, 0);
     paintArena(ctx, arena);
-    layersFor(arena).mechanism(ctx, arena, 0);
+    layersFor(arena).mechanism(ctx, arena, frame);
     if (route) {
       ctx.fillStyle = '#10152b2b';
       ctx.fillRect(0, 0, arena.width, arena.height);
@@ -264,6 +277,8 @@ export class Renderer {
   private camera: CameraView | null = null;
   private dive: { summon: Summon; length: number } | null = null;
   private gagaWalks = [new GagaWalk(), new GagaWalk()];
+  private standLinger: [ { actionId: string; lastFrame: number; age: number } | null,
+    { actionId: string; lastFrame: number; age: number } | null ] = [null, null];
 
   constructor(canvas: HTMLCanvasElement, arena: ArenaDefinition) {
     this.ctx = canvas.getContext('2d', { alpha: false })!;
@@ -335,7 +350,55 @@ export class Renderer {
       if (event.kind === 'summon-catch') {
         this.effects.push({ event, life: 14, age: 0, gagaReceives: false });
       }
+      if (event.kind === 'kq-plant') {
+        this.effects.push({ event, life: 20, age: 0, gagaReceives: false });
+        this.kick(6);
+      }
+      if (event.kind === 'kq-lock') {
+        this.effects.push({ event, life: 22, age: 0, gagaReceives: false });
+        this.kick(8);
+      }
+      if (event.kind === 'kq-detonate') {
+        this.effects.push({ event, life: 29, age: 0, gagaReceives: false });
+        this.kick(18);
+      }
+      if (event.kind === 'crystal-plant') {
+        this.effects.push({ event, life: 16, age: 0, gagaReceives: false });
+      }
+      if (event.kind === 'crystal-shatter') {
+        this.effects.push({ event, life: 24, age: 0, gagaReceives: false });
+        this.kick(13);
+      }
+      if (event.kind === 'xiranite-burst') {
+        this.effects.push({ event, life: 20, age: 0, gagaReceives: false });
+        this.kick(9);
+      }
+      if (event.kind === 'turret-overclock') {
+        this.effects.push({ event, life: 18, age: 0, gagaReceives: false });
+        this.kick(6);
+      }
+      if (event.kind === 'time-stop-start') {
+        this.kick(14);
+      }
+      if (event.kind === 'time-stop-flick' || event.kind === 'time-stop-hit') {
+        this.effects.push({ event, life: event.heavy ? 18 : 11, age: 0, gagaReceives: false });
+        this.kick(event.heavy ? 16 : 8);
+      }
+      if (event.kind === 'time-stop-release') {
+        this.effects.push({ event, life: 32, age: 0, gagaReceives: false });
+        this.kick(24);
+      }
+      if (event.kind === 'jo-shatter') {
+        this.effects.push({ event, life: 28, age: 0, gagaReceives: false });
+        this.kick(22);
+      }
+      if (event.kind === 'swing' && event.actionId === bananaActionIds.joPounce) {
+        this.kick(7);
+      }
       if (event.kind === 'ultimate' && (event.actionId === bananaActionIds.wave || event.actionId === gagaActionIds.dijiang)) continue;
+      if (event.kind === 'land' && (event.actionId === bananaActionIds.joAirDive || event.actionId === gagaActionIds.airDive)) {
+        this.kick(10);
+      }
       if (['hit', 'block', 'break', 'dash', 'land', 'drop', 'air-jump', 'knockdown', 'parry', 'ultimate'].includes(event.kind)) {
         const brief = event.kind === 'dash' || event.kind === 'land' || event.kind === 'drop';
         const cue = gagaContact(event, fighters);
@@ -343,9 +406,10 @@ export class Renderer {
         // A burst belongs to whoever landed the blow, so its colour tells the two fighters' hits apart.
         const gagaImpact = cue === 'guard' || (fighters[event.source].id === 'gaga' && Boolean(gagaStrike(event)));
         const wet = jet || event.actionId === bananaActionIds.wave || event.actionId === bananaActionIds.tear;
-        const bananaImpact = event.kind === 'land' ? fromBanana && event.reaction === 'air'
+        const bananaImpact = event.kind === 'land' ? fromBanana && (event.reaction === 'air' || event.actionId === bananaActionIds.joAirDive)
           : event.kind === 'hit' && Boolean(event.amount) && !wet && !gagaImpact && (fromBanana || fighters[1 - event.source].id === 'banana');
-        const life = event.kind === 'knockdown' ? 22 : bananaImpact || gagaImpact ? (event.kind === 'land' ? 22 : 19)
+        const life = event.kind === 'dash' && event.heavy ? 24
+          : event.kind === 'knockdown' ? 22 : bananaImpact || gagaImpact ? (event.kind === 'land' ? 22 : 19)
           : jet ? bananaEffectLife(event)
           : cue === 'light' || brief || event.impact === 'light' ? 14 : event.impact === 'heavy' ? 22 : 23;
         const gagaReceives = event.kind === 'hit' && fighters[1 - event.source].id === 'gaga';
@@ -370,7 +434,12 @@ export class Renderer {
       return;
     }
     if (state.cutIn) {
-      drawBananaWaveCutIn(ctx, state.cutIn, reducedMotion);
+      const cutInAction = actionFor(config, state, state.cutIn.source);
+      if (cutInAction?.id === bananaActionIds.joAwaken) {
+        drawBananaJoCutIn(ctx, state.cutIn, reducedMotion);
+      } else {
+        drawBananaWaveCutIn(ctx, state.cutIn, reducedMotion);
+      }
       return;
     }
     const summon = state.summon;
@@ -399,9 +468,15 @@ export class Renderer {
       return entrance && frame >= 0 && frame < entrance.frames ? entrance : undefined;
     });
     const close = shown.find(Boolean)?.close(frame);
+    const ts = state.timeStop;
     const sight = close ? frameEntrance(config.arena, { width, height }, camera,
-      [{ x: a.x, y: a.y, height: heights[0] }, { x: b.x, y: b.y, height: heights[1] }], close) : camera;
-    this.camera = sight;
+      [{ x: a.x, y: a.y, height: heights[0] }, { x: b.x, y: b.y, height: heights[1] }], close)
+      : ts && !reducedMotion ? frameTimeStopCamera(config.arena, { width, height }, camera,
+        { x: state.fighters[ts.source].x, y: state.fighters[ts.source].y, height: heights[ts.source] },
+        { x: state.fighters[1 - ts.source].x, y: state.fighters[1 - ts.source].y, height: heights[1 - ts.source] },
+        ts)
+      : camera;
+    this.camera = ts ? camera : sight;
     // A walked-in entrance is drawn behind the opening mark. The simulation never moves the fighter.
     const standing = (seat: 0 | 1) =>
       state.fighters[seat].x + (shown[seat]?.shift(frame) ?? 0) * state.fighters[seat].facing;
@@ -416,10 +491,12 @@ export class Renderer {
     const dy = Math.min(y * zoom, Math.max(height - (config.arena.height - y) * zoom,
       force * .55 * Math.sin(this.shakePhase * 1.3 + .7)));
     ctx.setTransform(zoom, 0, 0, zoom, -x * zoom + dx, -y * zoom + dy);
+    const worldGray = ts ? 'grayscale(' + Math.round(Math.min(1, ts.frame / 28) * 100) + '%) contrast(1.16)' : 'none';
+    ctx.filter = worldGray;
     const layers = layersFor(config.arena);
     layers.backdrop(ctx, config.arena, x + width / (2 * zoom));
     ctx.drawImage(this.background, 0, this.sceneryTop);
-    layers.mechanism(ctx, config.arena, state.arenaFrame, state, config);
+    layers.mechanism(ctx, config.arena, config.arena.theme === 'ring' && reducedMotion ? 0 : state.arenaFrame, state, config);
     ctx.fillStyle = '#10153312';
     ctx.fillRect(x - dx / zoom, y - dy / zoom, width / zoom, height / zoom);
 
@@ -476,7 +553,7 @@ export class Renderer {
     const carrying = summon?.phase === 'fall' && summon.carry;
     if (carrying && summon && this.dive) drawDijiang(ctx, summon, this.dive.length, debug, reducedMotion);
 
-    const swingTrails: { paths: Trail[]; x: number; y: number; facing: number; alpha: number; wide: boolean }[] = [];
+    const swingTrails: { paths: Trail[]; x: number; y: number; facing: number; alpha: number; wide: boolean; color?: string }[] = [];
     const poles: { pose: PolePose; x: number; y: number; facing: number; action: ActionDefinition; frame: number }[] = [];
     for (const turret of Object.values(state.turrets)) {
       if (!turret) continue;
@@ -493,8 +570,10 @@ export class Renderer {
         }
       }
     }
-    for (const seat of [0, 1] as const) {
+    const drawOrder: readonly (0 | 1)[] = ts ? [ts.source === 0 ? 1 : 0, ts.source] : [0, 1];
+    for (const seat of drawOrder) {
       const f = state.fighters[seat];
+      ctx.filter = ts && seat !== ts.source ? worldGray : 'none';
       const def = config.fighters[seat];
       const sprite = sprites[def.id];
       const color = seatColors[seat];
@@ -507,21 +586,29 @@ export class Renderer {
       const authoredPose = Boolean(move?.animation?.length && motionSheet?.naturalWidth && poseCell !== undefined);
       // An entrance takes the place of the idle stance until its last pose.
       const entrance = shown[seat];
-      const attackPose = !authoredPose && def.id === 'gaga' && action ? gagaActionPose(action, phase, Boolean(f.ground)) : undefined;
+      const attackPose = !authoredPose && def.id === 'gaga' && move ? gagaActionPose(move, phase, Boolean(f.ground)) : undefined;
       const pose = entrance ? entrance.pose(frame) ?? attackPose : attackPose;
-      const reaction = def.id === 'gaga' && f.hp && !action && !f.walk && !f.dash && !f.guarding ? f.reaction : undefined;
+      const reaction = def.id === 'gaga' && f.hp && !move && !f.walk && !f.dash && !f.guarding ? f.reaction : undefined;
       const hurtPose = reaction ? gagaReactionPose(reaction, f.vy) : undefined;
-      const drawnPose = hurtPose ?? pose;
-      const allowedToWalk = def.id === 'gaga' && f.ground && f.hp && !action &&
+      const allowedToWalk = def.id === 'gaga' && f.ground && f.hp && !move &&
         !f.guarding && !f.dash && !f.hitstun && !f.blockstun && !f.guardBreak && !f.recovery;
       const walk = this.gagaWalks[seat];
       if (!allowedToWalk) walk.reset();
       // The walk-in reports how much ground it has covered; afterwards the gait follows the simulation again.
       const gait = entrance && entrance.travelled(frame) > 0 && frame < 40
         ? { direction: 'forward' as const, distance: entrance.travelled(frame) } : f.walk;
-      const walkPose = allowedToWalk && !hurtPose ? walk.sample(gait, elapsed) : undefined;
+      const statePose = def.id === 'gaga' && !hurtPose && !pose && f.hp && !f.hitstun && !f.guardBreak && !f.recovery
+        ? gagaStatePose(f, allowedToWalk ? gait?.distance : undefined) : undefined;
+      const drawnPose = hurtPose ?? pose ?? statePose;
+      const walkPose = allowedToWalk && !drawnPose ? walk.sample(gait, elapsed) : undefined;
       const fallingPose = knockdownPose(def.id, f);
-      const at = standing(seat);
+      const barrageEnd = ts ? ts.flickAt + Math.max(20, ts.releaseAt - ts.flickAt - 51) : 0;
+      const finisherAt = ts ? ts.releaseAt - 26 : 0;
+      const tsStruck = Boolean(ts && seat !== ts.source && ts.flicked && !reducedMotion &&
+        ((ts.frame < barrageEnd && (ts.frame - ts.flickAt) % 7 < 3) ||
+         (ts.frame >= finisherAt && ts.frame < finisherAt + 10)));
+      const tsJoltX = tsStruck ? Math.sin(ts!.frame * 3.1) * (ts!.frame >= finisherAt ? 7 : 3.5) : 0;
+      const at = standing(seat) + tsJoltX;
       const ground = decks.reduce((y, platform) =>
         at >= platform.left && at <= platform.right && platform.y >= f.y && platform.id !== f.ignorePlatform
           ? Math.min(y, platform.y) : y,
@@ -552,8 +639,8 @@ export class Renderer {
         ctx.rotate(reeling ? -.38 : -.20);
         yScale = reeling ? .88 : .94;
       }
-      else if (f.dash) { ctx.rotate(.20); yScale = .87; }
-      else if (f.guarding) yScale = .83;
+      else if (f.dash && !drawnPose) { ctx.rotate(.20); yScale = .87; }
+      else if (f.guarding && !drawnPose) yScale = .83;
       else if (active && !pose) ctx.rotate(action.pose === 'rise' ? -.14 : .12);
       else if (!f.ground && !drawnPose) ctx.rotate(f.vy < 0 ? -.085 : .085);
       ctx.scale(2 - yScale, yScale);
@@ -565,6 +652,7 @@ export class Renderer {
         const flash = this.effects.find(effect => effect.event.kind === 'hit' &&
           effect.event.source !== seat && effect.age < 6)?.event.feedback?.flash;
         if (flash !== undefined && f.hitstun) ctx.filter = 'brightness(' + (1 + Math.min(1, flash)) + ')';
+        else if (tsStruck) ctx.filter = worldGray + ' brightness(1.48)';
         else if (hurtPose && reaction && reaction.elapsed < 2) ctx.filter = 'brightness(1.45) saturate(.7)';
         else if (f.hitstun && state.freeze > 0) ctx.filter = 'brightness(1.48)';
         if (fallingPose) {
@@ -578,7 +666,24 @@ export class Renderer {
             : state.phase === 'round-over' && state.result?.winner === seat
               ? { kind: 'victory' as const, frame: Math.max(0, 192 - state.phaseTicks) }
               : undefined;
-          drawBanana(ctx, f, action, state.frame, reducedMotion, stageCue);
+          let lingerCue: StandLinger | undefined;
+          if (state.phase === 'fight' && f.joAwakened) {
+            const isKq = action?.id === bananaActionIds.kqBomb || action?.id === bananaActionIds.kqDetonate;
+            const prev = this.standLinger[seat];
+            if (isKq && action) {
+              this.standLinger[seat] = { actionId: action.id, lastFrame: state.frame, age: 0 };
+            } else if (!action && prev && state.frame >= prev.lastFrame) {
+              prev.age += state.frame - prev.lastFrame;
+              prev.lastFrame = state.frame;
+              if (prev.age < 14) lingerCue = { actionId: prev.actionId, age: prev.age };
+              else this.standLinger[seat] = null;
+            } else {
+              this.standLinger[seat] = null;
+            }
+          } else {
+            this.standLinger[seat] = null;
+          }
+          drawBanana(ctx, f, action, state.frame, reducedMotion, stageCue, lingerCue);
         } else if (drawnPose?.image) {
           const { image, region, scaleX, scaleY } = drawnPose;
           ctx.drawImage(image, region.x, region.y, region.width, region.height,
@@ -593,17 +698,20 @@ export class Renderer {
         ctx.filter = 'none';
         ctx.shadowBlur = 0;
       }
+      ctx.filter = ts ? worldGray : 'none';
       if (pose?.heldCrate) drawEngineeringCrate(ctx, pose.heldCrate.kind, pose.heldCrate.x, pose.heldCrate.y, -.16);
       if (pose?.pole && action) poles.push({ pose: pose.pole, x: f.x, y: f.y, facing: f.facing, action, frame: phase });
       const trails = pose?.rushing ? rushTrails : active && pose && attackTrails[action.id];
       if (trails && action) {
         const sustained = pose?.rushing || action.id === gagaActionIds.slide;
         const alpha = sustained ? .54 : .76 * (1 - (phase - action.startup) / action.active);
+        const swordTrail = action.id === gagaActionIds.swordSlash || action.id === gagaActionIds.swordRise;
         swingTrails.push({ paths: trails, x: f.x, y: f.y, facing: f.facing,
-          alpha, wide: Boolean(pose?.pole) || action.impact === 'heavy' });
+          alpha, wide: Boolean(pose?.pole) || action.impact === 'heavy' || swordTrail,
+          ...(swordTrail ? { color: '#fbbf24' } : {}) });
       }
       ctx.globalAlpha = 1;
-      if (f.guarding || (move && !isAttack(move) && isActiveFrame(move, phase))) {
+      if ((f.guarding && !statePose) || (move && !isAttack(move) && move.id !== gagaActionIds.xiraniteGuard && isActiveFrame(move, phase))) {
         ctx.strokeStyle = '#fff2ab';
         ctx.lineWidth = 5;
         ctx.beginPath();
@@ -657,6 +765,23 @@ export class Renderer {
       drawGagaPole(ctx, pole.pose);
       ctx.restore();
     }
+    for (const seat of [0, 1] as const) {
+      const f = state.fighters[seat];
+      ctx.filter = ts && seat !== ts.source ? worldGray : 'none';
+      const act = actionFor(config, state, seat);
+      if (isAttack(act) && act.standAttack === 'ora') {
+        drawBananaWorldStand(ctx, f, act, reducedMotion);
+      }
+      if (ts && ts.source === seat) {
+        drawBananaTheWorldStrike(ctx, f, state.fighters[1 - seat], config.arena, ts, reducedMotion);
+      }
+      if (f.bombMark && f.hp > 0) {
+        drawKillerQueenMark(ctx, f, state.frame);
+      }
+      if (f.crystalMark && f.hp > 0) {
+        drawOriginiumCrystalMark(ctx, f, state.frame);
+      }
+    }
     for (const projectile of state.projectiles) {
       const data = config.fighters[projectile.source].actions.filter(isAttack).find(move => move.id === projectile.actionId)?.projectile;
       if (!data) continue;
@@ -665,10 +790,16 @@ export class Renderer {
         drawEngineeringCrate(ctx, data.turret, projectile.x, projectile.y, pitch);
       } else if (data.kind === 'bolt') {
         drawTurretBolt(ctx, projectile);
+      } else if (data.kind === 'spark') {
+        drawSparkProjectile(ctx, projectile);
       } else if (data.kind === 'grenade') {
         drawGrenade(ctx, projectile);
       } else if (data.kind === 'tear') {
         drawBananaProjectile(ctx, projectile, data);
+      } else if (data.kind === 'kq-orb') {
+        drawKillerQueenOrb(ctx, projectile);
+      } else if (data.kind === 'sheer-heart') {
+        drawSheerHeartAttack(ctx, projectile, state.frame);
       } else if (data.kind === 'wave') {
         drawBananaWave(ctx, projectile, data, reducedMotion);
       } else {
@@ -687,7 +818,7 @@ export class Renderer {
       ctx.translate(trail.x, trail.y);
       ctx.scale(trail.facing, 1);
       ctx.globalAlpha = trail.alpha;
-      ctx.strokeStyle = '#fff1c0';
+      ctx.strokeStyle = trail.color ?? '#fff1c0';
       ctx.lineWidth = trail.wide ? 7 : 4;
       ctx.lineCap = 'round';
       for (const [from, control, to] of trail.paths) {
@@ -701,6 +832,13 @@ export class Renderer {
     if (!carrying && summon && this.dive) {
       drawDijiang(ctx, summon, this.dive.length, debug, reducedMotion);
     }
+    if (ts) {
+      ctx.filter = 'none';
+      const caster = state.fighters[ts.source];
+      const opp = state.fighters[1 - ts.source];
+      drawTimeStopOverlay(ctx, ts, caster.x, caster.y, opp.x, opp.y, x, y, zoom, dx, dy, reducedMotion);
+    }
+    ctx.filter = 'none';
     for (const seat of [0, 1] as const) shown[seat]?.effect?.(ctx, frame, state.fighters[seat]);
     this.drawEffects(elapsed, Boolean(config.training), reducedMotion);
     ctx.resetTransform();
@@ -725,7 +863,12 @@ export class Renderer {
           [[dot, markerY + 4], [dot + 6, markerY + 10], [dot, markerY + 16], [dot - 6, markerY + 10]]);
       }
     }
-    this.drawPositionStrip(config.arena, [a.x, b.x], camera);
+    if (config.arena.theme !== 'ring') this.drawPositionStrip(config.arena, [a.x, b.x], camera);
+    const shatter = this.effects.find(effect => effect.event.kind === 'jo-shatter' && effect.age < 9);
+    if (shatter && !reducedMotion) {
+      ctx.fillStyle = `rgba(254, 240, 138, ${(1 - shatter.age / 9) * .62})`;
+      ctx.fillRect(0, 0, width, height);
+    }
     this.shake = Math.max(0, this.shake - elapsed);
     this.shakePhase += elapsed * 2.9;
     if (shot) {
@@ -772,16 +915,42 @@ export class Renderer {
       } else if (event.kind === 'summon-impact') {
         drawDijiangImpact(ctx, age, reducedMotion);
       } else if (event.kind === 'summon-catch') {
+        ctx.save();
         drawGagaContact(ctx, 'heavy', age, event.facing);
+        ctx.restore();
+      } else if (event.kind === 'kq-plant') {
+        drawKillerQueenPlant(ctx, age, life, reducedMotion);
+      } else if (event.kind === 'kq-lock') {
+        drawSheerHeartLock(ctx, age, life, reducedMotion);
+      } else if (event.kind === 'kq-detonate') {
+        drawKillerQueenDetonation(ctx, age, life, reducedMotion);
+      } else if (event.kind === 'crystal-plant') {
+        drawCrystalPlant(ctx, age, life);
+      } else if (event.kind === 'crystal-shatter') {
+        drawCrystalShatter(ctx, age, life, reducedMotion);
+      } else if (event.kind === 'xiranite-burst') {
+        drawXiraniteBurstEffect(ctx, age, life, event.facing, reducedMotion);
+      } else if (event.kind === 'turret-overclock' && event.targetX !== undefined && event.targetY !== undefined) {
+        drawOverclockArc(ctx, event.x, event.y, event.targetX, event.targetY, age, life);
+      } else if (event.kind === 'time-stop-flick' || event.kind === 'time-stop-hit') {
+        drawTimeStopPunchImpact(ctx, age, life, Boolean(event.heavy), event.facing ?? 1, reducedMotion);
+      } else if (event.kind === 'time-stop-release') {
+        drawTimeStopReleaseBurst(ctx, age, life, reducedMotion);
+      } else if (event.kind === 'jo-shatter') {
+        drawJoShatterBurst(ctx, age, life, reducedMotion);
       } else if (isTurretEffect(event)) {
         drawTurretEffect(ctx, event, age);
       } else if (bananaEffectLife(event) && event.kind !== 'hit') {
         drawBananaEffect(ctx, event, age, life);
+      } else if (event.kind === 'dash' && event.heavy) {
+        drawBananaJoDashTrail(ctx, event, age, life, reducedMotion);
       } else if (event.kind === 'dash') {
         ctx.fillStyle = seatColors[event.source];
         for (let i = 0; i < 4; i++) ctx.fillRect(-21 + i * 15, -10 - i * 3, i + 5, 2);
       } else if (event.kind === 'land' && effect.bananaImpact) {
         drawBananaImpact(ctx, event, age, life, reducedMotion);
+      } else if (event.kind === 'land' && event.actionId === gagaActionIds.airDive) {
+        drawDiveLandImpact(ctx, age, life, reducedMotion);
       } else if (event.kind === 'knockdown') {
         drawKnockdownDust(ctx, age);
       } else if (event.kind === 'land' || event.kind === 'drop' || event.kind === 'air-jump' ||

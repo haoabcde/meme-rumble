@@ -3,6 +3,9 @@ import waveCrash from '../../assets/fx/pixelfx/wave-crash.webp';
 import splash from '../../assets/fx/pixelfx/splash.webp';
 import hitSpark from '../../assets/fx/pixelfx/hit-spark.webp';
 import heavyLanding from '../../assets/fx/pixelfx/heavy-landing.webp';
+import kqCoin from '../../assets/fx/pixelfx/kq-coin.webp';
+import kqImplosion from '../../assets/fx/pixelfx/kq-implosion.webp';
+import kqFireblast from '../../assets/fx/pixelfx/kq-fireblast.webp';
 
 function load(src: string) {
   const image = new Image();
@@ -16,7 +19,10 @@ const atlases = {
   waveCrash: { image: load(waveCrash), w: 224, h: 104, x: 112, y: 86, columns: 7, count: 51 },
   splash: { image: load(splash), w: 176, h: 100, x: 88, y: 78, columns: 7, count: 20 },
   hitSpark: { image: load(hitSpark), w: 136, h: 80, x: 44, y: 44, columns: 7, count: 15 },
-  heavyLanding: { image: load(heavyLanding), w: 176, h: 80, x: 88, y: 60, columns: 7, count: 26 }
+  heavyLanding: { image: load(heavyLanding), w: 176, h: 80, x: 88, y: 60, columns: 7, count: 26 },
+  kqCoin: { image: load(kqCoin), w: 120, h: 52, x: 92, y: 26, columns: 5, count: 15 },
+  kqImplosion: { image: load(kqImplosion), w: 208, h: 184, x: 104, y: 92, columns: 6, count: 24 },
+  kqFireblast: { image: load(kqFireblast), w: 300, h: 240, x: 150, y: 176, columns: 6, count: 24 }
 };
 
 export function drawPixelEffect(ctx: CanvasRenderingContext2D, effect: keyof typeof atlases,

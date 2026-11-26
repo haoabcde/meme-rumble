@@ -86,4 +86,10 @@ const station = stage({
   ['east-stair', '东侧接线台', 1, 3656, 4190, 100, 'stair']
 ]);
 
-export const arenas: ArenaDefinition[] = [dorm, court, harbor, station];
+const ring = stage({
+  id: 'neon-ring', name: '霓虹决斗场', theme: 'ring', width: 1152, terrain: '单层擂台 · 鸭鸭直播',
+  description: '青蓝与玫红两侧看台为选手助威。鸭子解说员在大屏上播报，两位选手在中央擂台正面对决。',
+  routes: [[], []]
+}, []);
+
+export const arenas: ArenaDefinition[] = [dorm, court, harbor, station, ring];

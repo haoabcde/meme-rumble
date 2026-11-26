@@ -1,7 +1,11 @@
-import type { Box, CombatEvent, Projectile, ProjectileDefinition } from '../core/types.js';
+import type { Box, CombatEvent, FighterState, Projectile, ProjectileDefinition } from '../core/types.js';
 import { bananaActionIds } from '../content/fighters/banana.js';
+import sheerHeartSrc from '../../assets/fighters/banana-sheer-heart-attack.png';
 import { sparkle } from './hit-burst.js';
 import { drawPixelEffect } from './pixelfx.js';
+
+const sheerHeartSheet = new Image();
+sheerHeartSheet.src = sheerHeartSrc;
 
 type Point = { x: number; y: number };
 
@@ -24,6 +28,346 @@ function droplet(ctx: CanvasRenderingContext2D, x: number, y: number, size: numb
   ctx.bezierCurveTo(-size, size, 0, size * .9, size * 1.7, 0);
   ctx.fill(); ctx.stroke();
   ctx.fillStyle = '#e5fbff'; ctx.beginPath(); ctx.ellipse(-size * .2, -size * .25, size * .5, size * .17, -.25, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+export function drawTimeStopOverlay(ctx: CanvasRenderingContext2D, ts: { source: 0 | 1; frame: number;
+  teleportAt: number; flickAt: number; releaseAt: number; originX?: number; originY?: number; flicked?: boolean },
+  casterX: number, casterY: number, oppX: number, oppY: number,
+  camX: number, camY: number, zoom: number, dx: number, dy: number, reducedMotion: boolean) {
+  const { width, height } = ctx.canvas;
+  const collapse = Math.min(1, ts.frame / 28);
+  const cx = (casterX - camX) * zoom + dx;
+  const cy = (casterY - 72 - camY) * zoom + dy;
+
+  // World-space warp trail & accumulating kinetic fracture rings around the frozen target!
+  if (ts.frame >= ts.teleportAt && ts.originX !== undefined && ts.originY !== undefined) {
+    const warpAge = ts.frame - ts.teleportAt;
+    if (warpAge < 18) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 1 - warpAge / 18) * .8;
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.ellipse(ts.originX, ts.originY - 68, 30 + warpAge * 2.2, 68 - warpAge * 2, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+  if (ts.flicked) {
+    const flickAge = ts.frame - ts.flickAt;
+    const charge = Math.min(1, flickAge / Math.max(1, ts.releaseAt - ts.flickAt));
+    const finisherAt = ts.releaseAt - 26;
+    const isFinisher = ts.frame >= finisherAt;
+    const pulse = 1 + Math.sin(flickAge * .5) * (.08 + charge * .08);
+    ctx.save();
+    ctx.translate(oppX, oppY - 68);
+    ctx.scale(pulse, pulse);
+    // Stored kinetic energy rings & fracture spikes tightening around the frozen opponent!
+    const ringCount = 1 + Math.floor(charge * 3);
+    for (let r = 0; r < ringCount; r++) {
+      ctx.strokeStyle = r % 2 === 0 ? '#fde047' : '#e879f9';
+      ctx.lineWidth = isFinisher ? 4 : 2.5;
+      ctx.globalAlpha = .48 + charge * .42;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 34 + r * 12, 54 + r * 10, (r - 1) * .25, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = isFinisher ? '#ffffff' : '#fde047';
+    ctx.lineWidth = isFinisher ? 4 : 2.5;
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4 + .18;
+      const inner = 20;
+      const outer = 38 + charge * 26 + (isFinisher ? 14 : 0);
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * inner, Math.sin(a) * inner);
+      ctx.lineTo(Math.cos(a) * outer, Math.sin(a) * outer);
+      ctx.stroke();
+    }
+    if (isFinisher) {
+      sparkle(ctx, 44, '#fde047', '#ffffff');
+    }
+    ctx.restore();
+  }
+
+  // Screen-space edge-to-center closing vignette, negative flash, and JoJo manga callouts.
+  ctx.save();
+  ctx.resetTransform();
+  if (!reducedMotion && collapse < 1) {
+    const ease = 1 - Math.pow(1 - collapse, 2.2);
+    const r = Math.max(0, 960 * (1 - ease));
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, width, height);
+    ctx.arc(cx, cy, r, 0, Math.PI * 2, true);
+    ctx.fillStyle = `rgba(14, 10, 28, ${0.34 * collapse})`;
+    ctx.fill('evenodd');
+    ctx.restore();
+
+    ctx.save();
+    ctx.strokeStyle = '#fde047';
+    ctx.lineWidth = 8 * (1 - collapse * .4);
+    ctx.shadowColor = '#a855f7';
+    ctx.shadowBlur = 24;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = '#a855f7';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 16, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  } else {
+    ctx.fillStyle = 'rgba(14, 10, 28, 0.24)';
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  // Dramatic JoJo negative pulse right as time locks shut!
+  if (!reducedMotion && ts.frame >= 10 && ts.frame <= 16) {
+    ctx.fillStyle = ts.frame <= 13 ? 'rgba(217, 70, 239, 0.36)' : 'rgba(253, 224, 71, 0.32)';
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  // Dramatic manga callouts matched to the 4 acts.
+  ctx.font = '900 48px "Microsoft YaHei", sans-serif';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#120722';
+  ctx.lineWidth = 10;
+  if (ts.frame < ts.teleportAt) {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#fde047';
+    ctx.strokeText('ザ・ワールド!!', 64, 150);
+    ctx.fillText('ザ・ワールド!!', 64, 150);
+  } else if (ts.frame >= ts.releaseAt - 28) {
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#e5e7eb';
+    ctx.strokeText('そして時は動き出す…', width - 64, height - 114);
+    ctx.fillText('そして時は動き出す…', width - 64, height - 114);
+  }
+  ctx.restore();
+}
+
+export function drawTimeStopPunchImpact(ctx: CanvasRenderingContext2D, age: number, life: number, heavy: boolean,
+  facing: number, reducedMotion: boolean) {
+  const t = age / Math.max(1, life);
+  ctx.save();
+  const scale = heavy ? 1.85 : 1.25;
+  drawPixelEffect(ctx, 'hitSpark', age * 1.4, 0, 0, facing * scale, scale);
+  if (!reducedMotion) {
+    ctx.globalAlpha = Math.max(0, 1 - t);
+    ctx.strokeStyle = heavy ? '#ffffff' : '#fde047';
+    ctx.lineWidth = (heavy ? 7 : 4.5) * (1 - t) + 1;
+    ctx.beginPath();
+    ctx.arc(0, 0, (heavy ? 24 : 14) + t * (heavy ? 112 : 66), 0, Math.PI * 2);
+    ctx.stroke();
+    sparkle(ctx, (heavy ? 48 : 30) * (1 - t * .45), '#fde047', '#ffffff');
+  }
+  ctx.restore();
+}
+
+export function drawTimeStopReleaseBurst(ctx: CanvasRenderingContext2D, age: number, life: number, reducedMotion: boolean) {
+  const t = age / Math.max(1, life);
+  ctx.save();
+  drawPixelEffect(ctx, 'kqFireblast', age * .95, 0, 14, 1.85, 1.85);
+  drawPixelEffect(ctx, 'hitSpark', age * 1.1, 0, -10, 2.0, 2.0);
+  ctx.strokeStyle = '#fde047';
+  ctx.lineWidth = Math.max(1.5, 9 * (1 - t));
+  ctx.beginPath();
+  ctx.arc(0, 0, 34 + t * 210, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = '#e879f9';
+  ctx.lineWidth = Math.max(1, 5 * (1 - t));
+  ctx.beginPath();
+  ctx.arc(0, 0, 20 + t * 165, 0, Math.PI * 2);
+  ctx.stroke();
+  if (!reducedMotion) {
+    ctx.globalAlpha = Math.max(0, 1 - t * t);
+    ctx.font = '900 36px "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#120722';
+    ctx.lineWidth = 8;
+    ctx.strokeText('時は動き出す!!', 0, -76 - t * 38);
+    ctx.fillStyle = '#fde047';
+    ctx.fillText('時は動き出す!!', 0, -76 - t * 38);
+  }
+  ctx.restore();
+}
+
+function drawGoldSkullCoin(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, spin = 1) {
+  ctx.save();
+  ctx.translate(x, y);
+  // Subtle metallic coin tilt/spin gleam while keeping the skull readable.
+  const sx = .78 + .22 * Math.abs(Math.cos(spin));
+  ctx.scale(sx, 1);
+  // 1. Coin edge thickness + outer golden disc.
+  ctx.fillStyle = '#92400e';
+  ctx.strokeStyle = '#1e0638';
+  ctx.lineWidth = Math.max(2.5, r * .12);
+  ctx.beginPath();
+  ctx.arc(3, 2, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  const coinGrad = ctx.createLinearGradient(-r, -r, r, r);
+  coinGrad.addColorStop(0, '#fef08a');
+  coinGrad.addColorStop(.45, '#facc15');
+  coinGrad.addColorStop(1, '#d97706');
+  ctx.fillStyle = coinGrad;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // 2. Inner raised coin groove & specular gleam.
+  ctx.strokeStyle = '#92400e';
+  ctx.lineWidth = Math.max(1.6, r * .07);
+  ctx.beginPath();
+  ctx.arc(0, 0, r * .8, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 3. Killer Queen cat-eared skull relief in the center of the coin.
+  const s = r * .56;
+  ctx.fillStyle = '#fffbeb';
+  ctx.strokeStyle = '#2d083d';
+  ctx.lineWidth = Math.max(1.8, r * .085);
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  // Pointed Killer Queen cat ears on top of the skull!
+  ctx.moveTo(-s * .72, -s * .25);
+  ctx.lineTo(-s * .85, -s * 1.05);
+  ctx.lineTo(-s * .28, -s * .68);
+  ctx.quadraticCurveTo(0, -s * .8, s * .28, -s * .68);
+  ctx.lineTo(s * .85, -s * 1.05);
+  ctx.lineTo(s * .72, -s * .25);
+  // Cheekbones down to toothed jaw.
+  ctx.quadraticCurveTo(s * .82, s * .22, s * .46, s * .44);
+  ctx.lineTo(s * .46, s * .88);
+  ctx.lineTo(-s * .46, s * .88);
+  ctx.lineTo(-s * .46, s * .44);
+  ctx.quadraticCurveTo(-s * .82, s * .22, -s * .72, -s * .25);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Sharp angry skull eye sockets.
+  ctx.fillStyle = '#2d083d';
+  ctx.beginPath();
+  ctx.moveTo(-s * .56, -s * .22);
+  ctx.lineTo(-s * .14, -s * .05);
+  ctx.lineTo(-s * .22, s * .22);
+  ctx.lineTo(-s * .54, s * .12);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(s * .56, -s * .22);
+  ctx.lineTo(s * .14, -s * .05);
+  ctx.lineTo(s * .22, s * .22);
+  ctx.lineTo(s * .54, s * .12);
+  ctx.closePath();
+  ctx.fill();
+  // Nose slit & skull teeth bars.
+  ctx.beginPath();
+  ctx.moveTo(0, s * .12);
+  ctx.lineTo(-s * .1, s * .34);
+  ctx.lineTo(s * .1, s * .34);
+  ctx.closePath();
+  ctx.fill();
+  ctx.lineWidth = Math.max(1.5, r * .07);
+  for (const tx of [-.22, 0, .22]) {
+    ctx.beginPath();
+    ctx.moveTo(s * tx, s * .56);
+    ctx.lineTo(s * tx, s * .88);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+export function drawKillerQueenOrb(ctx: CanvasRenderingContext2D, p: Projectile) {
+  const age = p.age ?? 0;
+  const r = p.boosted ? 27 : 23;
+  ctx.save();
+  // Pixelfx golden spark wake trailing behind the flying coin.
+  drawPixelEffect(ctx, 'kqCoin', (age * .9) % 15, p.x - p.facing * 6, p.y, p.facing * 1.5, 1.3);
+  if (p.boosted) {
+    ctx.strokeStyle = '#fde047';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.ellipse(p.x - p.facing * 24, p.y, 38, 16, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  drawGoldSkullCoin(ctx, p.x, p.y, r, age * .22);
+  ctx.restore();
+}
+
+export function drawKillerQueenMark(ctx: CanvasRenderingContext2D, f: FighterState, tick: number) {
+  if (!f.bombMark) return;
+  const ratio = Math.max(0, Math.min(1, f.bombMark.remaining / 240));
+  const pulse = 1 + Math.sin(tick * .25) * .07;
+  ctx.save();
+  ctx.translate(f.x, f.y - 78);
+  ctx.scale(pulse, pulse);
+  // Golden-purple Killer Queen bomb countdown ring + large skull coin mark.
+  ctx.strokeStyle = '#2d083d';
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.arc(0, 0, 32, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = ratio < .25 ? '#ef4444' : '#fde047';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(0, 0, 32, -Math.PI * .5, -Math.PI * .5 + Math.PI * 2 * ratio);
+  ctx.stroke();
+  drawGoldSkullCoin(ctx, 0, 0, 21, tick * .15);
+  ctx.restore();
+}
+
+export function drawKillerQueenPlant(ctx: CanvasRenderingContext2D, age: number, life: number, reducedMotion: boolean) {
+  const t = age / Math.max(1, life);
+  ctx.save();
+  ctx.strokeStyle = '#fde047';
+  ctx.lineWidth = 4 * (1 - t) + 1;
+  ctx.beginPath();
+  ctx.arc(0, 0, 18 + t * 44, 0, Math.PI * 2);
+  ctx.stroke();
+  if (!reducedMotion) {
+    ctx.globalAlpha = Math.max(0, 1 - t * t);
+    ctx.font = '900 22px "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#1e0638';
+    ctx.lineWidth = 6;
+    ctx.strokeText('第一の爆弾!!', 0, -28 - t * 24);
+    ctx.fillStyle = '#fde047';
+    ctx.fillText('第一の爆弾!!', 0, -28 - t * 24);
+  }
+  ctx.restore();
+}
+
+export function drawKillerQueenDetonation(ctx: CanvasRenderingContext2D, age: number, life: number, reducedMotion: boolean) {
+  const t = age / Math.max(1, life);
+  ctx.save();
+  // Stage 1 (frames 0..12): rapid inward space collapse (Implosion).
+  if (age < 13) {
+    drawPixelEffect(ctx, 'kqImplosion', age * 1.85, 0, 0, 1.35, 1.35);
+  }
+  // Stage 2 (frames 4..end): blazing arcade fireball & smoke burst (Big/Small Explosion).
+  if (age >= 4) {
+    drawPixelEffect(ctx, 'kqFireblast', (age - 4) * 1.0, 0, 12, 1.45, 1.45);
+  }
+  if (!reducedMotion) {
+    ctx.globalAlpha = Math.max(0, 1 - t * t);
+    ctx.font = '900 32px "Microsoft YaHei", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#1a0428';
+    ctx.lineWidth = 8;
+    const label = age < 7 ? 'カチッ!!' : 'キラークイーン!!';
+    ctx.strokeText(label, 0, -62 - t * 30);
+    ctx.fillStyle = age < 7 ? '#ffffff' : '#fde047';
+    ctx.fillText(label, 0, -62 - t * 30);
+  }
   ctx.restore();
 }
 
@@ -397,5 +741,62 @@ export function drawBananaEffect(ctx: CanvasRenderingContext2D, event: CombatEve
       }
     }
   }
+  ctx.restore();
+}
+
+export function drawSheerHeartAttack(ctx: CanvasRenderingContext2D, p: Projectile, tick: number) {
+  const locked = p.locked;
+  const frame = locked !== undefined
+    ? (locked >= 30 ? 7 : locked >= 17 ? 6 : locked >= 6 ? 5 : 4)
+    : Math.floor(tick / 4) % 4;
+  const shakeX = locked !== undefined && locked >= 30 ? Math.sin(tick * 2.6) * 3 : 0;
+
+  ctx.save();
+  ctx.translate(p.x + shakeX, p.y);
+  // Subtle red radar range sweep while cruising, intensifies to bright lock indicator when target found.
+  ctx.strokeStyle = locked !== undefined ? 'rgba(239, 68, 68, .48)' : 'rgba(239, 68, 68, .13)';
+  ctx.lineWidth = locked !== undefined ? 2.5 : 1.5;
+  ctx.setLineDash(locked !== undefined ? [8, 4] : [10, 8]);
+  ctx.beginPath();
+  ctx.arc(0, -20, locked !== undefined ? Math.max(26, 90 - locked * 1.5) : 225, Math.PI, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = '#0c082099';
+  ctx.beginPath();
+  ctx.ellipse(0, 1, 28, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.scale(p.facing, 1);
+  if (sheerHeartSheet.naturalWidth) {
+    const col = frame % 4;
+    const row = Math.floor(frame / 4);
+    const scale = .46;
+    const drawSize = 256 * scale;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(sheerHeartSheet, col * 256, row * 256, 256, 256,
+      -128 * scale, -195 * scale, drawSize, drawSize);
+  }
+  ctx.restore();
+}
+
+export function drawSheerHeartLock(ctx: CanvasRenderingContext2D, age: number, life: number, reducedMotion: boolean) {
+  if (reducedMotion) return;
+  const t = age / Math.max(1, life);
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, 1 - t * t);
+  ctx.strokeStyle = age % 4 < 2 ? '#ef4444' : '#fde047';
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.arc(0, -14, 16 + t * 54, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.font = '900 20px "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#120722';
+  ctx.lineWidth = 6;
+  ctx.strokeText('コッチヲ見ロ!!', 0, -48 - t * 22);
+  ctx.fillStyle = age < 6 ? '#ef4444' : '#fde047';
+  ctx.fillText('コッチヲ見ロ!!', 0, -48 - t * 22);
   ctx.restore();
 }
