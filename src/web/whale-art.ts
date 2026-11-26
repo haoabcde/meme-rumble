@@ -2,6 +2,7 @@ import type {FighterAction,FighterState,MatchConfig,MatchState} from '../core/ty
 import {motionArt} from './art.js';
 import locomotionV25 from '../../assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png';
 import {registerLocomotion,setActorMotion,drawActorMotion} from './actor-motion.mjs';
+import {whaleTailPose} from './whale-tail-cleanup.mjs';
 import {createUnifiedTornadoRenderer} from '../../assets/角色/防御/大肥鱼/蓝色龙卷风/旋风鲸影_统一渲染_V8.mjs';
 import {createUltimateRenderer} from './whale-ultimate.mjs';
 import portrait from '../../assets/角色/大招/大肥鱼/开源/演出分层/梁文峰_宽肩修订_V4.png';
@@ -53,7 +54,8 @@ export function drawWhaleActor(ctx:CanvasRenderingContext2D,f:FighterState,state
   const age=f.attack?.frame??0;if(age<(action.whale==='counter'?20:12))return;
  }
  if(f.dashActive){ctx.save();ctx.globalAlpha*=.15;for(const x of [-30,-60])ctx.drawImage(sheet,51%4*216,Math.floor(51/4)*216,216,216,x-108,-184,216,216);ctx.restore();}
- ctx.drawImage(sheet,cell%4*216,Math.floor(cell/4)*216,216,216,-108,-184,216,216);
+ const cleaned=whaleTailPose(sheet,cell);
+ if(cleaned)ctx.drawImage(cleaned,-108,-184);else ctx.drawImage(sheet,cell%4*216,Math.floor(cell/4)*216,216,216,-108,-184,216,216);
  if(action&&'whale' in action&&action.whale==='spin-up'&&f.attack){const age=f.attack.frame,blend=age<6?age/6:age<14?1:Math.max(0,(22-age)/8);ctx.save();ctx.globalAlpha*=1-blend;ctx.drawImage(sheet,77%4*216,Math.floor(77/4)*216,216,216,-108,-184,216,216);ctx.restore();}
 }
 function riceBlob(ctx:CanvasRenderingContext2D,x:number,y:number,r=14){

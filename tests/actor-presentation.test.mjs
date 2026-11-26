@@ -9,10 +9,17 @@ import {arenas} from '../dist/content/arenas.js';
 import {NEUTRAL} from '../dist/core/types.js';
 import {walkFootX} from '../src/web/actor-motion.mjs';
 test('planted-foot target remains fixed in world space while the root advances, in both directions',()=>{
- for(const stride of [112,66])for(const facing of [-1,1])for(const phase of [1.3,5.3])for(const travel of [-5,-2,2,5]){
+ for(const stride of [112,74])for(const facing of [-1,1])for(const phase of [1.3,5.3])for(const travel of [-5,-2,2,5]){
   const before=700+facing*walkFootX(phase,stride),after=700+travel*facing+facing*walkFootX(phase+travel/stride*8,stride);
   assert.ok(Math.abs(before-after)<1e-8);
  }
+});
+test('whale cadence is slightly slower and still advances by actual travel',()=>{
+ const config={rules,arena:arenas[2],fighters:[whale.fighter,testFighter]},s=createMatch(config);s.phase='fight';
+ const f=s.fighters[0];updateActorPresentation(s,config);const x=f.x;
+ f.x+=9.25;f.moving=true;s.arenaFrame++;updateActorPresentation(s,config);
+ assert.equal(f.motionVisual.stamp.phase,1);assert.equal(f.x,x+9.25);
+ assert.ok(66/74>.88&&66/74<.92);
 });
 test('presentation history records actual displacement, braking, turns and chained attack frame',()=>{
  const config={rules,arena:arenas[2],fighters:[frog.fighter,testFighter]},state=createMatch(config);state.phase='fight';

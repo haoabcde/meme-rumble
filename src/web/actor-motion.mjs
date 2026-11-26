@@ -1,4 +1,5 @@
 // Registered authored poses and short silhouette-aligned in-betweens. Combat timing is external.
+import {whaleTailPose} from './whale-tail-cleanup.mjs';
 const banks=new Map(),cache=new Map();let serial=0;
 const clamp=n=>Math.max(0,Math.min(1,n)),ease=n=>{n=clamp(n);return n*n*(3-2*n)};
 export function setActorMotion(kind,source){const b=banks.get(kind)??{legacy:new Map()};Object.assign(b,source);banks.set(kind,b);}
@@ -38,11 +39,28 @@ function oldPose(b,kind,index,height=130){
  if(kind==='frog'){
   const im=b.moves?.[index];if(!im)return;const w=height*im.width/im.height;g.drawImage(im,128-w/2,236-height,w,height);
  }else{
-  if(!b.sheet?.naturalWidth)return;g.drawImage(b.sheet,index%4*216,Math.floor(index/4)*216,216,216,20,52,216,216);
+  if(!b.sheet?.naturalWidth)return;
+  const cleaned=whaleTailPose(b.sheet,index);
+  if(cleaned)g.drawImage(cleaned,20,52);else g.drawImage(b.sheet,index%4*216,Math.floor(index/4)*216,216,216,20,52,216,216);
  }
  const pose=descriptor(c);b.legacy.set(key,pose);return pose;
 }
 function soleNear(d,x){return d.sole.reduce((a,b)=>Math.abs(b-x)<Math.abs(a-x)?b:a,d.sole[0]??128);}
+// The up-swing folds a very tall tail back into the body. Per-row width warps
+// stretch isolated outline pixels into comb-like streaks at this large change.
+// Fit one intact authored pose to the interpolated bounds instead.
+function intactTween(a,b,t){
+ if(!a||!b)return a?.canvas??b?.canvas;t=Math.round(clamp(t)*6)/6;
+ if(t===0||a===b)return a.canvas;if(t===1)return b.canvas;
+ const key='intact/'+a.id+'/'+b.id+'/'+t;if(cache.has(key))return cache.get(key);
+ const bounds=d=>{const rows=d.rows.slice(d.top,d.bottom+1);return{left:Math.min(...rows.map(r=>r[0])),right:Math.max(...rows.map(r=>r[1])),top:d.top,bottom:d.bottom};};
+ const ar=bounds(a),br=bounds(b),source=t<.5?a:b,sr=t<.5?ar:br;
+ const x=ar.left+(br.left-ar.left)*t,y=ar.top+(br.top-ar.top)*t;
+ const w=ar.right-ar.left+1+(br.right-br.left-ar.right+ar.left)*t,h=ar.bottom-ar.top+1+(br.bottom-br.top-ar.bottom+ar.top)*t;
+ const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.imageSmoothingEnabled=false;
+ g.drawImage(source.canvas,sr.left,sr.top,sr.right-sr.left+1,sr.bottom-sr.top+1,Math.round(x),Math.round(y),Math.round(w),Math.round(h));
+ if(cache.size>180)cache.delete(cache.keys().next().value);cache.set(key,c);return c;
+}
 function tween(a,b,t,foot){
  if(!a||!b)return a?.canvas??b?.canvas;t=Math.round(clamp(t)*6)/6;
  if(foot===undefined&&(t===0||a===b))return a.canvas;if(foot===undefined&&t===1)return b.canvas;
@@ -80,7 +98,7 @@ function tween(a,b,t,foot){
 function still(p){return{a:p,b:p,t:0};}
 export function walkFootX(phase,stride){return stride/4-(((phase%4)+4)%4)*stride/8;}
 function walk(b,s,kind){
- const phase=((s.phase%8)+8)%8,i=Math.floor(phase),t=phase-i,stride=kind==='frog'?112:66;
+ const phase=((s.phase%8)+8)%8,i=Math.floor(phase),t=phase-i,stride=kind==='frog'?112:74;
  return{a:b.loco[i+1],b:b.loco[(i+1)%8+1],t,foot:128+walkFootX(phase,stride)};
 }
 function attack(b,kind,s,actions){
@@ -88,7 +106,7 @@ function attack(b,kind,s,actions){
  const frame=s.attackFrame??0;
  if(kind==='whale'){
   const keys=action.animation??[],end=action.startup+action.active+action.recovery;
-  for(let i=keys.length-1;i>=0;i--)if(frame>=keys[i].frame){const next=keys[i+1];return{a:oldPose(b,kind,keys[i].cell),b:oldPose(b,kind,next?.cell??77),t:next?(frame-keys[i].frame)/(next.frame-keys[i].frame):clamp((frame-keys[i].frame)/(end-keys[i].frame))};}
+  for(let i=keys.length-1;i>=0;i--)if(frame>=keys[i].frame){const next=keys[i+1];return{a:oldPose(b,kind,keys[i].cell),b:oldPose(b,kind,next?.cell??77),intact:s.attackId==='common-finish'&&frame>=12,t:next?(frame-keys[i].frame)/(next.frame-keys[i].frame):clamp((frame-keys[i].frame)/(end-keys[i].frame))};}
   return still(oldPose(b,kind,77));
  }
  const stage=['common-jab','common-sweep','frog-left-kick','frog-ha','common-finish'].indexOf(s.attackId),cell=stage<0?3:stage+1;
@@ -117,7 +135,7 @@ function plan(b,kind,s,actions){
  }
  return still(kind==='frog'?oldPose(b,kind,0):oldPose(b,kind,77));
 }
-const renderPlan=p=>tween(p.a,p.b,p.t,p.foot);
+const renderPlan=p=>p.intact?intactTween(p.a,p.b,p.t):tween(p.a,p.b,p.t,p.foot);
 export function drawActorMotion(g,kind,f,state,action,actions){
  const b=banks.get(kind),v=f.motionVisual;if(!b?.loco||!v)return false;
  const s=v.stamp;
