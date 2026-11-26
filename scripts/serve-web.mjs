@@ -7,6 +7,7 @@ const pages = new Map([
   ['/', game], ['/index.html', game], ['/guard-counter-demo.html', new URL('guard-counter-demo.html', game)],
   ['/ultimate-demo.html', new URL('ultimate-demo.html', game)],
   ['/combat-demo.html', new URL('combat-demo.html', game)],
+  ['/motion-review.html', new URL('motion-review.html', game)],
   ['/launch-demo.html', new URL('launch-demo.html', game)],
   ['/whale-review.html',new URL('whale-review.html',game)],
   ['/frog-review.html',new URL('frog-review.html',game)],

@@ -2,7 +2,7 @@ from pathlib import Path
 from PIL import Image,ImageDraw,ImageFont
 import subprocess,json
 root=Path(__file__).resolve().parents[1];out=root/'output/动作衔接_V25'
-ff='E:/剪映/JianyingPro/11.6.0.14552/ffmpeg.exe'
+ff='ffmpeg'
 font=ImageFont.truetype('C:/Windows/Fonts/msyh.ttc',21)
 for name in ['奶蛙','大肥鱼']:
  for version in ['改前','改后']:

@@ -128,7 +128,7 @@ export interface PolePose {
   projection: number;
 }
 
-interface GagaActionPose {
+export interface GagaActionPose {
   image: HTMLImageElement | null;
   region: ActionPose;
   scaleX: number;
@@ -138,6 +138,9 @@ interface GagaActionPose {
   rushing?: boolean;
   heldCrate?: { x: number; y: number; kind: TurretKind };
 }
+
+/** Frames of each round's opening on which a step of the terminal routine begins. The opening runs 192 frames. */
+export const gagaIntroBeats = { pocket: 40, take: 63, press: 83, point: 107, relax: 159 } as const;
 
 const poleScale = .45;
 
@@ -513,4 +516,18 @@ export function gagaActionPose(action: ActionDefinition, frame: number, grounded
     const index = frame < action.startup ? 0 : recoveryFrame < 0 ? 1 : 2;
     return { image: settling ? null : actionAtlas, region: special[index], scaleX: .56, scaleY: .56 };
   }
+}
+
+const introCells: [number, number][] = [
+  [gagaIntroBeats.pocket, 0], [gagaIntroBeats.take, 1], [gagaIntroBeats.press, 2], [gagaIntroBeats.point, 4],
+  [gagaIntroBeats.relax, 5]
+];
+
+/** The entrance, performed on the stage at the fighter's usual size: reach for the pocket, take the terminal out,
+ *  press it, point at the opponent, then stand easy. */
+export function gagaIntroPose(frame: number): GagaActionPose | undefined {
+  if (!terminalAtlas.naturalWidth) return undefined;
+  let cell = -1;
+  for (const [from, index] of introCells) if (frame >= from) cell = index;
+  return cell < 0 ? undefined : { image: terminalAtlas, region: terminalFrames[cell], scaleX: .30, scaleY: .30 };
 }

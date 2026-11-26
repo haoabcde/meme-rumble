@@ -14,5 +14,6 @@
 | `turret-ready.wav` | [Kenney Interface Sounds](https://kenney.nl/assets/interface-sounds) 的 `switch_001.ogg` |
 | `turret-bolt.wav`、`grenade-impact.wav`、`dijiang-impact.wav` | [Kenney Sci-fi Sounds](https://kenney.nl/assets/sci-fi-sounds) 的 `laserSmall_001.ogg`、`explosionCrunch_000.ogg`、`lowFrequency_explosion_000.ogg`。榴弹爆炸剪至 0.55 秒并淡出 |
 | `slide-call.wav` | [Myinstants 的「咕咕嘎嘎」流传音频](https://www.myinstants.com/en/instant/gu-gu-ga-ga-35988/)，截取 0:00.050–0:01.195 的第一声，保留原音高和速度，转换为游戏格式 |
+| `victory-lalala.wav` | 胜利演出的录音，计划使用抖音上流传的「啦啦啦啦啦」。**文件尚未加入**，原始出处与授权待核实后登记 |
 
 Kenney 源文件取自 [Open Game SFX Index](https://github.com/Mcamento8/open-game-sfx-index)。本次落地及重击所用的源文件已与 [索引固定版本的 SHA-256](https://github.com/Mcamento8/open-game-sfx-index/blob/34bbe8b525b5ceff3804915ea745532af11f6055/index.json) 核对。开源格斗游戏 [3d-fighter 的素材清单](https://github.com/clintcan/3d-fighter/blob/main/assets/CREDITS.md) 也记录了这套撞击包用于拳击、格挡和跌倒。

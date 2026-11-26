@@ -2,14 +2,25 @@ import { bananaActionIds as ids } from '../content/fighters/banana.js';
 import type { ActionDefinition, FighterState } from '../core/types.js';
 import bananaSprites from '../../assets/fighters/unified-handdrawn-v1/motion/banana/registered/banana-arcade-actions.webp';
 import bananaJetExpressions from '../../assets/fighters/unified-handdrawn-v1/motion/banana/registered/banana-jet-expressions.webp';
+import bananaCombatActions from '../../assets/fighters/banana-combat-actions.webp';
+import bananaEntranceScenes from '../../assets/fighters/banana-entrance-scenes.webp';
+import bananaVictoryScenes from '../../assets/fighters/banana-victory-scenes.webp';
 import { drawCryingTears, drawTearJets } from './banana-fx.js';
 import { drawBananaWaveMotion } from './banana-wave-art.js';
 import { drawBananaHurt } from './banana-hit-art.js';
+import { easeOut, noise } from './cinematics.js';
+import { drawSparkle } from './cutin-art.js';
 
 const atlas = new Image();
 atlas.src = bananaSprites;
 const jetAtlas = new Image();
 jetAtlas.src = bananaJetExpressions;
+const combatAtlas = new Image();
+combatAtlas.src = bananaCombatActions;
+const entranceAtlas = new Image();
+entranceAtlas.src = bananaEntranceScenes;
+const victoryAtlas = new Image();
+victoryAtlas.src = bananaVictoryScenes;
 
 const tile = { width: 384, height: 352, footX: 176, footY: 334, scale: .5 };
 
@@ -45,11 +56,32 @@ const attacks: Record<string, Pose> = {
 };
 
 const strikeTilt: Partial<Record<string, number>> = {
-  [ids.jab]: .06,
-  [ids.backhand]: -.15,
-  [ids.headbutt]: .24,
-  [ids.tear]: .14
+  [ids.jab]: .04,
+  [ids.backhand]: -.05,
+  [ids.headbutt]: .08,
+  [ids.tear]: .06
 };
+
+const combatFrames: Partial<Record<string, { windup: number; strike: number; recover?: number }>> = {
+  [ids.jab]: { windup: 0, strike: 1 },
+  [ids.backhand]: { windup: 2, strike: 3 },
+  [ids.headbutt]: { windup: 4, strike: 5, recover: 14 },
+  [ids.cry]: { windup: 6, strike: 7, recover: 14 },
+  [ids.lift]: { windup: 8, strike: 9, recover: 14 },
+  [ids.slide]: { windup: 10, strike: 11, recover: 14 },
+  [ids.tear]: { windup: 12, strike: 13 }
+};
+
+function combatCellFor(f: FighterState, action: ActionDefinition | undefined, frame: number, recovery: number): number | undefined {
+  if (!combatAtlas.naturalWidth) return undefined;
+  if (f.hp > 0 && f.guarding) return 15;
+  if (!action || !f.attack) return undefined;
+  const map = combatFrames[action.id];
+  if (!map) return undefined;
+  if (frame < action.startup) return map.windup;
+  if (recovery < action.recovery * .65) return map.strike;
+  return map.recover;
+}
 
 function choosePose(f: FighterState, action: ActionDefinition | undefined, frame: number, recovery: number): Pose {
   if (!f.hp || f.guarding) return 'low';
@@ -62,15 +94,159 @@ function choosePose(f: FighterState, action: ActionDefinition | undefined, frame
   return 'idle';
 }
 
+export type BananaStageCue = { kind: 'entrance' | 'victory'; frame: number };
+
+function drawStageRipple(ctx: CanvasRenderingContext2D, age: number, maxAge: number, maxRadius: number) {
+  if (age < 0 || age >= maxAge) return;
+  const t = easeOut(age / maxAge);
+  ctx.save();
+  ctx.globalAlpha = (1 - t) * .72;
+  ctx.strokeStyle = '#9ceeff';
+  ctx.lineWidth = 2.6 * (1 - t) + .8;
+  ctx.beginPath();
+  ctx.ellipse(0, -1, t * maxRadius, t * maxRadius * .24, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawSceneCell(ctx: CanvasRenderingContext2D, sheet: HTMLImageElement, index: number, yOffset = 0, scaleX = 1, scaleY = 1) {
+  const col = index % 4;
+  const row = Math.floor(index / 4);
+  ctx.save();
+  ctx.translate(0, yOffset);
+  ctx.scale(scaleX, scaleY);
+  ctx.drawImage(sheet, col * tile.width, row * tile.height, tile.width, tile.height,
+    -tile.footX * tile.scale, -tile.footY * tile.scale, tile.width * tile.scale, tile.height * tile.scale);
+  ctx.restore();
+}
+
+function drawStageEntrance(ctx: CanvasRenderingContext2D, f: FighterState, frame: number) {
+  const sheet = entranceAtlas.naturalWidth ? entranceAtlas : atlas;
+  const index = Math.min(15, Math.floor(frame / 12));
+
+  // Startled jump across keyframes 4-5, landing squash on 6, crisp stance snap on 15.
+  const hop = index === 4 || index === 5 ? Math.sin((frame - 48) / 24 * Math.PI) * 28 : 0;
+  const landAge = frame - 72;
+  const squash = landAge >= 0 && landAge < 8 ? Math.sin(landAge / 8 * Math.PI) : 0;
+  const snapAge = frame - 180;
+  const snap = snapAge >= 0 && snapAge < 8 ? Math.sin(snapAge / 8 * Math.PI) : 0;
+
+  ctx.save();
+  ctx.shadowBlur = 0;
+
+  // Tear puddle under Banana Cat during sobbing (keyframes 9-10), splashing away on resolve.
+  if (frame >= 108) {
+    const puddle = frame < 144
+      ? Math.min(1, (frame - 108) / 24)
+      : Math.max(0, 1 - (frame - 144) / 18);
+    if (puddle > 0) {
+      ctx.fillStyle = '#4fc8eb54';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 22 + puddle * 44, 4 + puddle * 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  drawStageRipple(ctx, landAge, 20, 64);
+  if (frame >= 120) drawStageRipple(ctx, frame - 120, 22, 74);
+  if (frame >= 180) drawStageRipple(ctx, snapAge, 18, 86);
+
+  const cell = sheet === entranceAtlas ? index : (index < 12 ? 2 : 3);
+  drawSceneCell(ctx, sheet, cell, -hop,
+    1 + squash * .12 - snap * .05,
+    1 - squash * .10 + snap * .06);
+
+  if (snapAge >= 0 && snapAge < 16) {
+    const glint = 1 - snapAge / 16;
+    ctx.save();
+    ctx.globalAlpha = glint;
+    ctx.fillStyle = '#fff5bd';
+    drawSparkle(ctx, 22, -102, 13 * glint + 3);
+    ctx.restore();
+  }
+  ctx.restore();
+  void f;
+}
+
+function drawStageVictory(ctx: CanvasRenderingContext2D, f: FighterState, frame: number) {
+  const sheet = victoryAtlas.naturalWidth ? victoryAtlas : atlas;
+  const index = Math.min(15, Math.floor(frame / 12));
+
+  // Happy Cat mid-air jump across keyframes 5-6, celebratory bounce on dance frames 8-11.
+  const hop = index === 5 || index === 6 ? Math.sin((frame - 60) / 24 * Math.PI) * 34
+    : index >= 8 && index <= 11 ? Math.sin(((frame - 96) % 12) / 12 * Math.PI) * 10 : 0;
+  const landAge = frame - 84;
+  const snapAge = frame - 180;
+  const snap = snapAge >= 0 && snapAge < 8 ? Math.sin(snapAge / 8 * Math.PI) : 0;
+
+  ctx.save();
+  ctx.shadowBlur = 0;
+
+  drawStageRipple(ctx, landAge, 20, 76);
+  drawStageRipple(ctx, frame - 108, 18, 72);
+  drawStageRipple(ctx, frame - 132, 18, 72);
+  drawStageRipple(ctx, snapAge, 20, 84);
+
+  const cell = sheet === victoryAtlas ? index : 2;
+  drawSceneCell(ctx, sheet, cell, -hop, 1 - snap * .05, 1 + snap * .06);
+
+  // Celebratory sparkles on joyful frames (5-15).
+  if (index >= 5) {
+    for (let i = 0; i < 3; i++) {
+      const cycle = (frame + i * 11) % 30;
+      const life = cycle / 30;
+      const sx = (i % 2 ? 1 : -1) * (32 + noise(i * 7 + Math.floor((frame + i * 11) / 30)) * 34);
+      const sy = -45 - noise(i * 13 + Math.floor((frame + i * 11) / 30)) * 75 - life * 18;
+      ctx.save();
+      ctx.globalAlpha = Math.sin(life * Math.PI) * .92;
+      ctx.fillStyle = i % 2 ? '#fff6bd' : '#aef6ff';
+      drawSparkle(ctx, sx, sy, 5 + Math.sin(life * Math.PI) * 6);
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+  void f;
+}
+
 export function drawBanana(ctx: CanvasRenderingContext2D, f: FighterState,
-  action: ActionDefinition | undefined, tick: number, reducedMotion = false) {
+  action: ActionDefinition | undefined, tick: number, reducedMotion = false, stageCue?: BananaStageCue) {
   if (!atlas.naturalWidth) return;
+  if (stageCue && !reducedMotion) {
+    if (stageCue.kind === 'entrance') drawStageEntrance(ctx, f, stageCue.frame);
+    else drawStageVictory(ctx, f, stageCue.frame);
+    return;
+  }
   if (!action && drawBananaHurt(ctx, f, reducedMotion)) return;
   const frame = f.attack?.frame ?? 0;
   if (action?.id === ids.wave && action.cutIn &&
     drawBananaWaveMotion(ctx, frame, action.startup, action.cutIn.at, reducedMotion)) return;
   const recovery = action ? frame - action.startup - action.active : 0;
   const active = Boolean(action && frame >= action.startup && recovery < 0);
+  const combatCell = combatCellFor(f, action, frame, recovery);
+  if (combatCell !== undefined) {
+    const slide = action?.id === ids.slide && active;
+    const tilt = active && action ? strikeTilt[action.id] ?? 0 : 0;
+    const bounce = active && action?.id === ids.headbutt ? -6 : 0;
+    ctx.save();
+    ctx.shadowBlur = 0;
+    if (slide) {
+      ctx.fillStyle = '#67cdde99';
+      ctx.beginPath();
+      ctx.ellipse(-26, -2, 74, 4.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    drawSceneCell(ctx, combatAtlas, combatCell, bounce, 1, 1);
+    if (active && action?.id === ids.cry) {
+      const waveAge = frame - action.startup;
+      ctx.strokeStyle = '#a3eaff';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.ellipse(0, -64, 105 + waveAge * 10, 48 + waveAge * 4, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+    void tilt;
+    return;
+  }
   const spraying = action?.id === ids.pressure || action?.id === ids.uppercut;
   const releasing = spraying && recovery >= 0 && recovery < 7;
   const preferredPose = choosePose(f, action, frame, recovery);

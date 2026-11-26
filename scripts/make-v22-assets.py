@@ -1,15 +1,17 @@
 """V22 authored SFX, supplied-recording cuts and production atlas copy."""
 from pathlib import Path
-import math,random,struct,wave,shutil,subprocess
+import argparse,math,random,struct,wave,subprocess
 ROOT=Path(__file__).resolve().parents[1]
 AUDIO=ROOT/'assets/audio'
-FF='E:/剪映/JianyingPro/11.6.0.14552/ffmpeg.exe'
-INPUT=Path('E:/EWeChat Files/xwechat_files/wxid_aw869ecf2dj412_6d27/msg/file/2026-11')
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('source_dir', type=Path, help='Folder containing the supplied audio references')
+parser.add_argument('--ffmpeg', default='ffmpeg')
+args = parser.parse_args()
+FF, INPUT = args.ffmpeg, args.source_dir
 
 atlas=ROOT/'assets/角色/特效/奶蛙/强化普攻_V22/白金焰羽_八部件.png'
-atlas.parent.mkdir(parents=True,exist_ok=True)
-if not atlas.exists():
-    shutil.copyfile('C:/Users/hu/.codex/generated_images/01a1f80c-4afe-79a1-b344-0d54644fde63/exec-94151e90-1904-482f-8e99-a3721a7d93ad.png',atlas)
+if not atlas.is_file():
+    raise SystemExit(f"Missing production atlas: {atlas}")
 
 def cut(source,name,start,end,extra=''):
     filters=f'atrim=start={start}:end={end},asetpts=PTS-STARTPTS,afade=t=in:d=0.004,afade=t=out:st={end-start-.012}:d=0.012'

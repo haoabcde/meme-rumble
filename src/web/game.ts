@@ -12,8 +12,10 @@ import { closeDialogSmooth, inkSymbol, setRansomText } from './ui-art.js';
 import { FightAudio } from './audio.js';
 import { cpuInput } from './cpu.js';
 import { tierAt } from '../core/terrain.js';
-import { previewArena, recoveryLabels, Renderer } from './renderer.js';
+import { openingTicks, previewArena, recoveryLabels, Renderer, seatColors } from './renderer.js';
 import { bindingMap, installSettings, keyHint, loadPreferences, renderGuide, type Control, type Seat } from './settings.js';
+import { Tempo, shotFading, type Cinematic, type FeatureShot } from './cinematics.js';
+import { gagaVictory } from './gaga-cinematics.js';
 
 declare const __FIGHTER_AUDIO__: Record<string, string>;
 
@@ -90,6 +92,10 @@ const reasons = { ko: '击倒', time: '超时 · 生命比例领先', tie: '超�
 const previousScreen: Partial<Record<Screen, Screen>> = {
   menu: 'title', roster: 'menu', maps: 'roster', versus: 'maps', result: 'menu'
 };
+// Full-screen victory shots by fighter. One freezes the match for its whole run.
+const victories: Partial<Record<string, Cinematic>> = { gaga: gagaVictory };
+/** Frame of the round-over countdown, counted down from 105, at which the winner takes their victory shot. */
+const victoryCue = 52;
 
 const stage = element('stage');
 const screenStreak = element('screen-streak');
@@ -187,6 +193,7 @@ let lastTime = 0;
 let debt = 0;
 let introRemaining = 0;
 let fightCueUntil = 0;
+let feature: FeatureShot | null = null;
 let toastTimer = 0;
 let windowFit = false;
 
@@ -783,6 +790,7 @@ function configureMatch(immediate: boolean) {
   trainingDownHeld = false;
   bestTier = 0;
   if (immediate) state.phase = 'fight';
+  else if (!reducedMotion.matches && !relay) state.phaseTicks = openingTicks(config.fighters);
   refreshCombatants();
   element('training-tools').hidden = !training;
   trainingPanel.hidden = !training;
@@ -871,10 +879,38 @@ function pauseSummary() {
 }
 
 function pauseMatch() {
+  // Pausing ends a character shot, so its sound never plays on over a frozen frame.
+  finishFeature();
   show('pause');
   renderHUD();
   pauseSummary();
   element('resume').focus();
+}
+
+function startFeature() {
+  if (config.training || relay || reducedMotion.matches ||
+      state.phase !== 'round-over' || state.phaseTicks !== victoryCue) return false;
+  const seat = state.result?.winner;
+  if (seat == null) return false;
+  const fighter = config.fighters[seat];
+  const cinematic = victories[fighter.id];
+  if (!cinematic) return false;
+  const shot: FeatureShot = {
+    frame: 0, frames: cinematic.frames, fade: cinematic.fade, name: fighter.name,
+    seat: seatName(seat), color: seatColors[seat],
+    skip: keyHint(preferences, 0, ['A']) + ' 跳过',
+    tempo: new Tempo(cinematic.beatFrom ?? 0),
+    paint: ctx => cinematic.paint(ctx, shot)
+  };
+  feature = shot;
+  return true;
+}
+
+function finishFeature() {
+  if (!feature) return;
+  feature = null;
+  state.phaseTicks = Math.min(state.phaseTicks, 18);
+  clearInputs();
 }
 
 function renderVictoryArt(fighterId: string) {
@@ -1397,7 +1433,13 @@ function tick(player: InputFrame) {
     return;
   }
   if (state.phase !== previous) clearInputs();
-  if (state.phase === 'ready' && previous !== 'ready') lastChains = [null, null];
+  if (state.phase === 'ready' && previous !== 'ready') {
+    lastChains = [null, null];
+    if (!relay && !reducedMotion.matches) state.phaseTicks = openingTicks(config.fighters);
+  }
+  if (previous === 'fight' && state.phase === 'round-over' && !relay && !config.training &&
+      !reducedMotion.matches && state.result?.winner != null &&
+      config.fighters[state.result.winner].id === 'banana') state.phaseTicks = 192;
   const notices: string[] = [];
   for (const event of events) {
     if (event.source === 0 || mode === 'local') {
@@ -1452,12 +1494,12 @@ function tick(player: InputFrame) {
 
 function draw(elapsed: number) {
   stage.toggleAttribute('data-cinematic', Boolean(state.cutIn) || state.summon?.phase === 'cut-in' ||
-    cinematicOwner(state) !== undefined);
+    cinematicOwner(state) !== undefined || Boolean(feature && !shotFading(feature)));
   const opening = state.phase === 'ready' && !config.training && !reducedMotion.matches
     ? Math.max(0, Math.min(1, (state.phaseTicks - 18) / 74)) : 0;
   const presentationState = relay ? { ...state, wins: remainingFighters(relay) } : state;
   renderer.draw(config, presentationState, debug, elapsed, preferences.shake && !reducedMotion.matches,
-    preferences.camera === 'focus' && !reducedMotion.matches, reducedMotion.matches, opening, debt / (1000 / rules.ticksPerSecond));
+    preferences.camera === 'focus' && !reducedMotion.matches, reducedMotion.matches, opening, debt / (1000 / rules.ticksPerSecond), feature ?? undefined);
 }
 
 function frame(now: number) {
@@ -1471,8 +1513,14 @@ function frame(now: number) {
   if (screen === 'match') {
     debt += elapsed * (config.training ? Number(trainingSpeed.value) : 1);
     while (debt >= tickMs) {
-      tick(readInput(0));
       debt -= tickMs;
+      if (feature) {
+        feature.tempo.hear(undefined, feature.frame);
+        if (++feature.frame >= feature.frames) finishFeature();
+        continue;
+      }
+      if (startFeature()) continue;
+      tick(readInput(0));
       if (relay ? relay.phase === 'finished' : state.phase === 'match-over') {
         endMatch();
         break;
