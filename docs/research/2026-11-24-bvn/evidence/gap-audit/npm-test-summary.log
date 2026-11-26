@@ -1,0 +1,9 @@
+✔ rice releases horizontal movement exactly after 72 playable ticks and pauses the bind during hitstop (2.22275ms)
+ℹ tests 237
+ℹ suites 0
+ℹ pass 237
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 979.795042

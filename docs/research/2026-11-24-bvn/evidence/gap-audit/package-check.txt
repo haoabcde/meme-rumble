@@ -1,0 +1,14 @@
+node scripts/package-characters.mjs (isolated dist/index.html and production script)
+{
+  "commit": "b7324b66cc8e95c62dc88fcf41e96c0bf5b48648",
+  "html": {
+    "bytes": 79153912,
+    "sha256": "1e638740f14155164b8444bb2315fb4f4ed67ac3b18eb674608679c58aed39b4"
+  },
+  "zip": {
+    "bytes": 58111994,
+    "sha256": "557180b7a38ade6ac38f272e437077f43596e317e4bf07dc42fff1448a1e8931"
+  }
+}
+ZIP CRC OK; HTML identity confirmed for package file, archive entry and built dist/index.html.
+SHA-256 and byte counts matched version.json.

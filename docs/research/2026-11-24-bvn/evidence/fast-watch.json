@@ -1,0 +1,51 @@
+[
+  [
+    {
+      "time": 30,
+      "error": "page.waitForFunction: Timeout 6500ms exceeded."
+    },
+    {
+      "time": 40,
+      "error": "page.waitForFunction: Timeout 6500ms exceeded."
+    },
+    {
+      "time": 46.936288,
+      "width": 640,
+      "ready": 4
+    },
+    {
+      "time": 80.018686,
+      "width": 256,
+      "ready": 4
+    },
+    {
+      "time": 150,
+      "error": "page.waitForFunction: Timeout 6500ms exceeded."
+    },
+    {
+      "time": 320,
+      "error": "page.waitForFunction: Timeout 6500ms exceeded."
+    }
+  ],
+  {
+    "url": "https://gamebox.bvnplay.online/games/bvn-2.6/index.html",
+    "states": [
+      "",
+      ""
+    ],
+    "requests": []
+  },
+  {
+    "url": "https://gamebox.bvnplay.online/games/bvn-3.3/index.html",
+    "states": [
+      "LOADING...",
+      "LOADING..."
+    ],
+    "requests": [
+      [
+        200,
+        "https://gamebox.bvnplay.online/games/bvn-3.3/main.swf"
+      ]
+    ]
+  }
+]

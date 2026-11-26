@@ -1,0 +1,21 @@
+whale W+J common-jab declared-up false jump-cancel false
+whale ULT open-source 300 ground
+frog W+J common-jab declared-up false jump-cancel false
+frog ULT frog-ascend 300 any
+banana W+J banana-tip-rise declared-up true jump-cancel false
+banana ULT banana-tilting-tear-sea 300 ground
+gaga W+J gaga-flipper-lift declared-up true jump-cancel false
+gaga ULT gaga-summon-dijiang 300 ground
+whale second J after whiff common-sweep
+frog second J after whiff common-sweep
+whale 0 Qi input B rice  Qi 0
+frog 0 Qi input B frog-laugh-global  Qi 0
+banana 0 Qi input B banana-high-pressure-tears  Qi 0
+gaga 0 Qi input C ultimate-no-energy 100 Qi 0
+gaga cost with ground I gaga-turret-deploy 100
+gaga cost with air I gaga-howitzer-deploy 100
+banana air J with 0 tears: no replacement
+frog after ULT: paid 300 display/state Qi 299.3333333333333 remaining ticks 898
+frog W+U against identical front-facing guard, short and far spawns block, block
+banana directional variant collision: W+O spent 300 and chose banana-tilting-tear-sea
+gaga directional variant collision: W+O spent 300 and chose gaga-summon-dijiang
