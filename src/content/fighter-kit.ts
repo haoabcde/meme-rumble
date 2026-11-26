@@ -232,13 +232,26 @@ function validateMoves(owner: string, actions: FighterAction[], audio: FighterAu
       if (action.energyCost !== undefined && !validEnergy(action.energyCost)) {
         throw Error(where + ' 的技能能量消耗须为 0–' + MAX_ENERGY + ' 的整数');
       }
+      if (action.slot !== 'ULT' && (action.energyCost ?? 0) > 0) {
+        throw Error(where + ' 的普通动作不能消耗杀气');
+      }
+      if (action.slot === 'ULT') {
+        if ((action.direction !== undefined && action.direction !== 'up' && action.direction !== 'down') ||
+            action.comboKeys?.length) {
+          throw Error(where + ' 的大招只使用 O、上＋O 或下＋O');
+        }
+        if (actions.some(move => move !== action && move.slot === 'ULT' && move.direction === action.direction &&
+          (move.posture === action.posture || move.posture === 'any' || action.posture === 'any'))) {
+          throw Error(where + ' 的大招方向和姿态与其他招式重复');
+        }
+      }
       if (![action.hitstun, action.blockstun, action.stop].every(n => Number.isInteger(n) && n >= 0) ||
         ![action.damage, action.guardCost].every(n => Number.isFinite(n) && n >= 0) ||
         ![action.push, action.lift, action.advance, action.airControl ?? 0].every(Number.isFinite)) {
         throw Error(where + ' 的命中、位移或硬直参数无效');
       }
       if (!validBoxWindows(action.hitTimeline, action.startup, action.startup + action.active) ||
-        action.hitTimeline?.some(window => typeof window.group !== 'string' || !window.group.trim() || !validImpact(window))) {
+          action.hitTimeline?.some(window => typeof window.group !== 'string' || !window.group.trim() || !validImpact(window))) {
         throw Error(where + ' 的逐帧攻击框、命中组或命中参数无效');
       }
       validateFeedback(where, action.feedback, audio);

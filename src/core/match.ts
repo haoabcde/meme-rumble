@@ -4,12 +4,13 @@ import { aimSummon, dijiangTip, summonArea, summonCatchRadius, summonCutInFrames
   summonImpactFrames } from './summon.js';
 import type {
   ActionDefinition, ArenaDefinition, Attack, Box, Command, CombatEvent, Direction, Duo, FighterAction, FighterDefinition, FighterState,
-  HitWindow, InputFrame, MatchConfig, MatchState, Recovery, RoundResult, Ruleset, Side, Projectile, Stick, Summon
+  HitWindow, InputFrame, MatchConfig, MatchState, Recovery, RoundResult, Ruleset, Side, Projectile, Stick, Summon,
+  UltimateUnavailable, ImpactTier
 } from './types.js';
 import { platformAt, platformContact, platformOffset } from './terrain.js';
 import { DEFAULT_KNOCKDOWN_FRAMES, DEFAULT_RISE_FRAMES, isAttack, MAX_ENERGY, MAX_TEARS, NEUTRAL, TEAR_UNITS_PER_POINT } from './types.js';
 import { entityContacts, resolveContactEntity, updateEntities, spawnEntities } from './entities.js';
-import {startWhale,cinematicOwner,WHALE_RULES} from './whale-kit.js';
+import {startWhale} from './whale-kit.js';
 import {frogAction,frogCanStart,startFrog,finishAscension,tickAscension,frogPowered,frogCrouching,warpFrog,settleFrogWarp,startFrogDodge,FROG_RULES} from './frog-kit.js';
 
 const seats = [0, 1] as const;
@@ -128,7 +129,7 @@ function queueInputs(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
           (key === action.slot || key === 'dash')) continue;
       const directions: Direction[] = [];
       if (y) directions.push(y === -1 ? 'up' : 'down');
-      if (x) directions.push(x === fighter.facing ? 'forward' : 'back');
+      else if (x) directions.push(x === fighter.facing ? 'forward' : 'back');
       fighter.buffer.push({
         key, keys, x, directions, down: y === 1, sampledAt: state.frame, remaining: config.rules.inputBuffer
       });
@@ -179,6 +180,14 @@ function cancelControl(fighter: FighterState) {
   delete fighter.pendingCounter;
 }
 
+export function clearBufferedInputs(state: MatchState) {
+  for (const fighter of state.fighters) {
+    fighter.buffer = [];
+    delete fighter.pendingCounter;
+    if (fighter.attack) delete fighter.attack.queuedChain;
+  }
+}
+
 function startLaunched(fighter: FighterState) {
   cancelControl(fighter);
   fighter.launched = true;
@@ -203,6 +212,7 @@ export function recoveryDuration(frames: number | undefined, defaultFrames: numb
 function landKnockdown(fighter: FighterState, seat: 0 | 1, rules: Ruleset, events: CombatEvent[], fromAir = false) {
   startKnockdown(fighter, { facing: fighter.recovery?.facing, phase: 'down', remaining: recoveryDuration(rules.knockdownFrames, DEFAULT_KNOCKDOWN_FRAMES) });
   fighter.push = 0;
+  delete fighter.pushAccent;
   events.push({ kind: 'knockdown', source: seat, x: fighter.x, y: fighter.y, ...(fromAir && { reaction: 'air' as const }) });
 }
 
@@ -220,29 +230,22 @@ function advanceRecovery(fighter: FighterState, seat: 0 | 1, rules: Ruleset, eve
 }
 
 function startAction(f: FighterState, action: FighterAction, seat: 0 | 1, events: CombatEvent[],
-  legacyCost = 0, queuedChain?: string[]) {
+  energyCost = 0, queuedChain?: string[]) {
   const attack = isAttack(action) ? action : undefined;
   const tearCost = attack?.tearCost ?? 0;
   if (tearCost > 0 && (f.tearUnits ?? 0) < tearCost * TEAR_UNITS_PER_POINT) {
     events.push({ kind: 'tears-short', source: seat, x: f.x, y: f.y, actionId: action.id, amount: tearCost });
     return false;
   }
-  const cost = attack?.energyCost ?? legacyCost;
-  if (f.energy < cost) {
-    events.push({ kind: 'ultimate-no-energy',
-      source: seat, x: f.x, y: f.y, actionId: action.id, amount: cost });
-    return false;
-  }
-  f.energy -= cost;
+  f.energy -= energyCost;
   if (tearCost) addTearUnits(f, -tearCost * TEAR_UNITS_PER_POINT);
-  f.attack = { id: action.id, frame: 0, connected: false, landed: false };
+  f.attack = { id: action.id, frame: 0, connected: false, landed: false,
+    ...(attack?.cinematicFreeze && { cinematicFreezeUntil: attack.startup }) };
   if (queuedChain?.length) f.attack.queuedChain = queuedChain;
   f.guarding = false;
   f.dash = 0;
   delete f.reaction;
-  if (action.slot === 'ULT' && !attack?.cutIn && !attack?.summon) {
-    events.push({ kind: 'ultimate', source: seat, x: f.x, y: f.y, actionId: action.id });
-  } else if (!attack?.summon && (!attack?.swingOnActive || attack.startup <= (attack.swingLead ?? 0))) {
+  if (action.slot !== 'ULT' && (!attack?.swingOnActive || attack.startup <= (attack.swingLead ?? 0))) {
     events.push({ kind: 'swing', source: seat, x: f.x, y: f.y, actionId: action.id, facing: f.facing });
   }
   return true;
@@ -273,52 +276,126 @@ function summonEvent(summon: Summon, kind: CombatEvent['kind']): CombatEvent {
   return { kind, source, x, y, facing, actionId };
 }
 
-function tryStartCinematic(state: MatchState, config: MatchConfig, events: CombatEvent[]) {
-  const priority = state.round % 2 === 1 ? seats : [1, 0] as const;
-  for (const seat of priority) {
-    const action = config.fighters[seat].actions.filter(isAttack).find(move => (move.summon || move.cutIn) &&
-      state.fighters[seat].buffer.some(command => matchesCommand(move, command)));
-    if (!action) continue;
+function cinematicEntrance(state: MatchState, config: MatchConfig) {
+  for (const seat of seats) {
+    const action = attackFor(config, state, seat);
+    if (action?.cinematicFreeze && state.fighters[seat].attack!.frame < action.startup) return { seat, action };
+  }
+}
+
+export type UltimateDirection = 'up' | 'down';
+
+export interface UltimateAvailability {
+  action?: ActionDefinition;
+  cost: number;
+  reason?: UltimateUnavailable;
+}
+
+const postureMatches = (action: FighterAction, fighter: FighterState) =>
+  action.posture === 'any' || (action.posture === 'ground') === Boolean(fighter.ground);
+
+const exclusiveUltimate = (action: ActionDefinition) => action.cinematicFreeze || action.cutIn || action.summon;
+
+export function ultimateAvailability(state: MatchState, config: MatchConfig, seat: 0 | 1,
+  direction?: UltimateDirection, keys: readonly Command['key'][] = []): UltimateAvailability {
+  const fighter = state.fighters[seat];
+  const definition = config.fighters[seat];
+  const matching = definition.actions.filter(isAttack).filter(action => action.slot === 'ULT' &&
+    action.direction === direction && action.comboKeys?.every(key => keys.includes(key)) !== false);
+  const action = matching.find(move => postureMatches(move, fighter)) ?? matching[0];
+  if (!action) return { cost: 0, reason: 'unbound' };
+  const cost = action.energyCost ?? definition.ultimateCost ?? 0;
+  const check = { action, cost };
+  if (state.cutIn || state.summon?.phase === 'cut-in' || cinematicEntrance(state, config)) {
+    return { ...check, reason: 'cinematic' };
+  }
+  if (!postureMatches(action, fighter)) return { ...check, reason: action.posture === 'air' ? 'air' : 'ground' };
+  const current = attackFor(config, state, seat);
+  const canCancel = fighter.attack?.landed && (current?.cancelOnHit?.includes(action.id) ||
+    current?.cancelOnHit?.includes('ULT'));
+  const canCancelCry = action.cutIn && current?.channel === 'cry';
+  if (state.phase !== 'fight' || state.freeze > 0 || fighter.hp <= 0 || fighter.launched || fighter.hitstun ||
+      fighter.blockstun || fighter.guardBreak || fighter.recovery || fighter.pendingCounter ||
+      carriedBySummon(state, seat) || (fighter.attack ? !canCancel && !canCancelCry : action.linkOnly) ||
+      ((action.cutIn || action.summon) && (fighter.dash || fighter.push)) || !frogCanStart(action, fighter, state)) {
+    return { ...check, reason: 'recovery' };
+  }
+  if ((action.cutIn || action.summon) && (state.summon || seats.some(source => {
+    const pending = attackFor(config, state, source)?.cutIn;
+    return pending && state.fighters[source].attack!.frame < pending.at;
+  }))) return { ...check, reason: 'cinematic' };
+  if (fighter.energy < cost) return { ...check, reason: 'energy' };
+  if ((fighter.tearUnits ?? 0) < (action.tearCost ?? 0) * TEAR_UNITS_PER_POINT) {
+    return { ...check, reason: 'tears' };
+  }
+  return check;
+}
+
+function rejectUltimate(fighter: FighterState, seat: 0 | 1, events: CombatEvent[],
+  reason: UltimateUnavailable, action?: ActionDefinition, cost?: number) {
+  const detail = { source: seat, x: fighter.x, y: fighter.y, actionId: action?.id, ultimateReason: reason };
+  if (reason === 'energy') events.push({ ...detail, kind: 'ultimate-no-energy', amount: cost });
+  else if (reason === 'tears') events.push({ ...detail, kind: 'tears-short', amount: action?.tearCost });
+  else if (action?.cutIn && (reason === 'ground' || reason === 'recovery')) {
+    events.push({ ...detail, kind: 'wave-unavailable', requirement: reason });
+  } else events.push({ ...detail, kind: 'ultimate-unavailable' });
+}
+
+function startUltimates(state: MatchState, config: MatchConfig, events: CombatEvent[]) {
+  const requests = seats.flatMap(seat => {
     const fighter = state.fighters[seat];
-    const command = fighter.buffer.find(item => matchesCommand(action, item));
-    if (!command) continue;
+    const command = fighter.buffer.find(item => item.key === 'ULT');
+    if (!command) return [];
+    const direction = command.directions.find((item): item is UltimateDirection => item === 'up' || item === 'down');
+    const { action, cost, reason } = ultimateAvailability(state, config, seat, direction, command.keys);
+    // Retain a buffered command briefly while waiting for an ordinary cancel window.
+    if (reason === 'recovery' && action && !exclusiveUltimate(action) && command.remaining > 1) return [];
     fighter.buffer = fighter.buffer.filter(item => item !== command);
-    const canCancelCry = action.cutIn && attackFor(config, state, seat)?.channel === 'cry';
-    const pendingCutIn = seats.some(source => {
-      const pending = attackFor(config, state, source)?.cutIn;
-      return pending && state.fighters[source].attack!.frame < pending.at;
-    });
-    if (state.summon || pendingCutIn || fighter.launched || fighter.hp <= 0 || !fighter.ground || (fighter.attack && !canCancelCry) || fighter.dash || fighter.push ||
-      fighter.hitstun || fighter.blockstun || fighter.guardBreak || fighter.recovery) {
-      if (action.cutIn) events.push({ kind: 'wave-unavailable', source: seat, x: fighter.x, y: fighter.y,
-        actionId: action.id, requirement: fighter.ground ? 'recovery' : 'ground' });
-      continue;
+    if (reason) {
+      if (action || config.fighters[seat].actions.some(move => move.slot === 'ULT')) {
+        rejectUltimate(fighter, seat, events, reason, action, cost);
+      }
+      return [];
     }
+    return action ? [{ seat, fighter, command, action, cost }] : [];
+  });
+
+  let selected = requests;
+  if (requests.length === 2 && requests.some(({ action }) => exclusiveUltimate(action))) {
+    // A higher-cost request claims an exclusive entrance. Equal costs clash and neither pays.
+    const [first, second] = requests;
+    selected = first.cost === second.cost ? [] : [first.cost > second.cost ? first : second];
+    for (const request of requests) {
+      if (!selected.includes(request)) rejectUltimate(request.fighter, request.seat, events, 'contested', request.action);
+    }
+  }
+  for (const { seat, fighter, command, action, cost } of selected) {
     const target = state.fighters[other(seat)];
-    if (!startAction(fighter, action, seat, events)) continue;
-    for (const cue of action.audioTimeline ?? []) {
-      if (cue.frame === 0) events.push({ kind: 'action-audio', source: seat, x: fighter.x, y: fighter.y,
-        actionAudio: { attack: fighter.attack!, cue } });
-    }
-    const facing = target.x === fighter.x ? fighter.facing : target.x > fighter.x ? 1 : -1;
-    fighter.facing = facing;
+    faceOpponentWhenFree(fighter, target);
+    startAction(fighter, action, seat, events, cost);
+    startFrog(action, fighter, state, config, seat);
+    fighter.buffer = fighter.buffer.filter(item => item.sampledAt !== command.sampledAt);
     fighter.moving = false;
-    delete fighter.walk;
-    for (const player of state.fighters) player.buffer = [];
-    if (action.cutIn) {
-      events.push({ kind: 'wave-windup', source: seat, actionId: action.id,
-        x: fighter.x, y: fighter.y, facing });
-    } else {
+    if (exclusiveUltimate(action)) {
+      delete fighter.walk;
+      clearBufferedInputs(state);
+    }
+    const { facing, x, y } = fighter;
+    if (action.cutIn) events.push({ kind: 'wave-windup', source: seat, actionId: action.id, x, y, facing });
+    if (action.summon) {
       state.summon = {
         source: seat, actionId: action.id, ...aimSummon(config.arena, target, facing, state.arenaFrame),
         phase: 'cut-in', frame: 0
       };
       events.push(summonEvent(state.summon, 'summon-start'));
     }
-    events.push({ kind: 'ultimate', source: seat, x: fighter.x, y: fighter.y, actionId: action.id });
-    return true;
+    events.push({ kind: 'ultimate', source: seat, x, y, actionId: action.id, impactTier: 'ultimate' });
+    for (const cue of action.audioTimeline ?? []) {
+      if (cue.frame === 0) events.push({ kind: 'action-audio', source: seat, x, y,
+        actionAudio: { attack: fighter.attack!, cue } });
+    }
   }
-  return false;
+  return { started: selected.map(request => request.seat), paused: selected.some(request => exclusiveUltimate(request.action)) };
 }
 
 function beginActionCutIn(state: MatchState, config: MatchConfig, events: CombatEvent[]) {
@@ -327,7 +404,7 @@ function beginActionCutIn(state: MatchState, config: MatchConfig, events: Combat
     const action = attackFor(config, state, source);
     if (!action?.cutIn || fighter.attack?.frame !== action.cutIn.at) continue;
     state.cutIn = { source, frame: 0, duration: action.cutIn.duration };
-    for (const player of state.fighters) player.buffer = [];
+    clearBufferedInputs(state);
     events.push({ kind: 'wave-cut-in', source, actionId: action.id, x: fighter.x, y: fighter.y,
       facing: fighter.facing });
     return;
@@ -352,7 +429,7 @@ function faceOpponentWhenFree(fighter: FighterState, opponent: FighterState) {
 }
 
 function updateControl(
-  state: MatchState, config: MatchConfig, seat: 0 | 1, input: InputFrame, events: CombatEvent[]
+  state: MatchState, config: MatchConfig, seat: 0 | 1, input: InputFrame, events: CombatEvent[], justStarted: boolean
 ) {
   const f = state.fighters[seat];
   const opponent = state.fighters[other(seat)];
@@ -368,6 +445,7 @@ function updateControl(
     f.guardWait = config.rules.guardDelay;
   }
   if (advanceRecovery(f, seat, config.rules, events)) return;
+  if (justStarted) return;
 
   const locked = f.launched || f.hitstun > 0 || f.blockstun > 0 || f.guardBreak > 0;
   if (locked && f.combo > 0 && ++f.controlled >= config.rules.comboControlLimit) {
@@ -447,23 +525,34 @@ function updateControl(
     delete currentAttack.queuedChain;
   }
 
-  const cancels = f.attack && (f.attack.landed || (previousAction && 'chainAfter' in previousAction && previousAction.chainAfter!==undefined && f.attack.frame>=previousAction.chainAfter)) ? previousAction?.cancelOnHit : undefined;
-  const candidates = definition.actions.filter(action =>
-    !(isAttack(action) && (action.summon || action.cutIn)) &&
-    (action.posture === 'any' || (action.posture === 'ground') === Boolean(f.ground)) &&
-    (f.attack ? cancels?.includes(action.id) || cancels?.includes(action.slot) : !action.linkOnly)
+  const cancels = f.attack?.landed ? previousAction?.cancelOnHit : undefined;
+  const canChain = f.attack && isAttack(previousAction) && (f.attack.guardLinked ||
+    (previousAction.chainAfter !== undefined && f.attack.frame >= previousAction.chainAfter));
+  const postureMoves = definition.actions.filter(action =>
+    action.slot !== 'ULT' && !(isAttack(action) && (action.summon || action.cutIn)) && postureMatches(action, f));
+  const candidates = postureMoves.filter(action =>
+    (f.attack ? cancels?.includes(action.id) || cancels?.includes(action.slot) ||
+      (canChain && action.linkOnly && action.slot === previousAction?.slot && previousAction.cancelOnHit?.includes(action.id))
+      : !action.linkOnly)
   );
   candidates.sort((a, b) => (b.comboKeys?.length ?? 0) - (a.comboKeys?.length ?? 0) ||
     Number(Boolean(b.direction)) - Number(Boolean(a.direction)) ||
     slotPriority.indexOf(a.slot) - slotPriority.indexOf(b.slot));
   for (const action of candidates) {
-    const command = f.buffer.find(item => matchesCommand(action, item));
+    const chordSize = action.comboKeys?.length ?? 0;
+    const command = f.buffer.find(item => matchesCommand(action, item) &&
+      (action.direction || !postureMoves.some(move => move.direction && !move.linkOnly &&
+        (move.comboKeys?.length ?? 0) >= chordSize && matchesCommand(move, item))));
     if (!command) continue;
-    if(!frogCanStart(action,f,state)){f.buffer=f.buffer.filter(item=>item.sampledAt!==command.sampledAt);return;}
-    const legacyCost = action.slot === 'ULT' ? definition.ultimateCost ?? 0 : 0;
+    if (!frogCanStart(action,f,state)) {
+      events.push({ kind: 'skill-unavailable', source: seat, x: f.x, y: f.y, actionId: action.id,
+        requirement: f.ground ? 'recovery' : 'ground' });
+      f.buffer = f.buffer.filter(item => item.sampledAt !== command.sampledAt);
+      return;
+    }
     const selectedId = isAttack(action) ? startWhale(action, f, state) : action.id;
     const selectedAction = definition.actions.find(move => move.id === selectedId) ?? action;
-    if (!startAction(f, selectedAction, seat, events, legacyCost)) {
+    if (!startAction(f, selectedAction, seat, events)) {
       f.buffer = f.buffer.filter(item => item !== command);
       continue;
     }
@@ -476,22 +565,20 @@ function updateControl(
     return;
   }
   const bound=(f.bindUntil??0)>state.arenaFrame;
-  const jump = !bound && f.buffer.find(command => command.key === 'jump');
-  if (f.ground && jump && (!f.attack || (!jump.down && cancels?.includes('jump')))) {
+  const jump = bound ? undefined : f.buffer.find(command => command.key === 'jump');
+  const dropping = Boolean(jump?.down && f.ground && f.ground !== 'floor');
+  if (f.ground && jump && (!f.attack || (!dropping && cancels?.includes('jump')))) {
     f.buffer = f.buffer.filter(item => item.sampledAt !== jump.sampledAt);
-    const dropping = jump.down && f.ground !== 'floor';
-    if (!jump.down || dropping) {
-      f.attack = null;
-      delete f.reaction;
-      f.ignorePlatform = dropping ? f.ground : null;
-      f.vy = dropping ? 2 : -definition.jump;
-      f.jumpCount=dropping?0:1;f.secondApex=false;f.jumpOriginY=f.y;
-      events.push({ kind: dropping ? 'drop' : 'jump', source: seat, x: f.x, y: f.y });
-      f.ground = null;
-      f.guarding = false;
-      f.dash = 0;
-      return;
-    }
+    f.attack = null;
+    delete f.reaction;
+    f.ignorePlatform = dropping ? f.ground : null;
+    f.vy = dropping ? 2 : -definition.jump;
+    f.jumpCount=dropping?0:1;f.secondApex=false;f.jumpOriginY=f.y;
+    events.push({ kind: dropping ? 'drop' : 'jump', source: seat, x: f.x, y: f.y });
+    f.ground = null;
+    f.guarding = false;
+    f.dash = 0;
+    return;
   }
   if (f.attack) return;
 
@@ -573,8 +660,11 @@ function motion(
   let move = 0;
   let walking = false;
   const speedFactor = f.slow && !f.push ? slowedSpeed : 1;
+  const accent = f.pushAccent ?? 0;
+  delete f.pushAccent;
   if (f.push !== 0) {
-    move = f.push;
+    move = f.push + Math.sign(f.push) * accent;
+    if (accent > 0) f.pushAccent = -accent;
     f.push -= Math.sign(f.push) * Math.min(1, Math.abs(f.push));
   } else if (f.dash > 0) {
     move = definition.dash * f.facing * (definition.id==='frog'&&frogPowered(f,state)?2:1);
@@ -599,6 +689,7 @@ function motion(
   const previousX = f.x;
   if ((f.bindUntil ?? 0) > state.arenaFrame) {
     move = 0; f.push = 0; f.moving = false; walking = false;
+    delete f.pushAccent;
     if (!f.ground) f.vy = Math.max(6, f.vy);
   }
   f.x = clamp(f.x + move * speedFactor, arena.left, arena.right);
@@ -712,7 +803,7 @@ function collectContacts(state: MatchState, config: MatchConfig, events: CombatE
       if (attack.hitTurrets?.includes(turret.kind) || !windows.some(window => window.boxes.some(box =>
         overlap(worldBox(box, f.x, f.y, f.facing), turretBox(turret))))) continue;
       (attack.hitTurrets ??= []).push(turret.kind);
-      damageTurret(state, turret.kind, events);
+      damageTurret(state, turret, events);
     }
     if ((attack.connected && !attack.connectedGroups) || protectedFromHit(state, config, target)) return [];
     const hurtboxes = contactHurtboxes(state, config, target);
@@ -854,7 +945,7 @@ function explodeProjectile(state: MatchState, config: MatchConfig, action: Actio
   const centerY = blastCenterY(event);
   for (const tower of opposingTurrets(state, event.source)) {
     const point = closestPoint(turretBox(tower), event.x, centerY);
-    if (Math.hypot(point.x - event.x, point.y - centerY) < (event.radius ?? 0)) damageTurret(state, tower.kind, events);
+    if (Math.hypot(point.x - event.x, point.y - centerY) < (event.radius ?? 0)) damageTurret(state, tower, events);
   }
 }
 
@@ -886,7 +977,7 @@ function advanceProjectile(state: MatchState, config: MatchConfig, projectile: P
   for (const { tower, time } of crossedTurrets) {
     if (time > travel || (disappearsOnHit && time > (hit?.time ?? 1))) break;
     (projectile.hitTurrets ??= []).push(tower.kind);
-    damageTurret(state, tower.kind, events);
+    damageTurret(state, tower, events);
     if (disappearsOnHit) return false;
   }
   if (hit && hit.time <= travel) {
@@ -968,13 +1059,74 @@ function moveProjectiles(state: MatchState, config: MatchConfig, contacts: Conta
   }
 }
 
+type LandedTier = Exclude<ImpactTier, 'guard' | 'guard-break' | 'parry'>;
+const impactRank: Record<LandedTier, number> = { light: 1, medium: 2, heavy: 3, launch: 4, ultimate: 5 };
+const stopRange: Record<ImpactTier, readonly [number, number]> = {
+  light: [2, 3], medium: [3, 4], heavy: [4, 5], launch: [4, 6], ultimate: [5, 6],
+  guard: [1, 2], 'guard-break': [4, 4], parry: [1, 3]
+};
+
+function landedTier(action: HitProfile): LandedTier {
+  if (action.slot === 'ULT') return 'ultimate';
+  if (action.lift) return 'launch';
+  if (action.knockdown || action.pose === 'finish') return 'heavy';
+  return action.impact ?? (Math.abs(action.push) >= 12 ? 'heavy'
+    : Math.abs(action.push) >= 7 || action.damage >= 80 ? 'medium' : 'light');
+}
+
+function contactStop(tier: ImpactTier, authored: number) {
+  // Zero- and single-frame packets are intentionally soft, including late hits in sustained supers.
+  if (authored < 2 && tier !== 'guard-break') return authored;
+  return clamp(authored, ...stopRange[tier]);
+}
+
+function reactionKind(tier: LandedTier, airborne: boolean): 'air' | 'heavy' | 'light' {
+  return airborne ? 'air' : impactRank[tier] >= impactRank.heavy ? 'heavy' : 'light';
+}
+
+function applyLandedResponse(defender: FighterState, landed: Contact[], frame: number) {
+  // Keep the strongest physical reaction without allowing a weaker overlapping contact to erase stun.
+  landed.sort((a, b) =>
+    Number(Boolean(b.action.knockdown)) - Number(Boolean(a.action.knockdown)) ||
+    Math.abs(b.action.lift) - Math.abs(a.action.lift) ||
+    impactRank[landedTier(b.action)] - impactRank[landedTier(a.action)] ||
+    Math.abs(b.action.push) - Math.abs(a.action.push) ||
+    b.action.hitstun - a.action.hitstun ||
+    Number(b.facing !== defender.facing) - Number(a.facing !== defender.facing));
+  const { action, facing } = landed[0];
+  const tier = landedTier(action);
+  defender.hitstun = Math.max(...landed.map(hit => hit.action.hitstun));
+  defender.blockstun = 0;
+  defender.guarding = false;
+  defender.moving = false;
+  defender.push = facing * action.push;
+  // Front-load strong recoil on the first playable tick, then repay it on the next.
+  // This gives the impact a sharper start while preserving unobstructed travel.
+  if (impactRank[tier] >= impactRank.heavy && Math.abs(action.push) >= 6) {
+    defender.pushAccent = Math.min(4, Math.abs(action.push) / 4);
+  } else {
+    delete defender.pushAccent;
+  }
+  if (action.lift) {
+    defender.ground = null;
+    defender.vy = -action.lift;
+  }
+  const airborne = !defender.ground;
+  const reaction = reactionKind(tier, airborne);
+  defender.poseEvent = { kind: action.lift ? 'launch' : reaction === 'heavy' ? 'heavy' : 'hurt', tick: frame };
+  defender.reaction = { kind: reaction, elapsed: 0, facing: facing === 1 ? -1 : 1 };
+  if (action.knockdown) startKnockdown(defender);
+  else if (airborne && !defender.recovery) startLaunched(defender);
+}
+
 function settle(state: MatchState, config: MatchConfig, contacts: Contact[], events: CombatEvent[]) {
+  const contactStart = events.length;
   const evaded=new Set<0|1>();
   for(const contact of contacts){
     const {target,source}=contact,defender=state.fighters[target];
     if(!evaded.has(target)&&config.fighters[target].id==='frog'&&frogCrouching(defender)){
       warpFrog(state,config,target,source,'behind');evaded.add(target);
-      events.push({kind:'parry',source:target,x:contact.x,y:contact.y,direction:defender.facing});
+      events.push({kind:'parry',source:target,x:contact.x,y:contact.y,direction:defender.facing,impactTier:'parry'});
     }
   }
   for (const contact of contacts) {
@@ -985,10 +1137,15 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
     if (!attack) continue;
     attack.connected = true;
     if (contact.action.hitTimeline) (attack.connectedGroups ??= []).push(contact.group!);
-    attack.landed ||= !evaded.has(contact.target)&&((!contact.blocked && !contact.counterAction) || Boolean(contact.action.guardHitsToBreak && contact.blocked && !contact.counterAction));
+    if (evaded.has(contact.target) || contact.counterAction) continue;
+    if (!contact.blocked) attack.landed = true;
+    if (contact.blocked && contact.action.guardHitsToBreak) attack.guardLinked = true;
   }
   let maxStop = 0;
-  for (const { source, target, action, blocked, counterAction, facing, x, y, entityId, earnsTears } of contacts) {
+  const landed: Duo<Contact[]> = [[], []];
+  const guards: Duo<{ push: number; stun: number } | undefined> = [undefined, undefined];
+  for (const contact of contacts) {
+    const { source, target, action, blocked, counterAction, facing, x, y, entityId, earnsTears } = contact;
     const defender = state.fighters[target];
     if(evaded.has(target)){
       if(entityId!==undefined)resolveContactEntity(state,entityId,target,false,true);
@@ -997,16 +1154,15 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
     if(entityId!==undefined)resolveContactEntity(state,entityId,target,blocked,Boolean(counterAction));
     defender.dash = 0;
     if (defender.guardCounterLeft !== undefined) defender.guardCounterLeft = 0;
-    maxStop = Math.max(maxStop, Math.min(blocked || counterAction ? 3 : 6, action.stop));
     if (counterAction) {
+      maxStop = Math.max(maxStop, contactStop('parry', action.stop));
       defender.pendingCounter = counterAction;
-      events.push({ kind: 'parry', source: target, x, y, direction: defender.facing });
+      events.push({ kind: 'parry', source: target, x, y, direction: defender.facing, impactTier: 'parry' });
       continue;
     }
     defender.attack = null;
     delete defender.frogFollowup;
     if (blocked) {
-      delete defender.reaction;
       if(action.guardHitsToBreak){
         const previous=defender.guardChain;
         const count=previous?.source===source&&previous.until>=state.arenaFrame?previous.count+1:1;
@@ -1014,59 +1170,74 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
         defender.guard=count>=action.guardHitsToBreak?0:Math.max(1,defender.guard-action.guardCost);
       }else defender.guard = Math.max(0, defender.guard - action.guardCost);
       defender.guardWait = config.rules.guardDelay;
-      defender.push = Math.sign(facing) * (action.guardHitsToBreak?1.15:Math.ceil(action.push / 2));
-      defender.blockstun = action.blockstun;
-      events.push({ kind: 'block', source, x, y, direction: facing, facing, actionId: action.id, ...(action.feedback && { feedback: action.feedback }) });
+      const push = facing * (action.guardHitsToBreak ? 1.15 : Math.ceil(action.push / 2));
+      const prior = guards[target];
+      guards[target] = { push: prior && Math.abs(prior.push) > Math.abs(push) ? prior.push : push,
+        stun: Math.max(prior?.stun ?? 0, action.blockstun) };
+      maxStop = Math.max(maxStop, contactStop('guard', action.stop));
+      events.push({ kind: 'block', source, x, y, direction: facing, facing, actionId: action.id,
+        impactTier: 'guard', ...(action.feedback && { feedback: action.feedback }) });
       if (defender.guard === 0 && defender.guardBreak === 0) {
+        maxStop = Math.max(maxStop, contactStop('guard-break', action.stop));
         defender.guardBreak = config.rules.guardBreak;
         defender.guarding = false;
-        events.push({ kind: 'break', source, x, y, direction: facing });
+        defender.buffer = [];
+        events.push({ kind: 'break', source, x, y, direction: facing, impactTier: 'guard-break' });
       }
       continue;
     }
+    const tier = landedTier(action);
+    maxStop = Math.max(maxStop, contactStop(tier, action.stop));
+    landed[target].push(contact);
+    defender.buffer = [];
     const rawDamage=action.fixedDamage?action.damage:Math.floor(action.damage * Math.max(35, 100 - 8 * defender.combo) / 100);
     const resisted=frogPowered(defender,state);
     const amount = Math.min(defender.hp,resisted?Math.round(rawDamage*FROG_RULES.incomingDamage*1000)/1000:rawDamage);
     defender.hp = Math.round((defender.hp-amount)*1000)/1000;
     if (amount > 0) {
       const attacker = state.fighters[source];
-      if (attacker.energy !== undefined && action.slot && action.slot !== 'ULT' && !frogPowered(attacker,state)) {
+      if (action.slot && action.slot !== 'ULT') {
         attacker.energy = Math.min(MAX_ENERGY, attacker.energy + (config.fighters[source].ultimateGain?.onHit ?? 20));
       }
-      if (defender.energy !== undefined && !frogPowered(defender,state)) {
-        defender.energy = Math.min(MAX_ENERGY, defender.energy + (config.fighters[target].ultimateGain?.onHurt ?? 10));
-      }
+      defender.energy = Math.min(MAX_ENERGY, defender.energy + (config.fighters[target].ultimateGain?.onHurt ?? 10));
       addTearUnits(defender, 5 * TEAR_UNITS_PER_POINT);
       if (earnsTears) addTearUnits(attacker, 8 * TEAR_UNITS_PER_POINT);
       if (action.slow) defender.slow = Math.max(defender.slow, action.slow);
     }
     if (config.training && defender.hp === 0) defender.hp = config.fighters[target].maxHp;
     const chain = ++defender.combo;
-    defender.hitstun = action.hitstun;
-    defender.poseEvent={kind:action.lift?'launch':action.damage>=80?'heavy':'hurt',tick:state.arenaFrame};
-    defender.blockstun = 0;
-    defender.guarding = false;
-    defender.moving = false;
-    defender.push = facing * action.push;
-    if (action.lift) {
-      defender.ground = null;
-      defender.vy = -action.lift;
+    // Preserve the per-contact damage and combo ordering while reactions are resolved once below.
+    if (action.knockdown) {
+      defender.combo = 0;
+      defender.controlled = 0;
     }
-    const heavy = action.impact === 'heavy' || action.pose === 'rise' || action.pose === 'finish';
-    const reaction = !defender.ground ? 'air' : heavy || action.push >= 12 ? 'heavy' : 'light';
-    defender.reaction = { kind: reaction, elapsed: 0, facing: facing === 1 ? -1 : 1 };
-    if (action.knockdown) startKnockdown(defender);
-    else if (!defender.ground && !defender.recovery) startLaunched(defender);
     events.push({
-      kind: 'hit', source, x, y, amount, chain, direction: facing, facing, actionId: action.id, reaction,
-      impact: action.impact, heavy, ...(action.feedback && { feedback: action.feedback })
+      kind: 'hit', source, x, y, amount, chain, direction: facing, facing, actionId: action.id,
+      reaction: reactionKind(tier, !defender.ground || Boolean(action.lift)), impactTier: tier,
+      impact: action.impact, heavy: impactRank[tier] >= impactRank.heavy, ...(action.feedback && { feedback: action.feedback })
     });
   }
-  for (const fighter of state.fighters) {
+  for (const seat of seats) {
+    const fighter = state.fighters[seat];
+    const guard = guards[seat];
+    if (landed[seat].length) applyLandedResponse(fighter, landed[seat], state.arenaFrame);
+    else if (guard) {
+      fighter.push = guard.push;
+      fighter.blockstun = guard.stun;
+      delete fighter.pushAccent;
+      delete fighter.reaction;
+    }
     if (fighter.hitstun > 0 || fighter.launched || fighter.recovery) delete fighter.pendingCounter;
   }
-  state.freeze = Math.min(maxStop, 60 - state.comboFreeze);
+  state.freeze = Math.min(maxStop, Math.max(0, 60 - state.comboFreeze));
   state.comboFreeze += state.freeze;
+  const collisionEvents = events.slice(contactStart);
+  const traded = seats.every(seat => collisionEvents.some(event => event.source === seat && event.kind === 'hit' && (event.amount ?? 0) > 0));
+  for (const event of collisionEvents) {
+    if (!event.impactTier) continue;
+    event.hitstop = state.freeze;
+    if (traded && event.kind === 'hit' && (event.amount ?? 0) > 0) event.trade = true;
+  }
 }
 
 function rampToNextRound(state: MatchState, config: MatchConfig) {
@@ -1163,7 +1334,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     if (--state.phaseTicks > 0 || (stillFalling && state.phaseTicks > -roundOverMaxExtraTicks)) return events;
     if (state.phase === 'ready') {
       state.phase = 'fight';
-    } else if (state.winner !== null || state.draws >= 2) {
+    } else if (state.winner !== null || state.draws >= (config.rules.drawsToFinish ?? 2)) {
       state.phase = 'match-over';
     } else {
       rampToNextRound(state, config);
@@ -1171,14 +1342,19 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     return events;
   }
 
-  const cinematic=cinematicOwner(state);
-  if(cinematic!==undefined){
+  const entrance = cinematicEntrance(state, config);
+  if (entrance) {
     // Presentation advances, simulation clocks, statuses, entities and inputs do not.
-    const attack=state.fighters[cinematic].attack!;
+    const { seat, action } = entrance;
+    const fighter = state.fighters[seat];
+    const attack=fighter.attack!;
     attack.frame++;
-    for(const cue of actionFor(config,state,cinematic)?.audioTimeline??[])if(cue.frame===attack.frame)events.push({kind:'action-audio',source:cinematic,x:state.fighters[cinematic].x,y:state.fighters[cinematic].y,actionAudio:{attack,cue}});
-    if(attack.frame===WHALE_RULES.cinematic){spawnEntities(state,config);finishAscension(state.fighters[cinematic],state);state.fighters[cinematic].attack=null;}
-    for(const fighter of state.fighters)fighter.buffer=[];
+    for(const cue of action.audioTimeline??[])if(cue.frame===attack.frame)events.push({kind:'action-audio',source:seat,x:fighter.x,y:fighter.y,actionAudio:{attack,cue}});
+    if (attack.frame === action.startup) {
+      spawnEntities(state,config);
+      if (action.frog === 'ascend') finishAscension(fighter,state);
+      fighter.attack = null;
+    }
     return events;
   }
   queueInputs(state, inputs, config);
@@ -1187,7 +1363,8 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     return events;
   }
 
-  if (tryStartCinematic(state, config, events)) return events;
+  const ultimates = startUltimates(state, config, events);
+  if (ultimates.paused) return events;
   const previous: Duo<Position> = state.fighters.map(fighter => ({ x: fighter.x, y: fighter.y })) as Duo<Position>;
   const waking: Duo<boolean> = [false, false];
   advanceArena(state, config);
@@ -1199,7 +1376,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     const lastAttack = fighter.attack;
     const lastFrame = lastAttack?.frame;
     const wasRising = fighter.recovery?.phase === 'rise';
-    updateControl(state, config, seat, inputs[seat], events);
+    updateControl(state, config, seat, inputs[seat], events, ultimates.started.includes(seat));
     const attack = fighter.attack;
     if (attack && (attack !== lastAttack || attack.frame !== lastFrame)) {
       const timeline = actionFor(config, state, seat)?.audioTimeline;
@@ -1210,7 +1387,6 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
       }
     }
     waking[seat] = wasRising && !fighter.recovery;
-    if(cinematicOwner(state)!==undefined){for(const fighter of state.fighters)fighter.buffer=[];return events;}
     if (fighter.attack?.frame === 0 && !fighter.attack.released && attackFor(config, state, seat)?.channel === 'cry') {
       addTearUnits(fighter, cryUnitsPerTick);
     }
@@ -1290,9 +1466,9 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   if (result.reason === 'ko' || result.reason === 'double-ko') {
     events.push({ kind: 'ko', source: result.winner ?? 0, x: 0, y: 0 });
   }
+  clearBufferedInputs(state);
   for (const seat of seats) {
     const fighter = state.fighters[seat];
-    fighter.buffer = [];
     if (attackFor(config, state, seat)?.channel) fighter.attack = null;
   }
   state.projectiles = [];

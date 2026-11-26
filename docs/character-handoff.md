@@ -1,6 +1,6 @@
 # 角色制作交接
 
-四位角色均已接入队友的专属动作、技能、音效和大招；框架负责输入、资源、碰撞、实体、倒地、声音和预览。后续从最新 `main` 继续开发角色，保留已有 ID 和队友的配置，不用再从公共占位动作重新搭建。默认 P1 用 O，P2 用单引号或小键盘 6 释放已配置大招。
+四位角色均已接入队友的专属动作、技能、音效和大招；框架负责输入、资源、碰撞、实体、倒地、声音和预览。后续从最新 `main` 继续开发角色，保留已有 ID 和队友的配置，不用再从公共占位动作重新搭建。默认 P1 用 O 释放三格代表大招、W+O 释放一格战术大招；P2 使用当前设置中对应的重绑键。
 
 ## 找到自己的入口
 
@@ -57,16 +57,16 @@ signatureMoves: [
 ]
 ```
 
-重新构建后，选角面板应显示「可用专属槽 · B」。进训练靠近陪练，按 **U**，能在 **H** 面板看到「接口测试」依次经过起手、有效和收招，命中时陪练掉血。默认 P1 的 B/C 是 **U / I**，本地双人中 P2 是 **句号 / 斜杠**，也可以用小键盘 **4 / 5**。改键后以「操作说明」为准。
+重新构建后，选角和暂停招式表应把「接口测试」列在 **U** 下。进训练靠近陪练，按 **U**，能在 **H** 面板看到它依次经过起手、有效和收招，命中时陪练掉血。源码内部的 B/C 分别映射到玩家看到的 **U / I**；P2 使用当前设置中的对应重绑键。角色存在主动远程攻击时，优先放 B（玩家 U）或方向＋U；C（玩家 I）留给架势、回资源、炮台和召唤管理等特色机制。
 
 ## 填自己的动作
 
-角色包可通过 \`normalMoves\` 替换 A 槽的公共动作，用 \`signatureMoves\` 登记 B/C，用 \`ultimate\` 登记大招。香蕉猫的水球和海浪、姑姑嘎嘎的炮塔和帝江由各自招式的特殊规则处理，伤害结算共用公共的受击框与硬直流程。包内填写 \`animation\` 的招式会按配置播放动作图集，已有专用美术仍可用自己的表现逻辑。
+角色包可通过 `normalMoves` 替换 A 槽的公共动作，用 `signatureMoves` 登记内部 B/C（玩家 U/I），用 `ultimate` 登记 O 系列大招。普通动作固定零杀气；香蕉猫眼泪、姑姑嘎嘎炮台上限等使用独立资源或约束。伤害结算共用公共的受击框与硬直流程。包内填写 `animation` 的招式会按配置播放动作图集，已有专用美术仍可用自己的表现逻辑。
 
 
 | 字段 | 填法和效果 |
 |---|---|
-| `id`、`name`、`slot` | 每个动作在本角色内有唯一 ID。训练面板显示名称，专属槽填 `'B'` 或 `'C'`。 |
+| `id`、`name`、`slot` | 每个动作在本角色内有唯一 ID。训练面板显示名称；内部 `'B'` 对应玩家 U，`'C'` 对应玩家 I。主动远程优先放 B/U，特色机制优先放 C/I。 |
 | `posture`、`direction` | 可用姿态为 `'ground'`、`'air'` 或 `'any'`。可选方向为 `'up'`、`'down'`、`'forward'` 或 `'back'`。前后按输入瞬间的朝向判断。组合键数量相同时，有方向的优先。同槽且条件相同时按配置顺序匹配。 |
 | `startup`、`active`、`recovery` | 固定 60 Hz，从动作帧 0 计数。例如 5 / 3 / 13 表示第 0–4 帧起手、第 5–7 帧有效、第 8–20 帧收招。 |
 | `hitbox`、`stats.hurtbox`、`stats.bodyWidth` | 攻击框与受击框均为 `{ x, y, w, h }`。原点在脚底，按朝右填写，右方为正 X，上方为负 Y。引擎负责换边镜像。身体宽度另行决定双方接近时的推挤距离。 |
@@ -79,7 +79,30 @@ signatureMoves: [
 
 ### 击飞与倒地
 
+构建后可直接打开 `dist/launch-demo.html`，或从本地服务打开[多段击飞训练场](http://127.0.0.1:4182/launch-demo.html)。修改三段的 `lift` 后点「试招」，每次会从同一站位出招。面板记录每段的实际命中和向上速度，也支持半速、逐帧与显示判定框。
+
 普通地面命中由 `hitstun` 决定硬直。正数 `lift` 或空中受击会进入 `launched` 状态：即使命中硬直倒计时结束，也不能移动、防御、跳跃、冲刺或出招，直到实际落到平台或地面。此时仍能被近战和独立实体追击，新命中会重新结算推力、硬直与连击。
+
+`lift` 是命中时的向上初速度，单位是世界单位／逻辑帧。可填写正数，例如从 `8`、`12`、`16` 起调。数值越大，通常飞得越高、滞空越久。横向击退用 `push` 单独调。独立实体可在各自的 `entities[]` 配置里填写 `lift`。
+
+同一招需要多次击飞时，在 `hitTimeline` 给每一段不同的 `group`，并填写该段的 `lift`。空中再次命中会用本段数值重新设定向上速度。省略该段的 `lift` 会继承动作默认值，显式填 `0` 则不施加新的向上速度。
+
+```ts
+// 放在已有攻击配置内。坐标相对于出招角色的脚底。
+startup: 1,
+active: 6,
+lift: 0,
+push: 0,
+advance: 0,
+stop: 0,
+hitTimeline: [
+  { from: 1, to: 3, group: 'lift-1', lift: 8, boxes: [{ x: 30, y: -95, w: 120, h: 60 }] },
+  { from: 4, to: 5, group: 'lift-2', lift: 12, boxes: [{ x: 30, y: -150, w: 120, h: 120 }] },
+  { from: 6, to: 7, group: 'lift-3', lift: 16, boxes: [{ x: 30, y: -150, w: 120, h: 120 }] },
+],
+```
+
+后续段的攻击框要覆盖目标被前一段挑起后的位置，并在目标落地前接上。需要把对手打倒收尾时，可只在最后一段填写 `knockdown: true`。
 
 落地后依次经过倒地和起身，公共默认分别为 30、18 个可推进逻辑帧，约 0.8 秒；由公共规则 `knockdownFrames`、`riseFrames` 调整。两阶段不能操作，并有受击保护。命中停顿和暂停不会偷跑倒地计时。显式 `knockdown: true` 及连击上限保护从空中下落时就禁止追加命中，适合结束连段。
 
@@ -137,7 +160,7 @@ feedback: { audio: { clip: 'impact', volume: .9 } },
 
 ## 防反接口
 
-角色可以选「按下防御」或「按 B/C 摆架势」，也可以两种都接，分别指向不同反击。下面用公共直拳跑通流程。4 个逻辑帧约 67 毫秒，正式时机、伤害和动画由角色设计师填写。
+角色可以选「按下防御」或「按 U/I 摆架势」，也可以两种都接，分别指向不同反击。下面用公共直拳跑通流程。源码配置仍填写内部 B/C 槽。4 个逻辑帧约 67 毫秒，正式时机、伤害和动画由角色设计师填写。
 
 想先比较手感，可以下载联调样例，用桌面浏览器打开 HTML。开场已靠近陪练，半速重复出拳。默认按 **S** 试精准防御，按 **U** 试架势，按 **R** 复位。从源码运行 `npm run build` 也会生成同一份 `dist/guard-counter-demo.html`。[下载独立防反训练场](https://github.com/haoabcde/meme-rumble/releases/latest/download/guard-counter-demo.html) · [本机直接试玩](http://127.0.0.1:4182/guard-counter-demo.html) · [样例配置](../src/web/counter-demo.ts)
 
@@ -151,7 +174,7 @@ guardCounter: { windowFrames: 4, actionId: 'common-jab' },
 
 在地面可操作时按下防御（默认 P1 按 **S**，P2 按 **↓**）。从按下的当帧算起，第 1 至第 4 帧内接到正面攻击会出现「防反」。从第 5 帧起，继续按住是常规格挡，照常消耗耐力。松开并重新按下可再次开窗。在空中或受击硬直期间提前长按防御，也要松开重按才会开窗。
 
-### 按 B/C 摆架势
+### 按 U/I 摆架势（内部 B/C 槽）
 
 在自己角色的 `signatureMoves` 数组中加入下面的动作。B 默认是 P1 的 **U**、P2 的**句号**，换成 C 就是 P1 的 **I**、P2 的**斜杠**。也可以用已有的 `direction` 配方向键，或用 `animation` 指定架势画格。
 
@@ -174,17 +197,17 @@ guardCounter: { windowFrames: 4, actionId: 'common-jab' },
 
 ## 技能能量
 
-技能能量每回合从 0 开始，最多存三格，每格 100 点，满气为 300 点。B/C 技能与大招共用气槽。要让 B/C 动作耗气，在 `signatureMoves` 对应动作中填 `energyCost`，例如 `energyCost: 100` 消耗一格。只接耗气 B/C 的角色可省略 `ultimate`。防反成立后自动触发的反击动作须为零消耗。
+杀气每回合从 0 开始，最多存三格，每格 100 点，满气为 300 点，并且只供大招使用。普通 A/B/C（玩家 J/U/I）及方向变式固定零杀气，构建会拒绝给普通动作填写正数 `energyCost`。角色强度改用起手和收招、冷却、实体上限或眼泪等专属资源控制。防反自动触发的反击同样为零消耗。
 
 实战气槽放在画面下方两侧，分成三段，旁边数字表示完整格数。具体点数保留在状态数据和调试检查里。原作 `QiBar.as` 的 `InsBar.setProcess` 按 0–3 的进度分别填充槽段、更新格数，可用于核对储能表现。[原作气槽实现](https://github.com/5DPLAY-Game-Studio/BleachVsNaruto/blob/d51f13dc36cac8e7622328bf4a9afc94156fb79f/CORE_KernelLogic/src/net/play5d/game/bvn/ui/fight/QiBar.as)
 
-动作获准开始时立即扣除本招消耗，中断、打空或被防住都不返还。满气用掉一格后还剩 200 点。能量不足时无法启动该动作。消耗使用 0–300 的整数。所有角色共用三格气槽，尚未配置耗气技能时也可积攒。
+大招获准开始时立即扣除本招消耗，中断、打空或被防住都不返还。满气用掉一格后还剩 200 点。能量不足、姿态不符、当前硬直或电影演出冲突时均不会扣气，并会向界面返回原因。所有角色共用三格气槽，尚未配置大招时也可积攒。
 
-默认 A/B/C 实际造成伤害时出招方加 20 点，承伤方加 10 点。耗气 B/C 命中也适用。大招命中时仅承伤方加气。打空、格挡和被防反拦下的攻击不计。接入 `ultimate` 时，可用 `gain: { onHit: 20, onHurt: 10 }` 覆盖任一项，值为 0–300 的整数。
+默认 A/B/C 实际造成伤害时出招方加 20 点，承伤方加 10 点。大招命中时仅承伤方加气，避免施放后立刻返还成本。打空、格挡和被防反拦下的攻击不计。接入 `ultimate` 时，可用 `gain: { onHit: 20, onHurt: 10 }` 覆盖任一项，值为 0–300 的整数。
 
 ## 大招接口
 
-在角色文件的 `defineFighter({ ... })` 顶层加入 `ultimate`。P1 的大招键默认为 **O**，P2 默认为**单引号**或小键盘 **6**。角色只做一招时，填写 `cost` 和 `move` 即可。需要更多大招时再用 `variants`，每招各自填写动作、输入条件与消耗。下面的配置复用直拳的数据和现有图集，供接入时试招。
+在角色文件的 `defineFighter({ ... })` 顶层加入 `ultimate`。默认 `move` 使用中立 O，推荐作为三格代表大招；`variants` 中用 `direction: 'up'` 登记 W+O 一格战术大招。只有确有第三种战术职责时才评审 `direction: 'down'` 的 S+O。未登记方向不会回退成中立 O。下面的配置复用直拳的数据和现有图集，供接入时试招。
 
 ```ts
 import { basicAttack, defineFighter } from '../fighter-kit.js';
@@ -196,38 +219,35 @@ const { slot: _slot, ...probeMove } = basicAttack;
 
 ```ts
 ultimate: {
-  cost: 100,
+  cost: 300,
   move: {
     ...probeMove,
     id: 'ultimate-probe',
-    name: '联调大招',
+    name: '三格联调大招',
     startup: 12,
     cancelOnHit: [],
     animation: [{ frame: 0, cell: 4 }, { frame: 12, cell: 7 }]
   },
   variants: [
     {
-      cost: 200,
-      move: { ...probeMove, id: 'ultimate-probe-up', name: '两格联调大招', direction: 'up' }
-    },
-    {
-      cost: 300,
-      move: { ...probeMove, id: 'ultimate-probe-down', name: '三格联调大招', direction: 'down' }
+      cost: 100,
+      move: { ...probeMove, id: 'ultimate-probe-up', name: '一格战术大招', direction: 'up' }
     }
   ]
 },
 ```
 
-- **释放**。大招使用 `cost` 配置消耗，常用的 100、200、300 分别对应一格、两格和三格。
-- **输入与衔接**。所有大招共用逻辑输入 `ULT`。每个 `move` 沿用普通动作的帧数、攻击框和图集动画，可用 `posture`、`direction` 和 `comboKeys` 指定姿态、方向或组合键。上例的方向和消耗只用于联调，正式角色按动作设计填写。配置 `extraCancels: { 'common-jab': ['ULT'] }` 可在直拳命中后衔接大招，也可填写具体大招的动作 ID。`linkOnly: true` 可限制为命中衔接。防反动作的 `counterTo` 和 `guardCounter.actionId` 使用普通攻击 ID。
+- **释放**。大招使用 `cost` 配置消耗。当前公共基线是 O 三格、W+O 一格；S+O 默认不登记。
+- **输入与衔接**。所有大招共用逻辑输入 `ULT`。中立 O 不填 `direction`，W+O 填 `'up'`，可选 S+O 填 `'down'`；大招不使用 `comboKeys` 添加其它动作键。每个 `move` 沿用普通动作的帧数、攻击框和图集动画。配置 `extraCancels: { 'common-jab': ['ULT'] }` 可在直拳命中后衔接当前方向选中的大招，也可填写具体大招 ID。`linkOnly: true` 可限制为命中衔接。防反动作的 `counterTo` 和 `guardCounter.actionId` 使用普通攻击 ID。
 
-用桌面浏览器打开下载的独立样例，或打开构建生成的 `dist/ultimate-demo.html`。先按 **O** 验证缺气时无法释放，再靠近陪练，用 **J** 命中五次攒满第一格。也可以展开「训练设置」点「充满三格能量」，分别试 **O**、**W + O** 和 **S + O** 的一格、两格和三格消耗，每次试招前充满。用 **H** 面板查看起手、有效和收招，用 **0.5×** 或暂停后的「前进一帧」检查画格与判定。用 **R** 复位验证能量归零。改自己的角色后，用自由训练的角色链接重复这套检查。[下载大招联调样例](https://github.com/haoabcde/meme-rumble/releases/latest/download/ultimate-demo.html) · [本机直接试玩](http://127.0.0.1:4182/ultimate-demo.html)
+用桌面浏览器打开下载的独立样例，或打开构建生成的 `dist/ultimate-demo.html`。零气时先试 **O** 和 **W+O**，两招都应拒绝且不扣气；攒到一格后，W+O 应可用而 O 仍不可用；充满三格后再验证 O。未登记 S+O 时，它必须保持无动作、无扣气，不能回退成 O。用 **H** 面板查看起手、有效和收招，用 **0.5×** 或暂停后的「前进一帧」检查画格与判定。再分别验证地空姿态、打空、格挡、被打断和双方同帧释放；用 **R** 复位确认杀气归零。改自己的角色后，用自由训练的角色链接重复这套检查。[下载大招联调样例](https://github.com/haoabcde/meme-rumble/releases/latest/download/ultimate-demo.html) · [本机直接试玩](http://127.0.0.1:4182/ultimate-demo.html)
 
 ## 交付美术
 
 把文件放在 `assets/fighters/`，也可以在其中建自己的角色目录。在角色文件的 `art.portrait`、`art.motion` 填相对于该目录的路径。构建会自动收集引用的 WebP，打进离线 HTML。
 
 - **立绘**用透明底、朝右的全身图，脚底贴近下边缘。选角、VS、HUD 和结算使用角色立绘。场上待机根据角色渲染配置取专用动作格或立绘。
+- **胜利结算图**可在角色立绘之外单独提交；大招仍沿用各角色已经调好的完整演出，不需要拆角色层或重新裁图。[胜利图规格与接入](fighter-presentation-art.md)
 - **公共动作图集**固定四列，逻辑格为 216×216，格内脚底锚点为 `(108, 184)`，参考身高为 144 世界单位。前三行共 12 格供跑步、跳跃、防御、公共攻击和受击使用。[前十二格排布](../assets/README.md#公共动作图集)
 - **公共图集的附加画格**按整行追加，宽度保持 864 逻辑像素。格号从 0 开始逐行向右数，第四行是 12–15。`animation` 中使用已画好并打包的格号，专用角色图另按表中的素材目录维护。
 
@@ -253,7 +273,7 @@ ultimate: {
 - 大肥鱼/奶蛙使用公共 `entities` 生命周期；嘎嘎的投掷物、炮台和帝江召唤保留各自逻辑。两类实体共同参与命中结算、防反、暂停和回合清理。
 - 普通挑空持续失控到落地，之后共用默认30帧倒地、18帧起身；规则可覆盖。`Recovery.facing` 为倒地美术保留受击朝向；空中落地触发带 `reaction: 'air'` 的 `knockdown` 事件，不再额外触发一次 `land`，避免重复音效。
 - 嘎嘎的17份录音已通过角色 `audio` 注册，并随既有 `__FIGHTER_AUDIO__` 离线内嵌；统一从 `FightAudio.update(config,state,events)` 播放，未引入第二套解码/音量旁路。
-- 渲染入口为 `renderer.add(events, state.arenaFrame, config.fighters)`；第三参数可省略以兼容动作审阅页。`draw` 的尾部参数依次为 `shake, focus, reducedMotion, opening, interpolation`。特效寿命按竞技帧计算，暂停和大招演出不消耗普通特效寿命。
+- 渲染入口为 `renderer.add(events, state, config.fighters)`；第三参数可省略。渲染器同时读取 `state.frame`、`state.arenaFrame` 和 `state.round`：命中闪光按真实展示帧衰减，场景时序仍按竞技帧推进；回看、换轮或时钟倒退会清理旧表现，避免重播残影。`draw` 的尾部参数依次为 `shake, focus, reducedMotion, opening, interpolation`。
 - 嘎嘎与香蕉猫的独立机制测试使用公共陪练测试体；真实跨角色防反、同帧多水球瞬移、大招冻结和快照重放见[跨角色集成测试](../tests/cross-character-integration.test.mjs)。
 
 ## 高清手绘素材接入

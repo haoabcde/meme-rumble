@@ -1,11 +1,15 @@
 import { defineFighter, type NormalMove, type SignatureMove } from '../fighter-kit.js';
-import { MAX_ENERGY, type ActionDefinition } from '../../core/types.js';
+import { ENERGY_PER_STOCK, MAX_ENERGY, type ActionDefinition } from '../../core/types.js';
 
 export const bananaActionIds = {
   jab: 'banana-left-scratch', backhand: 'banana-right-scratch', headbutt: 'banana-headbutt',
   cry: 'banana-cry-burst', lift: 'banana-tip-rise', slide: 'banana-tear-slide',
   tear: 'banana-air-tear', pressure: 'banana-high-pressure-tears', uppercut: 'banana-cry-uppercut',
   recharge: 'banana-cry-recharge', wave: 'banana-tilting-tear-sea'
+} as const;
+
+export const bananaAdditionalActionIds = {
+  airClaw: 'banana-air-claw', airPressure: 'banana-air-pressure', burst: 'banana-close-burst'
 } as const;
 
 export const bananaComboNames = ['左爪挠挠', '右爪挠挠', '蕉头顶撞', '嚎啕震开'];
@@ -18,7 +22,8 @@ const normalMoves: NormalMove[] = [
     hitbox: { x: 20, y: -95, w: 83, h: 57 },
     damage: 30, hitstun: 20, blockstun: 8, guardCost: 6, push: 2, lift: 0,
     stop: 2, advance: 5, advanceFrom: 2, activeAdvance: 2, pose: 'strike', swingOnActive: true,
-    impact: 'light', chain: { actionId: bananaActionIds.backhand, open: 8, close: 16 }
+    impact: 'light', cancelOnHit: [bananaActionIds.lift],
+    chain: { actionId: bananaActionIds.backhand, open: 8, close: 16 }
   },
   {
     id: bananaActionIds.backhand, name: '右爪挠挠', slot: 'A', posture: 'ground', linkOnly: true,
@@ -26,7 +31,8 @@ const normalMoves: NormalMove[] = [
     hitbox: { x: 18, y: -100, w: 90, h: 66 },
     damage: 34, hitstun: 26, blockstun: 9, guardCost: 7, push: 3, lift: 0,
     stop: 2, advance: 6, advanceFrom: 2, activeAdvance: 2, pose: 'sweep', swingOnActive: true,
-    impact: 'light', chain: { actionId: bananaActionIds.headbutt, open: 10, close: 18 }
+    impact: 'light', cancelOnHit: [bananaActionIds.lift],
+    chain: { actionId: bananaActionIds.headbutt, open: 10, close: 18 }
   },
   {
     id: bananaActionIds.headbutt, name: '蕉头顶撞', slot: 'A', posture: 'ground', linkOnly: true,
@@ -48,7 +54,8 @@ const normalMoves: NormalMove[] = [
     startup: 10, active: 4, recovery: 18,
     hitbox: { x: 10, y: -178, w: 92, h: 151 },
     damage: 85, hitstun: 27, blockstun: 12, guardCost: 15, push: 5, lift: 15,
-    stop: 4, advance: 4, advanceFrom: 6, pose: 'rise', swingOnActive: true, impact: 'heavy'
+    stop: 4, advance: 4, advanceFrom: 6, pose: 'rise', swingOnActive: true, impact: 'heavy',
+    cancelOnHit: ['jump']
   },
   {
     id: bananaActionIds.slide, name: '泪滑', slot: 'A', direction: 'down', posture: 'ground',
@@ -58,27 +65,35 @@ const normalMoves: NormalMove[] = [
     stop: 4, advance: 0, activeAdvance: 24, pose: 'sweep', swingOnActive: true, impact: 'medium'
   },
   {
-    id: bananaActionIds.tear, name: '空中水球', slot: 'A', posture: 'air', tearCost: 10,
+    id: bananaAdditionalActionIds.airClaw, name: '空中爪击', slot: 'A', posture: 'air',
+    startup: 6, active: 3, recovery: 14, hitbox: { x: 18, y: -107, w: 86, h: 73 },
+    damage: 40, hitstun: 18, blockstun: 8, guardCost: 8, push: 4, lift: 0,
+    stop: 3, advance: 0, airControl: .45, pose: 'strike', swingOnActive: true, impact: 'light'
+  }
+];
+
+const pressureBox = { x: 18, y: -109, w: 440, h: 48 };
+const pressure: SignatureMove = {
+  id: bananaActionIds.pressure, name: '高压眼泪', slot: 'B', posture: 'ground', tearCost: 20,
+  channel: 'spray', slow: 45,
+  startup: 4, active: 12, recovery: 14,
+  hitbox: pressureBox,
+  hitTimeline: [{ from: 4, to: 16, group: 'spray', boxes: [pressureBox] }],
+  feedback: { color: '#8beaff', shake: 8 },
+  damage: 32, hitstun: 8, blockstun: 5, guardCost: 5, push: 2, lift: 0,
+  stop: 0, advance: 0, pose: 'strike', swingOnActive: true, impact: 'light'
+};
+
+const signatureMoves: SignatureMove[] = [
+  pressure,
+  { ...pressure, id: bananaAdditionalActionIds.airPressure, name: '空中高压眼泪', posture: 'air', direction: 'down' },
+  {
+    id: bananaActionIds.tear, name: '空中水球', slot: 'B', posture: 'air', tearCost: 10,
     startup: 6, active: 1, recovery: 14,
     hitbox: { x: 0, y: 0, w: 0, h: 0 }, hitTimeline: [],
     projectile: { kind: 'tear', x: 70, y: -51, vx: 20, vy: 6, gravity: 1, reach: 0, radius: 28, blastRadius: 120 },
     damage: 72, hitstun: 20, blockstun: 9, guardCost: 10, push: 9, lift: 0,
     stop: 3, advance: 0, pose: 'strike', swingOnActive: true, impact: 'medium'
-  }
-];
-
-const pressureBox = { x: 18, y: -109, w: 440, h: 48 };
-
-const signatureMoves: SignatureMove[] = [
-  {
-    id: bananaActionIds.pressure, name: '高压眼泪', slot: 'B', posture: 'any', tearCost: 20,
-    channel: 'spray', slow: 45,
-    startup: 4, active: 12, recovery: 14,
-    hitbox: pressureBox,
-    hitTimeline: [{ from: 4, to: 16, group: 'spray', boxes: [pressureBox] }],
-    feedback: { color: '#8beaff', shake: 8 },
-    damage: 32, hitstun: 8, blockstun: 5, guardCost: 5, push: 2, lift: 0,
-    stop: 0, advance: 0, pose: 'strike', swingOnActive: true, impact: 'light'
   },
   {
     id: bananaActionIds.uppercut, name: '哭哭升龙', slot: 'B', direction: 'up', posture: 'any', tearCost: 35,
@@ -107,11 +122,20 @@ const wave: Omit<ActionDefinition, 'slot' | 'energyCost'> = {
   stop: 6, advance: 0, pose: 'rise', swingOnActive: true, impact: 'heavy'
 };
 
+const burst: Omit<ActionDefinition, 'slot' | 'energyCost'> = {
+  id: bananaAdditionalActionIds.burst, name: '回身泪爆', direction: 'up', posture: 'ground',
+  startup: 7, active: 3, recovery: 19,
+  hitbox: { x: -94, y: -123, w: 188, h: 120 }, radial: true,
+  damage: 108, hitstun: 26, blockstun: 13, guardCost: 22, push: 13, lift: 0,
+  stop: 5, advance: 0, pose: 'rise', impact: 'medium', feedback: { color: '#8beaff', shake: 4 }
+};
+
 export const banana = defineFighter({
   id: 'banana', name: '香蕉猫', accent: '#ff9c62', height: 145,
   art: { portrait: 'unified-handdrawn-v1/banana.webp', motion: 'banana-motion.webp' },
   stats: { usesTears: true, bodyWidth: 54 },
   normalMoves, signatureMoves,
   moveSummary: bananaComboNames.join(' → '),
-  ultimate: { cost: MAX_ENERGY, move: wave, gain: { onHit: 12, onHurt: 18 } }
+  ultimate: { cost: MAX_ENERGY, move: wave, gain: { onHit: 12, onHurt: 18 },
+    variants: [{ cost: ENERGY_PER_STOCK, move: burst }] }
 });

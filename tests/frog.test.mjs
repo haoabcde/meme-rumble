@@ -6,7 +6,7 @@ import {whale} from '../dist/content/fighters/whale.js';
 import {testFighter,rules} from '../dist/content/demo.js';
 import {arenas} from '../dist/content/arenas.js';
 import {NEUTRAL} from '../dist/core/types.js';
-import {warpFrog} from '../dist/core/frog-kit.js';
+import {FROG_RULES,warpFrog} from '../dist/core/frog-kit.js';
 const input=(pressed=[],x=0,y=0)=>({pressed,x,y});
 const hold=(pressed=[])=>({...input(pressed),held:['C']});
 function setup(source=0,sep=95){
@@ -46,11 +46,12 @@ test('ascension freezes battle during its cinematic and grants exactly 900 playa
  const t=setup(0,1200);t.caster.energy=300;t.caster.hp=612;t.press('ULT');assert.equal(t.caster.energy,0);const time=t.state.arenaFrame,remaining=t.state.remaining;
  t.run(59,input(['A','jump','dash'],1),input(['A'], -1));assert.equal(t.state.arenaFrame,time);assert.equal(t.state.remaining,remaining);assert.equal(t.caster.hp,612);
  assert.equal(t.caster.ascendVisual,undefined);assert.equal(t.caster.ascendUntil,undefined);
- t.tick();assert.equal(t.caster.attack,null);assert.equal(t.caster.ascendUntil-time,900);assert.equal(t.caster.energy,300);
+ t.tick();assert.equal(t.caster.attack,null);assert.equal(t.caster.ascendUntil-time,900);assert.equal(t.caster.energy,0);
  assert.deepEqual(t.caster.ascendVisual,{tick:time,x:t.caster.x,y:t.caster.y});
- t.run(450);assert.equal(t.caster.energy,150);const before=t.caster.ascendUntil;t.press('ULT');assert.equal(t.caster.attack,null);assert.equal(t.caster.ascendUntil,before);
+ t.run(450);assert.equal(t.caster.energy,0);const before=t.caster.ascendUntil;
+ t.caster.energy=150;t.press('ULT');assert.equal(t.caster.attack,null);assert.equal(t.caster.ascendUntil,before);
  t.state.freeze=8;const age=t.state.arenaFrame,energy=t.caster.energy;t.run(8);assert.equal(t.state.arenaFrame,age);assert.equal(t.caster.energy,energy);
- t.run(449);assert.equal(t.caster.ascendUntil,undefined);assert.equal(t.caster.energy,0);assert.equal(t.caster.hp,612);
+ t.run(449);assert.equal(t.caster.ascendUntil,undefined);assert.equal(t.caster.energy,150);assert.equal(t.caster.hp,612);
 });
 
 test('post-cinematic transformation and cast trails retain their own clocks through hits, hitstop and replay',()=>{
@@ -67,7 +68,7 @@ test('post-cinematic transformation and cast trails retain their own clocks thro
 test('buff expires on time while feather dissolution has an independent paused, replayable visual clock',()=>{
  const t=setup(0,1200);t.caster.ascendUntil=2;t.caster.energy=300;
  t.tick();assert.equal(t.caster.ascendEndVisual,undefined);
- t.tick();assert.equal(t.caster.ascendUntil,undefined);assert.equal(t.caster.energy,0);
+ t.tick();assert.equal(t.caster.ascendUntil,undefined);assert.equal(t.caster.energy,300);
  assert.deepEqual(t.caster.ascendEndVisual,{tick:2,x:t.caster.x,y:t.caster.y});
  t.caster.attack={id:'common-jab',frame:0,connected:false,landed:false};
  assert.equal(actionFor(t.config,t.state,0).damage,28);
@@ -83,8 +84,8 @@ test('angel basics retain 1.5x while skill one has its own 1.4x damage',()=>{
  const t=setup();t.caster.ascendUntil=900;
  for(const raw of frog.fighter.actions.filter(a=>a.slot==='A')){t.caster.attack={id:raw.id,frame:0,connected:false,landed:false};const a=actionFor(t.config,t.state,0);assert.equal(a.damage,raw.damage*1.5);assert.equal(a.hitbox.w,raw.hitbox.w*1.5);assert.equal(a.hitbox.h,raw.hitbox.h*1.5);}
  t.caster.attack={id:'frog-laugh-global',frame:0,connected:false,landed:false};assert.equal(actionFor(t.config,t.state,0).entities[0].damage,35);
- const near=setup(0,330);near.caster.ascendUntil=900;near.caster.energy=300;near.press('B');const hits=near.run(85).filter(e=>e.kind==='hit');assert.deepEqual(hits.map(e=>e.amount),[39.2,39.2,61.6]);assert.equal(near.target.hp,860);
- assert.ok(near.caster.energy<300&&near.caster.energy>260);
+ const near=setup(0,330);near.caster.ascendUntil=900;near.caster.energy=100;near.press('B');const hits=near.run(85).filter(e=>e.kind==='hit');assert.deepEqual(hits.map(e=>e.amount),[39.2,39.2,61.6]);assert.equal(near.target.hp,860);
+ assert.equal(near.caster.energy,160);
 });
 test('buff does not change the hurtbox, platform movement or jump budget and cannot be refreshed',()=>{
  const t=setup();t.caster.ascendUntil=900;t.caster.energy=300;const box=structuredClone(t.config.fighters[0].hurtbox);t.press('jump');assert.equal(t.caster.ground,null);t.run(5);t.press('jump');assert.equal(t.caster.jumpCount,2);assert.equal(t.caster.airActionUsed,true);assert.deepEqual(t.config.fighters[0].hurtbox,box);
@@ -154,7 +155,8 @@ test('angel takes 0.7x actual melee and rice damage on either seat, without heal
 test('unempowered skill one rejects both airborne variants without delaying a cast until landing',()=>{
  for(const source of [0,1])for(const up of [0,-1]){
   const t=setup(source,1200);t.caster.ground=null;t.caster.y=400;t.caster.vy=0;
-  t.press('B',up);assert.equal(t.caster.attack,null);assert.equal(t.caster.frogCasts,undefined);assert.equal(t.caster.buffer.length,0);
+  const refused=t.press('B',up);assert.equal(refused.find(event=>event.kind==='skill-unavailable')?.requirement,'ground');
+  assert.equal(t.caster.attack,null);assert.equal(t.caster.frogCasts,undefined);assert.equal(t.caster.buffer.length,0);
   assert.ok(t.caster.y>400);t.run(60);assert.equal(t.caster.frogCasts,undefined);
   t.caster.ground=null;t.caster.y=400;t.caster.ascendUntil=t.state.arenaFrame+900;
   t.press('B',up);assert.equal(t.caster.attack.id,up?'frog-laugh-global':'frog-laugh');assert.equal(t.caster.y,400);
@@ -225,8 +227,8 @@ test('warp destinations respect walls and empty air; empowered warps retain rune
  const t=setup();t.target.x=t.config.arena.right;t.target.facing=-1;warpFrog(t.state,t.config,0,1,'behind');
  assert.ok(t.caster.x<=t.config.arena.right);assert.ok(t.target.x-t.caster.x>=80);
  const a=setup(0,900);a.target.ground=null;a.target.y=350;warpFrog(a.state,a.config,0,1,'burrow');assert.equal(a.caster.y,800);assert.equal(a.caster.ground,'floor');
- const p=setup(0,90);p.caster.ascendUntil=900;p.caster.energy=300;p.tick(hold(['C']));const before=p.caster.energy;
- p.target.attack={id:'test-a',frame:4,connected:false,landed:false};p.tick(hold());assert.equal(p.caster.frogWarps[0].powered,true);assert.equal(p.caster.ascendUntil,900);assert.ok(p.caster.energy<before);
+ const p=setup(0,90);p.caster.ascendUntil=900;p.caster.energy=100;p.tick(hold(['C']));const before=p.caster.energy;
+ p.target.attack={id:'test-a',frame:4,connected:false,landed:false};p.tick(hold());assert.equal(p.caster.frogWarps[0].powered,true);assert.equal(p.caster.ascendUntil,900);assert.equal(p.caster.energy,before+FROG_RULES.warpGain);
 });
 test('burrow seal settles at the real emergence position after body separation, then stays at that landing point',()=>{
  for(const source of [0,1]){

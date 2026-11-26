@@ -1,4 +1,5 @@
-import { isAttack, turretKinds, type CombatEvent, type MatchConfig, type MatchState, type Side, type Turret, type TurretKind } from './types.js';
+import { isAttack, type CombatEvent, type MatchConfig, type MatchState, type Side, type Turret, type TurretKind,
+  type TurretSlot } from './types.js';
 
 export const turretBuildTicks = 20;
 const buildWaveRadius = 112;
@@ -6,6 +7,7 @@ const turretKeyframes = [0, 3, 7, 11, 16, turretBuildTicks];
 const turretHealth = 2;
 const turretIntervalSeconds = 2;
 const turretLifetimeSeconds = 30;
+const turretSlots = ['bolt', 'howitzer', 'bolt-second', 'howitzer-second'] as const;
 
 export function turretFrame(age: number) {
   let frame = turretKeyframes.length - 1;
@@ -21,39 +23,44 @@ export function turretBox(turret: Turret) {
 }
 
 export function opposingTurrets(state: MatchState, owner: 0 | 1) {
-  return turretKinds.map(kind => state.turrets[kind])
-    .filter((turret): turret is Turret => turret !== null && turret.owner !== owner);
+  return turretSlots.map(slot => state.turrets[slot])
+    .filter((turret): turret is Turret => Boolean(turret && turret.owner !== owner));
 }
 
-function clearTurret(state: MatchState, kind: TurretKind, events: CombatEvent[]) {
-  const turret = state.turrets[kind];
+function clearTurret(state: MatchState, slot: TurretSlot, events: CombatEvent[]) {
+  const turret = state.turrets[slot];
   if (!turret) return;
-  state.turrets[kind] = null;
-  events.push({ kind: 'turret-burst', source: turret.owner, turretKind: kind, x: turret.x, y: turret.y, facing: turret.facing });
+  state.turrets[slot] = null;
+  events.push({ kind: 'turret-burst', source: turret.owner, turretKind: turret.kind, x: turret.x, y: turret.y, facing: turret.facing });
 }
 
 export function deployTurret(state: MatchState, kind: TurretKind, source: 0 | 1, x: number, y: number,
   facing: Side, events: CombatEvent[], support?: string) {
-  clearTurret(state, kind, events);
-  state.turrets[kind] = { kind, owner: source, x, y, facing, age: 0, hp: turretHealth, ...(support && { support }) };
+  const second = `${kind}-second` as const;
+  const slots = [kind, second] as const;
+  const slot = slots.find(key => state.turrets[key]?.owner === source) ??
+    slots.find(key => !state.turrets[key]);
+  if (!slot) return;
+  clearTurret(state, slot, events);
+  state.turrets[slot] = { kind, owner: source, x, y, facing, age: 0, hp: turretHealth, ...(support && { support }) };
   events.push({ kind: 'turret-land', source, turretKind: kind, x, y, facing });
 }
 
-export function damageTurret(state: MatchState, kind: TurretKind, events: CombatEvent[]) {
-  const turret = state.turrets[kind];
-  if (turret && --turret.hp === 0) clearTurret(state, kind, events);
+export function damageTurret(state: MatchState, turret: Turret, events: CombatEvent[]) {
+  const slot = turretSlots.find(key => state.turrets[key] === turret);
+  if (slot && --turret.hp === 0) clearTurret(state, slot, events);
 }
 
 export function stepTurrets(state: MatchState, config: MatchConfig, events: CombatEvent[]) {
   const { ticksPerSecond } = config.rules;
-  for (const kind of turretKinds) {
-    const turret = state.turrets[kind];
+  for (const slot of turretSlots) {
+    const turret = state.turrets[slot];
     if (!turret) continue;
-    const source = turret.owner;
+    const { kind, owner: source } = turret;
     turret.age++;
     const readyAge = turret.age - turretBuildTicks;
     if (turret.age >= turretLifetimeSeconds * ticksPerSecond) {
-      clearTurret(state, kind, events);
+      clearTurret(state, slot, events);
       continue;
     }
     const target = state.fighters[1 - source];
@@ -65,7 +72,7 @@ export function stepTurrets(state: MatchState, config: MatchConfig, events: Comb
     }
     if (readyAge <= 0 || readyAge % (turretIntervalSeconds * ticksPerSecond) !== 0) continue;
     const projectileKind = kind === 'bolt' ? 'bolt' : 'grenade';
-    const shot = config.fighters[source].actions.filter(isAttack).find(move => move.projectile?.kind === projectileKind);
+    const shot = config.fighters[source].actions.filter(isAttack).find(move => move.linkOnly && move.projectile?.kind === projectileKind);
     const data = shot?.projectile;
     if (!shot || !data) continue;
     const x = turret.x + Math.min(Math.abs(dx) * .5, data.x) * turret.facing;

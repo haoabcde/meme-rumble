@@ -1,4 +1,4 @@
-import type {ActionDefinition,Box,FighterAction,FighterState,MatchConfig,MatchState} from './types.js';
+import {MAX_ENERGY,type ActionDefinition,type Box,type FighterAction,type FighterState,type MatchConfig,type MatchState} from './types.js';
 import {platformAt} from './terrain.js';
 
 export const FROG_RULES=Object.freeze({buffTicks:900,fadeTicks:36,fadeLife:180,body:80,laughRadius:240,poweredLaughRange:1.4,poweredLaughDamage:1.4,poweredSpeed:1.5,incomingDamage:.7,warpGain:20,warpHidden:6});
@@ -45,12 +45,11 @@ export function warpFrog(state:MatchState,config:MatchConfig,seat:0|1,target:0|1
  if(kind==='behind'){
   f.attack={id:'frog-evade',frame:0,connected:true,landed:false};
   if(powered)f.frogFollowup=true;
-  if(!powered)f.energy=Math.min(300,(f.energy??0)+FROG_RULES.warpGain);
+  f.energy=Math.min(MAX_ENERGY,f.energy+FROG_RULES.warpGain);
  }
 }
 export function finishAscension(f:FighterState,state:MatchState){
- if(f.attack?.id!=='frog-ascend')return;
- f.ascendUntil=state.arenaFrame+FROG_RULES.buffTicks;f.energy=300;
+ f.ascendUntil=state.arenaFrame+FROG_RULES.buffTicks;
  delete f.ascendEndVisual;
  f.ascendVisual={tick:state.arenaFrame,x:f.x,y:f.y};
  f.poseEvent={kind:'ascend',tick:state.arenaFrame};
@@ -74,10 +73,7 @@ export function tickAscension(f:FighterState,state:MatchState){
  if(f.ascendVisual&&state.arenaFrame-f.ascendVisual.tick>220)delete f.ascendVisual;
  if(f.ascendEndVisual&&state.arenaFrame-f.ascendEndVisual.tick>=FROG_RULES.fadeLife)delete f.ascendEndVisual;
  if(f.frogCasts?.length){f.frogCasts=f.frogCasts.filter(c=>state.arenaFrame-c.tick<210);if(!f.frogCasts.length)delete f.frogCasts;}
- if(f.ascendUntil===undefined)return;
- const remaining=Math.max(0,f.ascendUntil-state.arenaFrame);
- f.energy=300*remaining/FROG_RULES.buffTicks;
- if(!remaining){
+ if(f.ascendUntil!==undefined&&f.ascendUntil<=state.arenaFrame){
   f.ascendEndVisual={tick:state.arenaFrame,x:f.x,y:f.y};
   delete f.ascendUntil;
  }

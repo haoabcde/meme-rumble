@@ -13,7 +13,15 @@ export function startWhale(action:ActionDefinition,_f:FighterState,state:MatchSt
  if(action.whale==='rice'||action.whale==='rice-up')return riceRoll(state)<WHALE_RULES.eatChance?'whale-eat':action.id;
  return action.id;
 }
-export function cinematicOwner(state:MatchState){return ([0,1] as const).find(seat=>['open-source','frog-ascend'].includes(state.fighters[seat].attack?.id??'')&&(state.fighters[seat].attack?.frame??60)<WHALE_RULES.cinematic);}
+export function cinematicOwner(state:MatchState) {
+ return ([0,1] as const).find(seat => {
+  const attack = state.fighters[seat].attack;
+  if (!attack) return false;
+  // Existing asset review pages construct entrance previews using the legacy IDs.
+  const end = attack.cinematicFreezeUntil ?? (['open-source','frog-ascend'].includes(attack.id) ? WHALE_RULES.cinematic : 0);
+  return attack.frame < end;
+ });
+}
 export function kitLifetime(e:EntityState){return e.endingAge??(e.windTicks!==undefined?e.windTicks+28:e.definition.lifetime);}
 export function initializeKitEntity(e:EntityState,state:MatchState,config:MatchConfig){
  const b=e.definition.behavior;if(!b)return;

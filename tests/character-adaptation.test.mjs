@@ -6,7 +6,7 @@ import { DEFAULT_KNOCKDOWN_FRAMES, DEFAULT_RISE_FRAMES, ENERGY_PER_STOCK, MAX_EN
 import { rules, testFighter } from '../dist/content/demo.js';
 import { arenas } from '../dist/content/arenas.js';
 import { gagaActionIds, gagaGroundCombo } from '../dist/content/fighters/gaga.js';
-import { bananaActionIds, bananaComboNames } from '../dist/content/fighters/banana.js';
+import { bananaActionIds, bananaAdditionalActionIds, bananaComboNames } from '../dist/content/fighters/banana.js';
 import { roster } from '../dist/content/roster.js';
 import { defineFighter } from '../dist/content/fighter-kit.js';
 import { dijiangBurialTip, frameDijiangImpact, frameDijiangLength } from '../dist/web/camera.js';
@@ -49,9 +49,9 @@ const setTears = (fighter, points) => { fighter.tearUnits = points * TEAR_UNITS_
 const hold = (key, pressed = [], x = 0, y = 0) => ({ ...input(pressed, x, y), held: [key] });
 
 test('Banana equips pressure, uppercut, recharge and the wave with four ground combo stages', () => {
-  assert.equal(new Set(bananaActions.map(move => move.id)).size, 11);
+  assert.equal(new Set(bananaActions.map(move => move.id)).size, bananaActions.length);
   assert.equal(bananaComboNames.length, 4);
-  assert.deepEqual(bananaActions.filter(move => move.slot === 'B').map(move => move.tearCost), [20, 35]);
+  assert.deepEqual(bananaActions.filter(move => move.slot === 'B').map(move => move.tearCost), [20, 20, 10, 35]);
   assert.deepEqual(bananaActions.filter(move => move.slot === 'C').map(move => move.id),
     [bananaActionIds.recharge]);
   assert.equal(bananaMove(bananaActionIds.wave).slot, 'ULT');
@@ -91,7 +91,8 @@ test('Banana blocked combo and whiff recover without restoring tears', () => {
 test('Banana directional normals and air normal select distinct actions', () => {
   for (const [keys, y, air, expected] of [
     [['A'], -1, false, bananaActionIds.lift], [['A'], 1, false, bananaActionIds.slide],
-    [['A'], 0, true, bananaActionIds.tear]
+    [['A'], 0, true, bananaAdditionalActionIds.airClaw], [['B'], 0, true, bananaActionIds.tear],
+    [['B'], 1, true, bananaAdditionalActionIds.airPressure]
   ]) {
     const state = begin(bananaConfig), fighter = state.fighters[0];
     if (air) Object.assign(fighter, { ground: null, y: fighter.y - 150 });
@@ -255,7 +256,7 @@ test('An air water ball that misses the opponent passes platforms and explodes o
   const state = begin(settings), [f, target] = state.fighters;
   Object.assign(f, { x: 1740, y: platform.y - 45, ground: null, vy: -4 });
   target.x = 2200;
-  step(state, [input(['A']), NEUTRAL], settings);
+  step(state, [input(['B']), NEUTRAL], settings);
   assert.equal(f.attack.id, bananaActionIds.tear);
   assert.equal(tears(f), 50);
   let sawBelowPlatform = false;
@@ -278,7 +279,7 @@ test('A direct air water ball detonates before reaching the floor and applies da
   const state = begin(bananaConfig), [f, target] = state.fighters;
   Object.assign(f, { x: 1740, y: bananaConfig.arena.floor - 185, ground: null, vy: -4 });
   target.x = 2040;
-  step(state, [input(['A']), NEUTRAL], bananaConfig);
+  step(state, [input(['B']), NEUTRAL], bananaConfig);
   const events = bananaStep(state, 75);
   const explosions = events.filter(event => event.kind === 'tear-splash');
   assert.equal(explosions.length, 1);
@@ -290,16 +291,22 @@ test('A direct air water ball detonates before reaching the floor and applies da
   assert.deepEqual(state.projectiles, []);
 });
 
-test('Air normal and U report their own costs when tears are insufficient', () => {
-  for (const [key, air, cost] of [['A', true, 10], ['B', false, 20]]) {
+test('ground and air U report their own costs, and air J works at zero tears', () => {
+  for (const [air, cost] of [[true, 10], [false, 20]]) {
     const state = begin(bananaConfig), [f] = state.fighters;
     setTears(f, cost - 1);
     if (air) Object.assign(f, { ground: null, y: f.y - 80 });
-    const events = step(state, [input([key]), NEUTRAL], bananaConfig);
+    const events = step(state, [input(['B']), NEUTRAL], bananaConfig);
     assert.equal(events.find(event => event.kind === 'tears-short')?.amount, cost);
     assert.equal(f.attack, null);
     assert.equal(tears(f), cost - 1);
   }
+  const state = begin(bananaConfig), [fighter] = state.fighters;
+  Object.assign(fighter, { ground: null, y: fighter.y - 80 });
+  setTears(fighter, 0);
+  step(state, [input(['A']), NEUTRAL], bananaConfig);
+  assert.equal(fighter.attack.id, bananaAdditionalActionIds.airClaw);
+  assert.equal(tears(fighter), 0);
 });
 
 test('Banana gains tears and energy together and an underfunded ultimate does not start crying', () => {
@@ -476,13 +483,13 @@ test('Gaga winds up, hits once, freezes on contact, and fully recovers from a si
   assert.equal(attacker.attack, null);
 });
 
-function playGaga(state, presses, target = NEUTRAL) {
+function playGaga(state, presses, target = NEUTRAL, settings = gagaConfig) {
   const stages = [];
   const events = [];
   const hitFrames = [];
   const hitResponses = [];
   for (let frame = 0; frame < 150; frame++) {
-    const tickEvents = step(state, [input(presses[frame] ?? []), target], gagaConfig);
+    const tickEvents = step(state, [input(presses[frame] ?? []), target], settings);
     events.push(...tickEvents);
     const hit = tickEvents.find(event => event.kind === 'hit');
     if (hit) {
@@ -498,16 +505,17 @@ function playGaga(state, presses, target = NEUTRAL) {
 }
 
 test('Gaga lands five distinct ground attacks from buffered or rhythmic J presses', () => {
+  const settings = { ...gagaConfig, arena: arenas.find(arena => arena.id === 'broadcast-ring') };
   for (const presses of [
     { 0: ['A'], 2: ['A'], 5: ['A'], 7: ['A'], 9: ['A'] },
     { 0: ['A', 'A', 'A', 'A', 'A'] },
     { 0: ['A'], 11: ['A'], 22: ['A'], 33: ['A'], 44: ['A'] },
     { 0: ['A'], 16: ['A'], 32: ['A'], 48: ['A'], 64: ['A'] }
   ]) {
-    const state = begin(gagaConfig);
+    const state = begin(settings);
     const [attacker, defender] = state.fighters;
     [attacker.x, defender.x] = [650, 779];
-    const { stages, events, hitFrames, hitResponses } = playGaga(state, presses);
+    const { stages, events, hitFrames, hitResponses } = playGaga(state, presses, NEUTRAL, settings);
     assert.deepEqual(stages, gagaGroundCombo.map(move => move.id));
     const hits = events.filter(event => event.kind === 'hit');
     assert.deepEqual(hits.map(event => event.amount), [36, 37, 42, 33, 77]);
@@ -631,21 +639,23 @@ test('Gaga directional inputs do not queue extra stages of the neutral J combo',
   assert.equal(attacker.attack.queuedChain, undefined);
 });
 
-test('Gaga leaves U empty and selects the pole throw for air J', () => {
-  const state = begin(gagaConfig);
-  closeDistance(state);
-  step(state, [input(['B']), NEUTRAL], gagaConfig);
-  assert.equal(state.fighters[0].attack, null);
-  assert.deepEqual(stepFor(state, 20, [NEUTRAL, NEUTRAL], gagaConfig), []);
-  step(state, [input(['jump']), NEUTRAL], gagaConfig);
-  step(state, [input(['A'], 0, -1), NEUTRAL], gagaConfig);
-  assert.equal(state.fighters[0].attack.id, gagaActionIds.airThrow);
+test('Gaga selects ground and air pole throws for U and a separate air strike for J', () => {
+  for (const [key, air, actionId] of [
+    ['B', false, gagaActionIds.groundThrow], ['B', true, gagaActionIds.airThrow],
+    ['A', true, gagaActionIds.airStrike]
+  ]) {
+    const state = begin(gagaConfig);
+    if (air) step(state, [input(['jump']), NEUTRAL], gagaConfig);
+    step(state, [input([key]), NEUTRAL], gagaConfig);
+    assert.equal(state.fighters[0].attack.id, actionId);
+    assert.equal(state.fighters[0].energy, 0);
+  }
 });
 
 test('a downward direction keeps C on its own skill even with three full stocks', () => {
   for (const [definition, skill, cost] of [
     [banana, bananaActionIds.recharge, 0],
-    [gaga, gagaActionIds.turret, ENERGY_PER_STOCK]
+    [gaga, gagaActionIds.turret, 0]
   ]) {
     for (const source of [0, 1]) {
       const settings = { ...config, fighters: [definition, definition] };
@@ -721,7 +731,8 @@ test('Dijiang freezes the whole match and hits through guard once after a 0.6-se
 test('Dijiang still hits the floor after interruption when an elevated opponent dashes out of the dive', () => {
   const state = begin(gagaConfig);
   const [caster, target] = state.fighters;
-  const platform = gagaConfig.arena.platforms.find(surface => surface.id === 'west');
+  const { arena } = gagaConfig;
+  const platform = arena.platforms.find(surface => surface.id === arena.routes[0][0]);
   caster.energy = MAX_ENERGY;
   target.x = platform.left + 100;
   target.y = platform.y - 5;
@@ -845,15 +856,19 @@ test('the Dijiang impact camera recoils inside the arena and returns to the figh
   assert.deepEqual(frameDijiangImpact(arena, viewport, camera, target, 25), camera);
 });
 
-test('simultaneous Dijiang confirms alternate by round and round end clears it', () => {
+test('simultaneous Dijiang confirms clash without a charge in either round', () => {
   const settings = { ...gagaConfig, fighters: [gaga, gaga] };
   for (const round of [1, 2]) {
     const state = begin(settings);
     state.round = round;
     for (const fighter of state.fighters) fighter.energy = MAX_ENERGY;
-    step(state, [summonInput, summonInput], settings);
-    assert.equal(state.summon.source, round - 1);
-    assert.equal(state.fighters[2 - round].energy, MAX_ENERGY);
+    const clash = step(state, [summonInput, summonInput], settings);
+    assert.deepEqual(clash.map(event => [event.source, event.ultimateReason]), [[0, 'contested'], [1, 'contested']]);
+    assert.equal(state.summon, undefined);
+    assert.deepEqual(state.fighters.map(fighter => fighter.energy), [MAX_ENERGY, MAX_ENERGY]);
+    assert.deepEqual(step(state, [NEUTRAL, NEUTRAL], settings), []);
+    step(state, [summonInput, NEUTRAL], settings);
+    assert.equal(state.summon.source, 0);
     stepFor(state, 48, [NEUTRAL, NEUTRAL], settings);
     state.remaining = 1;
     step(state, [NEUTRAL, NEUTRAL], settings);
@@ -872,15 +887,11 @@ function castToLanding(state, settings) {
   return events;
 }
 
-test('Gaga spends one bar and the box rises, falls, hits only once and builds on landing', () => {
+test('Gaga spends no energy and the box rises, falls, hits only once and builds on landing', () => {
   const settings = { ...gagaConfig, training: true, arena: { ...gagaConfig.arena, platforms: [] } };
   const state = begin(settings);
   const [attacker, defender] = state.fighters;
   [attacker.x, defender.x] = [650, 890];
-  const denied = step(state, [input(['C']), NEUTRAL], settings);
-  assert.equal(denied[0].kind, 'ultimate-no-energy');
-  assert.equal(denied[0].amount, ENERGY_PER_STOCK);
-  attacker.energy = ENERGY_PER_STOCK;
   step(state, [input(['C']), NEUTRAL], settings);
   assert.equal(attacker.energy, 0);
   assert.equal(attacker.attack.id, gagaActionIds.turret);
@@ -950,7 +961,7 @@ test('two distinct enemy attacks destroy a turret, with no duplicate hits on act
   assert.equal(state.turrets.bolt, null);
 });
 
-test('air I drops through all platforms and replaces only the global howitzer', () => {
+test('air I drops through platforms, keeps the opponent howitzer and costs no energy', () => {
   const { arena } = gagaConfig;
   const platforms = [397, 261, 130].map((rise, i) => ({
     id: 'tier-' + i, name: '台面', tier: 3 - i, left: 720, right: 1250, y: arena.floor - rise
@@ -964,14 +975,15 @@ test('air I drops through all platforms and replaces only the global howitzer', 
   state.turrets.bolt = bolt;
   state.turrets.howitzer = { kind: 'howitzer', owner: 1, x: 300, y: arena.floor, facing: 1, age: 30, hp: 2 };
   const events = castToLanding(state, settings);
-  assert.equal(owner.energy, 0);
+  assert.equal(owner.energy, ENERGY_PER_STOCK);
   assert.ok(events.some(event => event.kind === 'swing' && event.actionId === gagaActionIds.howitzer));
   assert.deepEqual(events.filter(event => ['turret-burst','turret-land'].includes(event.kind)).map(event =>
     [event.kind, event.turretKind, event.source, event.y]), [
-    ['turret-burst', 'howitzer', 1, arena.floor], ['turret-land', 'howitzer', 0, arena.floor]
+    ['turret-land', 'howitzer', 0, arena.floor]
   ]);
   assert.equal(state.turrets.bolt, bolt);
-  assert.equal(state.turrets.howitzer.owner, 0);
+  assert.equal(state.turrets.howitzer.owner, 1);
+  assert.equal(state.turrets['howitzer-second'].owner, 0);
 });
 
 test('both deployed turret types deal one shockwave hit and push away from the center', () => {
@@ -1030,7 +1042,7 @@ test('Gaga throws downward in either facing direction, hits once and then impact
       [attacker.x, defender.x] = facing === 1 ? [650, 900] : [900, 650];
       const target = guarding ? input([], 0, 1) : NEUTRAL;
       step(state, [input(['jump']), target], settings);
-      step(state, [input(['A']), target], settings);
+      step(state, [input(['B']), target], settings);
       assert.deepEqual(stepFor(state, 7, [NEUTRAL, target], settings), []);
       assert.equal(state.projectiles.length, 0);
       step(state, [NEUTRAL, target], settings);
@@ -1058,7 +1070,7 @@ test('a descending pole passes through platforms and impacts the bottom floor on
   const state = begin(settings);
   [state.fighters[0].x, state.fighters[1].x] = [650, 915];
   step(state, [input(['jump']), NEUTRAL], settings);
-  step(state, [input(['A']), NEUTRAL], settings);
+  step(state, [input(['B']), NEUTRAL], settings);
   const events = stepFor(state, 45, [NEUTRAL, NEUTRAL], settings);
   const impacts = events.filter(event => event.kind === 'pole-impact');
   assert.equal(impacts.length, 1);
@@ -1190,7 +1202,9 @@ test('Gaga’s turret crate lands on either moving deck and the built turret rid
     const settings = { ...gagaConfig, arena, training: true };
     const lift = arena.platforms.find(p => p.travel);
     const state = begin(settings);
-    state.arenaFrame = 85;
+    const { distance, dwell, period, phase } = lift.travel;
+    const activeFrame = Math.round(period / 4 + dwell / 4) - phase;
+    state.arenaFrame = (activeFrame + period) % period;
     const deck = platformAt(lift, state.arenaFrame);
     const crate = gaga.actions.find(action => action.id === gagaActionIds.turret);
     state.projectiles.push({
@@ -1199,11 +1213,14 @@ test('Gaga’s turret crate lands on either moving deck and the built turret rid
     });
     const landing = step(state, [NEUTRAL, NEUTRAL], settings).find(event => event.kind === 'turret-land');
     const turret = state.turrets.bolt;
+    assert.ok(landing && turret, arena.id + ' moving platform should catch the crate');
     assert.equal(turret.support, lift.id);
     assert.equal(landing.y, platformAt(lift, state.arenaFrame).y);
     const offset = turret.x - platformAt(lift, state.arenaFrame).left;
     stepFor(state, 180, [NEUTRAL, NEUTRAL], settings);
     const moved = platformAt(lift, state.arenaFrame);
+    const movement = lift.travel.axis === 'y' ? moved.y - deck.y : moved.left - deck.left;
+    assert.ok(Math.abs(movement) > Math.abs(distance) / 10);
     assert.equal(turret.x - moved.left, offset);
     assert.equal(turret.y, moved.y);
     assert.ok(turret.age > 20);

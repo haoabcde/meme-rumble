@@ -27,17 +27,18 @@ async function bundleEntry(entry, audio = fighterAudio) {
   });
   return result.outputFiles[0].text;
 }
-const [template, css, game, counterDemo, ultimateDemo, combatDemo, audioDemo, whaleReview, frogReview] = await Promise.all([
+const [template, css, game, counterDemo, ultimateDemo, combatDemo, audioDemo, whaleReview, frogReview, launchPage, launchDemo] = await Promise.all([
   readFile(new URL('index.html', root), 'utf8'), readFile(new URL('styles.css', root), 'utf8'),
   bundleEntry('game.ts'), bundleEntry('counter-demo.ts'), bundleEntry('ultimate-demo.ts'), bundleEntry('combat-demo.ts'),
-  bundleEntry('audio-demo.ts', demoAudio), bundleEntry('whale-review.ts'), bundleEntry('frog-review.ts')
+  bundleEntry('audio-demo.ts', demoAudio), bundleEntry('whale-review.ts'), bundleEntry('frog-review.ts'),
+  readFile(new URL('src/web/launch-demo.html', root), 'utf8'), bundleEntry('launch-demo.ts')
 ]);
 
-function standalone(script) {
-  return template
+function standalone(script, page = template, entry = 'game') {
+  return page
     .replace('<!doctype html>', () => '<!doctype html>\n<!-- Pixelfx sprite sheets\n' + pixelfxLicense + '-->')
     .replace('<link rel="stylesheet" href="./styles.css">', () => '<style>\n' + css + '</style>')
-    .replace('<script src="./dist/game.bundle.js"></script>', () =>
+    .replace('<script src="./dist/' + entry + '.bundle.js"></script>', () =>
       '<script>\n' + script.replace(/<\/script/gi, '<\\/script') + '</script>');
 }
 async function publish(file, content) {
@@ -52,6 +53,7 @@ await Promise.all([
   publish('guard-counter-demo.html', standalone(counterDemo)),
   publish('ultimate-demo.html', standalone(ultimateDemo)),
   publish('combat-demo.html', standalone(combatDemo)),
+  publish('launch-demo.html', standalone(launchDemo, launchPage, 'launch-demo')),
   publish('frog-review.html','<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>奶娃制作</title><body><script>'+frogReview.replace(/<\/script/gi,'<\\/script')+'</script></body></html>'),
   publish('whale-review.html','<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>大肥鱼完整接入</title><body><script>'+whaleReview.replace(/<\/script/gi,'<\\/script')+'</script></body></html>'),
   publish('audio-demo.html', standalone(audioDemo))
