@@ -440,8 +440,8 @@ export class Renderer {
       if(def.id==='whale'){
         const flash=this.hitFlash(seat,state.arenaFrame,f.hitstun>0&&state.freeze>0);
         if(flash>0)ctx.filter=`brightness(${1+flash*.36})`;
-        drawWhaleActor(ctx,f,state,seat,action);ctx.filter='none';
-      }else if(def.id==='frog'){drawFrogActor(ctx,f,state,action,seat);
+        drawWhaleActor(ctx,f,state,seat,action,def.actions);ctx.filter='none';
+      }else if(def.id==='frog'){drawFrogActor(ctx,f,state,action,seat,def.actions);
       }else{
       const spriteWidth = sprite?.naturalWidth ? height * sprite.naturalWidth / sprite.naturalHeight : 0;
       if (tilt && pose !== undefined) {

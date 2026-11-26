@@ -1,0 +1,64 @@
+{
+  "奶蛙": {
+    "改前": {
+      "character": "frog",
+      "variant": "before",
+      "frames": 721,
+      "wallSeconds": 12.005800000190735,
+      "fps": 60.05430708395488,
+      "medianMs": 16.699999999999818,
+      "p95Ms": 16.800000000000182,
+      "simulationFrames": 720,
+      "hits": 5,
+      "links": 5,
+      "width": 1280,
+      "height": 720
+    },
+    "改后": {
+      "character": "frog",
+      "variant": "after",
+      "frames": 714,
+      "wallSeconds": 11.9865,
+      "fps": 59.56701288950069,
+      "medianMs": 16.69999999999891,
+      "p95Ms": 16.800000000000182,
+      "simulationFrames": 720,
+      "hits": 5,
+      "links": 5,
+      "turns": 1,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "大肥鱼": {
+    "改前": {
+      "character": "whale",
+      "variant": "before",
+      "frames": 721,
+      "wallSeconds": 12.011900000095368,
+      "fps": 60.0238097215491,
+      "medianMs": 16.699999999999818,
+      "p95Ms": 16.800000000000182,
+      "simulationFrames": 720,
+      "hits": 3,
+      "links": 3,
+      "width": 1280,
+      "height": 720
+    },
+    "改后": {
+      "character": "whale",
+      "variant": "after",
+      "frames": 703,
+      "wallSeconds": 12.017,
+      "fps": 58.500457684946326,
+      "medianMs": 16.699999999999818,
+      "p95Ms": 16.800000000000182,
+      "simulationFrames": 720,
+      "hits": 3,
+      "links": 3,
+      "turns": 1,
+      "width": 1280,
+      "height": 720
+    }
+  }
+}

@@ -2,6 +2,8 @@ import normalGuardSource from '../../assets/角色/防御/奶蛙/护腹站姿_V6
 import basicSource from '../../assets/角色/基础动作/奶蛙/V19/跳跃受击倒地起身_十六帧.png';
 import sceneSource from '../../assets/角色/出场与胜负/奶蛙/V19/侧躺出场与胜负_八帧.png';
 import {frogMotionSample} from './frog-motion.mjs';
+import locomotionV25 from '../../assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png';
+import {registerLocomotion,setActorMotion,setFrogHurtPoses,drawActorMotion} from './actor-motion.mjs';
 import holyComboSource from '../../assets/角色/特效/奶蛙/强化普攻_V22/白金焰羽_八部件.png';
 import dragonRiseSource from '../../assets/角色/特效/奶蛙/强化普攻_V24/金白流光_龙抬头六帧.png';
 import {drawHolyCombo,registeredDragonFrames} from './frog-combo.mjs';
@@ -34,7 +36,8 @@ let moves:HTMLCanvasElement[]=[],angels:HTMLCanvasElement[]=[],travel:HTMLCanvas
 const load=(src:string)=>{const im=new Image();im.src=src;return im.decode().then(()=>im)};
 void Promise.all([load(moveSource),load(angelSource),load(introSource),load(travelSource),load(goldSource),load(crouchSource)]).then(([m,a,i,t,v,c])=>{moves=cutGrid(m,4,2);angels=cutGrid(a,2,2);travel=cutGrid(t,4,2);gold=cutGrid(v,2,2);crouch=cutGrid(c,1,1)[0];intro=i;});
 void load(normalGuardSource).then(im=>normalGuard=cutGrid(im,1,1)[0]);
-void load(basicSource).then(im=>basics=cutGrid(im,4,4));
+void load(basicSource).then(im=>{basics=cutGrid(im,4,4);setFrogHurtPoses([basics[8],basics[9]]);});
+void load(locomotionV25).then(im=>registerLocomotion(im,'frog'));
 void load(holyComboSource).then(im=>holyComboArt=cutGrid(im,4,2));
 void load(dragonRiseSource).then(im=>dragonRiseArt=registeredDragonFrames(im));
 void load(sceneSource).then(im=>scenes=cutGrid(im,4,2));
@@ -106,12 +109,14 @@ function dissolvingAngel(g:CanvasRenderingContext2D,age:number,tick:number){
  }
  g.restore();
 }
-export function drawFrogActor(g:CanvasRenderingContext2D,f:FighterState,state:MatchState,action?:FighterAction,seat:0|1=0){
+export function drawFrogActor(g:CanvasRenderingContext2D,f:FighterState,state:MatchState,action?:FighterAction,seat:0|1=0,actions:readonly FighterAction[]=[]){
  if(!moves.length)return;
  const frame=f.attack?.frame??0,powered=frogPowered(f,state),a=action&&'frog' in action?action.frog:undefined;
  const stage=['common-jab','common-sweep','frog-left-kick','frog-ha','common-finish'].indexOf(action?.id??'');
  let pose=f.guarding?7:a==='laugh'||a==='global'?6:stage>=0?stage+1:action?.id==='common-air'?3:0;
  const h=pose===5?100:130,evAge=state.arenaFrame-(f.poseEvent?.tick??-999);
+ setActorMotion('frog',{moves});
+ if(!powered&&state.phase==='fight'&&state.arenaFrame-(f.ascendEndVisual?.tick??-999)>=FROG_RULES.fadeTicks&&drawActorMotion(g,'frog',f,state,action,actions))return;
  const motion=frogMotionSample(f,state,seat);
  if(motion&&(!powered||motion.bank==='scene'||!f.hp)){
   const im=(motion.bank==='scene'?scenes:basics)[motion.cell];

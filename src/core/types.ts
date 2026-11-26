@@ -233,7 +233,13 @@ export interface Attack {
 
 export type Recovery = { phase: 'fall' } | { phase: 'down' | 'rise'; remaining: number };
 
+export interface MotionStamp {
+  mode:string;tick:number;x:number;y:number;facing:Side;phase:number;vy:number;
+  ground:boolean;moving:boolean;stun:number;event:string;eventAge:number;attackId?:string;attackFrame?:number;
+}
 export interface FighterState {
+  /** Serialized presentation history; never read by collision or control rules. */
+  motionVisual?: {stamp:MotionStamp;from?:MotionStamp;changed:number;turnTick:number;turnFrom:Side};
   ascendUntil?: number;
   /** Presentation clocks use arena time, independent of interruptible hit poses. */
   ascendVisual?: { tick: number; x: number; y: number };

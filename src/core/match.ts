@@ -3,6 +3,7 @@ import type {
   HitWindow, InputFrame, MatchConfig, MatchState, Recovery, RoundResult, Ruleset, Side
 } from './types.js';
 import { platformAt, platformOffset } from './terrain.js';
+import {updateActorPresentation} from './actor-presentation.js';
 import { DEFAULT_KNOCKDOWN_FRAMES, DEFAULT_RISE_FRAMES, MAX_ENERGY, NEUTRAL } from './types.js';
 import { entityContacts, resolveContactEntity, updateEntities, spawnEntities } from './entities.js';
 import {startWhale,cinematicOwner,WHALE_RULES} from './whale-kit.js';
@@ -761,6 +762,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   }
 
   for(const event of events)if(['jump','air-jump','land','dash','knockdown','rise'].includes(event.kind))state.fighters[event.source].poseEvent={kind:event.kind,tick:state.arenaFrame};
+  updateActorPresentation(state,config);
   if (config.training) return events;
   state.remaining--;
   const result = roundResult(state, config);
