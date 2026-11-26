@@ -8,8 +8,8 @@ export function updateActorPresentation(state:MatchState,config:MatchConfig){
  for(const seat of [0,1] as const){const id=config.fighters[seat].id;if(id!=='frog'&&id!=='whale')continue;
   const f=state.fighters[seat],old=f.motionVisual,previous=old?.stamp;
   let phase=previous?.phase??0;
-  // Whale: a slightly longer stride lowers cadence by 11%, without changing movement speed.
-  if(previous&&f.moving&&f.ground&&!f.attack&&!f.hitstun){const dx=f.x-previous.x;if(Math.abs(dx)<35)phase=((phase+dx*f.facing/(id==='frog'?112:74)*8)%8+8)%8;}
+  // Slightly longer strides lower cadence by about 11%, without changing movement speed.
+  if(previous&&f.moving&&f.ground&&!f.attack&&!f.hitstun){const dx=f.x-previous.x;if(Math.abs(dx)<35)phase=((phase+dx*f.facing/(id==='frog'?126:74)*8)%8+8)%8;}
   const stamp=motionStamp(f,state.arenaFrame,phase),changed=previous?.mode!==stamp.mode;
   f.motionVisual={stamp,from:changed?previous:old?.from,changed:changed?state.arenaFrame:old?.changed??state.arenaFrame,
    turnTick:previous&&previous.facing!==f.facing?state.arenaFrame:old?.turnTick??-999,

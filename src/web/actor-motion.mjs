@@ -14,7 +14,16 @@ function descriptor(c){
   let on=false;for(let y=Math.max(top,bottom-6);y<=bottom&&x<256;y++)if(p[(y*256+x)*4+3]>140){on=true;break;}
   if(on&&start<0)start=x;if(!on&&start>=0){if(x-start>=3)sole.push((start+x-1)/2);start=-1;}
  }
- return{canvas:c,pixels:p,id:++serial,top,bottom,rows,sole};
+ // Coherent row envelopes keep neighboring scanlines on the same smooth warp.
+ // Raw pixel contours contain one-pixel fingers and outlines that must not be
+ // stretched independently into horizontal streaks.
+ const bands=[];
+ for(let y=top;y<=bottom;y++){
+  let l=0,r=0,sum=0;
+  for(let dy=-8;dy<=8;dy++){const row=rows[Math.max(top,Math.min(bottom,y+dy))],weight=9-Math.abs(dy);l+=row[0]*weight;r+=row[1]*weight;sum+=weight;}
+  bands[y]=[l/sum,r/sum];
+ }
+ return{canvas:c,pixels:p,id:++serial,top,bottom,rows,bands,sole};
 }
 export function registerLocomotion(im,kind){
  const cells=[];const w=Math.floor(im.width/4),h=Math.floor(im.height/4);
@@ -61,10 +70,10 @@ function intactTween(a,b,t){
  g.drawImage(source.canvas,sr.left,sr.top,sr.right-sr.left+1,sr.bottom-sr.top+1,Math.round(x),Math.round(y),Math.round(w),Math.round(h));
  if(cache.size>180)cache.delete(cache.keys().next().value);cache.set(key,c);return c;
 }
-function tween(a,b,t,foot){
+function tween(a,b,t,foot,coherent=false){
  if(!a||!b)return a?.canvas??b?.canvas;t=Math.round(clamp(t)*6)/6;
  if(foot===undefined&&(t===0||a===b))return a.canvas;if(foot===undefined&&t===1)return b.canvas;
- const key=a.id+'/'+b.id+'/'+t+'/'+(foot===undefined?'':Math.round(foot));if(cache.has(key))return cache.get(key);
+ const key=a.id+'/'+b.id+'/'+t+'/'+(foot===undefined?'':Math.round(foot))+'/'+coherent;if(cache.has(key))return cache.get(key);
  const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.imageSmoothingEnabled=false;
  const top=a.top+(b.top-a.top)*t,bottom=a.bottom+(b.bottom-a.bottom)*t;
  const sa=soleNear(a,foot??128),sb=soleNear(b,foot??128),pin=foot===undefined?0:foot-(sa+(sb-sa)*t);
@@ -72,15 +81,16 @@ function tween(a,b,t,foot){
  for(let y=Math.ceil(top);y<=Math.min(255,Math.floor(bottom));y++){
   const v=clamp((y-top)/Math.max(1,bottom-top));
   const ya=Math.min(a.bottom,Math.round(a.top+v*(a.bottom-a.top))),yb=Math.min(b.bottom,Math.round(b.top+v*(b.bottom-b.top)));
-  const ar=a.rows[ya],br=b.rows[yb],left=ar[0]+(br[0]-ar[0])*t,right=ar[1]+(br[1]-ar[1])*t;
+  const ar=(coherent?a.bands:a.rows)[ya],br=(coherent?b.bands:b.rows)[yb],left=ar[0]+(br[0]-ar[0])*t,right=ar[1]+(br[1]-ar[1])*t;
   const shift=pin*ease((y-(bottom-42))/42);
-  for(let x=Math.max(0,Math.ceil(left+shift));x<=Math.min(255,Math.floor(right+shift));x++){
-   const u=clamp((x-left-shift)/Math.max(1,right-left));
+  for(let x=coherent?0:Math.max(0,Math.ceil(left+shift));x<=(coherent?255:Math.min(255,Math.floor(right+shift)));x++){
+   const rawU=(x-left-shift)/Math.max(1,right-left),u=coherent?rawU:clamp(rawU);
    const ax=Math.round(ar[0]+u*(ar[1]-ar[0])),bx=Math.round(br[0]+u*(br[1]-br[0]));
    const ai=(ya*256+ax)*4,bi=(yb*256+bx)*4,at=(y*256+x)*4;
    // One authored texture per in-between: keep eyes, hands and tail crisp,
    // while the registered silhouette moves continuously. No translucent double bodies.
    const pixels=t<.5?a.pixels:b.pixels,source=t<.5?ai:bi;
+   const sx=t<.5?ax:bx;if(sx<0||sx>255)continue;
    out[at+3]=pixels[source+3];
    for(let channel=0;channel<3;channel++)out[at+channel]=pixels[source+channel];
   }
@@ -98,7 +108,7 @@ function tween(a,b,t,foot){
 function still(p){return{a:p,b:p,t:0};}
 export function walkFootX(phase,stride){return stride/4-(((phase%4)+4)%4)*stride/8;}
 function walk(b,s,kind){
- const phase=((s.phase%8)+8)%8,i=Math.floor(phase),t=phase-i,stride=kind==='frog'?112:74;
+ const phase=((s.phase%8)+8)%8,i=Math.floor(phase),t=phase-i,stride=kind==='frog'?126:74;
  return{a:b.loco[i+1],b:b.loco[(i+1)%8+1],t,foot:128+walkFootX(phase,stride)};
 }
 function attack(b,kind,s,actions){
@@ -121,7 +131,7 @@ function plan(b,kind,s,actions){
  if(s.mode==='walk')return walk(b,s,kind);
  if(s.mode==='brake')return{a:b.loco[9],b:b.loco[0],t:ease(s.eventAge/7)};
  if(s.mode==='land'){
-  if(s.moving){const moving=walk(b,s,kind);return s.eventAge<3?{a:b.loco[15],b:descriptorCached(renderPlan(moving)),t:ease(s.eventAge/3)}:moving;}
+  if(s.moving){const moving=walk(b,s,kind);return s.eventAge<3?{a:b.loco[15],b:descriptorCached(renderPlan(moving,kind)),t:ease(s.eventAge/3)}:moving;}
   return s.eventAge<5?{a:b.loco[15],b:b.loco[9],t:ease(s.eventAge/5)}:{a:b.loco[9],b:b.loco[0],t:ease((s.eventAge-5)/5)};
  }
  if(s.mode==='air'){
@@ -135,25 +145,25 @@ function plan(b,kind,s,actions){
  }
  return still(kind==='frog'?oldPose(b,kind,0):oldPose(b,kind,77));
 }
-const renderPlan=p=>p.intact?intactTween(p.a,p.b,p.t):tween(p.a,p.b,p.t,p.foot);
+const renderPlan=(p,kind)=>p.intact?intactTween(p.a,p.b,p.t):tween(p.a,p.b,p.t,p.foot,kind==='frog');
 export function drawActorMotion(g,kind,f,state,action,actions){
  const b=banks.get(kind),v=f.motionVisual;if(!b?.loco||!v)return false;
  const s=v.stamp;
  if(s.mode==='special'||s.mode==='guard'||f.dashActive||f.dash)return false;
  if(f.attack&&action?.slot!=='A')return false;
- let p=plan(b,kind,s,actions),im=renderPlan(p);if(!im)return false;
+ let p=plan(b,kind,s,actions),im=renderPlan(p,kind);if(!im)return false;
  const age=state.arenaFrame-v.changed;
  if(s.mode==='idle'&&age>=8&&state.arenaFrame-v.turnTick>=6)return false;
  if(v.from&&age<3&&!['hurt','land'].includes(s.mode)&&!v.from.mode.includes('special')&&v.from.mode!=='guard'){
-  const from=renderPlan(plan(b,kind,v.from,actions));if(from)im=tween(descriptorCached(from),descriptorCached(im),ease((age+1)/3));
+  const from=renderPlan(plan(b,kind,v.from,actions),kind);if(from)im=tween(descriptorCached(from),descriptorCached(im),ease((age+1)/3),undefined,kind==='frog');
  }
  const turn=state.arenaFrame-v.turnTick;
  g.save();g.imageSmoothingEnabled=false;
  if(turn<6&&['idle','walk','brake'].includes(s.mode)){
   const front=b.loco[kind==='frog'?11:10];
-  if(turn<2){g.scale(v.turnFrom/f.facing,1);im=tween(descriptorCached(im),front,ease((turn+1)/2));}
+  if(turn<2){g.scale(v.turnFrom/f.facing,1);im=tween(descriptorCached(im),front,ease((turn+1)/2),undefined,kind==='frog');}
   else if(turn<4)im=front.canvas;
-  else im=tween(front,descriptorCached(im),ease((turn-3)/3));
+  else im=tween(front,descriptorCached(im),ease((turn-3)/3),undefined,kind==='frog');
  }
  g.drawImage(im,-128,-236+(p.dy??0));g.restore();return true;
 }

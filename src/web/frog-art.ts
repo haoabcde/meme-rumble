@@ -34,7 +34,7 @@ let holyComboArt:HTMLCanvasElement[]=[];
 let dragonRiseArt:HTMLCanvasElement[]=[];
 let moves:HTMLCanvasElement[]=[],angels:HTMLCanvasElement[]=[],travel:HTMLCanvasElement[]=[],gold:HTMLCanvasElement[]=[],crouch:HTMLCanvasElement,thinking:HTMLCanvasElement,intro:HTMLImageElement;
 const load=(src:string)=>{const im=new Image();im.src=src;return im.decode().then(()=>im)};
-void Promise.all([load(moveSource),load(angelSource),load(introSource),load(travelSource),load(goldSource),load(crouchSource)]).then(([m,a,i,t,v,c])=>{moves=cutGrid(m,4,2);angels=cutGrid(a,2,2);travel=cutGrid(t,4,2);gold=cutGrid(v,2,2);crouch=cutGrid(c,1,1)[0];intro=i;});
+void Promise.all([load(moveSource),load(angelSource),load(introSource),load(travelSource),load(goldSource),load(crouchSource)]).then(([m,a,i,t,v,c])=>{moves=cutGrid(m,4,2,{cleanCells:[6]});angels=cutGrid(a,2,2);travel=cutGrid(t,4,2);gold=cutGrid(v,2,2);crouch=cutGrid(c,1,1)[0];intro=i;});
 void load(normalGuardSource).then(im=>normalGuard=cutGrid(im,1,1)[0]);
 void load(basicSource).then(im=>{basics=cutGrid(im,4,4);setFrogHurtPoses([basics[8],basics[9]]);});
 void load(locomotionV25).then(im=>registerLocomotion(im,'frog'));
