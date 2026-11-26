@@ -1,0 +1,14 @@
+/* Keep long evidence URLs and Chinese tables inside the A4 text area. */
+body { overflow-wrap: anywhere; }
+h2, h3, h4 { break-after: avoid; }
+table { table-layout: fixed; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+th, td { overflow-wrap: anywhere; vertical-align: top; }
+td:first-child, th:first-child { width: 20%; }
+li { overflow-wrap: anywhere; }
+@media print {
+  h2 { margin-top: 7mm; }
+  h3 { margin-top: 5mm; }
+  a { color: #285e80; }
+}

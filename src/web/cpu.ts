@@ -1,4 +1,5 @@
 import { bananaActionIds } from '../content/fighters/banana.js';
+import { turretBoosted } from '../core/turret.js';
 import { isAttack, MAX_ENERGY, MAX_TEARS, TEAR_UNITS_PER_POINT } from '../core/types.js';
 import { NEUTRAL, type Axis, type InputFrame, type MatchConfig, type MatchState } from '../core/types.js';
 import { actionFor } from '../core/match.js';
@@ -58,17 +59,20 @@ export function cpuInput(state: MatchState, config: MatchConfig): InputFrame {
     if (cpu.ground && opponent.attack && opponent.attack.frame >= 2 && distance < 145 && beat % 16 === 6) {
       return { x: 0, y: 1, pressed: ['B'] };
     }
-    if (cpu.ground && opponent.crystalMark?.source === 1 && distance < 130 && Math.abs(higher) < 110) {
+    if (cpu.ground && opponent.crystalMark?.source === 1 && beat % 8 === 2) {
+      return { x: direction, y: -1, pressed: ['B'] };
+    }
+    if (cpu.ground && higher > 50 && higher < 210 && distance >= 70 && distance <= 215 && beat % 14 === 5) {
       return { x: direction, y: -1, pressed: ['B'] };
     }
     if (!cpu.ground && higher < -70 && distance < 165 && beat % 11 === 4) {
       return { x: direction, y: 0, pressed: ['B'] };
     }
-    if (cpu.ground && distance >= 120 && distance < 220 && Math.abs(higher) < 60 && beat % 18 === 9) {
+    if (cpu.ground && distance >= 130 && distance < 580 && Math.abs(higher) < 150 && beat % 18 === 9) {
       return { x: direction, y: 0, pressed: ['B'] };
     }
-    if (cpu.ground && distance >= 240 && !cpu.overclockCooldown &&
-        (state.turrets.bolt?.owner === 1 || state.turrets.howitzer?.owner === 1) && beat % 20 === 5) {
+    const ownedTurret = [state.turrets.bolt, state.turrets.howitzer].find(t => t && t.owner === 1 && !turretBoosted(state, t));
+    if (cpu.ground && ownedTurret && Math.abs(cpu.x - ownedTurret.x) < 420 && Math.abs(cpu.y - ownedTurret.y) < 160 && beat % 18 === 5) {
       return { x: direction, y: 0, pressed: ['C'], sampled: { C: { x: direction, y: -1 } } };
     }
   }

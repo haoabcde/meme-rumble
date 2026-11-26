@@ -15,7 +15,7 @@ shipArt.src = ship;
 
 /** Close-ups in the order the summon is performed: reaching for a pocket, raising the terminal, pressing it, clenching a fist. */
 export const summonPoses = [
-  [195, 8, 399, 393], [935, 8, 389, 386], [159, 520, 447, 387], [934, 517, 413, 382]
+  [130, 5, 266, 262], [623, 5, 259, 257], [106, 347, 298, 258], [623, 345, 275, 255]
 ] as const;
 // Where the pressed key and the lit screen sit inside the third close-up.
 export const summonTerminal = { key: [.633, .783], screen: [.778, .320] } as const;
@@ -173,7 +173,7 @@ export function drawSummonCutIn(ctx: CanvasRenderingContext2D, frame: number, fa
     const [sx, sy, sw, sh] = summonPoses[pose];
     // The second half is a closer shot. It pushes in rather than jumping to the new size.
     const push = live ? easeOut((frame - 16) / 5) : 1;
-    const scale = Math.min((actionShot ? 1.35 + .27 * push : 1.35) * unit, width * .83 / sw);
+    const scale = Math.min((actionShot ? 2.025 + .405 * push : 2.025) * unit, width * .83 / sw);
     const drift = live * Math.min(frame % 16, 7) * .45 * unit;
     // The first close-up rushes in from the lower right and overshoots its mark, once the curtains have parted.
     const rush = frame < 4 ? live : (1 - easeOutBack((frame - 3) / 7)) * live;

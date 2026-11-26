@@ -1,0 +1,611 @@
+{
+  "generator": "OpenAI built-in ImageGen, transparent PNG",
+  "jobs": [
+    {
+      "actor": "gaga",
+      "id": "gaga-arcade",
+      "layout": "1 column × 1 row",
+      "source": "assets/fighters/gaga-arcade.webp",
+      "style": "assets/fighters/unified-handdrawn-v1/gaga.png",
+      "prompt": "Use case: style-transfer. Asset: production fighting game animation sprite atlas, transparent PNG.\n\nInput image 1 is the authoritative animation sheet for exactly the poses, expressions, silhouette, orientation, registration and layout. Input image 2 is the approved character identity and clean hand-drawn style. Redraw the source artwork in that style, with genuine line and color work instead of retouching or filtering. Keep game-original characters unchanged.\n\nLayout: 1 column × 1 row of equally sized slots, each figure isolated in its own slot. Exactly the poses below in row-major order, no duplicates or added images. Align poses with the same silhouette, proportions, body lean, limb angles and eyes as input 1. Leave fully transparent gutters between all panels. Keep all full-body silhouettes complete, with tips of head, paws/flippers, toes and ankles intact. No sheets' heading, layout lines, numbering, swatches, border or extra silhouette. Outer gutters and spaces inside silhouettes true transparent RGBA. No ground plane, ground shadows, vignette, checkerboard printed into pixels, props except those stated, no text, no stickers, no glow.\n\nFrame requirements: A single full-body neutral ready pose. Exact head tilt, eye line, both flipper angles, posture, wide stance and separated yellow boots of source 1. The left boot, right boot, and lower costume stay movable: keep each visible boot separate from belly by the same original seams, with clean, intact soles and original foot spacing.\n\nIdentity: same chibi girl with dark violet-black thick penguin hoodie, cream belly, two white hood eye disks, small gold beak, yellow hood stripe and boots, dark blunt bangs, white X hair clip, yellow-green eyes, small blush, striped collar with red tab, silver oval zipper. The style guide influences finish, never changes head-to-body proportion, ethnicity, costume and anchors. No other character.\n\nRendering: high-definition hand-drawn 2D cartoon. Decisive clean warm-dark outline with artist-like stroke variation, matte color blocks, one or two simple painted cel shadows, faint subtle brush finish inside broad fills, crisp at normal game size. Honor source colors and clean edge clarity. No pixel art, no steppy pixelation, no blur, no digital glow, no fake vector sheen, no heavy grain, no realism.",
+      "output": "assets/fighters/unified-handdrawn-v1/motion/gaga/gaga-arcade.png",
+      "runtimeWebp": "assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-arcade.webp",
+      "status": "registered_reviewed",
+      "mode": "RGBA",
+      "dimensions": [
+        1111,
+        1416
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "opaqueBounds": [
+        36,
+        12,
+        1065,
+        1370
+      ],
+      "runtimeDimensions": [
+        408,
+        520
+      ],
+      "matchedOpaqueHandEyeAnchors": 0,
+      "arenaBodyCells": 1,
+      "cinematicCrops": 0,
+      "maxArenaSilhouetteBottomShiftPx": 0,
+      "registrationDiagnostics": "output/art-unification/registration/gaga-arcade.json"
+    },
+    {
+      "actor": "gaga",
+      "id": "gaga-actions",
+      "layout": "3 columns × 2 rows",
+      "source": "assets/fighters/gaga-actions.webp",
+      "style": "assets/fighters/unified-handdrawn-v1/gaga.png",
+      "prompt": "Use case: style-transfer. Asset: production fighting game animation sprite atlas, transparent PNG.\n\nInput image 1 is the authoritative animation sheet for exactly the poses, expressions, silhouette, orientation, registration and layout. Input image 2 is the approved character identity and clean hand-drawn style. Redraw the source artwork in that style, with genuine line and color work instead of retouching or filtering. Keep game-original characters unchanged.\n\nLayout: 3 columns × 2 rows of equally sized slots, each figure isolated in its own slot. Exactly the poses below in row-major order, no duplicates or added images. Align poses with the same silhouette, proportions, body lean, limb angles and eyes as input 1. Leave fully transparent gutters between all panels. Keep all full-body silhouettes complete, with tips of head, paws/flippers, toes and ankles intact. No sheets' heading, layout lines, numbering, swatches, border or extra silhouette. Outer gutters and spaces inside silhouettes true transparent RGBA. No ground plane, ground shadows, vignette, checkerboard printed into pixels, props except those stated, no text, no stickers, no glow.\n\nFrame requirements: Row 1 is uppercut crouch, high foreflipper lift, uppercut settle. Row 2 is sliding anticipation, low nearly horizontal sliding action, sliding recoil. Keep raised limb and low stretched body silhouettes precisely distinct.\n\nIdentity: same chibi girl with dark violet-black thick penguin hoodie, cream belly, two white hood eye disks, small gold beak, yellow hood stripe and boots, dark blunt bangs, white X hair clip, yellow-green eyes, small blush, striped collar with red tab, silver oval zipper. The style guide influences finish, never changes head-to-body proportion, ethnicity, costume and anchors. No other character.\n\nRendering: high-definition hand-drawn 2D cartoon. Decisive clean warm-dark outline with artist-like stroke variation, matte color blocks, one or two simple painted cel shadows, faint subtle brush finish inside broad fills, crisp at normal game size. Honor source colors and clean edge clarity. No pixel art, no steppy pixelation, no blur, no digital glow, no fake vector sheen, no heavy grain, no realism.",
+      "output": "assets/fighters/unified-handdrawn-v1/motion/gaga/gaga-actions.png",
+      "runtimeWebp": "assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-actions.webp",
+      "status": "registered_reviewed",
+      "mode": "RGBA",
+      "dimensions": [
+        2172,
+        724
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "opaqueBounds": [
+        186,
+        8,
+        1963,
+        707
+      ],
+      "runtimeDimensions": [
+        1536,
+        512
+      ],
+      "matchedOpaqueHandEyeAnchors": 0,
+      "arenaBodyCells": 6,
+      "cinematicCrops": 0,
+      "maxArenaSilhouetteBottomShiftPx": 1,
+      "registrationDiagnostics": "output/art-unification/registration/gaga-actions.json"
+    },
+    {
+      "actor": "gaga",
+      "id": "gaga-basic-combo",
+      "layout": "4 columns × 2 rows",
+      "source": "assets/fighters/gaga-basic-combo.webp",
+      "style": "assets/fighters/unified-handdrawn-v1/gaga.png",
+      "prompt": "Use case: style-transfer. Asset: production fighting game animation sprite atlas, transparent PNG.\n\nInput image 1 is the authoritative animation sheet for exactly the poses, expressions, silhouette, orientation, registration and layout. Input image 2 is the approved character identity and clean hand-drawn style. Redraw the source artwork in that style, with genuine line and color work instead of retouching or filtering. Keep game-original characters unchanged.\n\nLayout: 4 columns × 2 rows of equally sized slots, each figure isolated in its own slot. Exactly the poses below in row-major order, no duplicates or added images. Align poses with the same silhouette, proportions, body lean, limb angles and eyes as input 1. Leave fully transparent gutters between all panels. Keep all full-body silhouettes complete, with tips of head, paws/flippers, toes and ankles intact. No sheets' heading, layout lines, numbering, swatches, border or extra silhouette. Outer gutters and spaces inside silhouettes true transparent RGBA. No ground plane, ground shadows, vignette, checkerboard printed into pixels, props except those stated, no text, no stickers, no glow.\n\nFrame requirements: Draw original top two rows only, first row four phases of front-flipper jab, second row four phases of pivoting backhand. Use identical left-to-right pose order including rear/side view on first tile of row 2. The source's third row is not part of this output. Preserve full boots and flippers.\n\nIdentity: same chibi girl with dark violet-black thick penguin hoodie, cream belly, two white hood eye disks, small gold beak, yellow hood stripe and boots, dark blunt bangs, white X hair clip, yellow-green eyes, small blush, striped collar with red tab, silver oval zipper. The style guide influences finish, never changes head-to-body proportion, ethnicity, costume and anchors. No other character.\n\nRendering: high-definition hand-drawn 2D cartoon. Decisive clean warm-dark outline with artist-like stroke variation, matte color blocks, one or two simple painted cel shadows, faint subtle brush finish inside broad fills, crisp at normal game size. Honor source colors and clean edge clarity. No pixel art, no steppy pixelation, no blur, no digital glow, no fake vector sheen, no heavy grain, no realism.",
+      "output": "assets/fighters/unified-handdrawn-v1/motion/gaga/gaga-basic-combo.png",
+      "runtimeWebp": "assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-basic-combo.webp",
+      "status": "registered_reviewed",
+      "mode": "RGBA",
+      "dimensions": [
+        1774,
+        887
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "opaqueBounds": [
+        34,
+        18,
+        1708,
+        866
+      ],
+      "runtimeDimensions": [
+        1536,
+        1024
+      ],
+      "matchedOpaqueHandEyeAnchors": 0,
+      "arenaBodyCells": 8,
+      "cinematicCrops": 0,
+      "maxArenaSilhouetteBottomShiftPx": 1,
+      "registrationDiagnostics": "output/art-unification/registration/gaga-basic-combo.json"
+    },
+    {
+      "actor": "gaga",
+      "id": "gaga-combo-finish",
+      "layout": "1 column × 1 row",
+      "source": "assets/fighters/gaga-combo-finish.webp",
+      "style": "assets/fighters/unified-handdrawn-v1/gaga.png",
+      "prompt": "Use case: style-transfer. Asset: production fighting game animation sprite atlas, transparent PNG.\n\nInput image 1 is the authoritative animation sheet for exactly the poses, expressions, silhouette, orientation, registration and layout. Input image 2 is the approved character identity and clean hand-drawn style. Redraw the source artwork in that style, with genuine line and color work instead of retouching or filtering. Keep game-original characters unchanged.\n\nLayout: 1 column × 1 row of equally sized slots, each figure isolated in its own slot. Exactly the poses below in row-major order, no duplicates or added images. Align poses with the same silhouette, proportions, body lean, limb angles and eyes as input 1. Leave fully transparent gutters between all panels. Keep all full-body silhouettes complete, with tips of head, paws/flippers, toes and ankles intact. No sheets' heading, layout lines, numbering, swatches, border or extra silhouette. Outer gutters and spaces inside silhouettes true transparent RGBA. No ground plane, ground shadows, vignette, checkerboard printed into pixels, props except those stated, no text, no stickers, no glow.\n\nFrame requirements: Output exactly one full-body pose taken from the top-left cell only of source 1: the aggressive sprint crouch with the two boots wide apart and the torso pitched forward. This is not the neutral standing pose or a dash effect. Match belly lean, foot spacing and hind flipper triangle.\n\nIdentity: same chibi girl with dark violet-black thick penguin hoodie, cream belly, two white hood eye disks, small gold beak, yellow hood stripe and boots, dark blunt bangs, white X hair clip, yellow-green eyes, small blush, striped collar with red tab, silver oval zipper. The style guide influences finish, never changes head-to-body proportion, ethnicity, costume and anchors. No other character.\n\nRendering: high-definition hand-drawn 2D cartoon. Decisive clean warm-dark outline with artist-like stroke variation, matte color blocks, one or two simple painted cel shadows, faint subtle brush finish inside broad fills, crisp at normal game size. Honor source colors and clean edge clarity. No pixel art, no steppy pixelation, no blur, no digital glow, no fake vector sheen, no heavy grain, no realism.",
+      "output": "assets/fighters/unified-handdrawn-v1/motion/gaga/gaga-combo-finish.png",
+      "runtimeWebp": "assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-combo-finish.webp",
+      "status": "registered_reviewed",
+      "mode": "RGBA",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ],
+      "opaqueBounds": [
+        107,
+        14,
+        1316,
+        1006
+      ],
+      "runtimeDimensions": [
+        1536,
+        1024
+      ],
+      "matchedOpaqueHandEyeAnchors": 0,
+      "arenaBodyCells": 1,
+      "cinematicCrops": 0,
+      "maxArenaSilhouetteBottomShiftPx": 0,
+      "registrationDiagnostics": "output/art-unification/registration/gaga-combo-finish.json"
+    },
+    {
+      "actor": "gaga",
+      "id": "gaga-pole-attacks",
+      "layout": "4 columns × 2 rows",
+      "source": "assets/fighters/gaga-pole-attacks.webp",
+      "style": "assets/fighters/unified-handdrawn-v1/gaga.png",
+      "prompt": "Use case: style-transfer. Asset: production fighting game animation sprite atlas, transparent PNG.\n\nInput image 1 is the authoritative animation sheet for exactly the poses, expressions, silhouette, orientation, registration and layout. Input image 2 is the approved character identity and clean hand-drawn style. Redraw the source artwork in that style, with genuine line and color work instead of retouching or filtering. Keep game-original characters unchanged.\n\nLayout: 4 columns × 2 rows of equally sized slots, each figure isolated in its own slot. Exactly the poses below in row-major order, no duplicates or added images. Align poses with the same silhouette, proportions, body lean, limb angles and eyes as input 1. Leave fully transparent gutters between all panels. Keep all full-body silhouettes complete, with tips of head, paws/flippers, toes and ankles intact. No sheets' heading, layout lines, numbering, swatches, border or extra silhouette. Outer gutters and spaces inside silhouettes true transparent RGBA. No ground plane, ground shadows, vignette, checkerboard printed into pixels, props except those stated, no text, no stickers, no glow.\n\nFrame requirements: Draw original top two rows only: four stages of sweeping the pole, four stages of reverse sweep. The source third row is not part of this output. Character hands follow every original two-handed grip. DO NOT draw any pole, weapon, streaks, or wind. The game draws the pole separately on those hands.\n\nIdentity: same chibi girl with dark violet-black thick penguin hoodie, cream belly, two white hood eye disks, small gold beak, yellow hood stripe and boots, dark blunt bangs, white X hair clip, yellow-green eyes, small blush, striped collar with red tab, silver oval zipper. The style guide influences finish, never changes head-to-body proportion, ethnicity, costume and anchors. No other character.\n\nRendering: high-definition hand-drawn 2D cartoon. Decisive clean warm-dark outline with artist-like stroke variation, matte color blocks, one or two simple painted cel shadows, faint subtle brush finish inside broad fills, crisp at normal game size. Honor source colors and clean edge clarity. No pixel art, no steppy pixelation, no blur, no digital glow, no fake vector sheen, no heavy grain, no realism.",
+      "output": "assets/fighters/unified-handdrawn-v1/motion/gaga/gaga-pole-attacks.png",
+      "runtimeWebp": "assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-pole-attacks.webp",
+      "status": "registered_reviewed",
+      "mode": "RGBA",
+      "dimensions": [
+        1774,
+        887
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "opaqueBounds": [
+        42,
+        16,
+        1717,
+        876
+      ],
+      "runtimeDimensions": [
+        1536,
+        1024
+      ],
+      "matchedOpaqueHandEyeAnchors": 8,
+      "arenaBodyCells": 8,
+      "cinematicCrops": 0,
+      "maxArenaSilhouetteBottomShiftPx": 1,
+      "registrationDiagnostics": "output/art-unification/registration/gaga-pole-attacks.json"
+    },
+    {
+      "actor": "gaga",
+      "id": "gaga-pole-launch",
+      "layout": "2 columns × 2 rows",
+      "source": "assets/fighters/gaga-pole-launch.webp",
+      "style": "assets/fighters/unified-handdrawn-v1/gaga.png",
+      "prompt": "Use case: style-transfer. Asset: production fighting game animation sprite atlas, transparent PNG.\n\nInput image 1 is the authoritative animation sheet for exactly the poses, expressions, silhouette, orientation, registration and layout. Input image 2 is the approved character identity and clean hand-drawn style. Redraw the source artwork in that style, with genuine line and color work instead of retouching or filtering. Keep game-original characters unchanged.\n\nLayout: 2 columns × 2 rows of equally sized slots, each figure isolated in its own slot. Exactly the poses below in row-major order, no duplicates or added images. Align poses with the same silhouette, proportions, body lean, limb angles and eyes as input 1. Leave fully transparent gutters between all panels. Keep all full-body silhouettes complete, with tips of head, paws/flippers, toes and ankles intact. No sheets' heading, layout lines, numbering, swatches, border or extra silhouette. Outer gutters and spaces inside silhouettes true transparent RGBA. No ground plane, ground shadows, vignette, checkerboard printed into pixels, props except those stated, no text, no stickers, no glow.\n\nFrame requirements: Four rising-pole moves in source order: low two-handed squat, front wide step with both mitts extended forward, diagonal upward lift with open mouth, raised-overhead follow-through and deep lean. Hands must match original placement. Draw only character, never draw an actual electrical pole or sweep effect.\n\nIdentity: same chibi girl with dark violet-black thick penguin hoodie, cream belly, two white hood eye disks, small gold beak, yellow hood stripe and boots, dark blunt bangs, white X hair clip, yellow-green eyes, small blush, striped collar with red tab, silver oval zipper. The style guide influences finish, never changes head-to-body proportion, ethnicity, costume and anchors. No other character.\n\nRendering: high-definition hand-drawn 2D cartoon. Decisive clean warm-dark outline with artist-like stroke variation, matte color blocks, one or two simple painted cel shadows, faint subtle brush finish inside broad fills, crisp at normal game size. Honor source colors and clean edge clarity. No pixel art, no steppy pixelation, no blur, no digital glow, no fake vector sheen, no heavy grain, no realism.",
+      "output": "assets/fighters/unified-handdrawn-v1/motion/gaga/gaga-pole-launch.png",
+      "runtimeWebp": "assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-pole-launch.webp",
+      "status": "registered_reviewed",
+      "mode": "RGBA",
+      "dimensions": [
+        1312,
+        1199
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "opaqueBounds": [
+        102,
+        94,
+        1230,
+        1146
+      ],
+      "runtimeDimensions": [
+        1312,
+        1199
+      ],
+      "matchedOpaqueHandEyeAnchors": 4,
+      "arenaBodyCells": 4,
+      "cinematicCrops": 0,
+      "maxArenaSilhouetteBottomShiftPx": 0,
+      "registrationDiagnostics": "output/art-unification/registration/gaga-pole-launch.json"
+    },
+    {
+      "actor": "gaga",
+      "id": "gaga-air-pole",
+      "layout": "2 columns × 2 rows",
+      "source": "assets/fighters/gaga-air-pole.webp",
+      "style": "assets/fighters/unified-handdrawn-v1/gaga.png",
+      "prompt": "Use case: style-transfer. Asset: production fighting game animation sprite atlas, transparent PNG.\n\nInput image 1 is the authoritative animation sheet for exactly the poses, expressions, silhouette, orientation, registration and layout. Input image 2 is the approved character identity and clean hand-drawn style. Redraw the source artwork in that style, with genuine line and color work instead of retouching or filtering. Keep game-original characters unchanged.\n\nLayout: 2 columns × 2 rows of equally sized slots, each figure isolated in its own slot. Exactly the poses below in row-major order, no duplicates or added images. Align poses with the same silhouette, proportions, body lean, limb angles and eyes as input 1. Leave fully transparent gutters between all panels. Keep all full-body silhouettes complete, with tips of head, paws/flippers, toes and ankles intact. No sheets' heading, layout lines, numbering, swatches, border or extra silhouette. Outer gutters and spaces inside silhouettes true transparent RGBA. No ground plane, ground shadows, vignette, checkerboard printed into pixels, props except those stated, no text, no stickers, no glow.\n\nFrame requirements: Four airborne cast poses: curled knees and two mitts over the raised rear shoulder, hands together in front at shoulder transition, downward two-handed release, open-arm falling/landing posture. Do not draw a pole, crate, or energy: these are composited into the game at the original hand locations.\n\nIdentity: same chibi girl with dark violet-black thick penguin hoodie, cream belly, two white hood eye disks, small gold beak, yellow hood stripe and boots, dark blunt bangs, white X hair clip, yellow-green eyes, small blush, striped collar with red tab, silver oval zipper. The style guide influences finish, never changes head-to-body proportion, ethnicity, costume and anchors. No other character.\n\nRendering: high-definition hand-drawn 2D cartoon. Decisive clean warm-dark outline with artist-like stroke variation, matte color blocks, one or two simple painted cel shadows, faint subtle brush finish inside broad fills, crisp at normal game size. Honor source colors and clean edge clarity. No pixel art, no steppy pixelation, no blur, no digital glow, no fake vector sheen, no heavy grain, no realism.",
+      "output": "assets/fighters/unified-handdrawn-v1/motion/gaga/gaga-air-pole.png",
+      "runtimeWebp": "assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-air-pole.webp",
+      "status": "registered_reviewed",
+      "mode": "RGBA",
+      "dimensions": [
+        1312,
+        1199
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "opaqueBounds": [
+        89,
+        11,
+        1188,
+        1178
+      ],
+      "runtimeDimensions": [
+        1312,
+        1199
+      ],
+      "matchedOpaqueHandEyeAnchors": 2,
+      "arenaBodyCells": 4,
+      "cinematicCrops": 0,
+      "maxArenaSilhouetteBottomShiftPx": 1,
+      "registrationDiagnostics": "output/art-unification/registration/gaga-air-pole.json"
+    },
+    {
+      "actor": "gaga",
+      "id": "gaga-turret-terminal",
+      "layout": "3 columns × 2 rows",
+      "source": "assets/fighters/gaga-turret-terminal.webp",
+      "style": "assets/fighters/unified-handdrawn-v1/gaga.png",
+      "prompt": "Use case: style-transfer. Asset: production fighting game animation sprite atlas, transparent PNG.\n\nInput image 1 is the authoritative animation sheet for exactly the poses, expressions, silhouette, orientation, registration and layout. Input image 2 is the approved character identity and clean hand-drawn style. Redraw the source artwork in that style, with genuine line and color work instead of retouching or filtering. Keep game-original characters unchanged.\n\nLayout: 3 columns × 2 rows of equally sized slots, each figure isolated in its own slot. Exactly the poses below in row-major order, no duplicates or added images. Align poses with the same silhouette, proportions, body lean, limb angles and eyes as input 1. Leave fully transparent gutters between all panels. Keep all full-body silhouettes complete, with tips of head, paws/flippers, toes and ankles intact. No sheets' heading, layout lines, numbering, swatches, border or extra silhouette. Outer gutters and spaces inside silhouettes true transparent RGBA. No ground plane, ground shadows, vignette, checkerboard printed into pixels, props except those stated, no text, no stickers, no glow.\n\nFrame requirements: Six terminal and engineering toss poses in source order. Top row reach for utility pouch with empty hands, remove terminal with open mouth, press the cyan terminal with serious expression. Bottom row backswing holding the screen, throw release with ONE outstretched open hand and the terminal held in the other hand, return both hands to the terminal. The small dark hinged cyan handheld terminal is painted in tiles 2–6 exactly as source. No crate, turret, missile or separate effect.\n\nIdentity: same chibi girl with dark violet-black thick penguin hoodie, cream belly, two white hood eye disks, small gold beak, yellow hood stripe and boots, dark blunt bangs, white X hair clip, yellow-green eyes, small blush, striped collar with red tab, silver oval zipper. The style guide influences finish, never changes head-to-body proportion, ethnicity, costume and anchors. No other character.\n\nRendering: high-definition hand-drawn 2D cartoon. Decisive clean warm-dark outline with artist-like stroke variation, matte color blocks, one or two simple painted cel shadows, faint subtle brush finish inside broad fills, crisp at normal game size. Honor source colors and clean edge clarity. No pixel art, no steppy pixelation, no blur, no digital glow, no fake vector sheen, no heavy grain, no realism.",
+      "output": "assets/fighters/unified-handdrawn-v1/motion/gaga/gaga-turret-terminal.png",
+      "runtimeWebp": "assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-turret-terminal.webp",
+      "status": "registered_reviewed",
+      "mode": "RGBA",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ],
+      "opaqueBounds": [
+        71,
+        21,
+        1440,
+        1004
+      ],
+      "runtimeDimensions": [
+        1536,
+        1024
+      ],
+      "matchedOpaqueHandEyeAnchors": 0,
+      "arenaBodyCells": 6,
+      "cinematicCrops": 0,
+      "maxArenaSilhouetteBottomShiftPx": 0,
+      "registrationDiagnostics": "output/art-unification/registration/gaga-turret-terminal.json"
+    },
+    {
+      "actor": "gaga",
+      "id": "gaga-hit-reactions",
+      "layout": "4 columns × 3 rows",
+      "source": "assets/fighters/gaga-hit-reactions.webp",
+      "style": "assets/fighters/unified-handdrawn-v1/gaga.png",
+      "prompt": "Use case: style-transfer. Asset: production fighting game animation sprite atlas, transparent PNG.\n\nInput image 1 is the authoritative animation sheet for exactly the poses, expressions, silhouette, orientation, registration and layout. Input image 2 is the approved character identity and clean hand-drawn style. Redraw the source artwork in that style, with genuine line and color work instead of retouching or filtering. Keep game-original characters unchanged.\n\nLayout: 4 columns × 3 rows of equally sized slots, each figure isolated in its own slot. Exactly the poses below in row-major order, no duplicates or added images. Align poses with the same silhouette, proportions, body lean, limb angles and eyes as input 1. Leave fully transparent gutters between all panels. Keep all full-body silhouettes complete, with tips of head, paws/flippers, toes and ankles intact. No sheets' heading, layout lines, numbering, swatches, border or extra silhouette. Outer gutters and spaces inside silhouettes true transparent RGBA. No ground plane, ground shadows, vignette, checkerboard printed into pixels, props except those stated, no text, no stickers, no glow.\n\nFrame requirements: Exactly twelve complete bodies. Row 1 four light-hit poses. Row 2 four heavy staggers from backward leaning to recovery. Row 3 four aerial damage phases: hard lift, tucked toes, suspended slide, ground recoil. Copy original head angles and every expression. Preserve original numbers of visible paws/flippers, not extra limbs.\n\nIdentity: same chibi girl with dark violet-black thick penguin hoodie, cream belly, two white hood eye disks, small gold beak, yellow hood stripe and boots, dark blunt bangs, white X hair clip, yellow-green eyes, small blush, striped collar with red tab, silver oval zipper. The style guide influences finish, never changes head-to-body proportion, ethnicity, costume and anchors. No other character.\n\nRendering: high-definition hand-drawn 2D cartoon. Decisive clean warm-dark outline with artist-like stroke variation, matte color blocks, one or two simple painted cel shadows, faint subtle brush finish inside broad fills, crisp at normal game size. Honor source colors and clean edge clarity. No pixel art, no steppy pixelation, no blur, no digital glow, no fake vector sheen, no heavy grain, no realism.",
+      "output": "assets/fighters/unified-handdrawn-v1/motion/gaga/gaga-hit-reactions.png",
+      "runtimeWebp": "assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-hit-reactions.webp",
+      "status": "registered_reviewed",
+      "mode": "RGBA",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ],
+      "opaqueBounds": [
+        50,
+        14,
+        1437,
+        1013
+      ],
+      "runtimeDimensions": [
+        1536,
+        1024
+      ],
+      "matchedOpaqueHandEyeAnchors": 0,
+      "arenaBodyCells": 12,
+      "cinematicCrops": 0,
+      "maxArenaSilhouetteBottomShiftPx": 1,
+      "registrationDiagnostics": "output/art-unification/registration/gaga-hit-reactions.json"
+    },
+    {
+      "actor": "gaga",
+      "id": "gaga-knockdown",
+      "layout": "2 columns × 2 rows",
+      "source": "assets/fighters/gaga-knockdown.webp",
+      "style": "assets/fighters/unified-handdrawn-v1/gaga.png",
+      "prompt": "Use case: style-transfer. Asset: production fighting game animation sprite atlas, transparent PNG.\n\nInput image 1 is the authoritative animation sheet for exactly the poses, expressions, silhouette, orientation, registration and layout. Input image 2 is the approved character identity and clean hand-drawn style. Redraw the source artwork in that style, with genuine line and color work instead of retouching or filtering. Keep game-original characters unchanged.\n\nLayout: 2 columns × 2 rows of equally sized slots, each figure isolated in its own slot. Exactly the poses below in row-major order, no duplicates or added images. Align poses with the same silhouette, proportions, body lean, limb angles and eyes as input 1. Leave fully transparent gutters between all panels. Keep all full-body silhouettes complete, with tips of head, paws/flippers, toes and ankles intact. No sheets' heading, layout lines, numbering, swatches, border or extra silhouette. Outer gutters and spaces inside silhouettes true transparent RGBA. No ground plane, ground shadows, vignette, checkerboard printed into pixels, props except those stated, no text, no stickers, no glow.\n\nFrame requirements: Exact original four stages: top left airborne knockback on back with both soles visible; top right side down grimace with head left and feet right; bottom left hands braced low on the stage; bottom right low one-knee rise. Full outlines and digit count, no dust.\n\nIdentity: same chibi girl with dark violet-black thick penguin hoodie, cream belly, two white hood eye disks, small gold beak, yellow hood stripe and boots, dark blunt bangs, white X hair clip, yellow-green eyes, small blush, striped collar with red tab, silver oval zipper. The style guide influences finish, never changes head-to-body proportion, ethnicity, costume and anchors. No other character.\n\nRendering: high-definition hand-drawn 2D cartoon. Decisive clean warm-dark outline with artist-like stroke variation, matte color blocks, one or two simple painted cel shadows, faint subtle brush finish inside broad fills, crisp at normal game size. Honor source colors and clean edge clarity. No pixel art, no steppy pixelation, no blur, no digital glow, no fake vector sheen, no heavy grain, no realism.",
+      "output": "assets/fighters/unified-handdrawn-v1/motion/gaga/gaga-knockdown.png",
+      "runtimeWebp": "assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-knockdown.webp",
+      "status": "registered_reviewed",
+      "mode": "RGBA",
+      "dimensions": [
+        1341,
+        1173
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "opaqueBounds": [
+        99,
+        145,
+        1223,
+        1136
+      ],
+      "runtimeDimensions": [
+        640,
+        560
+      ],
+      "matchedOpaqueHandEyeAnchors": 0,
+      "arenaBodyCells": 4,
+      "cinematicCrops": 0,
+      "maxArenaSilhouetteBottomShiftPx": 0,
+      "registrationDiagnostics": "output/art-unification/registration/gaga-knockdown.json"
+    },
+    {
+      "actor": "gaga",
+      "id": "gaga-dijiang",
+      "layout": "2 columns × 2 rows",
+      "source": "assets/fighters/gaga-dijiang.webp",
+      "style": "assets/fighters/unified-handdrawn-v1/gaga.png",
+      "prompt": "Use case: style-transfer. Asset: production fighting game animation sprite atlas, transparent PNG.\n\nInput image 1 is the authoritative animation sheet for exactly the poses, expressions, silhouette, orientation, registration and layout. Input image 2 is the approved character identity and clean hand-drawn style. Redraw the source artwork in that style, with genuine line and color work instead of retouching or filtering. Keep game-original characters unchanged.\n\nLayout: 2 columns × 2 rows of equally sized slots, each figure isolated in its own slot. Exactly the poses below in row-major order, no duplicates or added images. Align poses with the same silhouette, proportions, body lean, limb angles and eyes as input 1. Leave fully transparent gutters between all panels. Keep all full-body silhouettes complete, with tips of head, paws/flippers, toes and ankles intact. No sheets' heading, layout lines, numbering, swatches, border or extra silhouette. Outer gutters and spaces inside silhouettes true transparent RGBA. No ground plane, ground shadows, vignette, checkerboard printed into pixels, props except those stated, no text, no stickers, no glow.\n\nFrame requirements: Four full bodies, even though source is sometimes cropped in-game: first pulls out closed dark handheld terminal from utility pouch, second flips open cyan-screen terminal, third bends to press terminal with lowered head, fourth looks up with calm expression holding open cyan terminal. Preserve baked-in small prop and its hand grip; no ship, no glow splashes, no background.\n\nIdentity: same chibi girl with dark violet-black thick penguin hoodie, cream belly, two white hood eye disks, small gold beak, yellow hood stripe and boots, dark blunt bangs, white X hair clip, yellow-green eyes, small blush, striped collar with red tab, silver oval zipper. The style guide influences finish, never changes head-to-body proportion, ethnicity, costume and anchors. No other character.\n\nRendering: high-definition hand-drawn 2D cartoon. Decisive clean warm-dark outline with artist-like stroke variation, matte color blocks, one or two simple painted cel shadows, faint subtle brush finish inside broad fills, crisp at normal game size. Honor source colors and clean edge clarity. No pixel art, no steppy pixelation, no blur, no digital glow, no fake vector sheen, no heavy grain, no realism.",
+      "output": "assets/fighters/unified-handdrawn-v1/motion/gaga/gaga-dijiang.png",
+      "runtimeWebp": "assets/fighters/unified-handdrawn-v1/motion/gaga/registered/gaga-dijiang.webp",
+      "status": "registered_reviewed",
+      "mode": "RGBA",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ],
+      "opaqueBounds": [
+        162,
+        8,
+        1345,
+        1008
+      ],
+      "runtimeDimensions": [
+        1536,
+        1024
+      ],
+      "matchedOpaqueHandEyeAnchors": 0,
+      "arenaBodyCells": 1,
+      "cinematicCrops": 4,
+      "maxArenaSilhouetteBottomShiftPx": 0,
+      "registrationDiagnostics": "output/art-unification/registration/gaga-dijiang.json"
+    },
+    {
+      "actor": "banana",
+      "id": "banana-arcade-actions",
+      "layout": "3 columns × 2 rows",
+      "source": "assets/fighters/banana-arcade-actions.webp",
+      "style": "assets/fighters/unified-handdrawn-v1/banana.png",
+      "prompt": "Use case: style-transfer. Asset: production fighting game animation sprite atlas, transparent PNG.\n\nInput image 1 is the authoritative animation sheet for exactly the poses, expressions, silhouette, orientation, registration and layout. Input image 2 is the approved character identity and clean hand-drawn style. Redraw the source artwork in that style, with genuine line and color work instead of retouching or filtering. Keep game-original characters unchanged.\n\nLayout: 3 columns × 2 rows of equally sized slots, each figure isolated in its own slot. Exactly the poses below in row-major order, no duplicates or added images. Align poses with the same silhouette, proportions, body lean, limb angles and eyes as input 1. Leave fully transparent gutters between all panels. Keep all full-body silhouettes complete, with tips of head, paws/flippers, toes and ankles intact. No sheets' heading, layout lines, numbering, swatches, border or extra silhouette. Outer gutters and spaces inside silhouettes true transparent RGBA. No ground plane, ground shadows, vignette, checkerboard printed into pixels, props except those stated, no text, no stickers, no glow.\n\nFrame requirements: Exactly six full-body original poses in order. Row 1: neutral bored standing, advancing stride, sad head-down crying-preparation without water. Row 2: forward claw attack lean, upward claw pose with chin lifted, low crouching lunge. Keep the pointed banana peel silhouette, softly spotted cat facial markings, left/right feet and timing poses. No painted tears anywhere; engine draws them.\n\nIdentity: exactly the same yellow banana-suit cat, brown short bent peeled stem, tan-brown tabby face and shallow whisker strokes, small dark paws/feet, natural yellow pull of the banana suit. Match pose source expressions, same head and limb proportions. In input 2 the tears are an identity example only: outside a tiny natural eye detail stated above, NEVER render any blue water, tear jet or effects.\n\nRendering: high-definition hand-drawn 2D cartoon. Decisive clean warm-dark outline with artist-like stroke variation, matte color blocks, one or two simple painted cel shadows, faint subtle brush finish inside broad fills, crisp at normal game size. Honor source colors and clean edge clarity. No pixel art, no steppy pixelation, no blur, no digital glow, no fake vector sheen, no heavy grain, no realism.",
+      "output": "assets/fighters/unified-handdrawn-v1/motion/banana/banana-arcade-actions.png",
+      "runtimeWebp": "assets/fighters/unified-handdrawn-v1/motion/banana/registered/banana-arcade-actions.webp",
+      "status": "registered_reviewed",
+      "mode": "RGBA",
+      "dimensions": [
+        1604,
+        980
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "opaqueBounds": [
+        108,
+        25,
+        1525,
+        958
+      ],
+      "runtimeDimensions": [
+        1152,
+        704
+      ],
+      "matchedOpaqueHandEyeAnchors": 6,
+      "arenaBodyCells": 6,
+      "cinematicCrops": 0,
+      "maxArenaSilhouetteBottomShiftPx": 1,
+      "registrationDiagnostics": "output/art-unification/registration/banana-arcade-actions.json"
+    },
+    {
+      "actor": "banana",
+      "id": "banana-jet-expressions",
+      "layout": "2 columns × 1 row",
+      "source": "assets/fighters/banana-jet-expressions.webp",
+      "style": "assets/fighters/unified-handdrawn-v1/banana.png",
+      "prompt": "Use case: style-transfer. Asset: production fighting game animation sprite atlas, transparent PNG.\n\nInput image 1 is the authoritative animation sheet for exactly the poses, expressions, silhouette, orientation, registration and layout. Input image 2 is the approved character identity and clean hand-drawn style. Redraw the source artwork in that style, with genuine line and color work instead of retouching or filtering. Keep game-original characters unchanged.\n\nLayout: 2 columns × 1 row of equally sized slots, each figure isolated in its own slot. Exactly the poses below in row-major order, no duplicates or added images. Align poses with the same silhouette, proportions, body lean, limb angles and eyes as input 1. Leave fully transparent gutters between all panels. Keep all full-body silhouettes complete, with tips of head, paws/flippers, toes and ankles intact. No sheets' heading, layout lines, numbering, swatches, border or extra silhouette. Outer gutters and spaces inside silhouettes true transparent RGBA. No ground plane, ground shadows, vignette, checkerboard printed into pixels, props except those stated, no text, no stickers, no glow.\n\nFrame requirements: Two complete bodies. Left: gritted teeth, tightly shut eyes, arms sharply extended horizontally from sides, braced forward. Right: upward open-mouthed tense expression, eyes looking up, both paws clenched near chest, entire upright body. Use source eyes and soles placement. Do not paint tears, water, or rays in either cell.\n\nIdentity: exactly the same yellow banana-suit cat, brown short bent peeled stem, tan-brown tabby face and shallow whisker strokes, small dark paws/feet, natural yellow pull of the banana suit. Match pose source expressions, same head and limb proportions. In input 2 the tears are an identity example only: outside a tiny natural eye detail stated above, NEVER render any blue water, tear jet or effects.\n\nRendering: high-definition hand-drawn 2D cartoon. Decisive clean warm-dark outline with artist-like stroke variation, matte color blocks, one or two simple painted cel shadows, faint subtle brush finish inside broad fills, crisp at normal game size. Honor source colors and clean edge clarity. No pixel art, no steppy pixelation, no blur, no digital glow, no fake vector sheen, no heavy grain, no realism.",
+      "output": "assets/fighters/unified-handdrawn-v1/motion/banana/banana-jet-expressions.png",
+      "runtimeWebp": "assets/fighters/unified-handdrawn-v1/motion/banana/registered/banana-jet-expressions.webp",
+      "status": "registered_reviewed",
+      "mode": "RGBA",
+      "dimensions": [
+        1853,
+        849
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "opaqueBounds": [
+        201,
+        54,
+        1574,
+        800
+      ],
+      "runtimeDimensions": [
+        768,
+        352
+      ],
+      "matchedOpaqueHandEyeAnchors": 4,
+      "arenaBodyCells": 2,
+      "cinematicCrops": 0,
+      "maxArenaSilhouetteBottomShiftPx": 1,
+      "registrationDiagnostics": "output/art-unification/registration/banana-jet-expressions.json"
+    },
+    {
+      "actor": "banana",
+      "id": "banana-hit-reactions",
+      "layout": "2 columns × 2 rows",
+      "source": "assets/fighters/banana-hit-reactions.webp",
+      "style": "assets/fighters/unified-handdrawn-v1/banana.png",
+      "prompt": "Use case: style-transfer. Asset: production fighting game animation sprite atlas, transparent PNG.\n\nInput image 1 is the authoritative animation sheet for exactly the poses, expressions, silhouette, orientation, registration and layout. Input image 2 is the approved character identity and clean hand-drawn style. Redraw the source artwork in that style, with genuine line and color work instead of retouching or filtering. Keep game-original characters unchanged.\n\nLayout: 2 columns × 2 rows of equally sized slots, each figure isolated in its own slot. Exactly the poses below in row-major order, no duplicates or added images. Align poses with the same silhouette, proportions, body lean, limb angles and eyes as input 1. Leave fully transparent gutters between all panels. Keep all full-body silhouettes complete, with tips of head, paws/flippers, toes and ankles intact. No sheets' heading, layout lines, numbering, swatches, border or extra silhouette. Outer gutters and spaces inside silhouettes true transparent RGBA. No ground plane, ground shadows, vignette, checkerboard printed into pixels, props except those stated, no text, no stickers, no glow.\n\nFrame requirements: Exactly four full-body hit poses, row-major: light hit with one pained shut eye and feet grounded, heavy recoil with open mouth and both fists raised, airborne off balance with bulging eyes and one hind foot forward, braced on landing with shut eyes and one paw near the ground. No splash or motion blur.\n\nIdentity: exactly the same yellow banana-suit cat, brown short bent peeled stem, tan-brown tabby face and shallow whisker strokes, small dark paws/feet, natural yellow pull of the banana suit. Match pose source expressions, same head and limb proportions. In input 2 the tears are an identity example only: outside a tiny natural eye detail stated above, NEVER render any blue water, tear jet or effects.\n\nRendering: high-definition hand-drawn 2D cartoon. Decisive clean warm-dark outline with artist-like stroke variation, matte color blocks, one or two simple painted cel shadows, faint subtle brush finish inside broad fills, crisp at normal game size. Honor source colors and clean edge clarity. No pixel art, no steppy pixelation, no blur, no digital glow, no fake vector sheen, no heavy grain, no realism.",
+      "output": "assets/fighters/unified-handdrawn-v1/motion/banana/banana-hit-reactions.png",
+      "runtimeWebp": "assets/fighters/unified-handdrawn-v1/motion/banana/registered/banana-hit-reactions.webp",
+      "status": "registered_reviewed",
+      "mode": "RGBA",
+      "dimensions": [
+        1310,
+        1200
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "opaqueBounds": [
+        104,
+        66,
+        1195,
+        1115
+      ],
+      "runtimeDimensions": [
+        768,
+        704
+      ],
+      "matchedOpaqueHandEyeAnchors": 0,
+      "arenaBodyCells": 4,
+      "cinematicCrops": 0,
+      "maxArenaSilhouetteBottomShiftPx": 1,
+      "registrationDiagnostics": "output/art-unification/registration/banana-hit-reactions.json"
+    },
+    {
+      "actor": "banana",
+      "id": "banana-knockdown",
+      "layout": "2 columns × 2 rows",
+      "source": "assets/fighters/banana-knockdown.webp",
+      "style": "assets/fighters/unified-handdrawn-v1/banana.png",
+      "prompt": "Use case: style-transfer. Asset: production fighting game animation sprite atlas, transparent PNG.\n\nInput image 1 is the authoritative animation sheet for exactly the poses, expressions, silhouette, orientation, registration and layout. Input image 2 is the approved character identity and clean hand-drawn style. Redraw the source artwork in that style, with genuine line and color work instead of retouching or filtering. Keep game-original characters unchanged.\n\nLayout: 2 columns × 2 rows of equally sized slots, each figure isolated in its own slot. Exactly the poses below in row-major order, no duplicates or added images. Align poses with the same silhouette, proportions, body lean, limb angles and eyes as input 1. Leave fully transparent gutters between all panels. Keep all full-body silhouettes complete, with tips of head, paws/flippers, toes and ankles intact. No sheets' heading, layout lines, numbering, swatches, border or extra silhouette. Outer gutters and spaces inside silhouettes true transparent RGBA. No ground plane, ground shadows, vignette, checkerboard printed into pixels, props except those stated, no text, no stickers, no glow.\n\nFrame requirements: Keep original four knockdown stages, row-major: tumbling airborne onto back, belly-up/side down weak expression head left feet right, hands and knees pushing up, one knee planted as body starts to rise. Preserve curved banana hood and tabby face; any tiny on-face tear only where original source has it, no emitted sprays or dust.\n\nIdentity: exactly the same yellow banana-suit cat, brown short bent peeled stem, tan-brown tabby face and shallow whisker strokes, small dark paws/feet, natural yellow pull of the banana suit. Match pose source expressions, same head and limb proportions. In input 2 the tears are an identity example only: outside a tiny natural eye detail stated above, NEVER render any blue water, tear jet or effects.\n\nRendering: high-definition hand-drawn 2D cartoon. Decisive clean warm-dark outline with artist-like stroke variation, matte color blocks, one or two simple painted cel shadows, faint subtle brush finish inside broad fills, crisp at normal game size. Honor source colors and clean edge clarity. No pixel art, no steppy pixelation, no blur, no digital glow, no fake vector sheen, no heavy grain, no realism.",
+      "output": "assets/fighters/unified-handdrawn-v1/motion/banana/banana-knockdown.png",
+      "runtimeWebp": "assets/fighters/unified-handdrawn-v1/motion/banana/registered/banana-knockdown.webp",
+      "status": "registered_reviewed",
+      "mode": "RGBA",
+      "dimensions": [
+        1341,
+        1173
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "opaqueBounds": [
+        129,
+        107,
+        1214,
+        1106
+      ],
+      "runtimeDimensions": [
+        640,
+        560
+      ],
+      "matchedOpaqueHandEyeAnchors": 0,
+      "arenaBodyCells": 4,
+      "cinematicCrops": 0,
+      "maxArenaSilhouetteBottomShiftPx": 1,
+      "registrationDiagnostics": "output/art-unification/registration/banana-knockdown.json"
+    },
+    {
+      "actor": "banana",
+      "id": "banana-wave-actions",
+      "layout": "3 columns × 2 rows",
+      "source": "assets/fighters/banana-wave-actions.webp",
+      "style": "assets/fighters/unified-handdrawn-v1/banana.png",
+      "prompt": "Use case: style-transfer. Asset: production fighting game animation sprite atlas, transparent PNG.\n\nInput image 1 is the authoritative animation sheet for exactly the poses, expressions, silhouette, orientation, registration and layout. Input image 2 is the approved character identity and clean hand-drawn style. Redraw the source artwork in that style, with genuine line and color work instead of retouching or filtering. Keep game-original characters unchanged.\n\nLayout: 3 columns × 2 rows of equally sized slots, each figure isolated in its own slot. Exactly the poses below in row-major order, no duplicates or added images. Align poses with the same silhouette, proportions, body lean, limb angles and eyes as input 1. Leave fully transparent gutters between all panels. Keep all full-body silhouettes complete, with tips of head, paws/flippers, toes and ankles intact. No sheets' heading, layout lines, numbering, swatches, border or extra silhouette. Outer gutters and spaces inside silhouettes true transparent RGBA. No ground plane, ground shadows, vignette, checkerboard printed into pixels, props except those stated, no text, no stickers, no glow.\n\nFrame requirements: Match all six source positions, exactly 3 × 2: row 1 ready with paws apart, crouch toward floor, inactive waiting reference pose with paws at chest; row 2 lean up with arms rising, two-paw thrust forward, settle low on all fours. Same positions and expressions. The runtime uses the ready, crouch, lift, thrust and settle tiles. No watery effects, no droplets.\n\nIdentity: exactly the same yellow banana-suit cat, brown short bent peeled stem, tan-brown tabby face and shallow whisker strokes, small dark paws/feet, natural yellow pull of the banana suit. Match pose source expressions, same head and limb proportions. In input 2 the tears are an identity example only: outside a tiny natural eye detail stated above, NEVER render any blue water, tear jet or effects.\n\nRendering: high-definition hand-drawn 2D cartoon. Decisive clean warm-dark outline with artist-like stroke variation, matte color blocks, one or two simple painted cel shadows, faint subtle brush finish inside broad fills, crisp at normal game size. Honor source colors and clean edge clarity. No pixel art, no steppy pixelation, no blur, no digital glow, no fake vector sheen, no heavy grain, no realism.",
+      "output": "assets/fighters/unified-handdrawn-v1/motion/banana/banana-wave-actions.png",
+      "runtimeWebp": "assets/fighters/unified-handdrawn-v1/motion/banana/registered/banana-wave-actions.webp",
+      "status": "registered_reviewed",
+      "mode": "RGBA",
+      "dimensions": [
+        1604,
+        980
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "opaqueBounds": [
+        124,
+        47,
+        1474,
+        952
+      ],
+      "runtimeDimensions": [
+        1152,
+        704
+      ],
+      "matchedOpaqueHandEyeAnchors": 0,
+      "arenaBodyCells": 5,
+      "cinematicCrops": 0,
+      "maxArenaSilhouetteBottomShiftPx": 1,
+      "registrationDiagnostics": "output/art-unification/registration/banana-wave-actions.json"
+    },
+    {
+      "actor": "banana",
+      "id": "banana-wave-expressions",
+      "layout": "3 columns × 1 row",
+      "source": "assets/fighters/banana-wave-expressions.webp",
+      "style": "assets/fighters/unified-handdrawn-v1/banana.png",
+      "prompt": "Use case: style-transfer. Asset: production fighting game animation sprite atlas, transparent PNG.\n\nInput image 1 is the authoritative animation sheet for exactly the poses, expressions, silhouette, orientation, registration and layout. Input image 2 is the approved character identity and clean hand-drawn style. Redraw the source artwork in that style, with genuine line and color work instead of retouching or filtering. Keep game-original characters unchanged.\n\nLayout: 3 columns × 1 row of equally sized slots, each figure isolated in its own slot. Exactly the poses below in row-major order, no duplicates or added images. Align poses with the same silhouette, proportions, body lean, limb angles and eyes as input 1. Leave fully transparent gutters between all panels. Keep all full-body silhouettes complete, with tips of head, paws/flippers, toes and ankles intact. No sheets' heading, layout lines, numbering, swatches, border or extra silhouette. Outer gutters and spaces inside silhouettes true transparent RGBA. No ground plane, ground shadows, vignette, checkerboard printed into pixels, props except those stated, no text, no stickers, no glow.\n\nFrame requirements: Three macro upper-body portraits in one row: clenched eyes/paws together, head down looking at paws, yelling up with arms extended. Exact original shape, shadows and angles. This is the one atlas with intentionally cropped lower body at bottom edge, like source image 1. Leave room across every heel-free panel. No generated tears or water (these are added separately).\n\nIdentity: exactly the same yellow banana-suit cat, brown short bent peeled stem, tan-brown tabby face and shallow whisker strokes, small dark paws/feet, natural yellow pull of the banana suit. Match pose source expressions, same head and limb proportions. In input 2 the tears are an identity example only: outside a tiny natural eye detail stated above, NEVER render any blue water, tear jet or effects.\n\nRendering: high-definition hand-drawn 2D cartoon. Decisive clean warm-dark outline with artist-like stroke variation, matte color blocks, one or two simple painted cel shadows, faint subtle brush finish inside broad fills, crisp at normal game size. Honor source colors and clean edge clarity. No pixel art, no steppy pixelation, no blur, no digital glow, no fake vector sheen, no heavy grain, no realism.",
+      "output": "assets/fighters/unified-handdrawn-v1/motion/banana/banana-wave-expressions.png",
+      "runtimeWebp": "assets/fighters/unified-handdrawn-v1/motion/banana/registered/banana-wave-expressions.webp",
+      "status": "registered_reviewed",
+      "mode": "RGBA",
+      "dimensions": [
+        2112,
+        745
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "opaqueBounds": [
+        113,
+        18,
+        2058,
+        745
+      ],
+      "runtimeDimensions": [
+        1632,
+        576
+      ],
+      "matchedOpaqueHandEyeAnchors": 0,
+      "arenaBodyCells": 0,
+      "cinematicCrops": 3,
+      "maxArenaSilhouetteBottomShiftPx": 0,
+      "registrationDiagnostics": "output/art-unification/registration/banana-wave-expressions.json"
+    }
+  ],
+  "verification": {
+    "arenaBodyCells": 76,
+    "cinematicCrops": 7,
+    "originalOpaqueHandAndEyeAnchors": 24,
+    "maxArenaSilhouetteBottomShiftSourcePx": 1,
+    "gagaIdleWalk": [
+      "registered raster 408x520",
+      "both yellow boot fills fully inside existing independent Path2D masks",
+      "neither boot fill overlaps trunk mask"
+    ]
+  }
+}

@@ -1,0 +1,354 @@
+{
+  "generator": "Built-in ImageGen",
+  "reference": "assets/fighters/unified-handdrawn-v1/frog-reference.png",
+  "transparentBackground": true,
+  "sharedPrompt": "Use case: identity-preserve. Create one production-ready 2D fighting game sprite by redrawing ONLY THE POSE of the exact frog in the attached approved reference. The attached image is the sole visual identity authority. Match the reference at first glance, retaining its unusual silhouette literally: long and broad domed head flows in a single smooth continuous slope into a tall neck and sloping shoulders, with a long open throat area under the jaw. The face is flatly round with a broad blunt muzzle, a thin straight DARK HORIZONTAL mouth slit with soft pale lips embedded in the face, and no pointed beak or duck lip. Huge round muted sage iris near eye and the smaller foreshortened far eye just behind the front silhouette. Preserve the same exact orange-gold skin, warm cream oval, earthy olive-brown webbed hands and feet, ink-brown edge and soft hand-painted paper gouache grain. The immense low, rounded, forward bulging lower abdomen is the widest single mass in the silhouette and retains the expensive visual volume of the ref. Never flatten it into a small torso or turn the head into a tiny separate round mascot head. Preserve two long substantial arms, two substantial long legs, and three broad rounded digits per foot. Keep the same right-facing three-quarter game perspective in this sprite so we see the belly area, same eye positions and muzzle profile, same proportions. Full body entirely visible with generous alpha around silhouette, vertically upright image, one figure only, feet and head fully in frame. Transparent RGBA background. No floor, shadow, motion marks, clothing, accessories, words, or border.",
+  "jobs": {
+    "travel-1": {
+      "generatedSource": "01a20446-77a6-70e2-b978-c0d31320b57d/exec-2c26d1e7-b27f-4ae7-8140-099c51e87d39.png",
+      "sourceSha256": "4efa7b40bd50095711263f75fa31c349065112a633dbfb3c30f33527c359b5ee",
+      "pose": "Run cycle contact frame A. Frog is running toward screen right. The foreground leg takes a long stride diagonally forward-right and the long flat front foot is just contacting ground. Background leg trails diagonally backward-left with heel lifting and toes trailing. Foreground elbow swings behind the left flank, far elbow swings forward with olive fist near upper right of belly. Keep long head upright and the large low belly deeply curved forward. Read clearly as a wide stride."
+    },
+    "travel-2": {
+      "generatedSource": "01a20446-77a6-70e2-b978-c0d31320b57d/exec-291d5f16-60d1-43dc-bb43-fed1328d21ff.png",
+      "sourceSha256": "b498811375dbd41359ef81e2b91a8493ad1be38b1fa8dcdd06c0ace5f5316b83",
+      "pose": "Run cycle passing frame A. Frog is running toward screen right. Body is supported on the long planted foreground leg with its foot immediately below the hip. The far leg is swung forward with knee bent and lifted in front of the lower belly, its olive foot up and ahead of the ground, forming distinct grounded and raised foot levels. Foreground fist is beside the left hip and far fist is held higher ahead at the right, elbows visibly bent. Head, neck and heavy belly retain their literal approved proportions."
+    },
+    "travel-3": {
+      "generatedSource": "01a20446-77a6-70e2-b978-c0d31320b57d/exec-64524972-6061-4b08-a8ad-58a4a61edeb0.png",
+      "sourceSha256": "7026fa6edf8222d51f4869ddf19128851c3e96ac53c09684eeaee6c293dbc108",
+      "pose": "Run cycle opposite contact frame B. Frog is running toward screen right. The far leg extends long out diagonally forward-right and its foot makes contact in front. The near leg extends diagonally behind to screen left, olive sole lifted. The near arm crosses briefly in front of the upper belly with a closed olive hand pointing right, far arm swings backward at left. Show clear wide opposite-leg stride, leave the huge low round belly exposed below the forearm."
+    },
+    "travel-4": {
+      "generatedSource": "01a20446-77a6-70e2-b978-c0d31320b57d/exec-4d16c9bf-1884-43de-8da5-1ec6cb2b27c3.png",
+      "sourceSha256": "41360a2653d5b459a98d52590121ec9c43213eee49d898f10b66d5d4525414f5",
+      "pose": "Run cycle, opposite passing frame B. Frog faces right with same exact tall head-neck profile and huge low abdomen from reference. Focus on the OPPOSITE arm action from a standard one-arm-back pass. The FRONT shoulder and elbow are on the observer's left edge of the upper abdomen; the long visible NEAR forearm points forward (to screen right) across the high front of the abdomen, ending in an olive fist at its right edge, clearly in front of the camera. The far arm is swung back to screen left behind its silhouette, with olive hand peeking out from behind its left side near the hip. The near knee rises forward and is foreshortened in front of part of the cream abdomen, foot lifted away from the ground. The far leg alone supports the landing, with its long olive foot flat on the ground just beneath the belly. Keep broad cream belly and very long articulated upper and lower limb lengths. No frame numbers, aura, smoke, shadow, or action lines."
+    },
+    "normal-guard": {
+      "generatedSource": "01a20446-77a6-70e2-b978-c0d31320b57d/exec-d24a21b7-a623-482f-8507-2b84fb17ddfd.png",
+      "sourceSha256": "e809420a95b88b46f13c9635843d3c6cd4e3d17c85e924fa4d7a8233666f4d09",
+      "pose": "Normal standing defensive stance. Both long knees softly bent, both feet planted shoulder-width apart. Both open olive hands brace each outer side of the enormous round belly like the frog is about to protect it, elbows curved down, hands do not obscure the center. Quiet deadpan eyes look to the right, and mouth stays closed and horizontal. Head and throat stay long and upright, retain the exact profile."
+    },
+    "crouch": {
+      "generatedSource": "01a20446-77a6-70e2-b978-c0d31320b57d/exec-ea2db993-3ee8-43dd-9546-bc8d38ad3409.png",
+      "sourceSha256": "5439ffbe3dda07832230871529fbb4b02b6c9bdf0adb5faa3ce596b360d27918",
+      "pose": "Playful full crouch pose. Frog squats deeply with knees bent out to either side and feet firmly apart. The front low belly stays massive, round and drops down between the knees. Keep the original wide elongated smoothly sloping head-neck, never crop the neck or make the face look like a bird; lean forward modestly to accommodate the crouch. Raise both hands beside the face with two rounded fingers making matching peace signs. Briefly poke out a small pink tongue from the LEFT-CENTER of the broad low horizontal open slit while retaining wide flat lips and recognizable face. Maintain right-facing three-quarter view."
+    },
+    "thinking": {
+      "generatedSource": "01a20446-77a6-70e2-b978-c0d31320b57d/exec-dfa79daf-d50b-4a01-9f28-6cca89eeb6b6.png",
+      "sourceSha256": "d630ba70e7c82dbbd0b4d5f32b2168907e63170f2860085ea0f134d058b812d6",
+      "pose": "Quiet skeptical thinking pose. Feet planted apart, shoulders and neck upright, head tilts only slightly left and eyes glance up to screen right. Place the olive near hand against the base of the chin with one finger along the jaw, and use the far arm across the upper abdomen to support near elbow. Leave the full lower belly visible bulging round below the arms. Preserve the elongated wide round head, the tall curving neck and the broad flat closed horizontal lips. The pose reads contemplative through gesture and gaze."
+    }
+  },
+  "geometry": {
+    "travel": [
+      {
+        "index": 0,
+        "input": "travel-1-input.png",
+        "slot": 0,
+        "sourceRect": [
+          0,
+          0,
+          443,
+          443
+        ],
+        "sourceBBox": [
+          46,
+          10,
+          331,
+          408
+        ],
+        "outputBBox": [
+          86,
+          10,
+          296,
+          408
+        ],
+        "generatedBBox": [
+          16,
+          77,
+          991,
+          1368
+        ],
+        "sourceAnchor": [
+          327.5,
+          418
+        ],
+        "outputAnchor": [
+          327.489404641776,
+          417.70175438596493
+        ],
+        "anchorOffset": [
+          0,
+          0
+        ],
+        "keptComponents": 1,
+        "removedComponents": 0
+      },
+      {
+        "index": 1,
+        "input": "travel-2-input.png",
+        "slot": 0,
+        "sourceRect": [
+          443,
+          0,
+          443,
+          443
+        ],
+        "sourceBBox": [
+          83,
+          10,
+          278,
+          408
+        ],
+        "outputBBox": [
+          121,
+          9,
+          265,
+          408
+        ],
+        "generatedBBox": [
+          59,
+          68,
+          932,
+          1436
+        ],
+        "sourceAnchor": [
+          166.5,
+          417
+        ],
+        "outputAnchor": [
+          166.3513948497854,
+          416.7158774373259
+        ],
+        "anchorOffset": [
+          0,
+          0
+        ],
+        "keptComponents": 1,
+        "removedComponents": 0
+      },
+      {
+        "index": 2,
+        "input": "travel-3-input.png",
+        "slot": 0,
+        "sourceRect": [
+          886,
+          0,
+          443,
+          443
+        ],
+        "sourceBBox": [
+          28,
+          14,
+          391,
+          402
+        ],
+        "outputBBox": [
+          105,
+          14,
+          306,
+          402
+        ],
+        "generatedBBox": [
+          6,
+          94,
+          1014,
+          1330
+        ],
+        "sourceAnchor": [
+          366,
+          416
+        ],
+        "outputAnchor": [
+          365.73372781065086,
+          415.6977443609023
+        ],
+        "anchorOffset": [
+          0,
+          0
+        ],
+        "keptComponents": 1,
+        "removedComponents": 0
+      },
+      {
+        "index": 3,
+        "input": "travel-4-input.png",
+        "slot": 0,
+        "sourceRect": [
+          1329,
+          0,
+          443,
+          443
+        ],
+        "sourceBBox": [
+          109,
+          13,
+          247,
+          406
+        ],
+        "outputBBox": [
+          105,
+          12,
+          268,
+          406
+        ],
+        "generatedBBox": [
+          37,
+          67,
+          943,
+          1427
+        ],
+        "sourceAnchor": [
+          167,
+          418
+        ],
+        "outputAnchor": [
+          167.38176033934252,
+          417.71548703573933
+        ],
+        "anchorOffset": [
+          0,
+          0
+        ],
+        "keptComponents": 1,
+        "removedComponents": 0
+      }
+    ],
+    "normal-guard": [
+      {
+        "index": 0,
+        "input": "normal-guard-input.png",
+        "slot": 0,
+        "sourceRect": [
+          0,
+          0,
+          724,
+          724
+        ],
+        "sourceBBox": [
+          121,
+          25,
+          435,
+          684
+        ],
+        "outputBBox": [
+          116,
+          25,
+          438,
+          684
+        ],
+        "generatedBBox": [
+          48,
+          65,
+          916,
+          1432
+        ],
+        "sourceAnchor": [
+          338.5,
+          709
+        ],
+        "outputAnchor": [
+          338.3471615720524,
+          708.522346368715
+        ],
+        "anchorOffset": [
+          0,
+          0
+        ],
+        "keptComponents": 1,
+        "removedComponents": 0
+      }
+    ],
+    "crouch": [
+      {
+        "index": 0,
+        "input": "crouch-input.png",
+        "slot": 0,
+        "sourceRect": [
+          0,
+          0,
+          724,
+          724
+        ],
+        "sourceBBox": [
+          89,
+          146,
+          536,
+          560
+        ],
+        "outputBBox": [
+          125,
+          146,
+          466,
+          560
+        ],
+        "generatedBBox": [
+          9,
+          183,
+          1006,
+          1209
+        ],
+        "sourceAnchor": [
+          357,
+          706
+        ],
+        "outputAnchor": [
+          356.8419483101392,
+          705.5368072787428
+        ],
+        "anchorOffset": [
+          0,
+          0
+        ],
+        "keptComponents": 1,
+        "removedComponents": 0
+      }
+    ],
+    "thinking": [
+      {
+        "index": 0,
+        "input": "thinking-input.png",
+        "slot": 0,
+        "sourceRect": [
+          0,
+          0,
+          724,
+          724
+        ],
+        "sourceBBox": [
+          172,
+          26,
+          421,
+          681
+        ],
+        "outputBBox": [
+          182,
+          26,
+          388,
+          681
+        ],
+        "generatedBBox": [
+          79,
+          60,
+          822,
+          1443
+        ],
+        "sourceAnchor": [
+          383,
+          707
+        ],
+        "outputAnchor": [
+          383.08029197080293,
+          706.5280665280666
+        ],
+        "anchorOffset": [
+          0,
+          0
+        ],
+        "keptComponents": 1,
+        "removedComponents": 0
+      }
+    ]
+  }
+}

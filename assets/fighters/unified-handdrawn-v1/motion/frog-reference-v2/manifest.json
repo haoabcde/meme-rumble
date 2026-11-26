@@ -1,0 +1,27 @@
+{
+  "generator": "Built-in ImageGen",
+  "identitySource": "assets/fighters/unified-handdrawn-v1/frog-reference.png",
+  "identitySha256": "21d9628796f741ead05474c29b899ceb96f566167790269accac656313b7be43",
+  "bodyCells": 47,
+  "redrawnOrdinaryCells": 37,
+  "preservedEntryCells": 2,
+  "preservedAngelCells": 8,
+  "cinematicImages": 1,
+  "finalRuntimeInventory": "frog-runtime-coverage.json",
+  "generationRecords": [
+    "moves-prompt.md",
+    "moves-registration.json",
+    "frog-canonical-basics-scenes-manifest.json",
+    "travel-utility-generation.json",
+    "intro-generation.json"
+  ],
+  "finalOverrides": {
+    "scenes[0,1]": "approved-entry-two.json",
+    "normal-guard": "normal-guard-direct-gaze.json"
+  },
+  "preservationRecords": [
+    "approved-angel.json",
+    "approved-entry-two.json"
+  ],
+  "note": "Final runtime inventory hashes take precedence over earlier intermediate generation hashes. The guard record above changes gaze to the viewer; entry 0/1 are explicitly user-preserved, not missing changes."
+}

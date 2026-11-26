@@ -92,4 +92,11 @@ const ring = stage({
   routes: [[], []]
 }, []);
 
-export const arenas: ArenaDefinition[] = [dorm, court, harbor, station, ring];
+const broadcast = stage({
+  id: 'broadcast-ring', name: '直播擂台', theme: 'broadcast', width: 4480,
+  terrain: '单层地面 · 横向追击',
+  description: '擂台地面贯通两侧，双方可以沿场边拉开距离，在中央灯光下交锋。',
+  routes: [[], []]
+}, []);
+
+export const arenas: ArenaDefinition[] = [dorm, court, harbor, station, ring, broadcast];

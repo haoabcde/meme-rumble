@@ -2,12 +2,13 @@ import { platformAt } from '../dist/core/terrain.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMatch, step } from '../dist/core/match.js';
-import { ENERGY_PER_STOCK, MAX_ENERGY, NEUTRAL, TEAR_UNITS_PER_POINT } from '../dist/core/types.js';
+import { DEFAULT_KNOCKDOWN_FRAMES, DEFAULT_RISE_FRAMES, ENERGY_PER_STOCK, MAX_ENERGY, NEUTRAL, TEAR_UNITS_PER_POINT } from '../dist/core/types.js';
 import { rules, testFighter } from '../dist/content/demo.js';
 import { arenas } from '../dist/content/arenas.js';
 import { gagaActionIds, gagaGroundCombo } from '../dist/content/fighters/gaga.js';
 import { bananaActionIds, bananaComboNames } from '../dist/content/fighters/banana.js';
 import { roster } from '../dist/content/roster.js';
+import { defineFighter } from '../dist/content/fighter-kit.js';
 import { dijiangBurialTip, frameDijiangImpact, frameDijiangLength } from '../dist/web/camera.js';
 import { aimSummon, dijiangPitch, dijiangTip, summonFallFrames } from '../dist/core/summon.js';
 import { cpuInput } from '../dist/web/cpu.js';
@@ -365,7 +366,7 @@ test('Banana triggers JO awakening ONLY with I (slot C) at 3 bars, NOT J or O, a
     assert.equal(bananaStep(state, 1)[0]?.kind, 'wave-cut-in');
     assert.equal(f.joAwakened, true);
     assert.equal(state.cutIn?.source, source);
-    const shatterEvents = bananaStep(state, state.cutIn.duration + 60);
+    const shatterEvents = bananaStep(state, state.cutIn.duration + 80);
     assert.equal(shatterEvents.some(e => e.kind === 'jo-shatter' && e.source === source), true);
     assert.equal(state.cutIn, undefined);
     assert.equal(f.attack, null);
@@ -556,7 +557,7 @@ test('JO Banana up+J rises into Star Platinum Shoryuken, down+J slides with Star
   assert.equal(upEvents.some(e => e.kind === 'hit' && e.actionId === bananaActionIds.joLift), true);
 
   // Settle on floor and test JO down+J slide + JO dash event.
-  bananaStep(state, 40);
+  bananaStep(state, 70);
   target.x = f.x + 140;
   const startX = f.x;
   step(state, [input(['A'], 0, 1), NEUTRAL], bananaConfig);
@@ -631,7 +632,7 @@ test('JO Banana U patrols straight with no tracking out of range, accelerates on
   state.projectiles = [];
 
   // Up + U unleashes physical 3-hit upward Star Platinum Ora barrage at 0 tears and jump-cancels cleanly into 45° aerial J dive!
-  bananaStep(state, 20);
+  bananaStep(state, 75);
   f.energy = 0;
   closeDistance(state);
   step(state, [input(['B'], 0, -1), NEUTRAL], bananaConfig);
@@ -753,7 +754,12 @@ test('A foe can interrupt crying and holding I through the hit does not restart 
 });
 
 const gaga = roster.find(entry => entry.fighter.id === 'gaga').fighter;
-const gagaConfig = { ...config, fighters: [gaga, roster[0].fighter] };
+// Isolate authored Gaga behavior from the real whale's continuous basin counter and custom stats.
+const gagaDummy = defineFighter({
+  id: 'gaga-dummy', name: '公共动作陪练', height: 144, accent: '#fff',
+  art: { portrait: 'whale.webp', motion: 'whale-motion.webp' }, signatureMoves: []
+}).fighter;
+const gagaConfig = { ...config, fighters: [gaga, gagaDummy] };
 
 test('Gaga winds up, hits once, freezes on contact, and fully recovers from a single J', () => {
   const state = begin(gagaConfig);
@@ -930,37 +936,61 @@ test('Gaga directional inputs do not queue extra stages of the neutral J combo',
   assert.equal(attacker.attack.queuedChain, undefined);
 });
 
-test('Gaga equips Grand Vision sword B moves, crystal mark/shatter, Xiranite counter, air dive, and air J pole throw', () => {
-  const state = begin(gagaConfig);
+test('Gaga equips ranged Grand Vision sword wave U, remote shatter/spire up+B, air dive B, and air J pole throw', () => {
+  const settings = { ...gagaConfig, arena: { ...gagaConfig.arena, platforms: [] } };
+  const state = begin(settings);
   const [attacker, defender] = state.fighters;
-  closeDistance(state);
+  [attacker.x, defender.x] = [650, 950];
 
-  // Neutral B: Grand Vision slash plants crystal mark and cancels into up+B shatter uppercut.
-  step(state, [input(['B']), NEUTRAL], gagaConfig);
+  // Neutral B fires a fast two-fighter-tall Grand Vision sword wave (hits distant foes) and plants crystalMark.
+  step(state, [input(['B']), NEUTRAL], settings);
   assert.equal(attacker.attack.id, gagaActionIds.swordSlash);
-  const slashEvents = stepFor(state, 10, [NEUTRAL, NEUTRAL], gagaConfig);
-  assert.equal(slashEvents.some(e => e.kind === 'crystal-plant'), true);
+  const waveEvents = stepFor(state, 28, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(waveEvents.some(e => e.kind === 'crystal-plant'), true);
   assert.equal(defender.crystalMark?.source, 0);
-  const hpAfterSlash = defender.hp;
-  assert.equal(hpAfterSlash, 1000 - 62);
+  const hpAfterWave = defender.hp;
+  assert.equal(hpAfterWave, 1000 - 58);
 
-  // Up+B cancels cleanly out of landed B and shatters the crystal mark for bonus damage!
-  step(state, [input(['B'], 0, -1), NEUTRAL], gagaConfig);
+  // Up+B remotely shatters the crystal mark even from 500px across the arena!
+  attacker.x = defender.x - 500;
+  step(state, [input(['B'], 0, -1), NEUTRAL], settings);
   assert.equal(attacker.attack.id, gagaActionIds.swordRise);
-  const riseEvents = stepFor(state, 12, [NEUTRAL, NEUTRAL], gagaConfig);
-  assert.equal(riseEvents.some(e => e.kind === 'crystal-shatter'), true);
+  const shatterEvents = stepFor(state, 12, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(shatterEvents.some(e => e.kind === 'crystal-shatter'), true);
   assert.equal(defender.crystalMark, undefined);
-  assert.ok(defender.hp < hpAfterSlash - 78);
-  assert.equal(attacker.ground, null);
-
-  // Air B in midair triggers Grand Vision dive; air A still selects pole throw.
-  step(state, [input(['B']), NEUTRAL], gagaConfig);
-  assert.equal(attacker.attack.id, gagaActionIds.airDive);
-  stepFor(state, 40, [NEUTRAL, NEUTRAL], gagaConfig);
+  // Connects as a 2-hit true combo after the faster sword wave (8% combo scaling: floor(128 * 0.92) = 117).
+  assert.equal(defender.hp, hpAfterWave - 117);
   assert.equal(attacker.ground, 'floor');
 
-  step(state, [input(['jump']), NEUTRAL], gagaConfig);
-  step(state, [input(['A'], 0, -1), NEUTRAL], gagaConfig);
+  // Two-fighter-tall wave also catches an airborne opponent 200px above ground.
+  const airCheck = begin(settings);
+  airCheck.fighters[0].x = 650;
+  Object.assign(airCheck.fighters[1], { x: 960, ground: null, y: settings.arena.floor - 200, vy: 0 });
+  step(airCheck, [input(['B']), NEUTRAL], settings);
+  const airWaveEvents = stepFor(airCheck, 22, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(airWaveEvents.some(e => e.kind === 'hit' && e.actionId === gagaActionIds.swordSlash), true);
+
+  // Without mark, up+B summons an anti-air/mid-range crystal spire in front without dashing body.
+  stepFor(state, 80, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(defender.recovery, null);
+  defender.x = attacker.x + 140;
+  defender.ground = null;
+  defender.y -= 130;
+  step(state, [input(['B'], 0, -1), NEUTRAL], settings);
+  const spireEvents = stepFor(state, 15, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(spireEvents.some(e => e.kind === 'crystal-spire'), true);
+  assert.equal(spireEvents.some(e => e.kind === 'hit' && e.actionId === gagaActionIds.swordRise), true);
+
+  // Air B triggers Grand Vision dive; air A still selects pole throw.
+  stepFor(state, 25, [NEUTRAL, NEUTRAL], settings);
+  step(state, [input(['jump']), NEUTRAL], settings);
+  step(state, [input(['B']), NEUTRAL], settings);
+  assert.equal(attacker.attack.id, gagaActionIds.airDive);
+  stepFor(state, 40, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(attacker.ground, 'floor');
+
+  step(state, [input(['jump']), NEUTRAL], settings);
+  step(state, [input(['A'], 0, -1), NEUTRAL], settings);
   assert.equal(attacker.attack.id, gagaActionIds.airThrow);
 });
 
@@ -979,27 +1009,45 @@ test('Gaga down+B Xiranite dome parries frontal attacks and bursts liquid spikes
   assert.ok(attacker.recovery);
 });
 
-test('Gaga up+C overclocks ready turrets for 0 energy with cooldown, and falls back to spark when no turret is ready', () => {
+test('Gaga up+C plants a power pylon field that doubles friendly turret attack speed inside its radius', () => {
   const settings = { ...gagaConfig, arena: { ...gagaConfig.arena, platforms: [] } };
   const state = begin(settings);
   const [caster, target] = state.fighters;
-  [caster.x, target.x] = [650, 980];
+  [caster.x, target.x] = [650, 1080];
   caster.energy = 0;
 
-  // No turret: up+C fires a 0-cost spark projectile.
+  // Plant a power pylon via up+C at 0 energy cost.
   step(state, [input(['C'], 0, -1), NEUTRAL], settings);
   assert.equal(caster.attack.id, gagaActionIds.overclock);
-  stepFor(state, 10, [NEUTRAL, NEUTRAL], settings);
-  assert.equal(state.projectiles.some(p => p.actionId === gagaActionIds.overclock), true);
-  stepFor(state, 30, [NEUTRAL, NEUTRAL], settings);
+  const plantEvents = stepFor(state, 14, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(plantEvents.some(e => e.kind === 'pylon-plant' && e.source === 0), true);
+  const pylon = state.powerPylons?.[0];
+  assert.ok(pylon);
+  assert.equal(pylon.x, 710);
 
-  // Ready bolt turret: up+C immediately triggers overclock arc & turret fire!
-  state.turrets.bolt = { kind: 'bolt', owner: 0, x: 730, y: settings.arena.floor, facing: 1, age: 25, hp: 2 };
-  step(state, [input(['C'], 0, -1), NEUTRAL], settings);
-  const ocEvents = stepFor(state, 10, [NEUTRAL, NEUTRAL], settings);
-  assert.equal(ocEvents.some(e => e.kind === 'turret-overclock' && e.turretKind === 'bolt'), true);
-  assert.equal(ocEvents.some(e => e.kind === 'turret-fire' && e.turretKind === 'bolt'), true);
-  assert.ok(caster.overclockCooldown > 0);
+  // Friendly bolt turret inside the field (distance 90 <= 520) charges at 2x speed and fires every 60 ticks.
+  state.turrets.bolt = { kind: 'bolt', owner: 0, x: 800, y: settings.arena.floor, facing: 1, age: 20, hp: 2, charge: 0 };
+  step(state, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(state.turrets.bolt.charge, 2);
+  const boostedEvents = stepFor(state, 129, [NEUTRAL, NEUTRAL], settings);
+  const boostedShots = boostedEvents.filter(e => e.kind === 'turret-fire' && e.turretKind === 'bolt');
+  assert.equal(boostedShots.length, 2);
+
+  // Friendly turret outside the field (distance 620 > 520) charges at 1x speed and fires once per 120 ticks.
+  state.turrets.bolt = { kind: 'bolt', owner: 0, x: pylon.x + 620, y: settings.arena.floor, facing: 1, age: 20, hp: 2, charge: 0 };
+  step(state, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(state.turrets.bolt.charge, 1);
+  const unboostedEvents = stepFor(state, 129, [NEUTRAL, NEUTRAL], settings);
+  const normalShots = unboostedEvents.filter(e => e.kind === 'turret-fire' && e.turretKind === 'bolt');
+  assert.equal(normalShots.length, 1);
+
+  // Expiring pylon restores normal 1x firing cadence and clears state.
+  state.turrets.bolt = { kind: 'bolt', owner: 0, x: 800, y: settings.arena.floor, facing: 1, age: 20, hp: 2, charge: 0 };
+  pylon.remaining = 2;
+  const expireEvents = stepFor(state, 130, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(expireEvents.some(e => e.kind === 'pylon-expire' && e.source === 0), true);
+  assert.equal(state.powerPylons?.[0], null);
+  assert.equal(expireEvents.filter(e => e.kind === 'turret-fire' && e.turretKind === 'bolt').length, 1);
 });
 
 test('a downward direction keeps C on its own skill even with three full stocks', () => {
@@ -1507,10 +1555,16 @@ test('Gaga holds the first hurt pose during freeze and switches from airborne to
     step(state, neutral, settings);
     assert.equal(target.reaction.elapsed, 1);
     if (kind === 'air') {
-      while (!target.ground && state.frame < 200) step(state, neutral, settings);
-      assert.equal(target.reaction.landedAt, target.reaction.elapsed);
+      const landing = [];
+      while (!target.ground && state.frame < 200) landing.push(...step(state, neutral, settings));
+      // The shared framework transfers airborne reactions into the protected down/rise lifecycle.
+      assert.ok(landing.some(event => event.kind === 'knockdown' && event.reaction === 'air'));
+      assert.equal(target.reaction, undefined);
+      assert.deepEqual(target.recovery, { phase: 'down', remaining: DEFAULT_KNOCKDOWN_FRAMES, facing: -1 });
       stepFor(state, 4, neutral, settings);
-      assert.ok(target.reaction);
+      assert.equal(target.recovery.phase, 'down');
+      stepFor(state, DEFAULT_KNOCKDOWN_FRAMES + DEFAULT_RISE_FRAMES, neutral, settings);
+      assert.equal(target.recovery, null);
     }
     stepFor(state, 30, neutral, settings);
     assert.equal(target.reaction, undefined);
@@ -1527,7 +1581,7 @@ test('Banana impact effects receive light, heavy and launch cues, and only launc
     const events = stepFor(state, 72, neutral, settings);
     assert.equal(events.find(event => event.kind === 'hit')?.reaction, kind);
     if (kind === 'air') {
-      assert.ok(events.some(event => event.kind === 'land' && event.source === 1 && event.reaction === 'air'));
+      assert.ok(events.some(event => event.kind === 'knockdown' && event.source === 1 && event.reaction === 'air'));
     }
   }
 

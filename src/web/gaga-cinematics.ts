@@ -55,7 +55,7 @@ function drawWinCard(ctx: CanvasRenderingContext2D, shot: FeatureShot) {
 
   if (summonAtlas.naturalWidth) {
     const [sx, sy, sw, sh] = summonPoses[3];
-    const scale = (1.9 - .38 * easeOut((frame - 2) / 9)) * unit;
+    const scale = (2.85 - .57 * easeOut((frame - 2) / 9)) * unit;
     const w = sw * scale, h = sh * scale;
     const x = width * .66 - w / 2, y = (height - h) * .40 + 20 * unit;
     if (frame === 2) drawPoseFlash(ctx, summonAtlas, summonPoses[3], x, y, w, h, shot.color);

@@ -1,15 +1,17 @@
 # 角色制作交接
 
-两位角色制作者可以并行工作。先认领角色，各自在对应的 TypeScript 文件里填写属性、素材路径和动作。四个角色已接入选角、对局和自由训练。鲸鱼娘和奶蛙使用公共动作，香蕉猫和姑姑嘎嘎各有自己的技能包。两位角色均使用独立大招槽。默认 P1 按 O，P2 按单引号或小键盘 6。
+四位角色均已接入队友的专属动作、技能、音效和大招；框架负责输入、资源、碰撞、实体、倒地、声音和预览。后续从最新 `main` 继续开发角色，保留已有 ID 和队友的配置，不用再从公共占位动作重新搭建。默认 P1 用 O，P2 用单引号或小键盘 6 释放已配置大招。
 
 ## 找到自己的入口
 
 | 角色 | 配置文件 | 当前立绘 | 当前动作图集 |
 |---|---|---|---|
-| DeepSeek 鲸鱼娘 | [whale.ts](../src/content/fighters/whale.ts) | [whale.webp](../assets/fighters/whale.webp) | [whale-motion.webp](../assets/fighters/whale-motion.webp) |
-| 奶蛙 | [frog.ts](../src/content/fighters/frog.ts) | [frog-v2.webp](../assets/fighters/frog-v2.webp) | [frog-motion.webp](../assets/fighters/frog-motion.webp) |
-| 香蕉猫 | [banana.ts](../src/content/fighters/banana.ts) | [banana-reference-portrait.webp](../assets/fighters/banana-reference-portrait.webp) | [banana-motion.webp](../assets/fighters/banana-motion.webp) |
-| 姑姑嘎嘎 | [gaga.ts](../src/content/fighters/gaga.ts) | [gaga-arcade.webp](../assets/fighters/gaga-arcade.webp) | [gaga-motion.webp](../assets/fighters/gaga-motion.webp) |
+| 大肥鱼 | [whale.ts](../src/content/fighters/whale.ts) | [whale.webp](../assets/fighters/unified-handdrawn-v1/whale.webp) | [两倍源像素图集](../assets/fighters/unified-handdrawn-v1/motion/whale/atlas.webp) |
+| 奶蛙 | [frog.ts](../src/content/fighters/frog.ts) | [frog-reference.webp](../assets/fighters/unified-handdrawn-v1/frog-reference.webp) | [专用动作与演出](../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/) |
+| 香蕉猫 | [banana.ts](../src/content/fighters/banana.ts) | [banana.webp](../assets/fighters/unified-handdrawn-v1/banana.webp) | [专用动作与演出](../assets/fighters/unified-handdrawn-v1/motion/banana/registered/) |
+| 姑姑嘎嘎 | [gaga.ts](../src/content/fighters/gaga.ts) | [gaga-portrait.webp](../assets/fighters/gaga-original-handdrawn-v1/gaga-portrait.webp) | [专用动作与演出](../assets/fighters/gaga-original-handdrawn-v1/motion/registered/) |
+
+姑姑嘎嘎的战斗图集以[确认版母图](../assets/fighters/gaga-original-handdrawn-v1/gaga-portrait.png)为造型依据。移动图集前两行依次为四帧步行、疾跑、起跳、下落和防御，每格 432×432，地面锚点为 (216, 416)。普攻、受击和道具演出各有专用图集，调整姿势时一起检查脚底和持杆、持箱的位置。
 
 保留表中四个文件现有的 `id`，它也是训练链接使用的角色标识。`name` 是显示名，`accent` 是界面配色，`height` 控制画面中的角色高度。
 
@@ -29,7 +31,7 @@
    npm start
    ```
 
-2. 打开[奶蛙对香蕉猫的货港训练](http://127.0.0.1:4182/?practice=harbor&p1=frog&p2=banana)。`p1` 是键盘控制的角色，`p2` 是陪练，可以填相同 ID。地图可填 `harbor`、`dorm-roof`、`night-court` 或 `star-station`。
+2. 打开[奶蛙对香蕉猫的货港训练](http://127.0.0.1:4182/?practice=harbor&p1=frog&p2=banana)。`p1` 是键盘控制的角色，`p2` 是陪练，可以填相同 ID。地图可填 `harbor`、`dorm-roof`、`night-court`、`star-station` 或 `broadcast-ring`。
 3. 改完角色文件或图片，在第二个终端运行 `npm run build`，然后刷新试玩页。按 **H** 看攻击框、受击框、动作名和当前帧，**R** 复位。展开「训练设置」选择陪练、充气或切换 **0.5×**，也可以在暂停菜单点「前进一帧」。
 
 **想先确认一个按键能从选角通到命中**，可以在自己的本地分支做下面的连通性试验。它复用已有直拳，测试结束后换成自己的数据。
@@ -69,11 +71,19 @@ signatureMoves: [
 | `startup`、`active`、`recovery` | 固定 60 Hz，从动作帧 0 计数。例如 5 / 3 / 13 表示第 0–4 帧起手、第 5–7 帧有效、第 8–20 帧收招。 |
 | `hitbox`、`stats.hurtbox`、`stats.bodyWidth` | 攻击框与受击框均为 `{ x, y, w, h }`。原点在脚底，按朝右填写，右方为正 X，上方为负 Y。引擎负责换边镜像。身体宽度另行决定双方接近时的推挤距离。 |
 | `damage`、`hitstun`、`blockstun`、`guardCost` | 分别为基础伤害、命中硬直帧、防御硬直帧、防御耐力消耗。连击伤害按公共规则衰减。 |
-| `advance`、`push`、`lift`、`stop` | 起手每帧向前的位移、命中时的水平推速、向上击飞的初速度、命中停顿帧。可选 `knockdown` 开启倒地，`airControl` 配置空中出招时的水平控制比例。 |
+| `advance`、`push`、`lift`、`stop` | 起手每帧向前的位移、命中时的水平推速、向上击飞的初速度、命中停顿帧。正数 `lift` 启动可追击的击飞，落地后倒地；`knockdown: true` 启动带保护的强制倒地。`airControl` 配置主动空中出招时的水平控制比例，不允许在受击时控制。 |
 | `cancelOnHit`、`linkOnly` | 命中后可转入列出的动作 ID 或槽位。`'jump'` 允许地面命中后跳追。`linkOnly: true` 的动作可以作为连招或防反的后续动作。要让公共直拳接到本角色的动作，在角色包顶层加 `extraCancels: { 'common-jab': ['你的动作ID'] }`。防住和打空会照常收招。 |
 | `pose`、`animation` | `pose` 选择公共表现类型 `'strike'`、`'sweep'`、`'finish'`、`'rise'` 或 `'air'`。可选 `animation` 按动作帧指定图集画格，每个画格保持到下一个关键帧。命中时机由上面的有效帧与攻击框决定。 |
 
 人机陪练目前主要演练公共动作。专属技能的主动使用可在自由训练和本地双人中核对。[完整动作类型](../src/core/types.ts) · [输入与命中实现](../src/core/match.ts)
+
+### 击飞与倒地
+
+普通地面命中由 `hitstun` 决定硬直。正数 `lift` 或空中受击会进入 `launched` 状态：即使命中硬直倒计时结束，也不能移动、防御、跳跃、冲刺或出招，直到实际落到平台或地面。此时仍能被近战和独立实体追击，新命中会重新结算推力、硬直与连击。
+
+落地后依次经过倒地和起身，公共默认分别为 30、18 个可推进逻辑帧，约 0.8 秒；由公共规则 `knockdownFrames`、`riseFrames` 调整。两阶段不能操作，并有受击保护。命中停顿和暂停不会偷跑倒地计时。显式 `knockdown: true` 及连击上限保护从空中下落时就禁止追加命中，适合结束连段。
+
+联调时在自由训练按 **H**，用 **W＋J** 挑空后观察“击飞 → 倒地 → 起身 → 可操作”，也可暂停后逐帧查看。倒地和起身期间输入不能提前使角色行动；临近结束时的按键仍遵循公共输入缓冲规则。角色负责人继续填写自己的招式、击飞力度和正式受击动画。
 
 ### 逐帧判定、组合输入与命中表现
 
@@ -85,13 +95,51 @@ signatureMoves: [
 | `feedback` | 可选。命中表现支持 `color` 特效色、`shake` 抖动幅度、`flash` 命中闪亮强度（显示范围 0–1）和 `sound` 预设（`'light'`、`'heavy'`、`'sharp'`）。香蕉猫和姑姑嘎嘎的命中星由各自的爆裂表按招式决定颜色和朝向，大小取公共的轻、中、重、挑飞四档。未登记的角色命中时使用公共星形，打中香蕉猫时显示香蕉猫的橙色命中星。[公共命中星](../src/web/hit-burst.ts) |
 | `entities` | 可选。基于 `spawnFrame` 在出招时独立生成，使用自身的坐标偏移、速度、存活帧数、攻击框、命中参数和表现。速度为每逻辑帧的世界单位，横向坐标和速度随生成时朝向镜像，速度为零可用于驻留实体。实体可以在施放动作结束后命中，对手首次接触后消失，也会在到期、换回合和训练复位时清除。实体随命中停顿暂停。当前判定对象是对手的受击框，实体接触也可被格挡或防反。外观使用引擎预设图形，可用 `color` 调色。 |
 
-构建后打开战斗接口联调页。默认按 **U** 检查两段判定，按 **I** 生成独立实体，同时按 **U＋I** 或按住 **U** 后再按 **I** 检查组合输入。用 **H** 检查框和当前帧，需要看清区间边缘时使用暂停后的「前进一帧」。[下载离线联调页](https://github.com/haoabcde/meme-rumble/releases/download/combat-framework-v1/combat-demo.html) · [本机联调页](http://127.0.0.1:4182/combat-demo.html) · [样例配置](../src/web/combat-demo.ts) · [独立实体类型](../src/core/entities.ts)
+构建后打开战斗接口联调页。默认按 **U** 检查两段判定，按 **I** 生成独立实体，同时按 **U＋I** 或按住 **U** 后再按 **I** 检查组合输入。用 **H** 检查框和当前帧，需要看清区间边缘时使用暂停后的「前进一帧」。[下载离线联调页](https://github.com/haoabcde/meme-rumble/releases/latest/download/combat-demo.html) · [本机联调页](http://127.0.0.1:4182/combat-demo.html) · [样例配置](../src/web/combat-demo.ts) · [独立实体类型](../src/core/entities.ts)
+
+## 音效与角色语音
+
+声音放在 `assets/audio/` 下，在角色包顶层的 `audio` 登记。文件由角色负责人提供；框架不会替角色生成笑声或台词。支持 WAV、MP3、Ogg 和 WebM，具体编码需当前浏览器能够解码。构建时按引用内嵌到离线 HTML，不需要联网加载。单文件上限 8 MiB，每份打包音频总量上限 32 MiB。
+
+```ts
+audio: {
+  laugh: { src: 'assets/audio/frog/laugh.mp3', volume: .8 },
+  impact: { src: 'assets/audio/frog/impact.wav' }
+},
+commonAudio: {
+  'common-jab': { hit: { clip: 'impact', volume: .9 } }
+},
+```
+
+上面的路径是接入示例，需要先放入实际文件。同一角色的专属动作、大招和防反架势都可以追加 `audioTimeline`：
+
+```ts
+audioTimeline: [
+  { frame: 12, clip: 'laugh', channel: 'voice', volume: 1, stopOnInterrupt: true }
+],
+feedback: { audio: { clip: 'impact', volume: .9 } },
+```
+
+`frame` 从动作第 0 帧开始，12 帧在 60 Hz 下约为 0.2 秒；必须落在起手、有效、收招的总时长内。同一帧可同时播放音效和语音。`feedback.audio` 在实际命中或格挡接触时播放，实体的命中反馈也支持它；省略时保留公共合成音，角色无需提供全套素材。公共动作的出手声可配置在 `commonAudio[动作ID].audioTimeline`，不会改变公共判定或伤害。
+
+| 字段 | 行为 |
+|---|---|
+| `clip` | 引用本角色 `audio` 中的 ID；不同角色可以使用相同 ID。 |
+| `channel` | `sfx` 或 `voice`，默认 `sfx`。双方语音分别管理，同一角色的新语音替换旧语音；音效可叠加。 |
+| `volume` | 0–1；最终音量是总音量 × 分类音量 × 素材音量 × 本次播放音量。设置变更立即作用于正在播放的声音。 |
+| `stopOnInterrupt` | 默认 `true`。动作在结束前受击、被取消或换招时停止该声音；设为 `false` 可继续播完。动作自然结束允许尾音继续。 |
+
+半速按逻辑帧推迟触发，声音本身保持原速。命中停顿不会重复触发同一帧音轨。暂停会暂停声音，暂停逐帧只推进动作和消费该帧提示，不积攒声音到恢复时爆发。训练复位、换人、换回合和离开对局会清理旧声音。
+
+浏览器需要一次点击或键盘操作解锁音频。配置对局时预解码，交互后才允许播放；未及时就绪的动作提示跳过，不在之后突然补播。自定义命中音频未就绪时回退公共音，解码失败可在浏览器控制台看到文件信息。
+
+构建后打开[音频联调页](http://127.0.0.1:4182/audio-demo.html)，也可[下载离线联调页](https://github.com/haoabcde/meme-rumble/releases/latest/download/audio-demo.html)。先点击画布，再按 **U** 检查第 0 帧音效、第 12 帧语音和命中音；按 **I** 检查受击后继续播放。展开训练设置，选择「重复直拳」和 **0.5×**，复位后分别测试 U、I 的打断差异。设置里的「总音量」「音效」「角色语音」可独立调节，**H** 查看动作阶段，**R** 复位。样例只包含中性电子测试信号，正式角色声音由负责人替换。[样例数据](../src/content/audio-demo.ts)
 
 ## 防反接口
 
 角色可以选「按下防御」或「按 B/C 摆架势」，也可以两种都接，分别指向不同反击。下面用公共直拳跑通流程。4 个逻辑帧约 67 毫秒，正式时机、伤害和动画由角色设计师填写。
 
-想先比较手感，可以下载联调样例，用桌面浏览器打开 HTML。开场已靠近陪练，半速重复出拳。默认按 **S** 试精准防御，按 **U** 试架势，按 **R** 复位。从源码运行 `npm run build` 也会生成同一份 `dist/guard-counter-demo.html`。[下载独立防反训练场](https://github.com/haoabcde/meme-rumble/releases/download/guard-counter-v1/guard-counter-demo.html) · [本机直接试玩](http://127.0.0.1:4182/guard-counter-demo.html) · [样例配置](../src/web/counter-demo.ts)
+想先比较手感，可以下载联调样例，用桌面浏览器打开 HTML。开场已靠近陪练，半速重复出拳。默认按 **S** 试精准防御，按 **U** 试架势，按 **R** 复位。从源码运行 `npm run build` 也会生成同一份 `dist/guard-counter-demo.html`。[下载独立防反训练场](https://github.com/haoabcde/meme-rumble/releases/latest/download/guard-counter-demo.html) · [本机直接试玩](http://127.0.0.1:4182/guard-counter-demo.html) · [样例配置](../src/web/counter-demo.ts)
 
 ### 按下防御
 
@@ -173,7 +221,7 @@ ultimate: {
 - **释放**。大招使用 `cost` 配置消耗，常用的 100、200、300 分别对应一格、两格和三格。
 - **输入与衔接**。所有大招共用逻辑输入 `ULT`。每个 `move` 沿用普通动作的帧数、攻击框和图集动画，可用 `posture`、`direction` 和 `comboKeys` 指定姿态、方向或组合键。上例的方向和消耗只用于联调，正式角色按动作设计填写。配置 `extraCancels: { 'common-jab': ['ULT'] }` 可在直拳命中后衔接大招，也可填写具体大招的动作 ID。`linkOnly: true` 可限制为命中衔接。防反动作的 `counterTo` 和 `guardCounter.actionId` 使用普通攻击 ID。
 
-用桌面浏览器打开下载的独立样例，或打开构建生成的 `dist/ultimate-demo.html`。先按 **O** 验证缺气时无法释放，再靠近陪练，用 **J** 命中五次攒满第一格。也可以点「充满三格能量」，分别试 **O**、**W + O** 和 **S + O** 的一格、两格和三格消耗，每次试招前充满。用 **H** 面板查看起手、有效和收招，用 **0.5×** 或暂停后的「前进一帧」检查画格与判定。用 **R** 复位验证能量归零。改自己的角色后，用自由训练的角色链接重复这套检查。[下载大招联调样例](https://github.com/haoabcde/meme-rumble/releases/download/ui-three-stock-v1/ultimate-demo.html) · [本机直接试玩](http://127.0.0.1:4182/ultimate-demo.html)
+用桌面浏览器打开下载的独立样例，或打开构建生成的 `dist/ultimate-demo.html`。先按 **O** 验证缺气时无法释放，再靠近陪练，用 **J** 命中五次攒满第一格。也可以展开「训练设置」点「充满三格能量」，分别试 **O**、**W + O** 和 **S + O** 的一格、两格和三格消耗，每次试招前充满。用 **H** 面板查看起手、有效和收招，用 **0.5×** 或暂停后的「前进一帧」检查画格与判定。用 **R** 复位验证能量归零。改自己的角色后，用自由训练的角色链接重复这套检查。[下载大招联调样例](https://github.com/haoabcde/meme-rumble/releases/latest/download/ultimate-demo.html) · [本机直接试玩](http://127.0.0.1:4182/ultimate-demo.html)
 
 ## 入场与胜利特写
 
@@ -208,9 +256,9 @@ ultimate: {
 
 把文件放在 `assets/fighters/`，也可以在其中建自己的角色目录。在角色文件的 `art.portrait`、`art.motion` 填相对于该目录的路径。构建会自动收集引用的 WebP，打进离线 HTML。
 
-- **立绘**用透明底、朝右的全身图，脚底贴近下边缘。选角、VS、HUD、结算和场上待机共用这张图。
-- **动作图集**固定四列，每格 216×216 像素，格内脚底锚点为 `(108, 184)`，参考身高 144 像素。前三行共 12 格供跑步、跳跃、防御、公共攻击和受击使用。[前十二格排布](../assets/README.md#公共动作图集)
-- **专属动画**往图集底部追加整行，宽度保持 864 像素，高度每次增加 216 像素。格号从 0 开始逐行向右数，第四行是 12–15。只有已画好并打包的格号才能写入 `animation`。
+- **立绘**用透明底、朝右的全身图，脚底贴近下边缘。选角、VS、HUD 和结算使用角色立绘。场上待机根据角色渲染配置取专用动作格或立绘。
+- **公共动作图集**固定四列，逻辑格为 216×216，格内脚底锚点为 `(108, 184)`，参考身高为 144 世界单位。前三行共 12 格供跑步、跳跃、防御、公共攻击和受击使用。[前十二格排布](../assets/README.md#公共动作图集)
+- **公共图集的附加画格**按整行追加，宽度保持 864 逻辑像素。格号从 0 开始逐行向右数，第四行是 12–15。`animation` 中使用已画好并打包的格号，专用角色图另按表中的素材目录维护。
 
 ## 提交前验收
 
@@ -221,3 +269,28 @@ ultimate: {
 3. 在有平台的图上试上下穿台和换边。可以用星电站的升降机检查角色在移动台面上的脚底与判定。复位或再战后，生命和动作应回到初始状态。
 
 提交自己的角色配置和素材，推送角色分支。PR 里写清角色 ID、试招按键和训练链接，另一位队友就能按同样步骤复测。需要核对动作时机时，可以附短录屏或关键帧截图。[接入回归用例](../tests/fighter-kit.test.mjs)
+
+## 直播擂台联调
+
+`broadcast-ring` 已按最新要求改成单层特殊地图：[大肥鱼对奶蛙](http://127.0.0.1:4182/?practice=broadcast-ring&p1=whale&p2=frog) · [嘎嘎对香蕉猫](http://127.0.0.1:4182/?practice=broadcast-ring&p1=gaga&p2=banana)。世界宽4480，可走区间96–4384，地面2084，平台数组与双方登台路线均为空。此图只在连续地面交锋；另外四图保留上下层和移动平台，仍须用它们测试高低差和穿台。选图页在此图显示“单层地面”并隐藏登台路线，切回多层图恢复。
+
+## 四角色合并后的公共约定
+
+- 已整合 `feat/whale-integrated-20261122` 的 `2a2625b` 与 `art/gaga-pixel` 的 `f7150bc`。角色设计和素材以队友这两份提交为准，框架层完成冲突合并。
+- `defineFighter` 同时接受先前的 `commonMoves` 和香蕉猫/嘎嘎的 `normalMoves`；优先级为 `normalMoves ?? commonMoves ?? commonActions`。角色 `audio`、`moveSummary` 均保留。
+- `ActionDefinition.chain` 管理可预输入的连段，`chainAfter`/`cancelOnHit` 继续支持另外两位角色的命中衔接。两种约定不互相覆盖。
+- 大肥鱼/奶蛙使用公共 `entities` 生命周期；嘎嘎的投掷物、炮台和帝江召唤保留各自逻辑。两类实体共同参与命中结算、防反、暂停和回合清理。
+- 普通挑空持续失控到落地，之后共用默认30帧倒地、18帧起身；规则可覆盖。`Recovery.facing` 为倒地美术保留受击朝向；空中落地触发带 `reaction: 'air'` 的 `knockdown` 事件，不再额外触发一次 `land`，避免重复音效。
+- 嘎嘎的17份录音已通过角色 `audio` 注册，并随既有 `__FIGHTER_AUDIO__` 离线内嵌；统一从 `FightAudio.update(config,state,events)` 播放，未引入第二套解码/音量旁路。
+- 渲染入口为 `renderer.add(events, state.arenaFrame, config.fighters)`；第三参数可省略以兼容动作审阅页。`draw` 的尾部参数依次为 `shake, focus, reducedMotion, opening, interpolation`。特效寿命按竞技帧计算，暂停和大招演出不消耗普通特效寿命。
+- 嘎嘎与香蕉猫的独立机制测试使用公共陪练测试体；真实跨角色防反、同帧多水球瞬移、大招冻结和快照重放见[跨角色集成测试](../tests/cross-character-integration.test.mjs)。
+
+## 高清手绘素材接入
+
+角色美术更新沿用队友设计的动作、技能、时序和判定。大肥鱼的两倍源像素图集保留 80 个槽，其中 79 个有效。嘎嘎与香蕉猫分别重绘了 55 和 21 个场上关键画格，另有 4 个帝江和 3 个泪海演出画格。[统一手绘目录](../assets/fighters/unified-handdrawn-v1/README.md)
+
+用户选定的 [frog-reference.png](../assets/fighters/unified-handdrawn-v1/frog-reference.png) 是奶蛙唯一的外形与比例基准，立绘 WebP 同源。`motion/frog-reference-v2/` 收录 47 个身体槽位，其中 37 个常态画格为本轮重绘，2 个侧躺出场和 8 个天使画格按选定姿态保留。变身演出保留左侧天使，右侧普通奶蛙沿用最终体型。`frog-v2.png` 为历史立绘，前一版 47 槽动作方案已弃用。
+
+公共四列动作图可设置 `art.motionScale: 2`，使用 432×432 源像素格。逻辑格仍为 216×216，脚锚仍为 `(108, 184)`，`animation[].cell` 编号、显示大小、位移和判定均沿用原值。构建会检查实际源格数和越界，可选源密度为 1、2、3、4。奶蛙的专用身体图用 `cutGrid(..., { pixelate: false })` 保留原分辨率，按旧世界高度和底部中央锚点绘制。后续替换身体图时，核对朝向、脚底和关键手眼位置，护腹防御用直视玩家的眼神。[奶蛙身体渲染](../src/web/frog-art.ts)
+
+素材已按画格进行静态目检。运行回归记录当前版实际执行的操作和观测结果。`npm run build` 生成的 `dist/frog-review.html` 和 `dist/whale-review.html` 使用高清角色美术，可单独回看动作。[素材状态与验收范围](角色画风统一进度.md)

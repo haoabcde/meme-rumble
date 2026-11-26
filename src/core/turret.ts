@@ -1,4 +1,4 @@
-import { isAttack, turretKinds, type CombatEvent, type MatchConfig, type MatchState, type Side, type Turret, type TurretKind } from './types.js';
+import { isAttack, turretKinds, type CombatEvent, type MatchConfig, type MatchState, type PowerPylon, type Side, type Turret, type TurretKind } from './types.js';
 
 export const turretBuildTicks = 20;
 const buildWaveRadius = 112;
@@ -6,6 +6,36 @@ const turretKeyframes = [0, 3, 7, 11, 16, turretBuildTicks];
 const turretHealth = 2;
 const turretIntervalSeconds = 2;
 const turretLifetimeSeconds = 30;
+
+export function turretBoosted(state: MatchState, turret: Turret): PowerPylon | undefined {
+  const pylon = state.powerPylons?.[turret.owner];
+  if (!pylon || pylon.remaining <= 0) return undefined;
+  return Math.hypot(turret.x - pylon.x, turret.y - pylon.y) <= pylon.radius ? pylon : undefined;
+}
+
+export function plantPowerPylon(state: MatchState, source: 0 | 1, x: number, y: number, facing: Side,
+  radius: number, duration: number, events: CombatEvent[], support?: string) {
+  state.powerPylons ??= [null, null];
+  const old = state.powerPylons[source];
+  if (old) {
+    events.push({ kind: 'pylon-expire', source, x: old.x, y: old.y, radius: old.radius });
+  }
+  state.powerPylons[source] = { owner: source, x, y, facing, age: 0, remaining: duration, radius, ...(support && { support }) };
+  events.push({ kind: 'pylon-plant', source, x, y, facing, radius });
+}
+
+export function stepPowerPylons(state: MatchState, events: CombatEvent[]) {
+  if (!state.powerPylons) return;
+  for (const seat of [0, 1] as const) {
+    const pylon = state.powerPylons[seat];
+    if (!pylon) continue;
+    pylon.age++;
+    if (--pylon.remaining <= 0) {
+      state.powerPylons[seat] = null;
+      events.push({ kind: 'pylon-expire', source: seat, x: pylon.x, y: pylon.y, radius: pylon.radius });
+    }
+  }
+}
 
 export function turretFrame(age: number) {
   let frame = turretKeyframes.length - 1;
@@ -35,7 +65,7 @@ function clearTurret(state: MatchState, kind: TurretKind, events: CombatEvent[])
 export function deployTurret(state: MatchState, kind: TurretKind, source: 0 | 1, x: number, y: number,
   facing: Side, events: CombatEvent[], support?: string) {
   clearTurret(state, kind, events);
-  state.turrets[kind] = { kind, owner: source, x, y, facing, age: 0, hp: turretHealth, ...(support && { support }) };
+  state.turrets[kind] = { kind, owner: source, x, y, facing, age: 0, hp: turretHealth, charge: 0, ...(support && { support }) };
   events.push({ kind: 'turret-land', source, turretKind: kind, x, y, facing });
 }
 
@@ -78,6 +108,7 @@ export function fireTurretShot(state: MatchState, config: MatchConfig, turret: T
 
 export function stepTurrets(state: MatchState, config: MatchConfig, events: CombatEvent[]) {
   const { ticksPerSecond } = config.rules;
+  const fireIntervalTicks = turretIntervalSeconds * ticksPerSecond;
   for (const kind of turretKinds) {
     const turret = state.turrets[kind];
     if (!turret) continue;
@@ -95,7 +126,11 @@ export function stepTurrets(state: MatchState, config: MatchConfig, events: Comb
       events.push({ kind: 'turret-ready', source, turretKind: kind, x: turret.x, y: turret.y,
         facing: turret.facing, radius: buildWaveRadius });
     }
-    if (readyAge <= 0 || readyAge % (turretIntervalSeconds * ticksPerSecond) !== 0) continue;
+    if (readyAge <= 0) continue;
+    turret.charge ??= Math.max(0, readyAge - 1) % fireIntervalTicks;
+    turret.charge += turretBoosted(state, turret) ? 2 : 1;
+    if (turret.charge < fireIntervalTicks) continue;
+    turret.charge -= fireIntervalTicks;
     fireTurretShot(state, config, turret, events);
   }
 }

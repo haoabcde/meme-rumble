@@ -1,0 +1,212 @@
+{
+  "portrait": {
+    "source": "assets/fighters/unified-handdrawn-v1/frog-reference.webp",
+    "visibleAt": [
+      "主页角色背景",
+      "选角",
+      "VS",
+      "HUD",
+      "胜者结算",
+      "独立审阅页形象对照"
+    ],
+    "sha256": "a9f08050d7ad48cb1c93b8354f330db8cdb72c128ca87239991e3322e6ffe894"
+  },
+  "bodyBanks": {
+    "moves": {
+      "source": "assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/moves.png",
+      "grid": [
+        4,
+        2
+      ],
+      "sizePx": [
+        1772,
+        886
+      ],
+      "cells": 8,
+      "role": "待机、五段普攻、捧腹与架手防御",
+      "sha256": "d445c568f9f55037f3ae184f738c6d5f3985427708d39aa955056395b0aed82a"
+    },
+    "basics": {
+      "source": "assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/basics.png",
+      "grid": [
+        4,
+        4
+      ],
+      "sizePx": [
+        1772,
+        1772
+      ],
+      "cells": 16,
+      "role": "跳跃、落地、闪避、受击、倒地及起身",
+      "sha256": "2b80649fe5a389f335aacb1c6a502626cf528b889f9ce7f83afea89c6c9f6e7f"
+    },
+    "scenes": {
+      "source": "assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/scenes.png",
+      "grid": [
+        4,
+        2
+      ],
+      "sizePx": [
+        1772,
+        886
+      ],
+      "cells": 8,
+      "role": "出场、胜利与落败",
+      "sha256": "b9636529989b4cb717949a10fa511b8ab7f540ecdc2a54dd863173013c894b24"
+    },
+    "travel": {
+      "source": "assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/travel.png",
+      "grid": [
+        4,
+        2
+      ],
+      "sizePx": [
+        1772,
+        886
+      ],
+      "cells": 8,
+      "role": "地面步态 4 格，强化悬浮 4 格",
+      "sha256": "595561f111cebf4f5b6f9a3fec5eebeb164d30eb14406065adbb52d85c3c19a7"
+    },
+    "angels": {
+      "source": "assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/angels.png",
+      "grid": [
+        2,
+        2
+      ],
+      "sizePx": [
+        1254,
+        1254
+      ],
+      "cells": 4,
+      "role": "天使四姿态，战斗强化与退出使用神圣站姿",
+      "sha256": "b5154cc32786903c599b4cafc65a6284bf63b338dca6712dc37a3460f49accf8"
+    },
+    "normal-guard": {
+      "source": "assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/normal-guard.png",
+      "grid": [
+        1,
+        1
+      ],
+      "sizePx": [
+        724,
+        724
+      ],
+      "cells": 1,
+      "role": "普通防御",
+      "sha256": "54c755402abf7edf95d49c8717ade1284b8ab4135f3d465fd77c614994725ad4"
+    },
+    "crouch": {
+      "source": "assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/crouch.png",
+      "grid": [
+        1,
+        1
+      ],
+      "sizePx": [
+        724,
+        724
+      ],
+      "cells": 1,
+      "role": "下蹲与传送身形",
+      "sha256": "086fa3478c94130c30a2eea1005b3844c4aa388205cc32d80e7d58331d8720f5"
+    },
+    "thinking": {
+      "source": "assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/thinking.png",
+      "grid": [
+        1,
+        1
+      ],
+      "sizePx": [
+        724,
+        724
+      ],
+      "cells": 1,
+      "role": "待机思考",
+      "sha256": "86562561caf43082cdc1b6d0e0ce88d24199130ecb3c4a150a544c77d216b1f6"
+    }
+  },
+  "intro": {
+    "source": "assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/intro.png",
+    "sizePx": [
+      1536,
+      1024
+    ],
+    "sha256": "594eecda5a5fc12a21199029522a8bffd8c6ab3b13da3ae89f5531f6689c2e9c",
+    "angelLeft825PxRgbaSha256": "3ca2f3b95595be248548fca71c71c3edae670f6eb665fc375a66118362eec9d4",
+    "role": "同一变身演出图用于实战与独立审阅"
+  },
+  "genericCompatibility": {
+    "registeredSource": "assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/motion.webp",
+    "grid": [
+      4,
+      3
+    ],
+    "sizePx": [
+      1728,
+      1296
+    ],
+    "motionScale": 2,
+    "registeredLegacySourceRemoved": "assets/fighters/frog-motion.webp",
+    "sha256": "a51fd52daabb54b76c1d1a7d5d18d5034beaa99e766c7a0a44cc49fd1e80afa8",
+    "assemblyCommand": "node assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/assemble-motion.mjs",
+    "sourceSlots": [
+      "travel[0]",
+      "travel[2]",
+      "basics[3]",
+      "normal-guard[0]",
+      "basics[0]",
+      "moves[1]",
+      "moves[2]",
+      "moves[5]",
+      "moves[3]",
+      "moves[5]",
+      "basics[6]",
+      "basics[8]"
+    ],
+    "runtimeRouting": "Renderer routes frog to drawFrogActor before its generic renderer. The compatibility sheet is registered for the character package and contains only final ordinary actor poses."
+  },
+  "approvedAngel": {
+    "atlasSha256": "b5154cc32786903c599b4cafc65a6284bf63b338dca6712dc37a3460f49accf8",
+    "travelLowerRowRgbaSha256": "85364d301a488f59b7a51c702f30b8eef0c69baedbec5ebf599c13efc0abf518",
+    "identityPreservation": "Compared original approved and shipped bytes for angels.png and decoded pixels for the lower four travel cells."
+  },
+  "approvedEntry": {
+    "indices": [
+      0,
+      1
+    ],
+    "rgbaSha256": [
+      "481461522bee1cfa0eeca56b6de6eeabd0f1b4f9cb0ea1c97d7efde8bbc8718b",
+      "465b32ebe73ab37ca1eb97a4aa37e6d7c82161645ac2665fedffba439c2d9bbf"
+    ]
+  },
+  "reviewGallery": {
+    "bodyCells": 47,
+    "cinematicImages": 1,
+    "redrawnOrdinaryCells": 37,
+    "preservedEntryCells": 2,
+    "preservedAngelCells": 8,
+    "referencePair": "Shared portrait and new moves[0]",
+    "source": "src/web/frog-art.ts frogReviewFrames() shared with drawFrogActor; no separate art copy in preview."
+  },
+  "productionEntries": [
+    "/",
+    "/index.html",
+    "/dev.html",
+    "/frog-review.html",
+    "/frog-review-dev.html",
+    "/whale-review.html",
+    "/guard-counter-demo.html",
+    "/ultimate-demo.html",
+    "/combat-demo.html",
+    "/audio-demo.html"
+  ],
+  "checks": [
+    "All 47 body cells contain an alpha-visible silhouette. Both fallback sheet and old source exclusion checked.",
+    "Pure spiral, seal, rune shield, constellation and light-trail textures render independently; they do not contain the actor."
+  ],
+  "archiveExclusions": [
+    "output/design/奶蛙参考图集.html shows external source references only and is not a playable route.",
+    "Older offline snapshots in output/playwright remain historical. Current offline input is dist/index.html."
+  ]
+}

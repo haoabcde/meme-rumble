@@ -108,37 +108,36 @@ export const gagaTurretActions: SignatureMove[] = [
     stop: 3, advance: 0, impact: 'heavy', pose: 'strike'
   },
   {
-    id: gagaActionIds.overclock, name: '协议超频', slot: 'C', direction: 'up', posture: 'any',
-    overclockTurrets: true,
-    startup: 8, active: 1, recovery: 14,
-    hitbox: { x: 0, y: 0, w: 0, h: 0 }, hitTimeline: [],
-    projectile: { kind: 'spark', x: 52, y: -76, vx: 17, vy: 0, gravity: 0, reach: 0, radius: 10, life: 22 },
-    damage: 34, hitstun: 14, blockstun: 8, guardCost: 8, push: 5, lift: 0,
-    stop: 2, advance: 0, swingOnActive: true, impact: 'light', pose: 'strike',
-    feedback: { color: '#5bd9ff', shake: 4, sound: 'sharp' }
+    id: gagaActionIds.overclock, name: '供电桩 · 增压力场', slot: 'C', direction: 'up', posture: 'ground',
+    plantPylon: { radius: 520, duration: 720, offsetX: 60 },
+    startup: 12, active: 4, recovery: 16,
+    hitbox: { x: 16, y: -110, w: 82, h: 110 },
+    damage: 45, hitstun: 18, blockstun: 10, guardCost: 11, push: 7, lift: 0,
+    stop: 3, advance: 0, swingOnActive: true, impact: 'medium', pose: 'strike',
+    feedback: { color: '#38bdf8', shake: 7, flash: .25, sound: 'heavy' }
   }
 ];
 
 export const gagaSignatureCombat: SignatureMove[] = [
   {
-    id: gagaActionIds.swordSlash, name: '宏愿 · 截击斩', slot: 'B', posture: 'ground',
-    startup: 6, active: 4, recovery: 14,
-    hitbox: { x: 20, y: -112, w: 158, h: 86 },
-    damage: 62, hitstun: 26, blockstun: 11, guardCost: 13, push: 5, lift: 0,
-    stop: 3, advance: 14, advanceFrom: 1, advanceUntil: 6, activeAdvance: 6,
-    applyCrystalMark: 240, cancelOnHit: [gagaActionIds.swordRise, 'jump'],
-    pose: 'strike', swingOnActive: true, impact: 'medium',
-    feedback: { color: '#fbbf24', shake: 7, flash: .3, sound: 'sharp' }
+    id: gagaActionIds.swordSlash, name: '宏愿 · 源石剑波', slot: 'B', posture: 'ground',
+    startup: 8, active: 4, recovery: 13,
+    hitbox: { x: 0, y: 0, w: 0, h: 0 }, hitTimeline: [],
+    projectile: { kind: 'sword-wave', x: 34, y: -134, vx: 25, vy: 0, gravity: 0, reach: 0, radius: 134, halfWidth: 42, life: 26 },
+    damage: 58, hitstun: 24, blockstun: 11, guardCost: 13, push: 8, lift: 0,
+    stop: 3, advance: 9, advanceFrom: 5, advanceUntil: 8,
+    applyCrystalMark: 240,
+    pose: 'strike', swingOnActive: true, swingLead: 1, impact: 'medium',
+    feedback: { color: '#fbbf24', shake: 8, flash: .35, sound: 'sharp' }
   },
   {
-    id: gagaActionIds.swordRise, name: '宏愿 · 碎晶升龙', slot: 'B', direction: 'up', posture: 'ground',
-    startup: 6, active: 8, recovery: 18,
-    rise: { at: 6, vx: 6, vy: 15 },
-    hitbox: { x: 10, y: -186, w: 122, h: 158 },
-    damage: 78, hitstun: 30, blockstun: 12, guardCost: 16, push: 6, lift: 15,
-    stop: 4, advance: 6, advanceFrom: 2,
-    shatterCrystal: { bonusDamage: 56, bonusLift: 5, bonusPush: 8 },
-    cancelOnHit: ['B'],
+    id: gagaActionIds.swordRise, name: '宏愿 · 敕令碎晶', slot: 'B', direction: 'up', posture: 'ground',
+    detonateCrystal: true,
+    startup: 9, active: 4, recovery: 18,
+    hitbox: { x: 76, y: -220, w: 132, h: 220 },
+    damage: 82, hitstun: 30, blockstun: 12, guardCost: 16, push: 8, lift: 14,
+    stop: 4, advance: 0,
+    shatterCrystal: { bonusDamage: 46, bonusLift: 2, bonusPush: 6 },
     pose: 'rise', swingOnActive: true, impact: 'heavy',
     feedback: { color: '#fbbf24', shake: 11, flash: .5, sound: 'heavy' }
   },

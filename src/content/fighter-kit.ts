@@ -1,5 +1,5 @@
-import { MAX_ENERGY, type ActionDefinition, type Box, type BoxWindow, type CounterStance, type FighterAction,
-  type FighterDefinition, type HitFeedback, type UltimateGain } from '../core/types.js';
+import { MAX_ENERGY, type ActionAudioCue, type ActionDefinition, type AudioClipRef, type Box, type BoxWindow,
+  type CounterStance, type FighterAction, type FighterDefinition, type HitFeedback, type UltimateGain } from '../core/types.js';
 import { validateEntities } from '../core/entities.js';
 
 export const motionGrid = {
@@ -10,13 +10,24 @@ export interface FighterArt {
   /** WebP paths relative to assets/fighters/. */
   portrait: string;
   motion: string;
+  /** Source-pixel density; logical cells and foot anchors stay at 216 and (108, 184). */
+  motionScale?: 1 | 2 | 3 | 4;
 }
+
+export interface FighterAudioClip {
+  /** Project-relative path under assets/audio/. */
+  src: string;
+  volume?: number;
+}
+
+export type FighterAudioBank = Record<string, FighterAudioClip>;
 
 export interface RosterEntry {
   fighter: FighterDefinition;
   accent: string;
   height: number;
   art: FighterArt;
+  audio?: FighterAudioBank;
   moveSummary?: string;
 }
 
@@ -29,11 +40,13 @@ interface UltimateMove {
 }
 
 export interface FighterPackage {
+  commonMoves?: ActionDefinition[];
   id: string;
   name: string;
   accent: string;
   height: number;
   art: FighterArt;
+  audio?: FighterAudioBank;
   stats?: Partial<Omit<FighterDefinition, 'id' | 'name' | 'actions' | 'guardCounter' | 'ultimateCost' | 'ultimateGain'>>;
   normalMoves?: NormalMove[];
   signatureMoves: SignatureMove[];
@@ -42,6 +55,8 @@ export interface FighterPackage {
   ultimate?: UltimateMove & { gain?: UltimateGain; variants?: UltimateMove[] };
   /** Additional destinations after a shared attack lands, applied to this fighter only. */
   extraCancels?: Record<string, string[]>;
+  /** Overrides only the audio for this fighter's shared attacks. */
+  commonAudio?: Record<string, { audioTimeline?: ActionAudioCue[]; hit?: AudioClipRef }>;
 }
 
 // 公共动作适用于所有角色。B/C 仍给各角色的专属技能使用。
@@ -110,10 +125,68 @@ function validImpact(impact: Partial<Pick<ActionDefinition,
     (impact.knockdown === undefined || typeof impact.knockdown === 'boolean');
 }
 
+export const fighterAudioPrefix = 'assets/audio/';
+
+export function fighterAudioMimeType(src: string) {
+  if (typeof src !== 'string' || !src.startsWith(fighterAudioPrefix) ||
+      /[\\:%?#\x00-\x1f\x7f]/.test(src) || src.slice(fighterAudioPrefix.length).split('/').some(part =>
+        !part || part === '.' || part === '..' || part.trim() !== part)) return undefined;
+  if (/\.wav$/i.test(src)) return 'audio/wav';
+  if (/\.mp3$/i.test(src)) return 'audio/mpeg';
+  if (/\.ogg$/i.test(src)) return 'audio/ogg';
+  if (/\.webm$/i.test(src)) return 'audio/webm';
+  return undefined;
+}
+
+function validVolume(volume: number | undefined) {
+  return volume === undefined || (Number.isFinite(volume) && volume >= 0 && volume <= 1);
+}
+
+function validateAudioBank(owner: string, audio: FighterAudioBank | undefined) {
+  if (audio === undefined) return;
+  if (!audio || ![Object.prototype, null].includes(Object.getPrototypeOf(audio))) {
+    throw Error(owner + ' 的 audio 须为音频 ID 到素材配置的映射');
+  }
+  for (const [id, clip] of Object.entries(audio)) {
+    if (!id || id.trim() !== id || !clip || typeof clip !== 'object' || !fighterAudioMimeType(clip.src)) {
+      throw Error(owner + ' / audio.' + id + ' 须使用 assets/audio/ 内的 WAV、MP3、Ogg 或 WebM 路径');
+    }
+    if (!validVolume(clip.volume)) throw Error(owner + ' / audio.' + id + ' 的音量须在 0–1 之间');
+  }
+}
+
+function validAudioReference(reference: AudioClipRef, audio: FighterAudioBank | undefined) {
+  return reference && typeof reference === 'object' && typeof reference.clip === 'string' && audio !== undefined &&
+    Object.prototype.propertyIsEnumerable.call(audio, reference.clip) && validVolume(reference.volume);
+}
+
 function validFeedback(feedback: HitFeedback) {
   return feedback && (feedback.color === undefined || (typeof feedback.color === 'string' && feedback.color.trim())) &&
     [feedback.shake, feedback.flash].every(n => n === undefined || (Number.isFinite(n) && n >= 0)) &&
     (feedback.sound === undefined || ['light', 'heavy', 'sharp'].includes(feedback.sound));
+}
+
+function validateFeedback(where: string, feedback: HitFeedback | undefined, audio: FighterAudioBank | undefined) {
+  if (feedback === undefined) return;
+  if (!validFeedback(feedback)) throw Error(where + ' 的命中反馈参数无效');
+  if (feedback.audio !== undefined && !validAudioReference(feedback.audio, audio)) {
+    throw Error(where + ' 的 feedback.audio 须引用本角色已登记的音频，且音量在 0–1 之间');
+  }
+}
+
+function validateAudioTimeline(where: string, timeline: ActionAudioCue[] | undefined, duration: number,
+  audio: FighterAudioBank | undefined) {
+  if (timeline === undefined) return;
+  if (!Array.isArray(timeline)) throw Error(where + ' 的 audioTimeline 须为数组');
+  for (const [index, cue] of timeline.entries()) {
+    if (!validAudioReference(cue, audio) || !Number.isInteger(cue.frame) || cue.frame < 0 || cue.frame >= duration ||
+      (cue.variants !== undefined && (!Array.isArray(cue.variants) || !cue.variants.length ||
+        !cue.variants.every(clip => validAudioReference({clip}, audio)))) ||
+      (cue.channel !== undefined && !['sfx', 'voice'].includes(cue.channel)) ||
+      (cue.stopOnInterrupt !== undefined && typeof cue.stopOnInterrupt !== 'boolean')) {
+      throw Error(where + ' 的 audioTimeline[' + index + '] 帧、音频引用、音量、声道或打断设置无效');
+    }
+  }
 }
 
 function validateCounterTarget(owner: string, targetId: string, actions: FighterAction[]) {
@@ -126,7 +199,7 @@ function validateCounterTarget(owner: string, targetId: string, actions: Fighter
   }
 }
 
-function validateMoves(owner: string, actions: FighterAction[]) {
+function validateMoves(owner: string, actions: FighterAction[], audio: FighterAudioBank | undefined) {
   const ids = new Set<string>();
   for (const action of actions) {
     const where = owner + ' / ' + action.id;
@@ -140,6 +213,7 @@ function validateMoves(owner: string, actions: FighterAction[]) {
     if (!validBoxWindows(action.hurtTimeline, 0, duration)) {
       throw Error(where + ' 的逐帧受击框无效');
     }
+    validateAudioTimeline(where, action.audioTimeline, duration, audio);
     const required = action.comboKeys;
     if (required !== undefined && (!Array.isArray(required) || !required.length ||
         new Set(required).size !== required.length ||
@@ -167,9 +241,7 @@ function validateMoves(owner: string, actions: FighterAction[]) {
         action.hitTimeline?.some(window => typeof window.group !== 'string' || !window.group.trim() || !validImpact(window))) {
         throw Error(where + ' 的逐帧攻击框、命中组或命中参数无效');
       }
-      if (action.feedback !== undefined && !validFeedback(action.feedback)) {
-        throw Error(where + ' 的命中反馈参数无效');
-      }
+      validateFeedback(where, action.feedback, audio);
     }
     let previous = -1;
     for (const key of action.animation ?? []) {
@@ -196,14 +268,30 @@ function validateMoves(owner: string, actions: FighterAction[]) {
 }
 
 export function defineFighter(spec: FighterPackage): RosterEntry {
-  const { id, name, accent, height, art, stats, normalMoves = commonActions, signatureMoves, moveSummary,
-    guardCounter, ultimate, extraCancels = {} } = spec;
+  const { id, name, accent, height, art, audio, stats, signatureMoves, moveSummary, guardCounter, ultimate,
+    extraCancels = {}, commonAudio = {} } = spec;
+  const normalMoves = spec.normalMoves ?? spec.commonMoves ?? commonActions;
+  validateAudioBank(id, audio);
   for (const source of Object.keys(extraCancels)) {
     if (!normalMoves.some(move => move.id === source)) throw Error(id + ' 找不到公共动作 ' + source);
   }
+  if (!commonAudio || ![Object.prototype, null].includes(Object.getPrototypeOf(commonAudio))) {
+    throw Error(id + ' 的 commonAudio 须为公共动作 ID 到音频配置的映射');
+  }
+  for (const [source, override] of Object.entries(commonAudio)) {
+    if (!normalMoves.some(move => move.id === source)) throw Error(id + ' / commonAudio 找不到公共动作 ' + source);
+    if (!override || typeof override !== 'object') throw Error(id + ' / commonAudio.' + source + ' 的音频配置无效');
+  }
   const shared = normalMoves.map(move => {
     const extra = extraCancels[move.id];
-    return extra ? { ...move, cancelOnHit: [...new Set([...(move.cancelOnHit ?? []), ...extra])] } : move;
+    const override = commonAudio[move.id];
+    if (!extra && !override) return move;
+    return {
+      ...move,
+      ...(extra && { cancelOnHit: [...new Set([...(move.cancelOnHit ?? []), ...extra])] }),
+      ...(override?.audioTimeline !== undefined && { audioTimeline: override.audioTimeline }),
+      ...(override?.hit !== undefined && { feedback: { ...move.feedback, audio: override.hit } })
+    };
   });
   const actions: FighterAction[] = [...shared, ...signatureMoves];
   if (ultimate) {
@@ -217,18 +305,20 @@ export function defineFighter(spec: FighterPackage): RosterEntry {
       actions.push({ ...move, slot: 'ULT', energyCost: cost });
     }
   }
-  validateMoves(id, actions);
+  validateMoves(id, actions, audio);
   validateEntities(id, actions);
   for (const action of actions) {
     if ('counterTo' in action) continue;
     for (const entity of action.entities ?? []) {
-      if ((entity.feedback !== undefined && !validFeedback(entity.feedback)) ||
-          (entity.color !== undefined && !/^#[0-9a-f]{3,8}$/i.test(entity.color))) {
-        throw Error(id + ' / ' + action.id + ' / ' + entity.id + ' 的实体反馈或颜色无效');
+      const where = id + ' / ' + action.id + ' / ' + entity.id;
+      validateFeedback(where, entity.feedback, audio);
+      if (entity.color !== undefined && !/^#[0-9a-f]{3,8}$/i.test(entity.color)) {
+        throw Error(where + ' 的实体颜色无效');
       }
     }
   }
   if (guardCounter) {
+    if(guardCounter.whileGuarding!==undefined&&typeof guardCounter.whileGuarding!=='boolean')throw Error(id+' 的持续防反开关须为布尔值');
     if (!Number.isSafeInteger(guardCounter.windowFrames) || guardCounter.windowFrames < 1) {
       throw Error(id + ' 的防反窗口须为正整数帧');
     }
@@ -247,5 +337,5 @@ export function defineFighter(spec: FighterPackage): RosterEntry {
     fighter.dash, fighter.airJump ?? 0].every(n => Number.isFinite(n) && n >= 0)) {
     throw Error(id + ' 的受击框、身体宽度或移动数值无效');
   }
-  return { fighter, accent, height, art, moveSummary };
+  return { fighter, accent, height, art, moveSummary, ...(audio === undefined ? {} : { audio }) };
 }

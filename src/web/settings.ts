@@ -6,6 +6,8 @@ type Bindings = Record<Control, string>;
 
 export interface Preferences {
   volume: number;
+  sfxVolume: number;
+  voiceVolume: number;
   shake: boolean;
   camera: 'wide' | 'focus';
   bindings: Duo<Bindings>;
@@ -49,12 +51,15 @@ function bindable(code: unknown): code is string {
 }
 
 export function loadPreferences(): Preferences {
-  const fresh: Preferences = { volume: 70, shake: true, camera: 'wide', bindings: resetBindings() };
+  const fresh: Preferences = { volume: 70, sfxVolume: 100, voiceVolume: 100, shake: true, camera: 'wide', bindings: resetBindings() };
   try {
     const value = JSON.parse(localStorage.getItem(storageKey) ?? 'null') as Partial<Preferences> | null;
     if (!value) return fresh;
-    if (typeof value.volume === 'number' && Number.isFinite(value.volume)) {
-      fresh.volume = Math.max(0, Math.min(100, Math.round(value.volume)));
+    for (const key of ['volume', 'sfxVolume', 'voiceVolume'] as const) {
+      const volume = value[key];
+      if (typeof volume === 'number' && Number.isFinite(volume)) {
+        fresh[key] = Math.max(0, Math.min(100, Math.round(volume)));
+      }
     }
     if (typeof value.shake === 'boolean') fresh.shake = value.shake;
     if (value.camera === 'focus') fresh.camera = value.camera;
@@ -121,7 +126,7 @@ export function renderGuide(preferences: Preferences) {
     { title: '下穿平台', controls: ['down', 'jump'], join: ' + ' },
     { title: '防御', controls: ['down'] },
     { title: '普攻 / 空中攻击', controls: ['A'] },
-    { title: '地面挑空', controls: ['up', 'A'], join: ' + ' },
+    { title: '公共挑空（大肥鱼除外）', controls: ['up', 'A'], join: ' + ' },
     { title: '角色专属槽 B / C', controls: ['B', 'C'] },
     { title: '大招', controls: ['ULT'] }
   ] as const;
@@ -155,6 +160,10 @@ export function installSettings(preferences: Preferences, changed: () => void) {
   const dialog = element<HTMLDialogElement>('settings');
   const volume = element<HTMLInputElement>('volume');
   const volumeLabel = element<HTMLOutputElement>('volume-value');
+  const sfxVolume = element<HTMLInputElement>('sfx-volume');
+  const sfxLabel = element<HTMLOutputElement>('sfx-volume-value');
+  const voiceVolume = element<HTMLInputElement>('voice-volume');
+  const voiceLabel = element<HTMLOutputElement>('voice-volume-value');
   const camera = element<HTMLSelectElement>('camera');
   const shake = element<HTMLInputElement>('shake');
   const status = element('binding-message');
@@ -164,6 +173,10 @@ export function installSettings(preferences: Preferences, changed: () => void) {
   function render() {
     volume.value = String(preferences.volume);
     volumeLabel.value = preferences.volume + '%';
+    sfxVolume.value = String(preferences.sfxVolume);
+    sfxLabel.value = preferences.sfxVolume + '%';
+    voiceVolume.value = String(preferences.voiceVolume);
+    voiceLabel.value = preferences.voiceVolume + '%';
     camera.value = preferences.camera;
     shake.checked = preferences.shake;
     for (const { seat, control, node } of buttons) {
@@ -204,6 +217,8 @@ export function installSettings(preferences: Preferences, changed: () => void) {
     changed();
   }
   volume.addEventListener('input', () => { preferences.volume = Number(volume.value); commit(); });
+  sfxVolume.addEventListener('input', () => { preferences.sfxVolume = Number(sfxVolume.value); commit(); });
+  voiceVolume.addEventListener('input', () => { preferences.voiceVolume = Number(voiceVolume.value); commit(); });
   camera.addEventListener('change', () => { preferences.camera = camera.value === 'focus' ? 'focus' : 'wide'; commit(); });
   shake.addEventListener('change', () => { preferences.shake = shake.checked; commit(); });
   element('reset-bindings').addEventListener('click', () => {

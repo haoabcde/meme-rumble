@@ -48,11 +48,27 @@ export interface HitWindow extends BoxWindow {
   knockdown?: boolean;
 }
 
+export interface AudioClipRef {
+  clip: string;
+  volume?: number;
+}
+
 export interface HitFeedback {
+  shape?: 'ring';
   color?: string;
   shake?: number;
   flash?: number;
   sound?: 'light' | 'heavy' | 'sharp';
+  /** Optional impact clip from the attacking fighter's audio bank. */
+  audio?: AudioClipRef;
+}
+
+export interface ActionAudioCue extends AudioClipRef {
+  frame: number;
+  /** Presentation-only random choice, including clip as the first candidate. */
+  variants?: string[];
+  channel?: 'sfx' | 'voice';
+  stopOnInterrupt?: boolean;
 }
 
 interface ActionTiming {
@@ -69,12 +85,14 @@ interface ActionTiming {
   linkOnly?: boolean;
   /** Hold each sprite cell from its zero-based action frame until the next key. */
   animation?: { frame: number; cell: number }[];
+  /** Play clips once at their zero-based action frames. */
+  audioTimeline?: ActionAudioCue[];
   /** Gaps and empty boxes leave the fighter without a hurt region. */
   hurtTimeline?: BoxWindow[];
 }
 
 export interface ProjectileDefinition {
-  kind?: 'crate' | 'bolt' | 'grenade' | 'tear' | 'wave' | 'kq-orb' | 'sheer-heart' | 'spark';
+  kind?: 'crate' | 'bolt' | 'grenade' | 'tear' | 'wave' | 'kq-orb' | 'sheer-heart' | 'spark' | 'sword-wave';
   life?: number;
   turret?: TurretKind;
   blastRadius?: number;
@@ -91,6 +109,13 @@ export interface ProjectileDefinition {
 }
 
 export interface ActionDefinition extends ActionTiming {
+  /** Authored whale kit hooks; serialized state, no renderer-side combat logic. */
+  whale?: 'rice' | 'rice-up' | 'spin' | 'spin-up' | 'counter' | 'eat' | 'open-source';
+  frog?: 'laugh' | 'global' | 'ascend' | 'crouch' | 'burrow' | 'evade';
+  radial?: boolean;
+  chainAfter?: number;
+  guardHitsToBreak?: number;
+  fixedDamage?: boolean;
   hitbox: Box;
   summon?: true;
   cutIn?: { at: number; duration: number };
@@ -102,7 +127,8 @@ export interface ActionDefinition extends ActionTiming {
   detonateBomb?: boolean;
   applyCrystalMark?: number;
   shatterCrystal?: { bonusDamage: number; bonusLift?: number; bonusPush?: number };
-  overclockTurrets?: boolean;
+  detonateCrystal?: boolean;
+  plantPylon?: { radius: number; duration: number; offsetX?: number };
   dive?: { vx: number; vy: number; piercePlatforms?: boolean; carryTarget?: boolean };
   rise?: { at: number; vx: number; vy: number };
   passThrough?: boolean;
@@ -175,8 +201,8 @@ export interface FighterDefinition {
   hurtbox: Box;
   bodyWidth: number;
   actions: FighterAction[];
-  /** A fresh grounded guard can turn a frontal contact into this fighter's named action. */
-  guardCounter?: { windowFrames: number; actionId: string };
+  /** Frontal ground guard counter. whileGuarding opts into held guard instead of a fresh-press window. */
+  guardCounter?: { windowFrames: number; actionId: string; whileGuarding?: boolean };
   ultimateCost?: number;
   ultimateGain?: UltimateGain;
   usesTears?: boolean;
@@ -192,7 +218,8 @@ export interface Platform {
   prop?: 'container' | 'trailer' | 'catwalk' | 'ferry' | 'pallet' | 'office' | 'bridge' | 'gallery' |
     'planter' | 'sunroom' | 'skywalk' | 'penthouse' | 'water-tank' | 'laundry' |
     'bench-seat' | 'shelter' | 'bleachers' | 'press-box' | 'scoreboard' | 'camera-deck' |
-    'transformer' | 'control-room' | 'conduit' | 'inductor' | 'elevator' | 'stair';
+    'transformer' | 'control-room' | 'conduit' | 'inductor' | 'elevator' | 'stair' |
+    'audience-step' | 'audience-deck' | 'broadcast-booth' | 'lighting-bridge' | 'led-screen' | 'show-lift';
   travel?: { axis?: 'x' | 'y'; distance: number; period: number; dwell: number; phase: number };
 }
 
@@ -203,7 +230,7 @@ export interface ArenaDefinition {
   terrain: string;
   // A ground-to-top route from each side of the opening.
   routes: Duo<string[]>;
-  theme: 'dorm' | 'court' | 'harbor' | 'station' | 'ring';
+  theme: 'dorm' | 'court' | 'harbor' | 'station' | 'ring' | 'broadcast';
   artFrame: { sourceY: number; worldY: number }[];
   width: number;
   height: number;
@@ -227,6 +254,10 @@ export interface Ruleset {
   airDashPauseGravity?: boolean;
   inputBuffer: number;
   comboControlLimit: number;
+  /** Positive number of playable ticks spent down before starting to rise. */
+  knockdownFrames?: number;
+  /** Positive number of playable ticks spent rising before control returns. */
+  riseFrames?: number;
 }
 
 export interface MatchConfig {
@@ -234,6 +265,8 @@ export interface MatchConfig {
   arena: ArenaDefinition;
   fighters: Duo<FighterDefinition>;
   training?: boolean;
+  /** Serialized deterministic rice chance; peers must share the seed. */
+  randomSeed?: number;
 }
 
 export interface Command {
@@ -281,6 +314,22 @@ export interface HitReaction {
 }
 
 export interface FighterState {
+  ascendUntil?: number;
+  /** Presentation clocks use arena time, independent of interruptible hit poses. */
+  ascendVisual?: { tick: number; x: number; y: number };
+  ascendEndVisual?: { tick: number; x: number; y: number };
+  frogCasts?: { id: string; tick: number; x: number; y: number; facing: Side; powered: boolean; startup: number; anchors?: {frame:number;x:number;y:number}[] }[];
+  frogWarps?: {tick:number;fromX:number;fromY:number;toX:number;toY:number;powered:boolean;kind:'behind'|'burrow'}[];
+  /** Empowered dodge presentation follows the real dash endpoint, including walls and platforms. */
+  frogDodge?: {tick:number;fromX:number;fromY:number;toX:number;toY:number;arrivedAt?:number};
+  frogFollowup?: boolean;
+
+  bindUntil?: number;
+  guardChain?: { source: number; count: number; until: number };
+  jumpCount?: number;
+  secondApex?: boolean;
+  jumpOriginY?: number;
+  poseEvent?: { kind: string; tick: number };
   x: number;
   y: number;
   vy: number;
@@ -292,7 +341,6 @@ export interface FighterState {
   joAwakened?: boolean;
   bombMark?: { source: 0 | 1; remaining: number };
   crystalMark?: { source: 0 | 1; remaining: number };
-  overclockCooldown?: number;
   slow: number;
   tearUnits?: number;
   walk?: WalkState;
@@ -301,6 +349,8 @@ export interface FighterState {
   guardWait: number;
   guardBreak: number;
   hitstun: number;
+  /** Airborne hit reaction that locks control until landing and allows follow-up hits. */
+  launched?: boolean;
   blockstun: number;
   push: number;
   dash: number;
@@ -345,16 +395,28 @@ export interface Turret {
   hp: number;
   facing: Side;
   support?: string;
+  charge?: number;
+}
+
+export interface PowerPylon {
+  owner: 0 | 1;
+  x: number;
+  y: number;
+  facing: Side;
+  age: number;
+  remaining: number;
+  radius: number;
+  support?: string;
 }
 
 export type EventKind = 'swing' | 'ultimate' | 'ultimate-no-energy' | 'hit' | 'block' | 'parry' | 'break' | 'whiff' | 'dash' | 'dash-no-stamina' | 'jump' | 'air-jump' |
   'pole-impact' | 'turret-land' | 'turret-ready' | 'turret-fire' | 'turret-burst' | 'grenade-impact' |
   'tear-splash' | 'tears-short' | 'wave-windup' | 'wave-cut-in' | 'wave-unavailable' | 'jo-shatter' |
   'kq-plant' | 'kq-lock' | 'kq-detonate' |
-  'crystal-plant' | 'crystal-shatter' | 'xiranite-burst' | 'turret-overclock' |
+  'crystal-plant' | 'crystal-shatter' | 'crystal-spire' | 'xiranite-burst' | 'pylon-plant' | 'pylon-expire' |
   'time-stop-start' | 'time-stop-warp' | 'time-stop-flick' | 'time-stop-hit' | 'time-stop-release' |
   'summon-start' | 'summon-confirm' | 'summon-drop' | 'summon-catch' | 'summon-impact' |
-  'drop' | 'land' | 'knockdown' | 'rise' | 'ko';
+  'drop' | 'land' | 'knockdown' | 'rise' | 'ko' | 'action-audio';
 export interface CombatEvent {
   kind: EventKind;
   source: 0 | 1;
@@ -375,6 +437,8 @@ export interface CombatEvent {
   direction?: Side;
   heavy?: boolean;
   feedback?: HitFeedback;
+  /** The attack identity survives removal from the fighter during this tick's contact resolution. */
+  actionAudio?: { attack: Attack; cue: ActionAudioCue };
 }
 
 export interface RoundResult {
@@ -398,11 +462,13 @@ export interface MatchState {
   winner: 0 | 1 | null;
   projectiles: Projectile[];
   turrets: Record<TurretKind, Turret | null>;
+  powerPylons?: Duo<PowerPylon | null>;
   summon?: Summon;
   cutIn?: CutIn;
   timeStop?: TimeStop;
   entities?: EntityState[];
   nextEntityId?: number;
+  randomState?: number;
 }
 
 export interface TimeStop {
@@ -436,7 +502,8 @@ export interface Summon {
 }
 
 export const TICK_RATE = 60;
-export const RISE_FRAMES = 12;
+export const DEFAULT_KNOCKDOWN_FRAMES = 30;
+export const DEFAULT_RISE_FRAMES = 18;
 export const ENERGY_PER_STOCK = 100;
 export const TEAR_UNITS_PER_POINT = TICK_RATE;
 export const MAX_TEARS = 100;

@@ -12,6 +12,7 @@ import { platformAt, platformOffset, tierAt } from '../dist/core/terrain.js';
 
 const multiLevelArenas = arenas.filter(arena => arena.id !== 'neon-ring');
 const config = { rules, arena: arenas[0], fighters: [testFighter, testFighter] };
+const platformArenas = arenas.filter(arena => arena.platforms.length > 0);
 const input = (pressed = [], x = 0, y = 0) => ({ pressed, x, y });
 // Public movement and combat have their own fixture so character authors can tune individual stats.
 const baseline = defineFighter({
@@ -93,17 +94,91 @@ test('same-frame hits on the final tick are simultaneous and can cause a double 
   assert.deepEqual(events.map(event => event.kind), ['hit', 'hit', 'ko']);
   assert.deepEqual(state.result, { winner: null, reason: 'double-ko' });
   assert.deepEqual(state.wins, [0, 0]);
+  assert.equal(state.draws, 1);
+  assert.deepEqual(stepFor(state, state.freeze), []);
+  const falls = step(state, [input(['A']), input(['dash'])], config);
+  assert.deepEqual(falls.map(event => [event.kind, event.source]), [['knockdown', 0], ['knockdown', 1]]);
+  assert.ok(state.fighters.every(fighter => fighter.recovery?.phase === 'down'));
+  assert.deepEqual(stepFor(state, 60), []);
+  assert.equal(state.draws, 1);
+  assert.ok(state.fighters.every(fighter => fighter.recovery?.phase === 'down'));
+});
+
+test('a lethal launcher keeps round scoring immediate and lands after hitstop', () => {
+  const settings = { ...config, arena: arenas[1], fighters: [testFighter, testFighter] };
+  const state = begin(settings);
+  const [attacker, defender] = state.fighters;
+  attacker.x = 2190;
+  Object.assign(defender, { x: 2280, hp: 100 });
+  step(state, [input(['A'], 0, -1), NEUTRAL], settings);
+  const decisive = stepFor(state, 8, [NEUTRAL, NEUTRAL], settings);
+  assert.deepEqual(decisive.map(event => event.kind), ['hit', 'ko']);
+  assert.equal(state.phase, 'round-over');
+  assert.deepEqual(state.result, { winner: 0, reason: 'ko' });
+  assert.deepEqual(state.wins, [1, 0]);
+  assert.equal(defender.launched, true);
+  assert.ok(defender.vy < 0 && state.freeze > 0);
+
+  const settledTime = state.remaining;
+  const frozen = structuredClone(state.fighters);
+  const commands = [input(['jump', 'A'], -1, 0), input(['dash', 'A'], 1, 1)];
+  assert.deepEqual(stepFor(state, state.freeze, commands, settings), []);
+  assert.deepEqual(state.fighters, frozen);
+  assert.equal(state.freeze, 0);
+  step(state, commands, settings);
+  assert.ok(defender.y < settings.arena.floor);
+  const landing = waitForEvent(state, settings, 'knockdown', 1, commands);
+  assert.equal(landing.y, settings.arena.floor);
+  assert.equal(defender.hp, 0);
+  assert.equal(defender.ground, 'floor');
+  assert.equal(defender.recovery.phase, 'down');
+  const downed = structuredClone(defender);
+  assert.deepEqual(stepFor(state, 30, commands, settings), []);
+  assert.deepEqual(defender, downed);
+  assert.deepEqual(attacker, frozen[0]);
+  assert.equal(state.remaining, settledTime);
+  assert.deepEqual(state.wins, [1, 0]);
+});
+
+test('round end allows an unusually long fall to settle within a bounded extension', () => {
+  const startFall = (height, ticks) => {
+    const state = begin();
+    state.fighters[1].hp = 0;
+    step(state, [NEUTRAL, NEUTRAL], config);
+    Object.assign(state.fighters[1], { ground: null, y: config.arena.floor - height, vy: 0, launched: true });
+    state.phaseTicks = ticks;
+    return state;
+  };
+
+  const late = startFall(120, 1);
+  step(late, [NEUTRAL, NEUTRAL], config);
+  assert.equal(late.phase, 'round-over');
+  waitForEvent(late, config, 'knockdown', 1);
+  assert.equal(late.fighters[1].recovery.phase, 'down');
+  assert.equal(late.phaseTicks, 12);
+  stepFor(late, 12);
+  assert.equal(late.round, 2);
+
+  const extreme = startFall(24000, 105);
+  stepFor(extreme, 164);
+  assert.equal(extreme.phase, 'round-over');
+  step(extreme, [NEUTRAL, NEUTRAL], config);
+  assert.equal(extreme.round, 2);
+  assert.deepEqual(extreme.wins, [1, 0]);
 });
 
 test('timeout compares life ratios and the next round swaps sides and restores values', () => {
   const settings = { ...config, fighters: [testFighter, { ...testFighter, maxHp: 1200 }] };
   const state = begin(settings);
   state.fighters[0].hp = 400;
-  state.fighters[1].hp = 450;
+  Object.assign(state.fighters[1], { hp: 450, y: settings.arena.floor - 150, ground: null, vy: -6 });
   state.remaining = 1;
   step(state, [NEUTRAL, NEUTRAL], settings);
   assert.deepEqual(state.result, { winner: 0, reason: 'time' });
-  stepFor(state, 105, [NEUTRAL, NEUTRAL], settings);
+  const survivors = structuredClone(state.fighters);
+  assert.deepEqual(stepFor(state, 104, [input(['A']), input(['dash'])], settings), []);
+  assert.deepEqual(state.fighters, survivors);
+  step(state, [NEUTRAL, NEUTRAL], settings);
   assert.equal(state.round, 2);
   assert.deepEqual(state.fighters.map(fighter => fighter.x), [...settings.arena.spawn].reverse());
   assert.deepEqual(state.fighters.map(fighter => fighter.hp), [1000, 1200]);
@@ -137,12 +212,15 @@ test('training restores the practice target on a lethal hit and never times out'
   assert.equal(state.phase, 'fight');
 });
 
-test('the baseline fighters retain common moves, and unconfigured signature slots are inert', () => {
+test('the baseline has the default moves, the roster supports ground and air A, and empty B/C slots are inert', () => {
   assert.deepEqual(roster.map(entry => entry.fighter.id), ['whale', 'frog', 'banana', 'gaga']);
-  assert.equal(baseline.actions.length, 5);
+  assert.deepEqual(baseline.actions.map(move => move.id),
+    ['common-jab', 'common-sweep', 'common-finish', 'common-launch', 'common-air']);
   assert.ok(baseline.actions.every(move => move.slot === 'A'));
-  for (const { fighter } of roster.filter(entry => ['whale', 'frog'].includes(entry.fighter.id))) {
-    assert.deepEqual(fighter.actions.filter(m => m.slot === 'A').map(m => m.id), baseline.actions.map(m => m.id));
+  for (const { fighter } of roster) {
+    const normals = fighter.actions.filter(move => move.slot === 'A' && !move.linkOnly && !move.direction);
+    assert.ok(normals.some(move => move.posture === 'ground' || move.posture === 'any'), fighter.id + ' ground A');
+    assert.ok(normals.some(move => move.posture === 'air' || move.posture === 'any'), fighter.id + ' air A');
   }
   for (const fighter of [baseline, ...roster.map(entry => entry.fighter)]) {
     const emptySlots = ['B', 'C'].filter(slot => !fighter.actions.some(move => move.slot === slot));
@@ -236,6 +314,9 @@ test('either player can branch from a jab into a launcher and jump-cancel into a
     waitForEvent(state, settings, 'hit', seat);
     assert.equal(defender.combo, 3);
     assert.ok(defender.y < settings.arena.floor);
+    waitForEvent(state, settings, 'knockdown', 1 - seat);
+    assert.ok(defender.ground);
+    assert.equal(defender.recovery.phase, 'down');
   }
 });
 
@@ -446,6 +527,102 @@ test('the finisher ends the chain, protects the downed fighter, and releases con
   assert.equal(defender.attack.id, 'common-jab');
 });
 
+test('ordinary launch locks either seat until landing, knockdown and wakeup on floor or platform', () => {
+  const arena = arenas[1];
+  const bench = arena.platforms.find(platform => platform.id === 'west-bench');
+  const launcher = baseline.actions.find(action => action.id === 'common-launch');
+  // A short hitstun makes the independent airborne lock visible without changing jump physics.
+  const shortLaunch = { ...launcher, hitstun: 4, push: 0, advance: 0 };
+  for (const support of [null, bench]) {
+    for (const target of [0, 1]) {
+      const source = 1 - target;
+      const settings = trainingOn(arena);
+      if (support) settings.rules = { ...rules, knockdownFrames: 7, riseFrames: 6 };
+      settings.fighters[source] = { ...baseline, actions: [shortLaunch] };
+      const state = begin(settings);
+      const landingY = support?.y ?? arena.floor;
+      const middle = support ? (support.left + support.right) / 2 : arena.width / 2;
+      state.fighters.forEach((fighter, seat) => Object.assign(fighter, {
+        x: middle + (seat === 0 ? -45 : 45), y: landingY, ground: support?.id ?? 'floor'
+      }));
+      const defender = state.fighters[target];
+      step(state, inputForSeat(source, input(['A'], 0, -1)), settings);
+      waitForEvent(state, settings, 'hit', source);
+      assert.equal(defender.ground, null);
+      assert.ok(defender.vy < 0);
+      const startX = defender.x;
+      const away = -defender.facing;
+      const tap = command => step(state, inputForSeat(target, command), settings);
+      const attempts = [input([], away), input(['dash'], away), input(['jump']), input(['A']), input([], 0, 1)];
+      let attemptedAfterHitstun = 0;
+      let landingEvents;
+      for (let frame = 0; frame < 60 && !defender.ground; frame++) {
+        const attempt = defender.hitstun ? frame : attemptedAfterHitstun++;
+        landingEvents = tap(attempts[attempt % attempts.length]);
+        assert.equal(defender.x, startX, 'airborne directional input must not steer a launched fighter');
+        assert.equal(defender.airActionUsed, false);
+        assert.equal(defender.attack, null);
+      }
+      assert.ok(attemptedAfterHitstun >= attempts.length);
+      assert.equal(defender.ground, support?.id ?? 'floor');
+      assert.equal(defender.y, landingY);
+      assert.ok(landingEvents.some(event => event.kind === 'knockdown' && event.source === target));
+      assert.deepEqual(defender.recovery, { phase: 'down', remaining: support ? 7 : 30, facing: defender.facing });
+
+      const groundedAttempts = [...attempts, input(['jump'], 0, 1)];
+      const riseFrames = support ? 6 : 18;
+      let recoveryTicks = 0;
+      let riseEvents = 0;
+      while (defender.recovery.phase === 'down' || defender.recovery.remaining > 1) {
+        assert.ok(recoveryTicks < 60, 'recovery must reach its last wakeup frame');
+        const events = tap(groundedAttempts[recoveryTicks++ % groundedAttempts.length]);
+        for (const event of events.filter(event => event.source === target)) {
+          assert.equal(event.kind, 'rise');
+          assert.deepEqual(defender.recovery, { phase: 'rise', remaining: riseFrames, facing: defender.facing });
+          riseEvents++;
+        }
+        assert.equal(defender.x, startX);
+        assert.equal(defender.y, landingY);
+        assert.equal(defender.ground, support?.id ?? 'floor');
+        assert.equal(defender.attack, null);
+        assert.equal(defender.guarding, false);
+      }
+      assert.equal(riseEvents, 1);
+      assert.equal(recoveryTicks, (support ? 7 : 30) + riseFrames - 1);
+      assert.ok(tap(input(['A'])).some(event => event.kind === 'swing' && event.source === target));
+      assert.equal(defender.recovery, null);
+    }
+  }
+});
+
+test('a fighter waking at a platform edge is not pushed off by an overlapping opponent', () => {
+  const settings = { ...trainingOn(arenas[1]), fighters: [testFighter, testFighter] };
+  const state = begin(settings);
+  const [attacker, defender] = state.fighters;
+  const bench = settings.arena.platforms.find(platform => platform.id === 'west-bench');
+  Object.assign(attacker, { x: 560, y: bench.y, ground: bench.id });
+  Object.assign(defender, { x: 660, y: bench.y, ground: bench.id });
+  step(state, [input(['A'], 0, -1), NEUTRAL], settings);
+  waitForEvent(state, settings, 'knockdown', 1);
+  assert.equal(defender.ground, bench.id);
+  const landedX = defender.x;
+
+  stepFor(state, 10, [input([], 1), NEUTRAL], settings);
+  const bodyDistance = (settings.fighters[0].bodyWidth + settings.fighters[1].bodyWidth) / 2;
+  assert.ok(defender.x - attacker.x < bodyDistance);
+  const rise = waitForEvent(state, settings, 'rise', 1);
+  assert.equal(rise.x, landedX);
+  assert.equal(defender.ground, bench.id);
+  assert.equal(defender.recovery.phase, 'rise');
+  const recoveryTime = defender.recovery.remaining;
+  const events = stepFor(state, recoveryTime + 1, [NEUTRAL, NEUTRAL], settings);
+  assert.deepEqual(events, []);
+  assert.equal(defender.recovery, null);
+  assert.equal(defender.ground, bench.id);
+  assert.equal(defender.x, landedX);
+  assert.equal(defender.x - attacker.x, bodyDistance);
+});
+
 test('the combo cap stays protective through a high fall until actual ground contact', () => {
   const settings = { ...trainingOn(arenas[2]), rules: { ...rules, comboControlLimit: 5 } };
   const state = begin(settings);
@@ -512,7 +689,7 @@ function landAfter(state, command, settings, seat = 0, airDirection = 0) {
   return first;
 }
 
-for (const arena of multiLevelArenas) {
+for (const arena of platformArenas) {
   test(arena.name + ' · public jumps reach every tier and descend one surface per command', () => {
     const settings = trainingOn(arena);
     const state = begin(settings);
@@ -597,8 +774,8 @@ test('walking off a ledge clears its support and lands on the next reachable tie
   assert.equal(fighter.ground, 'press-west');
 });
 
-for (const arena of multiLevelArenas) {
-  test(arena.name + ' · P2 can also reach the upper platform from the right side', () => {
+for (const arena of platformArenas) {
+  test(arena.name + ' · P2 can climb and drop through each tier on the right side', () => {
     const settings = trainingOn(arena);
     const state = begin(settings);
     const floor = { ...arena, id: 'floor', y: arena.floor };
@@ -608,11 +785,17 @@ for (const arena of multiLevelArenas) {
       landAfter(state, input(['jump']), settings, 1);
       assert.equal(state.fighters[1].ground, path[i].id);
     }
+    for (let i = path.length - 1; i > 0; i--) {
+      alignOverlapping(state, path[i], path[i - 1], settings, 1);
+      assert.deepEqual(landAfter(state, input(['jump'], 0, 1), settings, 1).map(event => event.kind), ['drop']);
+      assert.equal(state.fighters[1].ground, path[i - 1].id);
+      assert.equal(state.fighters[1].y, path[i - 1].y);
+    }
   });
 }
 
 test('both opening positions can reach their advertised first platform in one ordinary jump', () => {
-  for (const arena of multiLevelArenas) {
+  for (const arena of platformArenas) {
     const settings = trainingOn(arena);
     const state = begin(settings);
     for (const seat of [0, 1]) {
@@ -684,8 +867,12 @@ test('every expanded floor is traversable and both players can reach their own e
     assert.deepEqual(state.fighters.map(fighter => [fighter.x, fighter.ground]),
       [[arena.left, 'floor'], [arena.right, 'floor']]);
     stepFor(state, frames, [input([], 1), input([], 1)], settings);
-    assert.equal(b.x, arena.right);
-    assert.equal(a.x, arena.right - settings.fighters[0].bodyWidth);
+    const { bodyWidth } = settings.fighters[0];
+    assert.deepEqual(state.fighters.map(fighter => [fighter.x, fighter.ground]),
+      [[arena.right - bodyWidth, 'floor'], [arena.right, 'floor']]);
+    stepFor(state, frames, [input([], -1), input([], -1)], settings);
+    assert.deepEqual(state.fighters.map(fighter => [fighter.x, fighter.ground]),
+      [[arena.left, 'floor'], [arena.left + bodyWidth, 'floor']]);
   }
 });
 
@@ -695,9 +882,10 @@ test('the camera follows the fight across viewports and fits players at opposite
     const center = arena.spawn.map(x => ({ x, y: arena.floor, height: 145 }));
     const near = frameCamera(arena, viewport, center, null, 0, true);
     assert.ok(near.zoom > 1);
-    const peak = Math.min(...arena.platforms.map(platform => platform.y)) - 153;
+    const jumpHeight = baseline.jump * (baseline.jump - 1) / 2;
+    const peak = Math.min(arena.floor - jumpHeight, ...arena.platforms.map(platform => platform.y - 153));
     const tall = frameCamera(arena, viewport, [{ ...center[0], y: peak }, center[1]], near, 0, true);
-    assert.ok(tall.zoom < .8);
+    if (arena.platforms.length) assert.ok(tall.zoom < .8);
     assert.ok((peak - 145 - 32 - tall.y) * tall.zoom >= viewport.height * .19 - .01);
     assert.ok((arena.floor - tall.y) * tall.zoom <= viewport.height * .91 + .01);
     const spread = [{ x: arena.left, y: peak, height: 145 }, { x: arena.right, y: arena.floor, height: 145 }];
@@ -999,8 +1187,53 @@ test('either opening seat can board the station lift and step off onto its own t
   }
 });
 
-test('the computer can approach an opponent occupying either upper route from the opening floor on every map', () => {
-  for (const arena of multiLevelArenas) {
+test('both broadcast fighters can run and jump across the single floor, and down+jump stays grounded', () => {
+  const arena = arenas.find(arena => arena.id === 'broadcast-ring');
+  assert.deepEqual(arenas.filter(arena => arena.platforms.length === 0).map(arena => arena.id), ['neon-ring', 'broadcast-ring']);
+  assert.deepEqual(arena.routes, [[], []]);
+  assert.equal(arena.width, 4480);
+  assert.equal(arena.right - arena.left, 4288);
+  assert.equal(arena.spawn[1] - arena.spawn[0], 346);
+
+  const settings = trainingOn(arena);
+  const state = begin(settings);
+  const [left, right] = state.fighters;
+  const outward = [input([], -1), input([], 1)];
+  stepFor(state, 16, outward, settings);
+  assert.ok(left.x < arena.spawn[0] && right.x > arena.spawn[1]);
+
+  const jumps = step(state, [input(['jump'], -1), input(['jump'], 1)], settings);
+  assert.deepEqual(jumps.map(event => event.kind), ['jump', 'jump']);
+  assert.ok(state.fighters.every(fighter => fighter.ground === null && fighter.y < arena.floor));
+  const landings = stepFor(state, 60, outward, settings).filter(event => event.kind === 'land');
+  assert.deepEqual(landings.map(event => event.source), [0, 1]);
+  assert.ok(state.fighters.every(fighter => fighter.ground === 'floor' && fighter.y === arena.floor));
+
+  const downJump = input(['jump'], 0, 1);
+  assert.deepEqual(step(state, [downJump, downJump], settings), []);
+  assert.ok(state.fighters.every(fighter =>
+    fighter.ground === 'floor' && fighter.y === arena.floor && fighter.ignorePlatform === null));
+});
+
+test('the broadcast CPU chases and hits an opponent at either end of the floor', () => {
+  const arena = arenas.find(arena => arena.id === 'broadcast-ring');
+  const settings = trainingOn(arena);
+  for (const edge of [arena.left, arena.right]) {
+    const state = begin(settings);
+    const [player, cpu] = state.fighters;
+    player.x = edge;
+    let hit = false;
+    for (let frame = 0; frame < 240 && !hit; frame++) {
+      const events = step(state, [NEUTRAL, cpuInput(state, settings)], settings);
+      assert.equal(cpu.ground, 'floor');
+      hit = events.some(event => event.kind === 'hit' && event.source === 1);
+    }
+    assert.ok(hit, 'CPU should reach the opponent at x=' + edge);
+  }
+});
+
+test('the computer can approach an opponent occupying either upper route on maps with platforms', () => {
+  for (const arena of platformArenas) {
     const settings = trainingOn(arena);
     const goals = new Set(arena.routes.map(route => route.at(-1)));
     if (arena.id === 'harbor') goals.add('crane');

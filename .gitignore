@@ -1,6 +1,11 @@
 node_modules/
 dist/
+site/
 .DS_Store
 .codex-attachments/
 .playwright-cli/
 output/playwright/
+output/角色试玩版/
+output/art-unification/
+
+output/奶娃制作/推荐特效/*.rgba

@@ -1,7 +1,7 @@
 import banana from '../../assets/fighters/banana-knockdown.webp';
 import bananaJo from '../../assets/fighters/banana-jo-combat.webp';
 import gaga from '../../assets/fighters/gaga-knockdown.webp';
-import { RISE_FRAMES, type FighterState } from '../core/types.js';
+import type { FighterState } from '../core/types.js';
 import { drawPixelEffect } from './pixelfx.js';
 
 function load(src: string) {
@@ -15,22 +15,23 @@ const sheets: Partial<Record<string, HTMLImageElement>> = {
   bananaJo: load(bananaJo),
   gaga: load(gaga)
 };
-const tile = { width: 320, height: 280, anchorX: 160, anchorY: 260 };
+const tile = { width: 320, height: 280, anchorX: 160, anchorY: 260, ref: 210 };
+const gagaTile = { width: 512, height: 448, anchorX: 256, anchorY: 416, ref: 385 };
 const joTile = { width: 384, height: 352, anchorX: 176, anchorY: 334 };
 
-export function knockdownPose(id: string, fighter: FighterState) {
-  const { recovery, facing, vy } = fighter;
+export function knockdownPose(id: string, fighter: FighterState, riseProgress: number) {
+  const { recovery, facing, ground, hp, vy } = fighter;
   const isJo = id === 'banana' && Boolean(fighter.joAwakened) && Boolean(sheets.bananaJo?.naturalWidth);
   const image = isJo ? sheets.bananaJo : sheets[id];
-  if (!recovery || !image?.naturalWidth) return;
-  const index = recovery.phase === 'fall' ? 0 : recovery.phase === 'down' ? 1
-    : recovery.remaining > RISE_FRAMES / 2 ? 2 : 3;
-  return { image, index, isJo, facing: recovery.facing ?? facing, tilt: index === 0 ? vy * .009 : 0 };
+  if ((!recovery && hp) || !image?.naturalWidth) return;
+  const phase = recovery?.phase ?? (ground ? 'down' : 'fall');
+  const index = phase === 'fall' ? 0 : phase === 'down' ? 1 : riseProgress < .5 ? 2 : 3;
+  return { id, image, index, isJo, facing: recovery?.facing ?? facing, tilt: index === 0 ? vy * .009 : 0 };
 }
 
 export function drawKnockdownPose(ctx: CanvasRenderingContext2D, pose: NonNullable<ReturnType<typeof knockdownPose>>,
   height: number, reducedMotion: boolean) {
-  const { image, index, isJo, tilt } = pose;
+  const { id, image, index, isJo, tilt } = pose;
   if (isJo) {
     const scale = .5;
     const cell = index <= 1 ? 7 : 6;
@@ -50,8 +51,8 @@ export function drawKnockdownPose(ctx: CanvasRenderingContext2D, pose: NonNullab
     ctx.restore();
     return;
   }
-  const { width, height: tileHeight, anchorX, anchorY } = tile;
-  const scale = height / 210;
+  const { width, height: tileHeight, anchorX, anchorY, ref } = id === 'gaga' ? gagaTile : tile;
+  const scale = height / ref;
   if (index === 0 && !reducedMotion) {
     ctx.translate(0, -height * .32);
     ctx.rotate(Math.max(-.16, Math.min(.18, tilt)));

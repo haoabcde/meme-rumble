@@ -129,3 +129,25 @@
 > Create an original richly detailed 16:9 1280x720 orthographic 2D indie fighting-game stage '星电站', handsomely hand-painted purple and blue futuristic power plant with cyan accents, slight pixel edging around industrial architecture. Image 1 is the invariant gameplay geometry layout, image 2 is purely atmosphere. Most of upper half is open night sky, violet empty air for combat; left and right coil generators with muted distant top caps stand on large industrial steel support frames. At y71% two actual low maintenance perimeter work decks spanning x13–38% and x62–87%, attached to generator side machinery. At y59% two inward-facing inspection gangways, approximately x27–46% and x54–73% but with a clean gap between, supported by the two generator assemblies, central gap visually readable. At y53% two outward high control bays, left x18–34% right x66–82%, NOT a central high bar, mounted to and visibly braced by columns and giant machinery. Upper route is split and fighters return through the lower inner route. Use the six actual flat clear WALKABLE FRONT TOP LIPS with the approximate proportions and heights of the drawing: low cyan, middle warm cream, highest soft magenta, all secondary nonplayable geometry darker and higher in back. Add richly illustrated cable conduits and emergency power strips to the support structures, an inviting open ground along y82% separated from the background, and a narrow row of floor light. Every lip physically belongs to the station; realistic mechanical continuity. No floating bars without supports, isometric/diagonal ledges, lighting animation overlays, text, icons, characters, UI, watermark, extra competing bright lines. Make the stage readable at a small display size.
 
 </details>
+
+## 漫画公共界面与直播擂台
+
+本轮使用用户提供的漫画 VS 图与霓虹直播场景作为风格参考，内置 ImageGen 生成原创素材，PNG 保留源图，WebP 用于离线构建。原有角色素材未改动。
+
+| 素材 | 规格与用途 |
+|---|---|
+| [漫画纸张底图](ui/comic-paper.webp) | 1672×941，紫红网点、黑白剪纸斜切、明黄爆炸形。标题、模式和 VS 共用；文字及按钮仍为可操作 DOM。 |
+| [直播馆远景](arenas/broadcast-bg.webp) | 1672×941，紫色钢架、青粉观众与主持屏。中央保持原比例，两翼从边缘延伸，避免把远景按整张世界宽度放大。 |
+| [直播建筑图集](arenas/broadcast-kit.webp) | 1536×1024 透明图，2列×3行：看台台阶、观众席、转播间、灯桥、LED 屏、升降台。台沿与实际碰撞同坐标。 |
+
+设计参考阅读了 [P5 游戏内菜单赏析](https://www.vgover.com/zh-tw/news/12008)、[探索与战斗界面赏析](https://game.3loumao.org/95536035) 及 [MIT 开源菜单](https://github.com/Hunkak03/persona5-web)。学习层级、轮廓与交互反馈，未拷贝原作素材或项目代码。游戏运行不依赖这些外站。
+
+## 单层直播擂台与角色合并
+
+直播擂台以[单层场馆v2](arenas/broadcast-flat-bg-v2.webp)取代实机中原来的18个可站立道具。1672×941，源图接触线为y=830，中央主持屏固定绘制一次，两翼按同侧片段交替镜像延展。地面和背景为一张连贯绘画，保留4480宽世界，其他四图不变。旧广播图集保留作为历史源资产，当前单层图不使用其中的平台。
+
+大肥鱼、奶蛙、香蕉猫和姑姑嘎嘎的最新动作、语音与专属特效来自队友分支，具体素材及授权见各角色说明与已合入的来源记录；角色设计不在本轮重新制作。嘎嘎动作音效由 `assets/audio/gaga/SOURCES.md` 记录，公共 PixelFX 精灵保留其 MIT 许可证，许可证注释随离线HTML分发。
+
+## 高清手绘人物 · 2026-11-24
+
+用户追加授权后，四位角色保留队友的身份、动作意图和技能设计，使用内置 ImageGen 实际重绘人物。源图、原始生成批次、透明运行图和配准清单位于 `fighters/unified-handdrawn-v1/`。新图与原资产并存，具体路径和当前奶蛙修订状态见[素材说明](fighters/unified-handdrawn-v1/README.md)及[制作记录](../docs/角色画风统一进度.md)。单独的泪水、法阵、炮台等道具和特效沿用原资产；不把人物的重绘扩大为技能重新设计。

@@ -3,8 +3,9 @@ import { arenas } from '../content/arenas.js';
 import { bananaWaveTitle } from '../content/fighters/banana.js';
 import { roster } from '../content/roster.js';
 import { actionFor, createMatch, step } from '../core/match.js';
+import { frogPowered } from '../core/frog-kit.js';
 import { ENERGY_PER_STOCK, MAX_ENERGY, MAX_TEARS, NEUTRAL, TEAR_UNITS_PER_POINT, type ActionKey, type Axis, type Duo, type FighterDefinition, type InputFrame, type MatchConfig, type RoundResult, type Stick } from '../core/types.js';
-import { arcadeArt, arenaArt, fighterArt } from './art.js';
+import { arcadeArt, comicArt, arenaArt, fighterArt } from './art.js';
 import { FightAudio, type SampleVoice } from './audio.js';
 import { cpuInput } from './cpu.js';
 import { tierAt } from '../core/terrain.js';
@@ -12,6 +13,8 @@ import { entranceFor, openingFrame, openingTicks, previewArena, recoveryLabels, 
 import { bindingMap, installSettings, keyHint, loadPreferences, renderGuide, type Control, type Seat } from './settings.js';
 import { Tempo, shotFading, type Cinematic, type FeatureShot } from './cinematics.js';
 import { gagaVictory } from './gaga-cinematics.js';
+
+declare const __FIGHTER_AUDIO__: Record<string, string>;
 
 function element<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
@@ -115,7 +118,7 @@ let trainingDownHeld = false;
 let mode: Mode = 'local';
 let screen: Screen = 'title';
 let activeSeat: Seat = 0;
-let arenaIndex = Math.max(0, arenas.findIndex(arena => arena.id === 'harbor'));
+let arenaIndex = Math.max(0, arenas.findIndex(arena => arena.id === 'broadcast-ring'));
 let routeVisible = true;
 let debug = false;
 let bestTier = 0;
@@ -131,17 +134,22 @@ let windowFit = false;
 const settings = installSettings(preferences, () => {
   clearInputs();
   bindings = bindingMap(preferences);
-  audio.volume = preferences.volume / 100;
+  audio.volume = new URLSearchParams(location.search).has('silent') ? 0 : preferences.volume / 100;
+  audio.sfxVolume = preferences.sfxVolume / 100;
+  audio.voiceVolume = preferences.voiceVolume / 100;
   audio.enableFromGesture();
   renderGuide(preferences);
   if (screen === 'roster') renderRoster();
   footer();
 });
-audio.volume = preferences.volume / 100;
+audio.volume = new URLSearchParams(location.search).has('silent') ? 0 : preferences.volume / 100;
+audio.sfxVolume = preferences.sfxVolume / 100;
+audio.voiceVolume = preferences.voiceVolume / 100;
 renderGuide(preferences);
 
 stage.style.setProperty('--arcade-art', 'url("' + arcadeArt + '")');
-element<HTMLImageElement>('menu-backdrop').src = arenaArt.station;
+stage.style.setProperty('--comic-art', 'url("' + comicArt + '")');
+element<HTMLImageElement>('menu-backdrop').src = arenaArt.broadcast;
 element<HTMLImageElement>('menu-feature').src = fighterArt.gaga;
 
 const tiles = roster.map((entry, index) => {
@@ -198,6 +206,13 @@ function seatName(seat: Seat) {
 }
 
 function trainingSkillHints(fighter: FighterDefinition) {
+  if(fighter.id==='whale')return whaleInputHints(0);
+  if(fighter.id==='frog')return frogInputHints(0);
+  if (fighter.id === 'gaga') return keyHint(preferences, 0, ['A']) + ' 五段连击 · ' +
+    keyHint(preferences, 0, ['C']) + ' 炮台 · ' + keyHint(preferences, 0, ['ULT']) + ' 帝江';
+  if (fighter.id === 'banana') return keyHint(preferences, 0, ['A']) + ' 四段连击 · ' +
+    keyHint(preferences, 0, ['B']) + ' 喷泪 · 按住' + keyHint(preferences, 0, ['C']) + ' 回泪 · ' +
+    keyHint(preferences, 0, ['ULT']) + ' 泪海';
   const hints: string[] = [];
   if (acceptsSkillInput(fighter, 'ULT')) hints.push(keyHint(preferences, 0, ['ULT']) + ' 大招');
   if (fighter.guardCounter) hints.push(keyHint(preferences, 0, ['down']) + ' 精准防反');
@@ -211,6 +226,14 @@ function trainingSkillHints(fighter: FighterDefinition) {
     hints.push(keys.join(' + ') + ' 防反架势');
   }
   return hints.join(' · ');
+}
+
+function frogInputHints(seat:Seat){
+ return keyHint(preferences,seat,['A'])+' 五段拳脚 · '+keyHint(preferences,seat,['B'])+' 捧腹 · '+keyHint(preferences,seat,['up','B'],'＋')+' 全图冲击 · 按住'+keyHint(preferences,seat,['C'])+' 下蹲绕背 · '+keyHint(preferences,seat,['up','C'],'＋')+' 脚下钻出 · '+keyHint(preferences,seat,['ULT'])+' 天使变身';
+}
+
+function whaleInputHints(seat:Seat){
+  return keyHint(preferences,seat,['A'])+' 三段尾击 · '+keyHint(preferences,seat,['B'])+' 米饭 · '+keyHint(preferences,seat,['C'])+' 旋风 · '+keyHint(preferences,seat,['ULT'])+' 开源！';
 }
 
 function footer() {
@@ -230,9 +253,11 @@ function footer() {
     : screen === 'title' ? confirmKey + ' 进入游戏'
     : screen === 'result' || screen === 'pause' ? upDown + ' 选择 · ' + confirmKey + ' 确认 · Esc 返回'
     : skills ? 'P1 ' + skills
+    : fighting && config.fighters[0].id==='frog' ? 'P1 '+frogInputHints(0)+(mode==='local'&&config.fighters[1].id==='frog'?'　P2 '+frogInputHints(1):'')
+    : fighting && config.fighters[0].id==='whale' ? 'P1 '+whaleInputHints(0)+(mode==='local'&&config.fighters[1].id==='whale'?'　P2 '+whaleInputHints(1):'')
     : fighting ? 'P1 ' + keyHint(preferences, 0, ['A']) + ' 普攻 · ' +
         keyHint(preferences, 0, ['up', 'A'], ' + ') + ' 挑空' +
-        (mode === 'local' ? '　　P2 ' + keyHint(preferences, 1, ['up', 'A'], ' + ') + ' 挑空'
+        (mode === 'local' ? (config.fighters[1].id==='whale'?'　P2 '+whaleInputHints(1):'　　P2 ' + keyHint(preferences, 1, ['up', 'A'], ' + ') + ' 挑空')
           : ' · ' + keyHint(preferences, 0, ['dash']) + ' 空中冲刺')
     : 'Esc 返回';
   text(element('footer-detail'), hints);
@@ -266,6 +291,8 @@ function renderPreparationNav() {
 }
 
 function show(next: Screen) {
+  if (next === 'match' || next === 'pause') audio.setPaused(next === 'pause');
+  else audio.stopAll();
   clearInputs();
   window.clearTimeout(toastTimer);
   element('ui-notice').hidden = true;
@@ -325,7 +352,7 @@ function renderRoster() {
     text(panels[seat].querySelector('h3')!, entry.fighter.name);
     const enabledSlots = (['B', 'C'] as const).filter(slot => acceptsSkillInput(entry.fighter, slot));
     const skills = enabledSlots.length ? ['可用专属槽 · ' + enabledSlots.join(' / ')] : [];
-    if (entry.fighter.guardCounter) skills.push('精准防反');
+    if (entry.fighter.guardCounter) skills.push(entry.fighter.guardCounter.whileGuarding?'铁盆防反':'精准防反');
     if (acceptsSkillInput(entry.fighter, 'ULT')) {
       const cost = entry.fighter.ultimateCost ?? 0;
       skills.push('大招 ' + keyHint(preferences, seat, ['ULT']) + (cost ? ' · 消耗 ' + cost : ' · 无消耗'));
@@ -375,7 +402,9 @@ function selectArena(index: number) {
   text(element('map-name'), arena.name);
   const screens = ((arena.right - arena.left) / canvas.width).toFixed(1);
   const tiers = new Set(arena.platforms.map(platform => platform.tier)).size;
-  text(element('map-count'), tiers ? screens + ' 屏宽 · ' + tiers + ' 层 · ' + arena.platforms.length + ' 处平台' : '单层地面擂台');
+  const hasRoutes = arena.routes.some(route => route.length > 0);
+  text(element('map-count'), screens + ' 屏宽 · ' + (arena.platforms.length
+    ? tiers + ' 层 · ' + arena.platforms.length + ' 处平台' : '单层地面'));
   text(element('start'), mode === 'training' ? '进入训练 ›' : '开始对战 ›');
   text(element('map-description'), arena.description);
   const routeLine = element('map-route');
@@ -383,14 +412,16 @@ function selectArena(index: number) {
     const routeNames = arena.routes[side].map(id => arena.platforms.find(platform => platform.id === id)!.name);
     text(element('map-route-' + suffix), routeNames.join(' → '));
   }
-  routeToggle.hidden = !tiers;
-  routeLine.hidden = !tiers || !routeVisible;
+  routeLine.hidden = !hasRoutes || !routeVisible;
+  routeToggle.hidden = !hasRoutes;
   routeToggle.setAttribute('aria-pressed', String(routeVisible));
-  previewArena(mapCanvas, arena, Boolean(tiers) && routeVisible);
+  previewArena(mapCanvas, arena, hasRoutes && routeVisible);
 }
 
 function configureMatch(immediate: boolean) {
   finishFeature();
+  config.randomSeed = crypto.getRandomValues(new Uint32Array(1))[0] || 1;
+  audio.configure([roster[selected[0]].audio, roster[selected[1]].audio], __FIGHTER_AUDIO__);
   config.arena = arenas[arenaIndex];
   stage.dataset.mode = mode;
   stage.dataset.arena = config.arena.id;
@@ -505,7 +536,7 @@ function advanceFeature() {
   const run = feature!;
   const { frame } = run.shot;
   for (const { at, sound } of run.cinematic.cues ?? []) {
-    if (at === frame) audio.play([{ kind: sound, source: run.seat, x: 0, y: 0 }], config.fighters);
+    if (at === frame) audio.update(config, state, [{ kind: sound, source: run.seat, x: 0, y: 0 }]);
   }
   const beat = run.shot.tempo.hear(run.voice?.level(), frame);
   if (beat && run.cinematic.sound && !run.voice) audio.call(run.shot.tempo.count);
@@ -739,7 +770,7 @@ window.addEventListener('keydown', event => {
 window.addEventListener('keyup', event => held.delete(event.code));
 canvas.addEventListener('blur', clearInputs);
 canvas.addEventListener('click', () => { audio.enableFromGesture(); finishFeature(); });
-window.addEventListener('pointerdown', () => audio.enableFromGesture());
+canvas.addEventListener('pointerdown', () => audio.enableFromGesture());
 function pauseOnHide() {
   if (screen === 'match') pauseMatch();
   else clearInputs();
@@ -783,6 +814,7 @@ function trainingState(seat: Seat) {
   if (recovery) {
     return recoveryLabels[recovery.phase] + (recovery.phase === 'fall' ? '' : ' · ' + recovery.remaining + ' 帧');
   }
+  if (fighter.launched) return '击飞 · 等待落地';
   if (fighter.guardBreak) return '破防 · ' + fighter.guardBreak + ' 帧';
   if (fighter.hitstun) return '受击 · ' + fighter.hitstun + ' 帧';
   if (fighter.blockstun) return '格挡 · ' + fighter.blockstun + ' 帧';
@@ -798,6 +830,7 @@ function trainingState(seat: Seat) {
     return (action.name ?? action.id) + ' · ' + phase;
   }
   if (fighter.dash) return '冲刺';
+  if(fighter.guarding&&config.fighters[seat].guardCounter?.whileGuarding)return '铁盆防御 · 受击触发防反';
   if (fighter.guarding && fighter.guardCounterLeft) return '防反窗口 · ' + fighter.guardCounterLeft + ' 帧';
   if (fighter.guarding) return '防御';
   if (fighter.ground) return '地面可操作';
@@ -818,7 +851,9 @@ function renderHUD() {
     setMeter(healthBars[seat], fighter.hp, config.fighters[seat].maxHp);
     const life = lifeDisplay[seat] ?? { hp: fighter.hp, trail: fighter.hp, holdUntil: 0, frame: state.frame };
     if (fighter.hp > life.hp) life.trail = fighter.hp;
-    if (fighter.hp < life.hp || fighter.hitstun || fighter.recovery) life.holdUntil = state.frame + 18;
+    if (fighter.hp < life.hp || (state.phase === 'fight' && (fighter.hitstun || fighter.recovery))) {
+      life.holdUntil = state.frame + 18;
+    }
     if (state.frame > life.holdUntil) {
       life.trail = Math.max(fighter.hp, life.trail - config.fighters[seat].maxHp * .012 * Math.max(0, state.frame - life.frame));
     }
@@ -848,8 +883,8 @@ function renderHUD() {
       const stocks = Math.floor(energy / ENERGY_PER_STOCK);
       energyRows[seat].dataset.stocks = String(stocks);
       if (energyRows[seat].dataset.ready !== String(ready)) energyRows[seat].dataset.ready = String(ready);
-      text(energyLabels[seat], String(stocks));
-      energyBars[seat].parentElement!.setAttribute('aria-valuetext', '技能能量 ' + energy + ' / ' + MAX_ENERGY);
+      text(energyLabels[seat], frogPowered(fighter,state)?'强化 '+(((fighter.ascendUntil??0)-state.arenaFrame)/60).toFixed(1)+'s':String(stocks));
+      energyBars[seat].parentElement!.setAttribute('aria-valuetext', frogPowered(fighter,state)?'强化剩余 '+(((fighter.ascendUntil??0)-state.arenaFrame)/60).toFixed(1)+' 秒':'技能能量 ' + Math.floor(energy) + ' / ' + MAX_ENERGY);
     }
     const recent = lastChains[seat];
     const hits = state.fighters[seat === 0 ? 1 : 0].combo ||
@@ -942,18 +977,18 @@ function tick(player: InputFrame) {
   if (previous === 'fight' && state.phase === 'round-over' && state.result) {
     roundHistory.push({ ...state.result, round: state.round });
   }
-  renderer.add(events, config.fighters);
-  audio.play(events, config.fighters);
-  // An entrance plays inside the countdown, so its sounds are fired by frame rather than by the simulation.
+  renderer.add(events, state.arenaFrame, config.fighters);
+  const openingEvents = [...events];
   const entrance = reducedMotion.matches ? -1 : openingFrame(state, config.fighters);
   if (entrance >= 0) {
     for (const seat of seats) {
       const fighter = state.fighters[seat];
       for (const { at, sound } of entranceFor(config.fighters[seat])?.cues ?? []) {
-        if (at === entrance) audio.play([{ ...sound, source: seat, x: fighter.x, y: fighter.y }], config.fighters);
+        if (at === entrance) openingEvents.push({ ...sound, source: seat, x: fighter.x, y: fighter.y });
       }
     }
   }
+  audio.update(config, state, openingEvents);
 }
 
 function draw(elapsed: number) {
@@ -963,7 +998,8 @@ function draw(elapsed: number) {
   const opening = state.phase === 'ready' && !config.training && !reducedMotion.matches
     ? Math.max(0, Math.min(1, (state.phaseTicks - 18) / 74)) : 0;
   renderer.draw(config, state, debug, elapsed, preferences.shake && !reducedMotion.matches,
-    preferences.camera === 'focus' && !reducedMotion.matches, reducedMotion.matches, opening, shot);
+    preferences.camera === 'focus' && !reducedMotion.matches, reducedMotion.matches, opening,
+    debt / (1000 / rules.ticksPerSecond), shot);
 }
 
 function frame(now: number) {
