@@ -89,6 +89,33 @@ test('counter emits exactly eight equally spaced rice rays with mirrored authore
   for(let i=0;i<30;i++){t.tick();step(replay,[NEUTRAL,NEUTRAL],t.config);assert.deepEqual(t.state,replay);}
  }
 });
+test('basin punishes a frontal hit with damaging knockback but a cross-up hits through held guard', () => {
+ for (const seat of [0, 1]) {
+  for (const behind of [false, true]) {
+   const t = setup(seat, 95);
+   const guard = input([], 0, 1);
+   const inputs = seat === 0 ? [guard, NEUTRAL] : [NEUTRAL, guard];
+   t.run(10, ...inputs);
+   const facing = t.caster.facing;
+   t.target.x = t.caster.x + 85 * facing * (behind ? -1 : 1);
+   t.target.facing = behind ? facing : -facing;
+   t.target.attack = { id: 'test-a', frame: 4, connected: false, landed: false };
+   const events = t.tick(...inputs);
+   assert.equal(events.some(e => e.kind === 'parry'), !behind);
+   if (behind) {
+    assert.ok(t.caster.hp < whale.fighter.maxHp);
+    assert.ok(!events.some(e => e.kind === 'block'));
+    assert.ok(!t.run(24, ...inputs).some(e => e.actionId === 'whale-counter'));
+   } else {
+    const x = t.target.x;
+    const follow = t.run(12, ...inputs);
+    assert.ok(follow.some(e => e.kind === 'hit' && e.source === seat && e.amount === 20));
+    assert.ok((t.target.x - x) * facing > 0);
+   }
+  }
+ }
+});
+
 test('remote projectiles also trigger the shared guard counter without consuming rice randomness',()=>{
  for(const source of [0,1]){
   const t=setup(source,240),enemy=1-source;
