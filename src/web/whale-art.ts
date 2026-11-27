@@ -1,11 +1,11 @@
 import type {FighterAction,FighterState,MatchConfig,MatchState} from '../core/types.js';
 import {motionArt} from './art.js';
-import locomotionV25 from '../../assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png';
+import locomotionV25 from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/大肥鱼_步态起落.webp';
 import {registerLocomotion,setActorMotion,drawActorMotion} from './actor-motion.mjs';
 import {whaleTailPose} from './whale-tail-cleanup.mjs';
 import {createUnifiedTornadoRenderer} from '../../assets/角色/防御/大肥鱼/蓝色龙卷风/旋风鲸影_统一渲染_V8.mjs';
 import {createUltimateRenderer} from './whale-ultimate.mjs';
-import portrait from '../../assets/角色/大招/大肥鱼/开源/演出分层/梁文峰_宽肩修订_V4.png';
+import portrait from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/梁文峰_大招演出.webp';
 import {createWaterRenderer} from './whale-water.mjs';
 import {waterSubframe} from './whale-presentation.mjs';
 import {WHALE_RULES,cinematicOwner} from '../core/whale-kit.js';
@@ -47,16 +47,17 @@ export function whaleCell(f:FighterState,state:MatchState,seat:0|1,action?:Fight
 }
 export function drawWhaleActor(ctx:CanvasRenderingContext2D,f:FighterState,state:MatchState,seat:0|1,action?:FighterAction,actions:readonly FighterAction[]=[]){
  const sheet=motionArt.whale;if(!sheet?.naturalWidth)return;
+ const sourceCell=sheet.naturalWidth/4;
  setActorMotion('whale',{sheet});
  if(state.phase==='fight'&&drawActorMotion(ctx,'whale',f,state,action,actions))return;
  let cell=whaleCell(f,state,seat,action);
  if(action&&'whale' in action&&(action.whale==='spin'||action.whale==='counter')){
   const age=f.attack?.frame??0;if(age<(action.whale==='counter'?20:12))return;
  }
- if(f.dashActive){ctx.save();ctx.globalAlpha*=.15;for(const x of [-30,-60])ctx.drawImage(sheet,51%4*216,Math.floor(51/4)*216,216,216,x-108,-184,216,216);ctx.restore();}
+ if(f.dashActive){ctx.save();ctx.globalAlpha*=.15;for(const x of [-30,-60])ctx.drawImage(sheet,51%4*sourceCell,Math.floor(51/4)*sourceCell,sourceCell,sourceCell,x-108,-184,216,216);ctx.restore();}
  const cleaned=whaleTailPose(sheet,cell);
- if(cleaned)ctx.drawImage(cleaned,-108,-184);else ctx.drawImage(sheet,cell%4*216,Math.floor(cell/4)*216,216,216,-108,-184,216,216);
- if(action&&'whale' in action&&action.whale==='spin-up'&&f.attack){const age=f.attack.frame,blend=age<6?age/6:age<14?1:Math.max(0,(22-age)/8);ctx.save();ctx.globalAlpha*=1-blend;ctx.drawImage(sheet,77%4*216,Math.floor(77/4)*216,216,216,-108,-184,216,216);ctx.restore();}
+ if(cleaned)ctx.drawImage(cleaned,-108,-184);else ctx.drawImage(sheet,cell%4*sourceCell,Math.floor(cell/4)*sourceCell,sourceCell,sourceCell,-108,-184,216,216);
+ if(action&&'whale' in action&&action.whale==='spin-up'&&f.attack){const age=f.attack.frame,blend=age<6?age/6:age<14?1:Math.max(0,(22-age)/8);ctx.save();ctx.globalAlpha*=1-blend;ctx.drawImage(sheet,77%4*sourceCell,Math.floor(77/4)*sourceCell,sourceCell,sourceCell,-108,-184,216,216);ctx.restore();}
 }
 // Cache the inked silhouette once for all eight projectiles.
 let riceArt: HTMLCanvasElement | undefined;

@@ -112,13 +112,19 @@ function walk(b,s,kind){
  const phase=((s.phase%8)+8)%8,i=Math.floor(phase),t=phase-i,stride=kind==='frog'?126:74;
  return{a:b.loco[i+1],b:b.loco[(i+1)%8+1],t,foot:128+walkFootX(phase,stride)};
 }
+export function whaleAnimationCell(action,frame){
+ const keys=action.animation??[];
+ for(let i=keys.length-1;i>=0;i--)if(frame>=keys[i].frame)return keys[i].cell;
+ return 77;
+}
 function attack(b,kind,s,actions){
  const action=actions.find(a=>a.id===s.attackId);if(!action)return still(b.loco[0]);
  const frame=s.attackFrame??0;
  if(kind==='whale'){
-  const keys=action.animation??[],end=action.startup+action.active+action.recovery;
-  for(let i=keys.length-1;i>=0;i--)if(frame>=keys[i].frame){const next=keys[i+1];return{a:oldPose(b,kind,keys[i].cell),b:oldPose(b,kind,next?.cell??77),intact:s.attackId==='common-finish'&&frame>=12,t:next?(frame-keys[i].frame)/(next.frame-keys[i].frame):clamp((frame-keys[i].frame)/(end-keys[i].frame))};}
-  return still(oldPose(b,kind,77));
+  // The atlas already registers the feet and draws the real tail. Row-by-row
+  // morphing was resizing the face, skirt and torso whenever the tail moved.
+  const cell=whaleAnimationCell(action,frame);
+  return still(oldPose(b,kind,cell));
  }
  const stage=['common-jab','common-sweep','frog-left-kick','frog-ha','common-finish'].indexOf(s.attackId),cell=stage<0?3:stage+1;
  const hit=oldPose(b,kind,cell,cell===5?100:130),idle=oldPose(b,kind,0);
@@ -155,7 +161,7 @@ export function drawActorMotion(g,kind,f,state,action,actions){
  let p=plan(b,kind,s,actions),im=renderPlan(p,kind);if(!im)return false;
  const age=state.arenaFrame-v.changed;
  if(s.mode==='idle'&&age>=8&&state.arenaFrame-v.turnTick>=6)return false;
- if(v.from&&age<3&&!['hurt','land'].includes(s.mode)&&!v.from.mode.includes('special')&&v.from.mode!=='guard'){
+ if(v.from&&age<3&&!(kind==='whale'&&(s.mode.startsWith('attack:')||v.from.mode.startsWith('attack:')))&&!['hurt','land'].includes(s.mode)&&!v.from.mode.includes('special')&&v.from.mode!=='guard'){
   const from=renderPlan(plan(b,kind,v.from,actions),kind);if(from)im=tween(descriptorCached(from),descriptorCached(im),ease((age+1)/3),undefined,kind==='frog');
  }
  const turn=state.arenaFrame-v.turnTick;

@@ -1,0 +1,1902 @@
+{
+  "poses": 158,
+  "sources": 11,
+  "coverage": [
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 0,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_00-15.png",
+      "sourceBBox": [
+        32,
+        43,
+        144,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 1,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_00-15.png",
+      "sourceBBox": [
+        32,
+        43,
+        144,
+        185
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 2,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_00-15.png",
+      "sourceBBox": [
+        53,
+        47,
+        159,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 3,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_00-15.png",
+      "sourceBBox": [
+        51,
+        34,
+        153,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 4,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_00-15.png",
+      "sourceBBox": [
+        42,
+        40,
+        147,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 5,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_00-15.png",
+      "sourceBBox": [
+        62,
+        46,
+        208,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 6,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_00-15.png",
+      "sourceBBox": [
+        49,
+        47,
+        203,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 7,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_00-15.png",
+      "sourceBBox": [
+        68,
+        43,
+        202,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 8,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_00-15.png",
+      "sourceBBox": [
+        68,
+        43,
+        202,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 9,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_00-15.png",
+      "sourceBBox": [
+        62,
+        46,
+        208,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 10,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_00-15.png",
+      "sourceBBox": [
+        53,
+        67,
+        173,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 11,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_00-15.png",
+      "sourceBBox": [
+        47,
+        40,
+        154,
+        185
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 12,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_00-15.png",
+      "sourceBBox": [
+        42,
+        40,
+        147,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 13,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_00-15.png",
+      "sourceBBox": [
+        38,
+        44,
+        149,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 14,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_00-15.png",
+      "sourceBBox": [
+        58,
+        42,
+        170,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 15,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_00-15.png",
+      "sourceBBox": [
+        70,
+        42,
+        197,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 16,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_16-31.png",
+      "sourceBBox": [
+        62,
+        46,
+        208,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 17,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_16-31.png",
+      "sourceBBox": [
+        66,
+        46,
+        205,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 18,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_16-31.png",
+      "sourceBBox": [
+        43,
+        47,
+        176,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 19,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_16-31.png",
+      "sourceBBox": [
+        41,
+        46,
+        147,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 20,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_16-31.png",
+      "sourceBBox": [
+        43,
+        40,
+        148,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 21,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_16-31.png",
+      "sourceBBox": [
+        42,
+        44,
+        154,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 22,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_16-31.png",
+      "sourceBBox": [
+        41,
+        50,
+        153,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 23,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_16-31.png",
+      "sourceBBox": [
+        38,
+        45,
+        167,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 24,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_16-31.png",
+      "sourceBBox": [
+        49,
+        47,
+        203,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 25,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_16-31.png",
+      "sourceBBox": [
+        29,
+        46,
+        153,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 26,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_16-31.png",
+      "sourceBBox": [
+        27,
+        45,
+        152,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 27,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_16-31.png",
+      "sourceBBox": [
+        42,
+        44,
+        148,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 28,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_16-31.png",
+      "sourceBBox": [
+        43,
+        40,
+        149,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 29,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_16-31.png",
+      "sourceBBox": [
+        42,
+        58,
+        147,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 30,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_16-31.png",
+      "sourceBBox": [
+        52,
+        63,
+        174,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 31,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_16-31.png",
+      "sourceBBox": [
+        51,
+        45,
+        186,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 32,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_32-47.png",
+      "sourceBBox": [
+        68,
+        43,
+        202,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 33,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_32-47.png",
+      "sourceBBox": [
+        71,
+        25,
+        204,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 34,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_32-47.png",
+      "sourceBBox": [
+        37,
+        45,
+        187,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 35,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_32-47.png",
+      "sourceBBox": [
+        44,
+        45,
+        148,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 36,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_32-47.png",
+      "sourceBBox": [
+        48,
+        40,
+        151,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 37,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_32-47.png",
+      "sourceBBox": [
+        48,
+        40,
+        150,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 38,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_32-47.png",
+      "sourceBBox": [
+        47,
+        40,
+        151,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 39,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_32-47.png",
+      "sourceBBox": [
+        32,
+        43,
+        144,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 40,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_32-47.png",
+      "sourceBBox": [
+        46,
+        43,
+        155,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 41,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_32-47.png",
+      "sourceBBox": [
+        32,
+        43,
+        144,
+        185
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 42,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_32-47.png",
+      "sourceBBox": [
+        46,
+        43,
+        156,
+        185
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 43,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_32-47.png",
+      "sourceBBox": [
+        41,
+        47,
+        162,
+        185
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 44,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_32-47.png",
+      "sourceBBox": [
+        56,
+        50,
+        165,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 45,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_32-47.png",
+      "sourceBBox": [
+        49,
+        44,
+        157,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 46,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_32-47.png",
+      "sourceBBox": [
+        53,
+        47,
+        159,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 47,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_32-47.png",
+      "sourceBBox": [
+        49,
+        40,
+        158,
+        185
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 48,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_48-63.png",
+      "sourceBBox": [
+        41,
+        55,
+        153,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 49,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_48-63.png",
+      "sourceBBox": [
+        49,
+        46,
+        164,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 50,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_48-63.png",
+      "sourceBBox": [
+        46,
+        48,
+        156,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 51,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_48-63.png",
+      "sourceBBox": [
+        51,
+        51,
+        174,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 52,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_48-63.png",
+      "sourceBBox": [
+        47,
+        40,
+        154,
+        185
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 53,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_48-63.png",
+      "sourceBBox": [
+        39,
+        47,
+        150,
+        185
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 54,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_48-63.png",
+      "sourceBBox": [
+        46,
+        53,
+        156,
+        185
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 55,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_48-63.png",
+      "sourceBBox": [
+        39,
+        87,
+        166,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 56,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_48-63.png",
+      "sourceBBox": [
+        30,
+        103,
+        166,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 57,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_48-63.png",
+      "sourceBBox": [
+        53,
+        67,
+        173,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 58,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_48-63.png",
+      "sourceBBox": [
+        46,
+        47,
+        163,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 59,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_48-63.png",
+      "sourceBBox": [
+        25,
+        107,
+        177,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 60,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_48-63.png",
+      "sourceBBox": [
+        49,
+        40,
+        152,
+        185
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 61,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_48-63.png",
+      "sourceBBox": [
+        49,
+        40,
+        152,
+        185
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 62,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_48-63.png",
+      "sourceBBox": [
+        49,
+        40,
+        152,
+        185
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 63,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_48-63.png",
+      "sourceBBox": [
+        48,
+        40,
+        153,
+        185
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 64,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_64-79.png",
+      "sourceBBox": [
+        48,
+        40,
+        152,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 65,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_64-79.png",
+      "sourceBBox": [
+        48,
+        40,
+        152,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 66,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_64-79.png",
+      "sourceBBox": [
+        49,
+        42,
+        152,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 67,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_64-79.png",
+      "sourceBBox": [
+        44,
+        55,
+        152,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 68,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_64-79.png",
+      "sourceBBox": [
+        54,
+        40,
+        156,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 69,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_64-79.png",
+      "sourceBBox": [
+        54,
+        40,
+        158,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 70,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_64-79.png",
+      "sourceBBox": [
+        55,
+        40,
+        181,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 71,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_64-79.png",
+      "sourceBBox": [
+        55,
+        40,
+        157,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 72,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_64-79.png",
+      "sourceBBox": [
+        58,
+        40,
+        182,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 73,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_64-79.png",
+      "sourceBBox": [
+        30,
+        40,
+        137,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 74,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_64-79.png",
+      "sourceBBox": [
+        55,
+        40,
+        167,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 75,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_64-79.png",
+      "sourceBBox": [
+        79,
+        40,
+        190,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 76,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_64-79.png",
+      "sourceBBox": [
+        51,
+        40,
+        151,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 77,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_64-79.png",
+      "sourceBBox": [
+        51,
+        40,
+        151,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_完整动作",
+      "index": 78,
+      "original": "assets/fighters/大肥鱼/完整动作.png",
+      "generated": "大肥鱼_完整动作_64-79.png",
+      "sourceBBox": [
+        51,
+        34,
+        153,
+        184
+      ]
+    },
+    {
+      "source": "大肥鱼_步态起落",
+      "index": 0,
+      "original": "assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png",
+      "generated": "大肥鱼_步态起落.png",
+      "sourceBBox": [
+        47,
+        8,
+        258,
+        309
+      ]
+    },
+    {
+      "source": "大肥鱼_步态起落",
+      "index": 1,
+      "original": "assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png",
+      "generated": "大肥鱼_步态起落.png",
+      "sourceBBox": [
+        38,
+        8,
+        253,
+        309
+      ]
+    },
+    {
+      "source": "大肥鱼_步态起落",
+      "index": 2,
+      "original": "assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png",
+      "generated": "大肥鱼_步态起落.png",
+      "sourceBBox": [
+        26,
+        8,
+        247,
+        309
+      ]
+    },
+    {
+      "source": "大肥鱼_步态起落",
+      "index": 3,
+      "original": "assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png",
+      "generated": "大肥鱼_步态起落.png",
+      "sourceBBox": [
+        16,
+        8,
+        241,
+        309
+      ]
+    },
+    {
+      "source": "大肥鱼_步态起落",
+      "index": 4,
+      "original": "assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png",
+      "generated": "大肥鱼_步态起落.png",
+      "sourceBBox": [
+        34,
+        8,
+        258,
+        309
+      ]
+    },
+    {
+      "source": "大肥鱼_步态起落",
+      "index": 5,
+      "original": "assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png",
+      "generated": "大肥鱼_步态起落.png",
+      "sourceBBox": [
+        30,
+        8,
+        253,
+        310
+      ]
+    },
+    {
+      "source": "大肥鱼_步态起落",
+      "index": 6,
+      "original": "assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png",
+      "generated": "大肥鱼_步态起落.png",
+      "sourceBBox": [
+        29,
+        8,
+        247,
+        310
+      ]
+    },
+    {
+      "source": "大肥鱼_步态起落",
+      "index": 7,
+      "original": "assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png",
+      "generated": "大肥鱼_步态起落.png",
+      "sourceBBox": [
+        25,
+        8,
+        241,
+        310
+      ]
+    },
+    {
+      "source": "大肥鱼_步态起落",
+      "index": 8,
+      "original": "assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png",
+      "generated": "大肥鱼_步态起落.png",
+      "sourceBBox": [
+        42,
+        9,
+        258,
+        309
+      ]
+    },
+    {
+      "source": "大肥鱼_步态起落",
+      "index": 9,
+      "original": "assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png",
+      "generated": "大肥鱼_步态起落.png",
+      "sourceBBox": [
+        34,
+        10,
+        253,
+        309
+      ]
+    },
+    {
+      "source": "大肥鱼_步态起落",
+      "index": 10,
+      "original": "assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png",
+      "generated": "大肥鱼_步态起落.png",
+      "sourceBBox": [
+        30,
+        10,
+        247,
+        309
+      ]
+    },
+    {
+      "source": "大肥鱼_步态起落",
+      "index": 11,
+      "original": "assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png",
+      "generated": "大肥鱼_步态起落.png",
+      "sourceBBox": [
+        25,
+        9,
+        241,
+        309
+      ]
+    },
+    {
+      "source": "大肥鱼_步态起落",
+      "index": 12,
+      "original": "assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png",
+      "generated": "大肥鱼_步态起落.png",
+      "sourceBBox": [
+        35,
+        23,
+        266,
+        308
+      ]
+    },
+    {
+      "source": "大肥鱼_步态起落",
+      "index": 13,
+      "original": "assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png",
+      "generated": "大肥鱼_步态起落.png",
+      "sourceBBox": [
+        29,
+        13,
+        258,
+        308
+      ]
+    },
+    {
+      "source": "大肥鱼_步态起落",
+      "index": 14,
+      "original": "assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png",
+      "generated": "大肥鱼_步态起落.png",
+      "sourceBBox": [
+        25,
+        0,
+        251,
+        307
+      ]
+    },
+    {
+      "source": "大肥鱼_步态起落",
+      "index": 15,
+      "original": "assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png",
+      "generated": "大肥鱼_步态起落.png",
+      "sourceBBox": [
+        14,
+        25,
+        248,
+        308
+      ]
+    },
+    {
+      "source": "奶蛙_拳脚捧腹",
+      "index": 0,
+      "original": "assets/角色/技能/奶娃/拳脚与捧腹_八姿态.png",
+      "generated": "奶蛙_拳脚捧腹.png",
+      "sourceBBox": [
+        54,
+        53,
+        324,
+        458
+      ]
+    },
+    {
+      "source": "奶蛙_拳脚捧腹",
+      "index": 1,
+      "original": "assets/角色/技能/奶娃/拳脚与捧腹_八姿态.png",
+      "generated": "奶蛙_拳脚捧腹.png",
+      "sourceBBox": [
+        16,
+        69,
+        367,
+        458
+      ]
+    },
+    {
+      "source": "奶蛙_拳脚捧腹",
+      "index": 2,
+      "original": "assets/角色/技能/奶娃/拳脚与捧腹_八姿态.png",
+      "generated": "奶蛙_拳脚捧腹.png",
+      "sourceBBox": [
+        30,
+        60,
+        372,
+        459
+      ]
+    },
+    {
+      "source": "奶蛙_拳脚捧腹",
+      "index": 3,
+      "original": "assets/角色/技能/奶娃/拳脚与捧腹_八姿态.png",
+      "generated": "奶蛙_拳脚捧腹.png",
+      "sourceBBox": [
+        17,
+        48,
+        359,
+        458
+      ]
+    },
+    {
+      "source": "奶蛙_拳脚捧腹",
+      "index": 4,
+      "original": "assets/角色/技能/奶娃/拳脚与捧腹_八姿态.png",
+      "generated": "奶蛙_拳脚捧腹.png",
+      "sourceBBox": [
+        30,
+        38,
+        376,
+        459
+      ]
+    },
+    {
+      "source": "奶蛙_拳脚捧腹",
+      "index": 5,
+      "original": "assets/角色/技能/奶娃/拳脚与捧腹_八姿态.png",
+      "generated": "奶蛙_拳脚捧腹.png",
+      "sourceBBox": [
+        0,
+        26,
+        384,
+        353
+      ]
+    },
+    {
+      "source": "奶蛙_拳脚捧腹",
+      "index": 6,
+      "original": "assets/角色/技能/奶娃/拳脚与捧腹_八姿态.png",
+      "generated": "奶蛙_拳脚捧腹.png",
+      "sourceBBox": [
+        0,
+        60,
+        356,
+        459
+      ]
+    },
+    {
+      "source": "奶蛙_拳脚捧腹",
+      "index": 7,
+      "original": "assets/角色/技能/奶娃/拳脚与捧腹_八姿态.png",
+      "generated": "奶蛙_拳脚捧腹.png",
+      "sourceBBox": [
+        23,
+        107,
+        336,
+        459
+      ]
+    },
+    {
+      "source": "奶蛙_跳跃受击",
+      "index": 0,
+      "original": "assets/角色/基础动作/奶蛙/V19/跳跃受击倒地起身_十六帧.png",
+      "generated": "奶蛙_跳跃受击.png",
+      "sourceBBox": [
+        57,
+        88,
+        255,
+        306
+      ]
+    },
+    {
+      "source": "奶蛙_跳跃受击",
+      "index": 1,
+      "original": "assets/角色/基础动作/奶蛙/V19/跳跃受击倒地起身_十六帧.png",
+      "generated": "奶蛙_跳跃受击.png",
+      "sourceBBox": [
+        48,
+        34,
+        259,
+        306
+      ]
+    },
+    {
+      "source": "奶蛙_跳跃受击",
+      "index": 2,
+      "original": "assets/角色/基础动作/奶蛙/V19/跳跃受击倒地起身_十六帧.png",
+      "generated": "奶蛙_跳跃受击.png",
+      "sourceBBox": [
+        71,
+        14,
+        268,
+        277
+      ]
+    },
+    {
+      "source": "奶蛙_跳跃受击",
+      "index": 3,
+      "original": "assets/角色/基础动作/奶蛙/V19/跳跃受击倒地起身_十六帧.png",
+      "generated": "奶蛙_跳跃受击.png",
+      "sourceBBox": [
+        22,
+        11,
+        279,
+        261
+      ]
+    },
+    {
+      "source": "奶蛙_跳跃受击",
+      "index": 4,
+      "original": "assets/角色/基础动作/奶蛙/V19/跳跃受击倒地起身_十六帧.png",
+      "generated": "奶蛙_跳跃受击.png",
+      "sourceBBox": [
+        38,
+        15,
+        278,
+        291
+      ]
+    },
+    {
+      "source": "奶蛙_跳跃受击",
+      "index": 5,
+      "original": "assets/角色/基础动作/奶蛙/V19/跳跃受击倒地起身_十六帧.png",
+      "generated": "奶蛙_跳跃受击.png",
+      "sourceBBox": [
+        48,
+        71,
+        288,
+        293
+      ]
+    },
+    {
+      "source": "奶蛙_跳跃受击",
+      "index": 6,
+      "original": "assets/角色/基础动作/奶蛙/V19/跳跃受击倒地起身_十六帧.png",
+      "generated": "奶蛙_跳跃受击.png",
+      "sourceBBox": [
+        52,
+        48,
+        253,
+        294
+      ]
+    },
+    {
+      "source": "奶蛙_跳跃受击",
+      "index": 7,
+      "original": "assets/角色/基础动作/奶蛙/V19/跳跃受击倒地起身_十六帧.png",
+      "generated": "奶蛙_跳跃受击.png",
+      "sourceBBox": [
+        24,
+        74,
+        266,
+        290
+      ]
+    },
+    {
+      "source": "奶蛙_跳跃受击",
+      "index": 8,
+      "original": "assets/角色/基础动作/奶蛙/V19/跳跃受击倒地起身_十六帧.png",
+      "generated": "奶蛙_跳跃受击.png",
+      "sourceBBox": [
+        66,
+        21,
+        253,
+        286
+      ]
+    },
+    {
+      "source": "奶蛙_跳跃受击",
+      "index": 9,
+      "original": "assets/角色/基础动作/奶蛙/V19/跳跃受击倒地起身_十六帧.png",
+      "generated": "奶蛙_跳跃受击.png",
+      "sourceBBox": [
+        51,
+        69,
+        250,
+        285
+      ]
+    },
+    {
+      "source": "奶蛙_跳跃受击",
+      "index": 10,
+      "original": "assets/角色/基础动作/奶蛙/V19/跳跃受击倒地起身_十六帧.png",
+      "generated": "奶蛙_跳跃受击.png",
+      "sourceBBox": [
+        16,
+        24,
+        296,
+        254
+      ]
+    },
+    {
+      "source": "奶蛙_跳跃受击",
+      "index": 11,
+      "original": "assets/角色/基础动作/奶蛙/V19/跳跃受击倒地起身_十六帧.png",
+      "generated": "奶蛙_跳跃受击.png",
+      "sourceBBox": [
+        36,
+        72,
+        285,
+        265
+      ]
+    },
+    {
+      "source": "奶蛙_跳跃受击",
+      "index": 12,
+      "original": "assets/角色/基础动作/奶蛙/V19/跳跃受击倒地起身_十六帧.png",
+      "generated": "奶蛙_跳跃受击.png",
+      "sourceBBox": [
+        16,
+        120,
+        310,
+        273
+      ]
+    },
+    {
+      "source": "奶蛙_跳跃受击",
+      "index": 13,
+      "original": "assets/角色/基础动作/奶蛙/V19/跳跃受击倒地起身_十六帧.png",
+      "generated": "奶蛙_跳跃受击.png",
+      "sourceBBox": [
+        41,
+        86,
+        261,
+        273
+      ]
+    },
+    {
+      "source": "奶蛙_跳跃受击",
+      "index": 14,
+      "original": "assets/角色/基础动作/奶蛙/V19/跳跃受击倒地起身_十六帧.png",
+      "generated": "奶蛙_跳跃受击.png",
+      "sourceBBox": [
+        43,
+        44,
+        263,
+        273
+      ]
+    },
+    {
+      "source": "奶蛙_跳跃受击",
+      "index": 15,
+      "original": "assets/角色/基础动作/奶蛙/V19/跳跃受击倒地起身_十六帧.png",
+      "generated": "奶蛙_跳跃受击.png",
+      "sourceBBox": [
+        2,
+        11,
+        290,
+        273
+      ]
+    },
+    {
+      "source": "奶蛙_出场胜负",
+      "index": 0,
+      "original": "assets/角色/出场与胜负/奶蛙/V19/侧躺出场与胜负_八帧.png",
+      "generated": "奶蛙_出场胜负.png",
+      "sourceBBox": [
+        18,
+        98,
+        435,
+        401
+      ]
+    },
+    {
+      "source": "奶蛙_出场胜负",
+      "index": 1,
+      "original": "assets/角色/出场与胜负/奶蛙/V19/侧躺出场与胜负_八帧.png",
+      "generated": "奶蛙_出场胜负.png",
+      "sourceBBox": [
+        13,
+        114,
+        435,
+        401
+      ]
+    },
+    {
+      "source": "奶蛙_出场胜负",
+      "index": 2,
+      "original": "assets/角色/出场与胜负/奶蛙/V19/侧躺出场与胜负_八帧.png",
+      "generated": "奶蛙_出场胜负.png",
+      "sourceBBox": [
+        29,
+        98,
+        421,
+        409
+      ]
+    },
+    {
+      "source": "奶蛙_出场胜负",
+      "index": 3,
+      "original": "assets/角色/出场与胜负/奶蛙/V19/侧躺出场与胜负_八帧.png",
+      "generated": "奶蛙_出场胜负.png",
+      "sourceBBox": [
+        56,
+        80,
+        386,
+        413
+      ]
+    },
+    {
+      "source": "奶蛙_出场胜负",
+      "index": 4,
+      "original": "assets/角色/出场与胜负/奶蛙/V19/侧躺出场与胜负_八帧.png",
+      "generated": "奶蛙_出场胜负.png",
+      "sourceBBox": [
+        66,
+        34,
+        381,
+        411
+      ]
+    },
+    {
+      "source": "奶蛙_出场胜负",
+      "index": 5,
+      "original": "assets/角色/出场与胜负/奶蛙/V19/侧躺出场与胜负_八帧.png",
+      "generated": "奶蛙_出场胜负.png",
+      "sourceBBox": [
+        77,
+        31,
+        367,
+        411
+      ]
+    },
+    {
+      "source": "奶蛙_出场胜负",
+      "index": 6,
+      "original": "assets/角色/出场与胜负/奶蛙/V19/侧躺出场与胜负_八帧.png",
+      "generated": "奶蛙_出场胜负.png",
+      "sourceBBox": [
+        49,
+        98,
+        385,
+        410
+      ]
+    },
+    {
+      "source": "奶蛙_出场胜负",
+      "index": 7,
+      "original": "assets/角色/出场与胜负/奶蛙/V19/侧躺出场与胜负_八帧.png",
+      "generated": "奶蛙_出场胜负.png",
+      "sourceBBox": [
+        24,
+        107,
+        420,
+        411
+      ]
+    },
+    {
+      "source": "奶蛙_步态起落",
+      "index": 0,
+      "original": "assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png",
+      "generated": "奶蛙_步态起落.png",
+      "sourceBBox": [
+        62,
+        19,
+        241,
+        299
+      ]
+    },
+    {
+      "source": "奶蛙_步态起落",
+      "index": 1,
+      "original": "assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png",
+      "generated": "奶蛙_步态起落.png",
+      "sourceBBox": [
+        58,
+        17,
+        251,
+        298
+      ]
+    },
+    {
+      "source": "奶蛙_步态起落",
+      "index": 2,
+      "original": "assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png",
+      "generated": "奶蛙_步态起落.png",
+      "sourceBBox": [
+        60,
+        18,
+        246,
+        299
+      ]
+    },
+    {
+      "source": "奶蛙_步态起落",
+      "index": 3,
+      "original": "assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png",
+      "generated": "奶蛙_步态起落.png",
+      "sourceBBox": [
+        70,
+        17,
+        249,
+        299
+      ]
+    },
+    {
+      "source": "奶蛙_步态起落",
+      "index": 4,
+      "original": "assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png",
+      "generated": "奶蛙_步态起落.png",
+      "sourceBBox": [
+        64,
+        17,
+        251,
+        299
+      ]
+    },
+    {
+      "source": "奶蛙_步态起落",
+      "index": 5,
+      "original": "assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png",
+      "generated": "奶蛙_步态起落.png",
+      "sourceBBox": [
+        53,
+        18,
+        253,
+        301
+      ]
+    },
+    {
+      "source": "奶蛙_步态起落",
+      "index": 6,
+      "original": "assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png",
+      "generated": "奶蛙_步态起落.png",
+      "sourceBBox": [
+        56,
+        18,
+        251,
+        299
+      ]
+    },
+    {
+      "source": "奶蛙_步态起落",
+      "index": 7,
+      "original": "assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png",
+      "generated": "奶蛙_步态起落.png",
+      "sourceBBox": [
+        70,
+        17,
+        257,
+        299
+      ]
+    },
+    {
+      "source": "奶蛙_步态起落",
+      "index": 8,
+      "original": "assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png",
+      "generated": "奶蛙_步态起落.png",
+      "sourceBBox": [
+        65,
+        21,
+        257,
+        300
+      ]
+    },
+    {
+      "source": "奶蛙_步态起落",
+      "index": 9,
+      "original": "assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png",
+      "generated": "奶蛙_步态起落.png",
+      "sourceBBox": [
+        55,
+        21,
+        253,
+        299
+      ]
+    },
+    {
+      "source": "奶蛙_步态起落",
+      "index": 10,
+      "original": "assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png",
+      "generated": "奶蛙_步态起落.png",
+      "sourceBBox": [
+        54,
+        21,
+        248,
+        299
+      ]
+    },
+    {
+      "source": "奶蛙_步态起落",
+      "index": 11,
+      "original": "assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png",
+      "generated": "奶蛙_步态起落.png",
+      "sourceBBox": [
+        66,
+        22,
+        247,
+        300
+      ]
+    },
+    {
+      "source": "奶蛙_步态起落",
+      "index": 12,
+      "original": "assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png",
+      "generated": "奶蛙_步态起落.png",
+      "sourceBBox": [
+        51,
+        54,
+        253,
+        301
+      ]
+    },
+    {
+      "source": "奶蛙_步态起落",
+      "index": 13,
+      "original": "assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png",
+      "generated": "奶蛙_步态起落.png",
+      "sourceBBox": [
+        51,
+        22,
+        254,
+        299
+      ]
+    },
+    {
+      "source": "奶蛙_步态起落",
+      "index": 14,
+      "original": "assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png",
+      "generated": "奶蛙_步态起落.png",
+      "sourceBBox": [
+        65,
+        14,
+        252,
+        255
+      ]
+    },
+    {
+      "source": "奶蛙_步态起落",
+      "index": 15,
+      "original": "assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png",
+      "generated": "奶蛙_步态起落.png",
+      "sourceBBox": [
+        62,
+        45,
+        262,
+        301
+      ]
+    },
+    {
+      "source": "奶蛙_移动悬浮",
+      "index": 0,
+      "original": "assets/角色/常态/奶蛙/移动与悬浮_八帧_V1.png",
+      "generated": "奶蛙_移动悬浮.png",
+      "sourceBBox": [
+        79,
+        46,
+        362,
+        388
+      ]
+    },
+    {
+      "source": "奶蛙_移动悬浮",
+      "index": 1,
+      "original": "assets/角色/常态/奶蛙/移动与悬浮_八帧_V1.png",
+      "generated": "奶蛙_移动悬浮.png",
+      "sourceBBox": [
+        97,
+        38,
+        354,
+        388
+      ]
+    },
+    {
+      "source": "奶蛙_移动悬浮",
+      "index": 2,
+      "original": "assets/角色/常态/奶蛙/移动与悬浮_八帧_V1.png",
+      "generated": "奶蛙_移动悬浮.png",
+      "sourceBBox": [
+        70,
+        49,
+        359,
+        387
+      ]
+    },
+    {
+      "source": "奶蛙_移动悬浮",
+      "index": 3,
+      "original": "assets/角色/常态/奶蛙/移动与悬浮_八帧_V1.png",
+      "generated": "奶蛙_移动悬浮.png",
+      "sourceBBox": [
+        123,
+        33,
+        357,
+        387
+      ]
+    },
+    {
+      "source": "奶蛙_移动悬浮",
+      "index": 4,
+      "original": "assets/角色/常态/奶蛙/移动与悬浮_八帧_V1.png",
+      "generated": "奶蛙_移动悬浮.png",
+      "sourceBBox": [
+        54,
+        29,
+        378,
+        421
+      ]
+    },
+    {
+      "source": "奶蛙_移动悬浮",
+      "index": 5,
+      "original": "assets/角色/常态/奶蛙/移动与悬浮_八帧_V1.png",
+      "generated": "奶蛙_移动悬浮.png",
+      "sourceBBox": [
+        52,
+        17,
+        385,
+        399
+      ]
+    },
+    {
+      "source": "奶蛙_移动悬浮",
+      "index": 6,
+      "original": "assets/角色/常态/奶蛙/移动与悬浮_八帧_V1.png",
+      "generated": "奶蛙_移动悬浮.png",
+      "sourceBBox": [
+        56,
+        13,
+        375,
+        385
+      ]
+    },
+    {
+      "source": "奶蛙_移动悬浮",
+      "index": 7,
+      "original": "assets/角色/常态/奶蛙/移动与悬浮_八帧_V1.png",
+      "generated": "奶蛙_移动悬浮.png",
+      "sourceBBox": [
+        44,
+        26,
+        384,
+        418
+      ]
+    },
+    {
+      "source": "奶蛙_天使形态",
+      "index": 0,
+      "original": "assets/角色/大招/奶娃/神了/天使_四姿态.png",
+      "generated": "奶蛙_天使形态.png",
+      "sourceBBox": [
+        34,
+        29,
+        563,
+        559
+      ]
+    },
+    {
+      "source": "奶蛙_天使形态",
+      "index": 1,
+      "original": "assets/角色/大招/奶娃/神了/天使_四姿态.png",
+      "generated": "奶蛙_天使形态.png",
+      "sourceBBox": [
+        22,
+        45,
+        578,
+        627
+      ]
+    },
+    {
+      "source": "奶蛙_天使形态",
+      "index": 2,
+      "original": "assets/角色/大招/奶娃/神了/天使_四姿态.png",
+      "generated": "奶蛙_天使形态.png",
+      "sourceBBox": [
+        42,
+        1,
+        568,
+        546
+      ]
+    },
+    {
+      "source": "奶蛙_天使形态",
+      "index": 3,
+      "original": "assets/角色/大招/奶娃/神了/天使_四姿态.png",
+      "generated": "奶蛙_天使形态.png",
+      "sourceBBox": [
+        8,
+        0,
+        599,
+        566
+      ]
+    },
+    {
+      "source": "奶蛙_普通防御",
+      "index": 0,
+      "original": "assets/角色/防御/奶蛙/护腹站姿_V6/护腹_看向玩家.png",
+      "generated": "奶蛙_防御下蹲思考.png",
+      "sourceBBox": [
+        141,
+        93,
+        911,
+        1337
+      ]
+    },
+    {
+      "source": "奶蛙_下蹲",
+      "index": 0,
+      "original": "assets/角色/技能/奶蛙/二技能/调皮下蹲_像素姿态_V1.png",
+      "generated": "奶蛙_防御下蹲思考.png",
+      "sourceBBox": [
+        154,
+        90,
+        1189,
+        1070
+      ]
+    },
+    {
+      "source": "奶蛙_思考",
+      "index": 0,
+      "original": "assets/角色/常态/奶蛙/托腮思考_像素姿态_V1.png",
+      "generated": "奶蛙_防御下蹲思考.png",
+      "sourceBBox": [
+        206,
+        255,
+        843,
+        1356
+      ]
+    }
+  ]
+}
