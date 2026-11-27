@@ -33,15 +33,16 @@ let basics:HTMLCanvasElement[]=[],scenes:HTMLCanvasElement[]=[];
 let holyComboArt:HTMLCanvasElement[]=[];
 let dragonRiseArt:HTMLCanvasElement[]=[];
 let moves:HTMLCanvasElement[]=[],angels:HTMLCanvasElement[]=[],travel:HTMLCanvasElement[]=[],gold:HTMLCanvasElement[]=[],crouch:HTMLCanvasElement,thinking:HTMLCanvasElement,intro:HTMLImageElement;
+const cutBody=(im:HTMLImageElement,columns:number,rows:number,cleanCells:number[]=[])=>cutGrid(im,columns,rows,{pixelate:false,cleanCells});
 const load=(src:string)=>{const im=new Image();im.src=src;return im.decode().then(()=>im)};
-void Promise.all([load(moveSource),load(angelSource),load(introSource),load(travelSource),load(goldSource),load(crouchSource)]).then(([m,a,i,t,v,c])=>{moves=cutGrid(m,4,2,{cleanCells:[6]});angels=cutGrid(a,2,2);travel=cutGrid(t,4,2);gold=cutGrid(v,2,2);crouch=cutGrid(c,1,1)[0];intro=i;});
-void load(normalGuardSource).then(im=>normalGuard=cutGrid(im,1,1)[0]);
-void load(basicSource).then(im=>{basics=cutGrid(im,4,4);setFrogHurtPoses([basics[8],basics[9]]);});
+void Promise.all([load(moveSource),load(angelSource),load(introSource),load(travelSource),load(goldSource),load(crouchSource)]).then(([m,a,i,t,v,c])=>{moves=cutBody(m,4,2,[6]);angels=cutBody(a,2,2);travel=cutBody(t,4,2);gold=cutGrid(v,2,2);crouch=cutBody(c,1,1)[0];intro=i;});
+void load(normalGuardSource).then(im=>normalGuard=cutBody(im,1,1)[0]);
+void load(basicSource).then(im=>{basics=cutBody(im,4,4);setFrogHurtPoses([basics[8],basics[9]]);});
 void load(locomotionV25).then(im=>registerLocomotion(im,'frog'));
 void load(holyComboSource).then(im=>holyComboArt=cutGrid(im,4,2));
 void load(dragonRiseSource).then(im=>dragonRiseArt=registeredDragonFrames(im));
-void load(sceneSource).then(im=>scenes=cutGrid(im,4,2));
-void load(thinkingSource).then(im=>thinking=cutGrid(im,1,1)[0]);
+void load(sceneSource).then(im=>scenes=cutBody(im,4,2));
+void load(thinkingSource).then(im=>thinking=cutBody(im,1,1)[0]);
 void load(starSource).then(im=>setStarArt(im));
 void Promise.all([load(spiralSource),load(discSource)]).then(([s,d])=>setWarpArt(cutGrid(s,2,1),cutGrid(d,2,1)));
 void load(guardSource).then(im=>setGuardArt(cutGrid(im,4,2)));
@@ -121,14 +122,14 @@ export function drawFrogActor(g:CanvasRenderingContext2D,f:FighterState,state:Ma
  if(motion&&(!powered||motion.bank==='scene'||!f.hp)){
   const im=(motion.bank==='scene'?scenes:basics)[motion.cell];
   if(im){
-   g.save();g.imageSmoothingEnabled=false;
+   g.save();g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
    // Idle float/breath is tiny; pose changes come from authored drawings.
    if(motion.bank==='scene'&&motion.cell<2)g.translate(0,Math.sin((120-state.phaseTicks)*.14)*.7);
    actorImage(g,im,motion.height);g.restore();return;
   }
  }
  const warp=f.frogWarps?.at(-1),warpAge=state.arenaFrame-(warp?.tick??-999);
- g.save();g.imageSmoothingEnabled=false;
+ g.save();g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
  const dodge=f.frogDodge;
  if(dodge&&dodge.arrivedAt===undefined&&f.dashActive&&f.hp>0&&!f.hitstun&&!f.recovery){g.restore();return;}
  if(dodge?.arrivedAt!==undefined&&state.arenaFrame-dodge.arrivedAt<3)g.globalAlpha*=clamp((state.arenaFrame-dodge.arrivedAt+1)/3);

@@ -37,14 +37,14 @@ export function registerLocomotion(im,kind){
   }
   g.putImageData(data,0,0);if(n===0)reference=b-t+1;
   const scale=(kind==='frog'?130:144)/reference,c=document.createElement('canvas');c.width=c.height=256;
-  const ctx=c.getContext('2d');ctx.imageSmoothingEnabled=false;
+  const ctx=c.getContext('2d');ctx.imageSmoothingEnabled=true;
   ctx.drawImage(raw,128-w*scale/2,236-b*scale,w*scale,h*scale);cells.push(descriptor(c));
  }
  setActorMotion(kind,{loco:cells});return cells;
 }
 function oldPose(b,kind,index,height=130){
  const key=index+'/'+height;if(b.legacy.has(key))return b.legacy.get(key);
- const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.imageSmoothingEnabled=false;
+ const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.imageSmoothingEnabled=true;
  if(kind==='frog'){
   const im=b.moves?.[index];if(!im)return;const w=height*im.width/im.height;g.drawImage(im,128-w/2,236-height,w,height);
  }else{
@@ -67,7 +67,7 @@ function intactTween(a,b,t){
  const ar=bounds(a),br=bounds(b),source=t<.5?a:b,sr=t<.5?ar:br;
  const x=ar.left+(br.left-ar.left)*t,y=ar.top+(br.top-ar.top)*t;
  const w=ar.right-ar.left+1+(br.right-br.left-ar.right+ar.left)*t,h=ar.bottom-ar.top+1+(br.bottom-br.top-ar.bottom+ar.top)*t;
- const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.imageSmoothingEnabled=false;
+ const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.imageSmoothingEnabled=true;
  g.drawImage(source.canvas,sr.left,sr.top,sr.right-sr.left+1,sr.bottom-sr.top+1,Math.round(x),Math.round(y),Math.round(w),Math.round(h));
  if(cache.size>180)cache.delete(cache.keys().next().value);cache.set(key,c);return c;
 }
@@ -75,7 +75,7 @@ function tween(a,b,t,foot,coherent=false){
  if(!a||!b)return a?.canvas??b?.canvas;t=Math.round(clamp(t)*6)/6;
  if(foot===undefined&&(t===0||a===b))return a.canvas;if(foot===undefined&&t===1)return b.canvas;
  const key=a.id+'/'+b.id+'/'+t+'/'+(foot===undefined?'':Math.round(foot))+'/'+coherent;if(cache.has(key))return cache.get(key);
- const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.imageSmoothingEnabled=false;
+ const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.imageSmoothingEnabled=true;
  const top=a.top+(b.top-a.top)*t,bottom=a.bottom+(b.bottom-a.bottom)*t;
  const sa=soleNear(a,foot??128),sb=soleNear(b,foot??128),pin=foot===undefined?0:foot-(sa+(sb-sa)*t);
  const data=g.createImageData(256,256),out=data.data;
@@ -159,7 +159,7 @@ export function drawActorMotion(g,kind,f,state,action,actions){
   const from=renderPlan(plan(b,kind,v.from,actions),kind);if(from)im=tween(descriptorCached(from),descriptorCached(im),ease((age+1)/3),undefined,kind==='frog');
  }
  const turn=state.arenaFrame-v.turnTick;
- g.save();g.imageSmoothingEnabled=false;
+ g.save();g.imageSmoothingEnabled=true;
  if(turn<6&&['idle','walk','brake'].includes(s.mode)){
   const front=b.loco[kind==='frog'?11:10];
   if(turn<2){g.scale(v.turnFrom/f.facing,1);im=tween(descriptorCached(im),front,ease((turn+1)/2),undefined,kind==='frog');}
@@ -170,5 +170,5 @@ export function drawActorMotion(g,kind,f,state,action,actions){
 }
 const descriptions=new WeakMap();function descriptorCached(im){let d=descriptions.get(im);if(!d){d=descriptor(im);descriptions.set(im,d);}return d;}
 export function setFrogHurtPoses(images){const b=banks.get('frog')??{legacy:new Map()};b.hurt=images.map((im,i)=>{
- const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.imageSmoothingEnabled=false;const h=i?113:130,w=h*im.width/im.height;g.drawImage(im,128-w/2,236-h,w,h);return descriptor(c);
+ const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');g.imageSmoothingEnabled=true;const h=i?113:130,w=h*im.width/im.height;g.drawImage(im,128-w/2,236-h,w,h);return descriptor(c);
  });banks.set('frog',b);}

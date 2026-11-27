@@ -972,11 +972,11 @@ export class Renderer {
       const flash = reducedMotion ? 0 : this.hitFlash(seat, state.frame);
       if (def.id === 'whale') {
         if (flash > 0) ctx.filter = `brightness(${1 + flash * .36})`;
-        ctx.imageSmoothingEnabled = false;
+        ctx.imageSmoothingEnabled = true;ctx.imageSmoothingQuality='high';
         drawWhaleActor(ctx, f, state, seat, move, def.actions);
       } else if (def.id === 'frog') {
         if (flash > 0) ctx.filter = `brightness(${1 + flash * .36})`;
-        ctx.imageSmoothingEnabled = false;
+        ctx.imageSmoothingEnabled = true;ctx.imageSmoothingQuality='high';
         drawFrogActor(ctx, f, state, move, seat, def.actions);
       } else {
         const spriteWidth = sprite?.naturalHeight ? height * sprite.naturalWidth / sprite.naturalHeight : 0;
