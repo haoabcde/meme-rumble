@@ -153,13 +153,14 @@ test('holding the basin well beyond four ticks counters later melee and remote c
   t.run(8,...guard);assert.ok(t.state.entities.some(e=>e.definition.behavior==='counter'));
  }
 });
-test('down I creates the shelter on either seat', () => {
+test('down I retains the approved neutral tornado instead of inventing a shelter', () => {
  for (const seat of [0, 1]) {
   const t = setup(seat, 900);
   t.press('C', 1);
-  assert.equal(t.caster.attack?.id, 'whale-shelter');
-  t.run(10);
-  assert.ok(t.state.entities.some(entity => entity.definition.id === 'whale-shelter'));
+  assert.equal(t.caster.attack?.id, 'tornado');
+  t.run(13);
+  assert.ok(t.state.entities.some(entity => entity.definition.behavior === 'spin'));
+  assert.ok(!whale.fighter.actions.some(action=>action.id==='whale-shelter'));
  }
 });
 

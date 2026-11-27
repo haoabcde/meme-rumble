@@ -178,6 +178,8 @@ test('Whale’s pool cinematic pauses Gaga’s deployed turret and lets both sys
 });
 
 const production = [whale, frog, banana, gaga];
+const launchers = production.filter(entry => entry.fighter.actions.some(a => a.slot === 'A' && a.direction === 'up'));
+const tacticals = production.filter(entry => entry.fighter.actions.some(a => a.slot === 'ULT' && a.direction === 'up'));
 const dummy = { fighter: testFighter };
 const vertical = (key, y) => ({ ...press(key), y });
 
@@ -208,8 +210,8 @@ test('every directly bound production move can be started by both players', () =
   }
 });
 
-test('all four roles can confirm either early J into launcher, jump cancel and air J at zero energy', () => {
-  for (const entry of production) {
+test('roles with an authored launcher can confirm early J into jump cancel and air J at zero energy', () => {
+  for (const entry of launchers) {
     for (const seat of [0, 1]) {
       for (const count of [1, 2]) {
         const fighters = seat === 0 ? [entry, dummy] : [dummy, entry];
@@ -249,7 +251,7 @@ test('all four roles can confirm either early J into launcher, jump cancel and a
 test('production O and W+O consult the current stock and S+O never spends an unbound stock', () => {
   for (const entry of production) {
     for (const seat of [0, 1]) {
-      for (const [direction, y, cost] of [[undefined, 0, MAX_ENERGY], ['up', -1, ENERGY_PER_STOCK], ['down', 1, 0]]) {
+      for (const [direction, y, cost] of [[undefined, 0, MAX_ENERGY], ['up', -1, tacticals.includes(entry) ? ENERGY_PER_STOCK : 0], ['down', 1, 0]]) {
         for (const energy of [0, 100, 200, 300]) {
           const fighters = seat === 0 ? [entry, dummy] : [dummy, entry];
           const { config, state } = match(fighters, 600);
@@ -275,8 +277,8 @@ test('production O and W+O consult the current stock and S+O never spends an unb
   }
 });
 
-test('a directional launcher cannot fall back to the neutral chain after a whiff', () => {
-  for (const entry of production) {
+test('an authored directional launcher cannot fall back to the neutral chain after a whiff', () => {
+  for (const entry of launchers) {
     const { state, config } = match([entry, dummy], 900);
     step(state, [press('A'), NEUTRAL], config);
     const initial = state.fighters[0].attack;
@@ -309,15 +311,15 @@ test('exclusive entrances clash at equal cost and the higher stock wins symmetri
     assert.equal(state.fighters[seat].energy, 0);
     assert.equal(state.fighters[1 - seat].energy, MAX_ENERGY);
   }
-  const { state, config } = match([frog, gaga], 600);
+  const { state, config } = match([banana, gaga], 600);
   state.fighters.forEach(fighter => { fighter.energy = ENERGY_PER_STOCK; });
   const events = step(state, [vertical('ULT', -1), vertical('ULT', -1)], config);
   assert.deepEqual(events.filter(event => event.kind === 'ultimate').map(event => event.source), [0, 1]);
   assert.deepEqual(state.fighters.map(fighter => fighter.energy), [0, 0]);
 });
 
-test('each one-stock ultimate threatens close range, can be blocked and keeps its cost on a miss', () => {
-  for (const entry of production) {
+test('authored one-stock ultimates threaten close range, can be blocked and keep their cost on a miss', () => {
+  for (const entry of tacticals) {
     for (const [distance, defense, outcome] of [[84, NEUTRAL, 'hit'], [84, guard, 'block'], [650, NEUTRAL, undefined]]) {
       const { state, config } = match([entry, dummy], distance);
       const caster = state.fighters[0];
@@ -346,4 +348,21 @@ test('clearing pending controls preserves the current strike without playing its
   assert.deepEqual(fighter.buffer, []);
   assert.equal(fighter.attack.queuedChain, undefined);
   assert.ok(!advance(state, config, 35).some(event => event.actionId === gagaActionIds.backhand));
+});
+
+
+test('approved Whale and Frog have no invented up-O, independent launcher or shelter on either seat', () => {
+  for (const entry of [whale, frog]) for (const seat of [0, 1]) {
+    assert.ok(!entry.fighter.actions.some(a => a.slot === 'ULT' && a.direction));
+    assert.ok(!entry.fighter.actions.some(a => ['common-launch', 'whale-shelter'].includes(a.id)));
+    const {state,config}=match(seat===0?[entry,dummy]:[dummy,entry],100);
+    state.fighters[seat].energy=MAX_ENERGY;
+    const cmd=vertical('ULT',-1);
+    const events=step(state,seat===0?[cmd,NEUTRAL]:[NEUTRAL,cmd],config);
+    assert.equal(state.fighters[seat].attack,null);
+    assert.equal(state.fighters[seat].energy,MAX_ENERGY);
+    assert.ok(events.some(e=>e.ultimateReason==='unbound'&&e.source===seat));
+    advance(state,config,30);
+    assert.equal(state.fighters[seat].attack,null,'unbound up-O must not launch an attack later');
+  }
 });

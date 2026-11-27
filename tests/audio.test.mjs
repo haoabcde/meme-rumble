@@ -188,7 +188,7 @@ test('same-tick contact aliases keep the strongest copy of each sample and kind'
   assert.deepEqual(markers(context), [1, 1, 2, 1]);
 });
 
-test('frog tactical ultimate starts audibly while ascension music replaces only its own opening cue', async t => {
+test('removed frog up-O is silent while the authored ascension starts its dedicated music', async t => {
   const musicBank = { 'ultimate-bgm': { src: 'open.wav' }, wave: { src: 'active.wav' } };
   const { audio, context } = audioFixture(t, [musicBank, undefined], sources);
   await finishPreload(context);
@@ -203,10 +203,9 @@ test('frog tactical ultimate starts audibly while ascension music replaces only 
   };
 
   const { state, events } = start(-1);
-  assert.ok(events.some(event => event.kind === 'ultimate' && event.actionId === 'frog-short-shockwave'));
-  assert.deepEqual(context.played.map(source => source.kind), ['oscillator']);
-  for (let i = 0; i < 8; i++) audio.update(config, state, step(state, [NEUTRAL, NEUTRAL], config));
-  assert.deepEqual(markers(context), [2]);
+  assert.ok(!events.some(event=>event.kind==='ultimate'));
+  assert.equal(state.fighters[0].energy,300);
+  assert.deepEqual(context.played,[]);
 
   audio.stopAll();
   const offset = context.played.length;

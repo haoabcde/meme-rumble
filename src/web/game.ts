@@ -3,7 +3,7 @@ import { arenas } from '../content/arenas.js';
 import { roster } from '../content/roster.js';
 import { actionFor, clearBufferedInputs, createMatch, joAwakenInput, step, ultimateAvailability } from '../core/match.js';
 import { createRelayMatch, stepRelayMatch, type RelayRoster, type RelaySession } from '../core/relay.js';
-import { frogPowered } from '../core/frog-kit.js';
+import { frogPowered, FROG_RULES } from '../core/frog-kit.js';
 import { cinematicOwner } from '../core/whale-kit.js';
 import { ENERGY_PER_STOCK, MAX_ENERGY, MAX_TEARS, NEUTRAL, TEAR_UNITS_PER_POINT, isAttack, type ActionKey, type Axis, type Direction, type Duo, type FighterAction, type FighterDefinition, type InputFrame, type MatchConfig, type RoundResult, type Slot, type Stick, type UltimateUnavailable } from '../core/types.js';
 import { arcadeArt, comicArt, arenaArt, fighterArt } from './art.js';
@@ -1431,7 +1431,7 @@ function renderHUD() {
     }
     energyRows[seat].hidden = fighter.energy === undefined;
     if (fighter.energy !== undefined) {
-      const energy = fighter.energy;
+      const energy = frogPowered(fighter,state) ? MAX_ENERGY * Math.max(0,fighter.ascendUntil!-state.arenaFrame) / FROG_RULES.buffTicks : fighter.energy;
       setMeter(energyBars[seat], energy, MAX_ENERGY);
       const stocks = Math.floor(energy / ENERGY_PER_STOCK);
       energyRows[seat].dataset.stocks = String(stocks);
