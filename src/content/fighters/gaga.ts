@@ -9,6 +9,7 @@ export const gagaActionIds = {
   swordSlash: 'gaga-sword-slash', swordRise: 'gaga-sword-rise',
   xiraniteGuard: 'gaga-xiranite-guard', xiraniteBurst: 'gaga-xiranite-burst',
   airDive: 'gaga-air-sword-dive',
+  airStrike: 'gaga-air-flipper', groundThrow: 'gaga-ground-pole-throw', cannon: 'gaga-close-cannon',
   turret: 'gaga-turret-deploy', turretBolt: 'gaga-turret-bolt',
   howitzer: 'gaga-howitzer-deploy', grenade: 'gaga-turret-grenade',
   overclock: 'gaga-turret-overclock', dijiang: 'gaga-summon-dijiang'
@@ -26,7 +27,8 @@ export const gagaGroundCombo: NormalMove[] = [
     hitbox: { x: 40, y: -70, w: 67, h: 29 },
     damage: 36, hitstun: 18, blockstun: 8, guardCost: 7, push: 2, lift: 0,
     stop: 2, advance: 8, advanceFrom: 4, activeAdvance: 4, pose: 'strike', swingOnActive: true,
-    impact: 'light', chain: { actionId: gagaActionIds.backhand, open: 10, close: 20 }
+    impact: 'light', cancelOnHit: [gagaActionIds.lift],
+    chain: { actionId: gagaActionIds.backhand, open: 10, close: 20 }
   },
   {
     id: gagaActionIds.backhand, name: '转身反拍', slot: 'A', posture: 'ground', linkOnly: true,
@@ -34,7 +36,8 @@ export const gagaGroundCombo: NormalMove[] = [
     hitbox: { x: 23, y: -83, w: 70, h: 49 },
     damage: 41, hitstun: 20, blockstun: 9, guardCost: 8, push: 3, lift: 0,
     stop: 2, advance: 11, advanceFrom: 4, activeAdvance: 3, pose: 'sweep', swingOnActive: true,
-    impact: 'light', chain: { actionId: gagaActionIds.poleSweep, open: 12, close: 22 }
+    impact: 'light', cancelOnHit: [gagaActionIds.lift],
+    chain: { actionId: gagaActionIds.poleSweep, open: 12, close: 22 }
   },
   {
     id: gagaActionIds.poleSweep, name: '电线杆横扫', slot: 'A', posture: 'ground', linkOnly: true,
@@ -64,8 +67,8 @@ export const gagaGroundCombo: NormalMove[] = [
   }
 ];
 
-export const gagaAirThrow: NormalMove = {
-  id: gagaActionIds.airThrow, name: '空投电线杆', slot: 'A', posture: 'air',
+export const gagaAirThrow: ActionDefinition & { slot: 'B' } = {
+  id: gagaActionIds.airThrow, name: '空投电线杆', slot: 'B', posture: 'air',
   startup: 8, active: 1, recovery: 20,
   hitbox: { x: 0, y: 0, w: 0, h: 0 }, hitTimeline: [],
   projectile: { x: 48, y: -50, vx: 23, vy: 18, gravity: .55, reach: 175, radius: 10 },
@@ -74,9 +77,23 @@ export const gagaAirThrow: NormalMove = {
   impact: 'heavy'
 };
 
+const gagaGroundThrow: SignatureMove = {
+  ...gagaAirThrow, id: gagaActionIds.groundThrow, name: '投掷电线杆', posture: 'ground', direction: 'back',
+  startup: 13, recovery: 24, advance: 0,
+  projectile: { x: 48, y: -66, vx: 21, vy: -1, gravity: .22, reach: 0, radius: 10, life: 31 },
+  damage: 74, hitstun: 20, push: 9
+};
+
+const gagaAirStrike: NormalMove = {
+  id: gagaActionIds.airStrike, name: '空中鳍击', slot: 'A', posture: 'air',
+  startup: 6, active: 3, recovery: 15, hitbox: { x: 20, y: -112, w: 92, h: 76 },
+  damage: 43, hitstun: 19, blockstun: 8, guardCost: 9, push: 5, lift: 0,
+  stop: 3, advance: 0, airControl: .4, pose: 'strike', swingOnActive: true, impact: 'light'
+};
+
 export const gagaTurretActions: SignatureMove[] = [
   {
-    id: gagaActionIds.turret, name: '部署双管炮塔', slot: 'C', energyCost: ENERGY_PER_STOCK, posture: 'ground',
+    id: gagaActionIds.turret, name: '部署双管炮塔', slot: 'C', posture: 'ground',
     startup: 16, active: 1, recovery: 17,
     hitbox: { x: 0, y: 0, w: 0, h: 0 }, hitTimeline: [],
     projectile: { kind: 'crate', turret: 'bolt', x: 55, y: -102, vx: 9.5, vy: -9.5, gravity: .92, reach: 0, radius: 22, halfWidth: 34 },
@@ -84,7 +101,7 @@ export const gagaTurretActions: SignatureMove[] = [
     stop: 3, advance: 0, swingOnActive: true, impact: 'medium', pose: 'strike'
   },
   {
-    id: gagaActionIds.howitzer, name: '空投榴弹炮', slot: 'C', energyCost: ENERGY_PER_STOCK, posture: 'air',
+    id: gagaActionIds.howitzer, name: '空投榴弹炮', slot: 'C', posture: 'air',
     startup: 8, active: 1, recovery: 20,
     hitbox: { x: 0, y: 0, w: 0, h: 0 }, hitTimeline: [],
     projectile: { kind: 'crate', turret: 'howitzer', x: 48, y: -71, vx: 12, vy: 6, gravity: 1.1, reach: 0, radius: 23, halfWidth: 35 },
@@ -154,7 +171,7 @@ export const gagaSignatureCombat: SignatureMove[] = [
     feedback: { color: '#38f2c9', shake: 12, flash: .55, sound: 'sharp' }
   },
   {
-    id: gagaActionIds.airDive, name: '宏愿 · 断空俯冲', slot: 'B', posture: 'air',
+    id: gagaActionIds.airDive, name: '宏愿 · 断空俯冲', slot: 'B', posture: 'air', direction: 'down',
     dive: { vx: 15, vy: 16, piercePlatforms: false, carryTarget: false },
     startup: 5, active: 60, recovery: 12,
     hitbox: { x: -4, y: -102, w: 124, h: 106 },
@@ -170,7 +187,8 @@ export const gagaSpecials: NormalMove[] = [
     startup: 16, active: 3, recovery: 16,
     hitbox: { x: 29, y: -131, w: 48, h: 68 },
     damage: 95, hitstun: 27, blockstun: 12, guardCost: 16, push: 7, lift: 14,
-    stop: 5, advance: 24, advanceFrom: 2, advanceUntil: 12, pose: 'rise', swingOnActive: true
+    stop: 5, advance: 24, advanceFrom: 2, advanceUntil: 12, pose: 'rise', swingOnActive: true,
+    cancelOnHit: ['jump']
   },
   {
     id: gagaActionIds.slide, name: '滑铲', slot: 'A', direction: 'down', posture: 'ground',
@@ -189,12 +207,41 @@ const dijiang: Omit<ActionDefinition, 'slot' | 'energyCost'> = {
   stop: 6, advance: 0, impact: 'heavy', pose: 'rise'
 };
 
+const cannon: Omit<ActionDefinition, 'slot' | 'energyCost'> = {
+  id: gagaActionIds.cannon, name: '近身炮击', direction: 'up', posture: 'ground',
+  startup: 8, active: 2, recovery: 21, hitbox: { x: 16, y: -130, w: 126, h: 94 },
+  damage: 116, hitstun: 26, blockstun: 14, guardCost: 24, push: 15, lift: 0,
+  stop: 5, advance: 0, impact: 'heavy', pose: 'strike',
+  audioTimeline: [{ frame: 8, clip: 'turret-bolt' }],
+  feedback: { color: '#fff1c0', shape: 'ring', shake: 4 }
+};
+
 export const gaga = defineFighter({
   id: 'gaga', name: '姑姑嘎嘎', accent: '#d7a5ff', height: 139,
   art: { portrait: 'gaga-arcade.webp', motion: 'gaga-motion.webp' },
+  audio: Object.fromEntries(Object.entries({
+    'jab': 0.45,
+    'backhand': 0.48,
+    'pole-sweep': 0.42,
+    'pole-reverse': 0.42,
+    'pole-launch': 0.51,
+    'pole-hit': 0.38,
+    'pole-heavy-hit': 0.52,
+    'pole-ground': 0.42,
+    'feet-land': 0.24,
+    'body-land': 0.48,
+    'guard': 0.38,
+    'slide-call': 0.62,
+    'turret-land': 0.35,
+    'turret-ready': 0.34,
+    'turret-bolt': 0.34,
+    'grenade-impact': 0.42,
+    'dijiang-impact': 0.55
+  }).map(([id, volume]) => [id, { src: 'assets/audio/gaga/' + id + '.wav', volume }])),
   stats: { bodyWidth: 54 },
-  normalMoves: [...gagaGroundCombo, ...gagaSpecials, gagaAirThrow],
-  signatureMoves: [...gagaSignatureCombat, ...gagaTurretActions],
+  normalMoves: [...gagaGroundCombo, ...gagaSpecials, gagaAirStrike],
+  signatureMoves: [gagaGroundThrow, gagaAirThrow, ...gagaSignatureCombat, ...gagaTurretActions],
   moveSummary: gagaComboNames.join(' → '),
-  ultimate: { cost: MAX_ENERGY, move: dijiang, gain: { onHit: 12, onHurt: 18 } }
+  ultimate: { cost: MAX_ENERGY, move: dijiang, gain: { onHit: 12, onHurt: 18 },
+    variants: [{ cost: ENERGY_PER_STOCK, move: cannon }] }
 });

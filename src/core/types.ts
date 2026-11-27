@@ -1,8 +1,10 @@
 import type { EntityDefinition, EntityState } from './entities.js';
 
 export type Impact = 'light' | 'medium' | 'heavy';
+export type ImpactTier = Impact | 'launch' | 'guard' | 'guard-break' | 'parry' | 'ultimate';
 export const turretKinds = ['bolt', 'howitzer'] as const;
 export type TurretKind = typeof turretKinds[number];
+export type TurretSlot = TurretKind | `${TurretKind}-second`;
 
 export type Side = -1 | 1;
 export type Slot = 'A' | 'B' | 'C' | 'ULT';
@@ -135,6 +137,8 @@ export interface ActionDefinition extends ActionTiming {
   liftRequiresPrevHit?: boolean;
   standAttack?: 'jab' | 'hook' | 'uppercut' | 'ora' | 'dive' | 'slide' | 'sheer-heart' | 'upper-ora';
   energyGain?: number;
+  /** Advance only this action's entrance until its startup finishes. */
+  cinematicFreeze?: true;
   unblockable?: boolean;
   tearCost?: number;
   channel?: 'spray' | 'cry';
@@ -147,7 +151,7 @@ export interface ActionDefinition extends ActionTiming {
   swingLead?: number;
   projectile?: ProjectileDefinition;
   impact?: Impact;
-  /** Skill energy paid once when the action starts. */
+  /** Public energy paid once when an ultimate starts. */
   energyCost?: number;
   /** The first overlapping unconsumed group connects on each active frame. */
   hitTimeline?: HitWindow[];
@@ -245,6 +249,8 @@ export interface Ruleset {
   ticksPerSecond: number;
   roundSeconds: number;
   winsToFinish: number;
+  /** Consecutive draws that end the match. Defaults to two. */
+  drawsToFinish?: number;
   guardMax: number;
   guardDelay: number;
   guardBreak: number;
@@ -282,9 +288,11 @@ export interface Command {
 export interface Attack {
   id: string;
   frame: number;
+  cinematicFreezeUntil?: number;
   connected: boolean;
   landed: boolean;
   prevLanded?: boolean;
+  guardLinked?: boolean;
   connectedGroups?: string[];
   queuedChain?: string[];
   released?: boolean;
@@ -313,7 +321,13 @@ export interface HitReaction {
   landedAt?: number;
 }
 
+export interface MotionStamp {
+  mode:string;tick:number;x:number;y:number;facing:Side;phase:number;vy:number;
+  ground:boolean;moving:boolean;stun:number;event:string;eventAge:number;attackId?:string;attackFrame?:number;
+}
 export interface FighterState {
+  /** Serialized presentation history; never read by collision or control rules. */
+  motionVisual?: {stamp:MotionStamp;from?:MotionStamp;changed:number;turnTick:number;turnFrom:Side};
   ascendUntil?: number;
   /** Presentation clocks use arena time, independent of interruptible hit poses. */
   ascendVisual?: { tick: number; x: number; y: number };
@@ -353,6 +367,8 @@ export interface FighterState {
   launched?: boolean;
   blockstun: number;
   push: number;
+  /** The next push tick lends or repays part of the following tick's travel. */
+  pushAccent?: number;
   dash: number;
   /** True through the final tick of dash movement, including hitstop snapshots. */
   dashActive?: boolean;
@@ -409,7 +425,10 @@ export interface PowerPylon {
   support?: string;
 }
 
-export type EventKind = 'swing' | 'ultimate' | 'ultimate-no-energy' | 'hit' | 'block' | 'parry' | 'break' | 'whiff' | 'dash' | 'dash-no-stamina' | 'jump' | 'air-jump' |
+export type UltimateUnavailable = 'unbound' | 'ground' | 'air' | 'recovery' | 'energy' | 'tears' | 'cinematic' | 'contested';
+
+export type EventKind = 'swing' | 'ultimate' | 'ultimate-no-energy' | 'ultimate-unavailable' | 'hit' | 'block' | 'parry' | 'break' | 'whiff' | 'dash' | 'dash-no-stamina' | 'jump' | 'air-jump' |
+  'skill-unavailable' |
   'pole-impact' | 'turret-land' | 'turret-ready' | 'turret-fire' | 'turret-burst' | 'grenade-impact' |
   'tear-splash' | 'tears-short' | 'wave-windup' | 'wave-cut-in' | 'wave-unavailable' | 'jo-shatter' |
   'kq-plant' | 'kq-lock' | 'kq-detonate' |
@@ -426,6 +445,10 @@ export interface CombatEvent {
   targetY?: number;
   amount?: number;
   impact?: Impact;
+  impactTier?: ImpactTier;
+  /** The actual shared stop imposed on the contact frame, after its combo cap. */
+  hitstop?: number;
+  trade?: true;
   actionId?: string;
   reaction?: HitReaction['kind'];
   facing?: Side;
@@ -433,6 +456,7 @@ export interface CombatEvent {
   turretKind?: TurretKind;
   surface?: { left: number; right: number };
   requirement?: 'ground' | 'recovery';
+  ultimateReason?: UltimateUnavailable;
   chain?: number;
   direction?: Side;
   heavy?: boolean;
@@ -461,7 +485,7 @@ export interface MatchState {
   result: RoundResult | null;
   winner: 0 | 1 | null;
   projectiles: Projectile[];
-  turrets: Record<TurretKind, Turret | null>;
+  turrets: Record<TurretKind, Turret | null> & Partial<Record<TurretSlot, Turret | null>>;
   powerPylons?: Duo<PowerPylon | null>;
   summon?: Summon;
   cutIn?: CutIn;

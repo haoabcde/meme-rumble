@@ -1,5 +1,6 @@
 import { platformAt } from '../core/terrain.js';
 import type { ArenaDefinition, MatchConfig, MatchState, Platform } from '../core/types.js';
+import { drawInkBackdrop } from './arena-ink.js';
 import { backgrounds, stageKits } from './art.js';
 
 type CampusTheme = Exclude<ArenaDefinition['theme'], 'harbor' | 'ring'>;
@@ -50,45 +51,17 @@ const tones = {
   broadcast: { sky: '#140b2b', haze: '#392351', edge: '#21183b', post: '#38235e', trim: '#a562d0', horizon: 740, feet: 790, parallax: .08 }
 };
 
-export function drawStageBackdrop(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, center: number, overview = false) {
+export function drawStageBackdrop(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, center: number) {
   const { floor, width, height } = arena;
   const style = tones[arena.theme as CampusTheme];
   const img = backgrounds[arena.theme];
   ctx.fillStyle = style.sky;
   ctx.fillRect(0, 0, width, height);
-  if (!img.naturalWidth) return;
   if (arena.theme === 'broadcast') {
-    // The physical floor meets the mat's front lip. Crowd, rails and screen stay behind the fight.
-    const imageWidth = overview ? width : 1000;
-    const scale = imageWidth / img.naturalWidth;
-    const top = floor - 830 * scale;
-    const imageHeight = img.naturalHeight * scale;
-    const x = (width - imageWidth) / 2 + (center - width / 2) * style.parallax;
-    const sourceWing = img.naturalWidth / 4;
-    const wing = imageWidth / 4;
-    const paintWing = (sourceX: number, left: number, mirrored: boolean) => {
-      ctx.save();
-      ctx.translate(left + (mirrored ? wing : 0), top);
-      if (mirrored) ctx.scale(-1, 1);
-      ctx.drawImage(img, sourceX, 0, sourceWing, img.naturalHeight, 0, 0, wing, imageHeight);
-      ctx.restore();
-    };
-    let mirrored = true;
-    for (let left = x - wing; left > -wing; left -= wing) {
-      paintWing(0, left, mirrored);
-      mirrored = !mirrored;
-    }
-    mirrored = true;
-    for (let right = x + imageWidth; right < width; right += wing) {
-      paintWing(img.naturalWidth * .75, right, mirrored);
-      mirrored = !mirrored;
-    }
-    ctx.drawImage(img, x, top, imageWidth, imageHeight);
-    const edge = top + imageHeight;
-    ctx.fillStyle = style.edge;
-    ctx.fillRect(0, edge, width, height - edge);
+    drawInkBackdrop(ctx, arena, center);
     return;
   }
+  if (!img?.naturalWidth) return;
   const scale = width / img.naturalWidth;
   const top = floor - style.feet * scale;
   const seam = top + style.horizon * scale;
@@ -188,6 +161,28 @@ function scoreboardRig(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, p:
   }
 }
 
+export function drawTravelRail(ctx: CanvasRenderingContext2D, fromX: number, fromY: number, toX: number, toY: number) {
+  ctx.save();
+  ctx.strokeStyle = '#191b2bc2';
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.moveTo(fromX, fromY);
+  ctx.lineTo(toX, toY);
+  ctx.stroke();
+  ctx.strokeStyle = '#eac28ba8';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([9, 7]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  const horizontal = fromY === toY;
+  ctx.fillStyle = '#eac28bd4';
+  for (const [x, y] of [[fromX, fromY], [toX, toY]]) {
+    if (horizontal) ctx.fillRect(x - 2, y - 6, 4, 12);
+    else ctx.fillRect(x - 6, y - 2, 12, 4);
+  }
+  ctx.restore();
+}
+
 function liftShaft(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, p: Platform) {
   const top = arena.floor - 642;
   for (const x of [p.left + 12, p.right - 12]) {
@@ -200,6 +195,10 @@ function liftShaft(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, p: Pla
   }
   ctx.fillStyle = '#444859'; ctx.fillRect(p.left, top - 9, p.right - p.left, 12);
   ctx.fillStyle = '#9b8975'; ctx.fillRect(p.left + 6, top - 9, p.right - p.left - 12, 3);
+  if (p.travel) {
+    const guide = p.right - 12;
+    drawTravelRail(ctx, guide, p.y, guide, p.y + p.travel.distance);
+  }
 }
 
 export function drawStageScenery(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {

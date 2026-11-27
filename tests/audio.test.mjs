@@ -3,6 +3,7 @@ import test from 'node:test';
 import { arenas } from '../dist/content/arenas.js';
 import { rules, testFighter } from '../dist/content/demo.js';
 import { basicAttack } from '../dist/content/fighter-kit.js';
+import { frog } from '../dist/content/fighters/frog.js';
 import { createMatch, step } from '../dist/core/match.js';
 import { NEUTRAL } from '../dist/core/types.js';
 import { FightAudio } from '../dist/web/audio.js';
@@ -159,6 +160,60 @@ function matchFixture(audio, first, second = []) {
     }
   };
 }
+
+test('procedural contacts use the heaviest tone once when several hits resolve on one tick', t => {
+  const { audio, context } = audioFixture(t, [undefined, undefined], {});
+  const match = matchFixture(audio, []);
+  const contact = { kind: 'hit', source: 0, x: 0, y: 0 };
+  match.update([{ ...contact, impactTier: 'light' }, { ...contact, impactTier: 'medium' },
+    { ...contact, source: 1, impactTier: 'heavy', trade: true }]);
+  assert.deepEqual(context.played.map(source => source.kind), ['oscillator', 'buffer']);
+  assert.equal(context.played[0].stopTime, context.currentTime + .133);
+});
+
+test('same-tick contact aliases keep the strongest copy of each sample and kind', async t => {
+  const attacker = { tap: { src: 'open.wav' }, slam: { src: 'open.wav' }, separate: { src: 'active.wav' } };
+  const defender = { 'event-block': { src: 'open.wav', volume: .3 } };
+  const { audio, context } = audioFixture(t, [attacker, defender], sources);
+  await finishPreload(context);
+  const match = matchFixture(audio, []);
+  const hitWith = (clip, volume) => ({ ...hit, feedback: { audio: { clip, volume } } });
+  const block = { kind: 'block', source: 0, x: 0, y: 0 };
+  match.update([hitWith('tap', .25), block, hitWith('slam', .8), hitWith('separate', .6), block]);
+  assert.deepEqual(markers(context), [1, 1, 2]);
+  assert.deepEqual(context.clips.map(source => source.output.gain.value), [.8, .3, .6]);
+
+  match.state.frame++;
+  match.update([hitWith('tap', .25)]);
+  assert.deepEqual(markers(context), [1, 1, 2, 1]);
+});
+
+test('frog tactical ultimate starts audibly while ascension music replaces only its own opening cue', async t => {
+  const musicBank = { 'ultimate-bgm': { src: 'open.wav' }, wave: { src: 'active.wav' } };
+  const { audio, context } = audioFixture(t, [musicBank, undefined], sources);
+  await finishPreload(context);
+  const config = { rules, arena: arenas[0], fighters: [frog.fighter, testFighter], training: true };
+  const start = y => {
+    const state = createMatch(config);
+    state.phase = 'fight';
+    state.fighters[0].energy = 300;
+    const events = step(state, [{ ...NEUTRAL, y, pressed: ['ULT'] }, NEUTRAL], config);
+    audio.update(config, state, events);
+    return { state, events };
+  };
+
+  const { state, events } = start(-1);
+  assert.ok(events.some(event => event.kind === 'ultimate' && event.actionId === 'frog-short-shockwave'));
+  assert.deepEqual(context.played.map(source => source.kind), ['oscillator']);
+  for (let i = 0; i < 8; i++) audio.update(config, state, step(state, [NEUTRAL, NEUTRAL], config));
+  assert.deepEqual(markers(context), [2]);
+
+  audio.stopAll();
+  const offset = context.played.length;
+  const ascension = start(0);
+  assert.ok(ascension.events.some(event => event.kind === 'ultimate' && event.actionId === 'frog-ascend'));
+  assert.deepEqual(context.played.slice(offset).map(source => source.buffer?.marker), [1]);
+});
 
 test('frame zero and active-frame clips follow real ticks and hitstop without replaying', async t => {
   const { audio, context } = audioFixture(t, [bank, undefined], sources, false);
@@ -431,4 +486,11 @@ test('frog ultimate music survives transformation and attacks, fades at buff end
  assert.equal(music.stopTime,undefined,'skill sound must not replace BGM');
  state.arenaFrame=900;audio.update(config,state,[]);assert.equal(music.stopTime,context.currentTime+.3);
  audio.stopAll();assert.equal(music.stopped,true);
+});
+
+test('opening a scene or starting a round never automatically plays scene-entry audio',async t=>{
+ const {audio,context}=audioFixture(t,[{'event-entry':bank.opening},undefined],sources);await finishPreload(context);
+ const config={rules,arena:arenas[0],fighters:[testFighter,testFighter]},state=createMatch(config);
+ audio.update(config,state,[]);state.frame++;audio.update(config,state,[]);state.phase='fight';audio.update(config,state,[]);
+ state.round++;state.phase='ready';audio.update(config,state,[]);assert.equal(context.clips.length,0);
 });

@@ -3,48 +3,222 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#121012">
+  <meta name="theme-color" content="#0a0a0d">
   <link rel="icon" href="data:,">
   <title>Meme 乱斗 · 抽象之王</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
+  <svg id="ui-art-catalog" class="ui-art-catalog" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <!-- Brand Phantom Emblem -->
+      <symbol id="ink-mark" viewBox="0 0 64 64">
+        <path fill="#0a0a0d" d="M4 18 19 8 27 11 36 2 62 11 59 35 53 43 56 56 34 62 7 54 6 46 1 41Z"/>
+        <path fill="#e60012" d="m7 16 15-7 7 5 9-9 21 6-3 24-7 5 2 10-19 8-24-7-3-9Z"/>
+        <path fill="#ffffff" d="m13 21 12-6 7 9 11-12 10 3-4 18-8 3 1-12-11 13-8-9-2 14-9 3Z"/>
+        <path fill="#0a0a0d" d="m13 46 12-5 7 3 13-8-8 10-8 4Z"/>
+        <path fill="#ffe600" d="m47 43 7-4-2 10-9 3Z"/>
+      </symbol>
+
+      <!-- Persona 5 Signature Asymmetric Five-Pointed Star -->
+      <symbol id="p5-star" viewBox="0 0 120 120">
+        <polygon fill="var(--star-shadow, #0a0a0d)" points="64,6 79,43 118,45 86,69 98,112 62,87 24,108 38,68 7,42 47,41"/>
+        <polygon fill="var(--star-stroke, #ffffff)" points="60,8 74,42 111,44 82,66 92,106 58,83 23,103 36,66 8,42 45,41"/>
+        <polygon fill="var(--star-fill, #e60012)" points="60,16 71,44 102,46 77,64 85,96 58,77 30,94 40,64 17,45 47,44"/>
+      </symbol>
+
+      <!-- Persona 5 Radial Comic Starburst (All-Out / VS / Result) -->
+      <symbol id="p5-burst" viewBox="0 0 400 400">
+        <path fill="currentColor" d="M200 4 221 128 286 18 250 138 356 62 276 160 395 140 288 192 396 244 282 226 364 330 258 256 296 382 226 274 202 396 180 274 110 382 146 256 38 330 120 226 6 244 114 192 8 136 126 158 46 62 152 138 118 18 181 128Z"/>
+      </symbol>
+
+      <!-- Diagonal Comic Speedlines -->
+      <symbol id="p5-speedlines" viewBox="0 0 800 450" preserveAspectRatio="none">
+        <g fill="currentColor">
+          <polygon points="0,30 240,0 260,0 0,48"/>
+          <polygon points="0,95 360,0 374,0 0,108"/>
+          <polygon points="0,185 190,120 198,128 0,204"/>
+          <polygon points="0,310 310,190 318,200 0,334"/>
+          <polygon points="80,450 420,280 434,292 125,450"/>
+          <polygon points="480,0 800,0 800,26 440,145"/>
+          <polygon points="620,120 800,62 800,78 605,135"/>
+          <polygon points="470,280 800,152 800,174 460,298"/>
+          <polygon points="360,450 800,265 800,294 420,450"/>
+          <polygon points="560,450 800,348 800,368 605,450"/>
+        </g>
+      </symbol>
+
+      <!-- Jagged Persona 5 Ticket / Ribbon Button Backing -->
+      <symbol id="ink-ticket" viewBox="0 0 160 44" preserveAspectRatio="none">
+        <polygon fill="var(--paper-shadow, #0a0a0d)" points="7,7 159,2 153,36 138,44 2,42 0,31"/>
+        <polygon fill="var(--ticket-outer, #ffffff)" points="3,3 155,0 150,33 136,40 1,38 0,26"/>
+        <polygon fill="var(--ticket, #e60012)" points="6,5 151,3 147,30 134,37 4,35 3,25"/>
+        <polygon fill="var(--ticket-line, #0a0a0d)" opacity=".28" points="6,5 22,5 12,35 4,35"/>
+        <polygon fill="var(--ticket-line, #ffffff)" opacity=".22" points="132,3 151,3 147,30 134,37"/>
+      </symbol>
+
+      <!-- Razor Launch Chevrons -->
+      <symbol id="ink-launch" viewBox="0 0 28 20">
+        <path fill="currentColor" d="m0 2 9 0 7 8-9 10H0l9-10Zm12 0h7l9 8-10 10h-7l10-10Z"/>
+      </symbol>
+
+      <!-- Jagged Selection Reticle -->
+      <symbol id="ink-selection" viewBox="0 0 100 70" preserveAspectRatio="none">
+        <path fill="currentColor" d="M0 0h28l-5 5H6L4 22H0Zm100 0v22h-4L94 5H76l-4-5ZM0 70V48h4l2 17h17l5 5Zm100 0H72l4-5h18l2-17h4Z"/>
+        <polygon fill="#ffffff" points="6,6 16,4 8,14"/>
+        <polygon fill="#ffffff" points="94,6 96,15 86,8"/>
+        <polygon fill="#ffffff" points="6,64 15,66 8,57"/>
+        <polygon fill="#ffffff" points="94,64 85,66 92,56"/>
+      </symbol>
+
+      <!-- Seat 1 / Seat 2 / Lock / Round / Critical / Ready / Pause / Victory / Split -->
+      <symbol id="ink-seat-one" viewBox="0 0 24 24">
+        <polygon fill="currentColor" points="1,3 22,1 24,6 21,21 4,24 0,18"/>
+        <path fill="var(--symbol-cut, #0a0a0d)" d="m8 7 7-3 2 1-2 14-5 1 1-10-3 1Z"/>
+      </symbol>
+      <symbol id="ink-seat-two" viewBox="0 0 24 24">
+        <polygon fill="currentColor" points="2,2 21,1 24,7 20,22 4,23 0,15"/>
+        <path fill="var(--symbol-cut, #0a0a0d)" d="m6 7 8-2 5 3-2 5-7 3 6-1-1 4-11 1 1-4 8-6-2-1-5 2Z"/>
+      </symbol>
+      <symbol id="ink-lock" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M1 11 7 17 20 2l4 4-17 17-7-8Z"/>
+      </symbol>
+      <symbol id="ink-round" viewBox="0 0 22 22">
+        <polygon fill="var(--round-fill, #0a0a0d)" stroke="currentColor" stroke-width="1.8" points="11,1 14,8 21,8 16,13 18,20 11,16 4,20 6,13 1,8 8,8"/>
+      </symbol>
+      <symbol id="ink-critical" viewBox="0 0 24 24">
+        <polygon fill="currentColor" points="12,1 23,5 24,14 12,23 0,13 2,4"/>
+        <path fill="var(--symbol-cut, #0a0a0d)" d="M13 3 7 13h5l-2 9 7-12h-5l3-7Z"/>
+      </symbol>
+      <symbol id="ink-ready" viewBox="0 0 24 24">
+        <polygon fill="currentColor" points="12,0 15,8 24,8 17,14 19,23 12,18 5,23 7,14 0,8 9,8"/>
+        <path fill="var(--symbol-cut, #0a0a0d)" d="m13 6-6 7h4l-1 5 7-8h-5Z"/>
+      </symbol>
+      <symbol id="ink-pause" viewBox="0 0 30 30">
+        <polygon fill="currentColor" points="1,4 13,0 11,25 1,29"/>
+        <polygon fill="currentColor" points="17,4 29,0 27,25 17,29"/>
+        <polygon fill="var(--symbol-cut, #e60012)" points="5,8 9,7 8,19 4,21"/>
+        <polygon fill="var(--symbol-cut, #e60012)" points="21,8 25,7 24,19 20,21"/>
+      </symbol>
+      <symbol id="ink-victory" viewBox="0 0 36 36">
+        <polygon fill="currentColor" points="2,7 12,13 19,2 25,13 35,6 32,24 24,27 18,35 11,27 4,24"/>
+        <polygon fill="var(--symbol-cut, #ffe600)" points="8,21 15,19 18,22 28,16 26,22 18,28 12,24"/>
+      </symbol>
+      <symbol id="ink-split" viewBox="0 0 36 36">
+        <polygon fill="currentColor" points="1,15 11,3 23,5 14,18 2,22"/>
+        <polygon fill="currentColor" points="35,21 25,33 13,31 22,18 34,14"/>
+      </symbol>
+      <symbol id="ink-ko" viewBox="0 0 120 38">
+        <polygon fill="#e60012" points="0,26 26,15 20,24 1,32"/>
+        <polygon fill="#e60012" points="120,4 92,18 98,9 119,0"/>
+        <polygon fill="#ffe600" points="4,35 28,24 21,30 6,37"/>
+        <polygon fill="#ffe600" points="116,12 94,23 100,17 114,10"/>
+        <polygon fill="#ffffff" points="22,4 32,9 26,10"/>
+        <polygon fill="#ffffff" points="90,26 100,32 94,32"/>
+      </symbol>
+
+      <!-- P5 Razor HUD Meter Overlays -->
+      <symbol id="ink-life" viewBox="0 0 300 24" preserveAspectRatio="none">
+        <path fill="none" stroke="#ffffff" stroke-width="2" d="M1 1h298l-9 17h-8l-3 5H1Z"/>
+        <path fill="#ffffff" opacity=".28" d="M4 3h290l-2 3H5Z"/>
+        <path fill="#0a0a0d" opacity=".45" d="M74 2h2l-2 20h-2ZM150 2h2l-2 20h-2ZM225 2h2l-2 20h-2Z"/>
+      </symbol>
+      <symbol id="ink-guard" viewBox="0 0 300 12" preserveAspectRatio="none">
+        <path fill="none" stroke="#ffffff" stroke-opacity=".9" stroke-width="1.4" d="M1 1h298l-8 10H1Z"/>
+        <path fill="#ffffff" opacity=".4" d="m3 8 14-6h14L17 8Zm276 0 7-6h9l-5 6Z"/>
+      </symbol>
+      <mask id="ink-stock-mask" maskContentUnits="objectBoundingBox">
+        <path fill="#fff" d="M0 .25 .05 0h.28L.295 .72.25 1H0Zm.345 0h.314l-.033 .72-.044 .28H.312l.014-.62Zm.333 0h.32l-.044 .72-.047 .28H.643l.018-.65Z"/>
+      </mask>
+      <symbol id="ink-stock" viewBox="0 0 120 16" preserveAspectRatio="none">
+        <path fill="none" stroke="#ffffff" stroke-opacity=".85" stroke-width=".9" d="M.4 4.4 5.65.45h33L35 11.2l-5 4.35H.4Zm41-4h37l-3.6 10.6-5.1 4.5H37.9l1.3-8.7Zm40 0h37.9l-4.9 10.8-5.6 4.3H77.6l1.8-9.2Z"/>
+        <path fill="#ffffff" opacity=".24" d="m4 11 8-7h10l-8 7Zm40 0 8-7h10l-8 7Zm40 0 8-7h10l-8 7Z"/>
+      </symbol>
+
+      <!-- Persona 5 Full-Stage Jagged Crimson-Black-White Screen Wipe -->
+      <symbol id="ink-swipe" viewBox="0 0 260 180" preserveAspectRatio="none">
+        <polygon fill="#ffffff" points="48,0 218,0 168,64 184,60 118,144 132,140 84,180 0,180 58,92 40,98"/>
+        <polygon fill="#0a0a0d" points="68,0 206,0 156,64 172,61 106,144 120,141 72,180 14,180 70,92 52,98"/>
+        <polygon fill="#e60012" points="104,0 188,0 138,66 154,62 92,144 104,141 58,180 34,180 86,94 70,99"/>
+        <polygon fill="#ffe600" points="222,8 256,0 212,56 196,60"/>
+        <polygon fill="#ffffff" points="144,116 172,102 130,164 112,172"/>
+        <polygon fill="#ffffff" points="122,42 132,68 158,70 137,84 144,110 121,94 98,108 106,83 87,68 112,67"/>
+        <polygon fill="#0a0a0d" points="122,50 129,70 149,71 133,82 138,101 121,89 104,100 110,81 96,70 114,69"/>
+      </symbol>
+
+      <symbol id="ink-scrape" viewBox="0 0 240 48" preserveAspectRatio="none">
+        <path fill="currentColor" d="m0 29 142-21 9 2 44-7 44-2-27 12 15-1-63 14-6 8-22-2-76 15 35-13-39 4 10-5-58 4Z"/>
+        <path fill="#e60012" opacity=".88" d="m18 44 28-8 16-1-18 8Zm154-19 66-14-12 9-35 4-15 6Z"/>
+      </symbol>
+      <pattern id="ink-proof-dots" width="6" height="6" patternUnits="userSpaceOnUse">
+        <circle cx="1.8" cy="1.8" r="1.15" fill="#0a0a0d" opacity=".22"/>
+        <circle cx="4.8" cy="4.8" r="1.15" fill="#0a0a0d" opacity=".16"/>
+      </pattern>
+      <symbol id="ink-grain" viewBox="0 0 240 120" preserveAspectRatio="xMidYMid slice">
+        <path fill="url(#ink-proof-dots)" d="M0 0h240v120H0Z"/>
+        <path fill="currentColor" opacity=".32" d="M0 0h240v3L48 11 78 6 0 12Zm240 120H0v-4l154-9-21 6 107-13Z"/>
+      </symbol>
+    </defs>
+  </svg>
+
   <main class="cabinet">
     <header class="mast">
-      <button id="home" class="brand" type="button" aria-label="回到标题"><span aria-hidden="true">M</span> Meme 乱斗</button>
+      <button id="home" class="brand" type="button" aria-label="回到标题">
+        <svg class="brand-mark" aria-hidden="true" focusable="false" viewBox="0 0 64 64"><use href="#ink-mark"/></svg>
+        <span class="brand-text"><i>MEME</i><b>乱斗</b></span>
+      </button>
       <nav id="preflight-nav" class="preflight-nav" aria-label="对战准备" hidden>
-        <button class="stage-tab" data-stage-tab="menu" type="button">模式</button>
-        <button class="stage-tab" data-stage-tab="roster" type="button">角色</button>
-        <button class="stage-tab" data-stage-tab="maps" type="button">场地</button>
+        <button class="stage-tab" data-stage-tab="menu" type="button"><span>01 模式</span></button>
+        <button class="stage-tab" data-stage-tab="roster" type="button"><span>02 角色</span></button>
+        <button class="stage-tab" data-stage-tab="maps" type="button"><span>03 场地</span></button>
       </nav>
       <div class="tools">
-        <button id="guide-open" class="subtle" type="button">操作说明</button>
-        <button id="settings-open" class="subtle" type="button">设置</button>
+        <button id="guide-open" class="subtle" type="button"><span>操作说明</span></button>
+        <button id="settings-open" class="subtle" type="button"><span>设置</span></button>
         <button id="fullscreen" class="subtle" type="button" aria-pressed="false">全屏</button>
       </div>
     </header>
 
     <div class="stage" id="stage" data-screen="title">
+      <div class="screen-streak" id="screen-streak" aria-hidden="true">
+        <svg viewBox="0 0 260 180" preserveAspectRatio="none"><use href="#ink-swipe"/></svg>
+      </div>
+
       <section id="title-screen" class="screen title-screen" aria-labelledby="game-name">
-        <div class="title-bg" id="title-bg" aria-hidden="true"></div>
+        <div class="p5-bg-stripes" aria-hidden="true"></div>
+        <svg class="p5-title-burst" aria-hidden="true" viewBox="0 0 400 400"><use href="#p5-burst"/></svg>
+        <svg class="p5-title-star" aria-hidden="true" viewBox="0 0 120 120"><use href="#p5-star"/></svg>
+        <svg class="p5-title-star-sm" aria-hidden="true" viewBox="0 0 120 120"><use href="#p5-star"/></svg>
+        <div class="p5-title-kicker" aria-hidden="true"><span>SHOWTIME // ALL-OUT BRAWL</span></div>
         <div class="title-head">
-          <h1 id="game-name"><i><span>M</span><span>e</span><span>m</span><span>e</span></i> <b>乱斗</b></h1>
+          <h1 id="game-name"><i>Meme</i> <b>乱斗</b></h1>
           <p>抽象之王</p>
         </div>
+        <svg class="title-grain print-grain" aria-hidden="true" viewBox="0 0 240 120" preserveAspectRatio="xMidYMid slice"><use href="#ink-grain"/></svg>
+        <svg class="title-stamp" aria-hidden="true" viewBox="0 0 64 64"><use href="#ink-mark"/></svg>
         <div class="title-art" id="title-art" aria-hidden="true"></div>
         <div class="title-enter">
-          <button id="enter" type="button" class="primary">进入游戏 <span aria-hidden="true">›</span></button>
+          <button id="enter" type="button" class="primary">进入游戏 <span aria-hidden="true" class="button-launch"><svg viewBox="0 0 28 20"><use href="#ink-launch"/></svg></span></button>
         </div>
       </section>
 
       <section id="menu-screen" class="screen menu-screen" aria-labelledby="menu-heading" hidden>
-        <img id="menu-backdrop" class="menu-backdrop" alt="">
+        <div class="p5-menu-bg-word" aria-hidden="true">SHOWTIME</div>
+        <svg class="p5-menu-burst" aria-hidden="true" viewBox="0 0 400 400"><use href="#p5-burst"/></svg>
+        <svg class="p5-menu-star" aria-hidden="true" viewBox="0 0 120 120"><use href="#p5-star"/></svg>
+        <svg class="menu-grain print-grain" aria-hidden="true" viewBox="0 0 240 120" preserveAspectRatio="xMidYMid slice"><use href="#ink-grain"/></svg>
         <div class="menu-panel">
-          <h2 id="menu-heading" class="screen-title"><span>选择</span><span>模式</span></h2>
+          <h2 id="menu-heading" class="screen-title">选择模式</h2>
+          <div class="battle-format" id="battle-format" role="group" aria-label="对战赛制">
+            <span class="format-tag">赛制</span>
+            <button type="button" class="format-btn" data-format="standard" aria-pressed="true">1V1 标准对战</button>
+            <button type="button" class="format-btn" data-format="relay" aria-pressed="false">2V2 双角色车轮战</button>
+          </div>
           <div class="mode-list" id="mode-list">
             <button class="mode" type="button" data-mode="local"><span>本地双人</span><small>同一台电脑，两人对战</small></button>
             <button class="mode" type="button" data-mode="cpu"><span>人机对战</span><small>单人挑战电脑</small></button>
             <button class="mode" type="button" data-mode="training"><span>自由训练</span><small>练连段、反打与登台</small></button>
+            <button class="mode" type="button" data-mode="online"><span>联机对战</span><small>用房间码邀请好友</small></button>
           </div>
           <button class="subtle" data-go="title" type="button">返回标题</button>
         </div>
@@ -52,35 +226,50 @@
       </section>
 
       <section id="roster-screen" class="screen roster-screen" aria-labelledby="roster-heading" hidden>
+        <svg class="p5-roster-speed" aria-hidden="true" viewBox="0 0 800 450" preserveAspectRatio="none"><use href="#p5-speedlines"/></svg>
+        <svg class="p5-roster-star" aria-hidden="true" viewBox="0 0 120 120"><use href="#p5-star"/></svg>
         <header class="screen-head">
           <div><p class="mode-name" data-mode-name></p><h2 id="roster-heading" class="screen-title">选择角色</h2></div>
-          <p class="version-note">双方可选同一角色</p>
+          <p class="version-note" id="roster-rule">双方可选同一角色</p>
         </header>
         <div class="roster-layout">
           <div id="fighter-panel-one" class="pick-side pick-one">
-            <button type="button" class="seat" id="seat-one" aria-pressed="true"></button>
+            <button type="button" class="seat" id="seat-one" aria-pressed="true"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#ink-seat-one"/></svg><span></span></button>
             <img class="pick-art" alt="">
-            <div class="pick-info"><h3></h3><p></p></div>
-            <button class="lock" id="lock-one" type="button">确认 P1</button>
+            <div class="pick-info"><h3></h3><p class="pick-role"></p><dl class="move-list pick-moves"></dl></div>
+            <div class="relay-lineup" id="lineup-one" role="group" aria-label="P1 出场顺序" hidden>
+              <button type="button"><span>首发</span><strong></strong></button>
+              <button type="button"><span>后援</span><strong></strong></button>
+              <button class="lineup-swap" type="button" aria-label="调换 P1 出场顺序" title="调换出场顺序">⇄</button>
+            </div>
+            <button class="lock" id="lock-one" type="button"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#ink-lock"/></svg><span>确认 P1</span></button>
           </div>
           <div class="roster-center">
             <div class="fighter-grid" id="fighter-grid" aria-label="角色名单"></div>
             <p class="roster-help" id="roster-help" aria-live="polite"></p>
+            <p class="roster-basics" id="roster-basics"></p>
           </div>
           <div id="fighter-panel-two" class="pick-side pick-two">
-            <button type="button" class="seat" id="seat-two" aria-pressed="false"></button>
+            <button type="button" class="seat" id="seat-two" aria-pressed="false"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#ink-seat-two"/></svg><span></span></button>
             <img class="pick-art" alt="">
-            <div class="pick-info"><h3></h3><p></p></div>
-            <button class="lock" id="lock-two" type="button">确认 P2</button>
+            <div class="pick-info"><h3></h3><p class="pick-role"></p><dl class="move-list pick-moves"></dl></div>
+            <div class="relay-lineup" id="lineup-two" role="group" aria-label="P2 出场顺序" hidden>
+              <button type="button"><span>首发</span><strong></strong></button>
+              <button type="button"><span>后援</span><strong></strong></button>
+              <button class="lineup-swap" type="button" aria-label="调换 P2 出场顺序" title="调换出场顺序">⇄</button>
+            </div>
+            <button class="lock" id="lock-two" type="button"><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#ink-lock"/></svg><span>确认 P2</span></button>
           </div>
         </div>
         <footer class="screen-footer">
           <button class="subtle" data-go="menu" type="button">返回模式</button>
-          <button class="primary" id="pick-arena" type="button" disabled>选择地图 <span aria-hidden="true">›</span></button>
+          <button class="primary" id="pick-arena" type="button" disabled>选择地图 <span aria-hidden="true" class="button-launch"><svg viewBox="0 0 28 20"><use href="#ink-launch"/></svg></span></button>
         </footer>
       </section>
 
       <section id="maps-screen" class="screen maps-screen" aria-labelledby="maps-heading" hidden>
+        <div class="p5-maps-bg-word" aria-hidden="true">STAGE</div>
+        <svg class="p5-maps-star" aria-hidden="true" viewBox="0 0 120 120"><use href="#p5-star"/></svg>
         <header class="screen-head">
           <div><p class="mode-name" data-mode-name></p><h2 id="maps-heading" class="screen-title">选择地图</h2></div>
           <div class="map-matchup" id="map-matchup"></div>
@@ -105,15 +294,18 @@
         <footer class="screen-footer">
           <button class="subtle" data-go="roster" type="button">返回选角</button>
           <div id="map-rules" class="map-rules">
-            <label>时限 <select id="round-limit" aria-label="单回合时限"><option value="30">30 秒</option><option value="45">45 秒</option><option value="60" selected>60 秒</option><option value="90">90 秒</option></select></label>
-            <label>赛制 <select id="round-wins" aria-label="整场获胜所需回合"><option value="1">一回合决胜</option><option value="2" selected>先赢两回合</option><option value="3">先赢三回合</option></select></label>
+            <label><span id="round-limit-label">时限</span> <select id="round-limit" aria-label="单回合时限"><option value="30">30 秒</option><option value="45">45 秒</option><option value="60" selected>60 秒</option><option value="90">90 秒</option></select></label>
+            <label id="round-wins-rule">赛制 <select id="round-wins" aria-label="整场获胜所需回合"><option value="1">一回合决胜</option><option value="2" selected>先赢两回合</option><option value="3">先赢三回合</option></select></label>
+            <p class="relay-rules" id="relay-rules" hidden>败方换人 · 胜者保留生命</p>
           </div>
           <span id="training-rule" class="training-rule" hidden>自由训练 · 无时限</span>
-          <button id="start" class="primary" type="button">开始对战 <span aria-hidden="true">›</span></button>
+          <button id="start" class="primary" type="button"><span id="start-label">开始对战</span><span aria-hidden="true" class="button-launch"><svg viewBox="0 0 28 20"><use href="#ink-launch"/></svg></span></button>
         </footer>
       </section>
 
       <section id="versus-screen" class="screen versus-screen" aria-labelledby="versus-title" hidden>
+        <svg class="p5-vs-speed" aria-hidden="true" viewBox="0 0 800 450" preserveAspectRatio="none"><use href="#p5-speedlines"/></svg>
+        <svg class="p5-vs-burst" aria-hidden="true" viewBox="0 0 400 400"><use href="#p5-burst"/></svg>
         <div class="versus-figures">
           <div class="versus-side is-one"><img id="versus-art-one" alt=""><div><b id="versus-seat-one"></b><span id="versus-fighter-one"></span></div></div>
           <div class="versus-center"><strong aria-hidden="true">VS</strong><h2 id="versus-title"></h2><p id="versus-rules"></p></div>
@@ -125,41 +317,47 @@
       <section id="match-screen" class="screen match-screen" aria-label="格斗画面" hidden>
         <canvas id="arena" width="1280" height="720" tabindex="0" aria-label="格斗画面，Esc 暂停"></canvas>
         <div id="hud" class="hud">
-          <div class="fighter p1">
-            <img id="portrait-one" alt="">
+          <div class="fighter p1" id="hud-fighter-one">
+            <div class="hud-portrait"><img id="portrait-one" alt=""></div>
             <div class="hud-info">
-              <div class="fighter-label"><span id="name-one">P1</span><div class="round-pips" id="wins-one" aria-hidden="true"></div><output class="visually-hidden" id="score-one" aria-label="玩家一胜场">0</output></div>
-              <div class="hp" role="meter" aria-label="玩家一生命"><div class="hp-trail" id="hp-trail-one"></div><div id="hp-one"></div><output id="hp-value-one"></output></div>
-              <div class="guard" role="meter" aria-label="玩家一耐力"><div id="guard-one"></div><output id="guard-value-one"></output></div>
+              <div class="fighter-label"><span id="name-one">P1</span><div class="round-pips" id="wins-one" aria-hidden="true"></div><div class="relay-status" id="relay-status-one" hidden><span role="img"><img alt=""></span><span role="img"><img alt=""></span></div><small class="critical-label" id="critical-one" hidden><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#ink-critical"/></svg>低生命</small><output class="visually-hidden" id="score-one" aria-label="玩家一胜场">0</output></div>
+              <div class="hp" role="meter" aria-label="玩家一生命"><div class="hp-trail" id="hp-trail-one"></div><div id="hp-one"></div><svg class="meter-ink" aria-hidden="true" viewBox="0 0 300 24" preserveAspectRatio="none"><use href="#ink-life"/></svg><output id="hp-value-one"></output></div>
+              <div class="guard" role="meter" aria-label="玩家一耐力"><div id="guard-one"></div><svg class="meter-ink" aria-hidden="true" viewBox="0 0 300 12" preserveAspectRatio="none"><use href="#ink-guard"/></svg><output id="guard-value-one"></output></div>
+              <div class="skill-side">
+                <div class="energy-row p1" id="energy-row-one" hidden>
+                  <div class="energy" role="meter" aria-label="玩家一杀气" aria-valuemin="0" aria-valuemax="300"><div id="energy-one"></div><svg class="meter-ink" aria-hidden="true" viewBox="0 0 120 16" preserveAspectRatio="none"><use href="#ink-stock"/></svg></div>
+                  <span id="energy-label-one"></span>
+                </div>
+                <div class="ultimate-cues" id="ultimate-cues-one" aria-label="玩家一大招"></div>
+              </div>
               <div class="tear-row" id="tears-row-one" hidden>
                 <span>眼泪值</span><div class="tear-track" role="meter" aria-label="玩家一眼泪值" aria-valuemin="0" aria-valuemax="100" aria-valuenow="60"><i id="tears-one"></i></div>
                 <span id="tears-count-one" aria-hidden="true">60 / 100</span>
               </div>
+              <div id="form-one" class="fighter-form" hidden></div>
             </div>
           </div>
           <div class="timer"><output id="time">60</output><small id="round">第 1 回合</small></div>
-          <div class="fighter p2">
-            <img id="portrait-two" alt="">
+          <div class="fighter p2" id="hud-fighter-two">
+            <div class="hud-portrait"><img id="portrait-two" alt=""></div>
             <div class="hud-info">
-              <div class="fighter-label"><span id="name-two">P2</span><div class="round-pips" id="wins-two" aria-hidden="true"></div><output class="visually-hidden" id="score-two" aria-label="玩家二胜场">0</output></div>
-              <div class="hp" role="meter" aria-label="玩家二生命"><div class="hp-trail" id="hp-trail-two"></div><div id="hp-two"></div><output id="hp-value-two"></output></div>
-              <div class="guard" role="meter" aria-label="玩家二耐力"><div id="guard-two"></div><output id="guard-value-two"></output></div>
+              <div class="fighter-label"><span id="name-two">P2</span><div class="round-pips" id="wins-two" aria-hidden="true"></div><div class="relay-status" id="relay-status-two" hidden><span role="img"><img alt=""></span><span role="img"><img alt=""></span></div><small class="critical-label" id="critical-two" hidden><svg aria-hidden="true" viewBox="0 0 24 24"><use href="#ink-critical"/></svg>低生命</small><output class="visually-hidden" id="score-two" aria-label="玩家二胜场">0</output></div>
+              <div class="hp" role="meter" aria-label="玩家二生命"><div class="hp-trail" id="hp-trail-two"></div><div id="hp-two"></div><svg class="meter-ink" aria-hidden="true" viewBox="0 0 300 24" preserveAspectRatio="none"><use href="#ink-life"/></svg><output id="hp-value-two"></output></div>
+              <div class="guard" role="meter" aria-label="玩家二耐力"><div id="guard-two"></div><svg class="meter-ink" aria-hidden="true" viewBox="0 0 300 12" preserveAspectRatio="none"><use href="#ink-guard"/></svg><output id="guard-value-two"></output></div>
+              <div class="skill-side">
+                <div class="energy-row p2" id="energy-row-two" hidden>
+                  <div class="energy" role="meter" aria-label="玩家二杀气" aria-valuemin="0" aria-valuemax="300"><div id="energy-two"></div><svg class="meter-ink" aria-hidden="true" viewBox="0 0 120 16" preserveAspectRatio="none"><use href="#ink-stock"/></svg></div>
+                  <span id="energy-label-two"></span>
+                </div>
+                <div class="ultimate-cues" id="ultimate-cues-two" aria-label="玩家二大招"></div>
+              </div>
               <div class="tear-row" id="tears-row-two" hidden>
                 <span>眼泪值</span><div class="tear-track" role="meter" aria-label="玩家二眼泪值" aria-valuemin="0" aria-valuemax="100" aria-valuenow="60"><i id="tears-two"></i></div>
                 <span id="tears-count-two" aria-hidden="true">60 / 100</span>
               </div>
+              <div id="form-two" class="fighter-form" hidden></div>
             </div>
           </div>
-        </div>
-        <div class="skill-gauges">
-              <div class="energy-row p1" id="energy-row-one" hidden>
-                <div class="energy" role="meter" aria-label="玩家一技能能量" aria-valuemax="300"><div id="energy-one"></div></div>
-                <span id="energy-label-one"></span>
-              </div>
-              <div class="energy-row p2" id="energy-row-two" hidden>
-                <div class="energy" role="meter" aria-label="玩家二技能能量" aria-valuemax="300"><div id="energy-two"></div></div>
-                <span id="energy-label-two"></span>
-              </div>
         </div>
         <output class="combo" id="combo-one" hidden></output>
         <output class="combo" id="combo-two" hidden></output>
@@ -168,7 +366,7 @@
           <div><b>陪练</b><span id="training-state-two"></span></div>
           <div><b>按键</b><span id="training-pending"></span></div>
         </aside>
-        <div id="announcement" class="announcement" aria-live="polite" hidden></div>
+        <div id="announcement" class="announcement" aria-live="polite" hidden><svg class="ko-ink" aria-hidden="true" viewBox="0 0 120 38"><use href="#ink-ko"/></svg></div>
         <div class="fight-deck">
           <details class="training-panel" id="training-panel" hidden>
             <summary>训练设置</summary>
@@ -189,12 +387,16 @@
       </section>
 
       <section id="pause-screen" class="screen overlay" aria-labelledby="pause-title" hidden>
+        <svg class="p5-pause-star" aria-hidden="true" viewBox="0 0 120 120"><use href="#p5-star"/></svg>
         <div class="dialog">
-          <p class="mode-name" data-mode-name></p>
-          <h2 id="pause-title" class="screen-title">已暂停</h2>
-          <p id="pause-summary" class="pause-summary"></p>
-          <button id="resume" class="primary" type="button">继续对战 <span aria-hidden="true">›</span></button>
+          <div class="pause-title-block">
+            <p class="mode-name" data-mode-name></p>
+            <h2 id="pause-title" class="screen-title"><svg aria-hidden="true" viewBox="0 0 30 30"><use href="#ink-pause"/></svg><span id="pause-title-text">已暂停</span></h2>
+            <p id="pause-summary" class="pause-summary"></p>
+          </div>
+          <button id="resume" class="primary" type="button">继续对战 <span aria-hidden="true" class="button-launch"><svg viewBox="0 0 28 20"><use href="#ink-launch"/></svg></span></button>
           <div class="dialog-actions">
+            <button id="pause-moves" class="subtle" type="button">招式表</button>
             <button id="restart" class="subtle" type="button">重开本场</button>
             <button id="step-training" class="subtle" type="button" hidden>前进一帧</button>
             <button id="pause-settings" class="subtle" type="button">对战设置</button>
@@ -206,14 +408,23 @@
       </section>
 
       <section id="result-screen" class="screen overlay result-screen" aria-labelledby="result-title" hidden>
+        <svg class="p5-result-burst" aria-hidden="true" viewBox="0 0 400 400"><use href="#p5-burst"/></svg>
+        <svg class="p5-result-star" aria-hidden="true" viewBox="0 0 120 120"><use href="#p5-star"/></svg>
+        <div class="p5-result-kicker" aria-hidden="true">SHOW&apos;S OVER</div>
         <div class="result-art-frame" id="result-art-frame" hidden><img id="result-art" alt=""></div>
         <div class="result-content">
           <p class="mode-name" id="result-map"></p>
-          <h2 class="screen-title" id="result-title"></h2>
-          <div class="result-score"><span id="result-one"></span><output id="result-score"></output><span id="result-two"></span></div>
+          <div class="result-title-block">
+            <svg class="result-medal" aria-hidden="true" viewBox="0 0 36 36"><use id="result-medal-ink" href="#ink-victory"/></svg>
+            <h2 class="screen-title" id="result-title"></h2>
+          </div>
+          <div class="result-score">
+            <svg class="result-score-ink" aria-hidden="true" viewBox="0 0 240 48" preserveAspectRatio="none"><use href="#ink-scrape"/></svg>
+            <span id="result-one"></span><output id="result-score"></output><span id="result-two"></span>
+          </div>
           <p id="result-reason"></p>
           <ol id="round-history" class="round-history" aria-label="回合记录"></ol>
-          <button id="rematch" class="primary" type="button">再战 <span aria-hidden="true">›</span></button>
+          <button id="rematch" class="primary" type="button">再战 <span aria-hidden="true" class="button-launch"><svg viewBox="0 0 28 20"><use href="#ink-launch"/></svg></span></button>
           <div class="dialog-actions">
             <button class="subtle" data-go="roster" type="button">换角色</button>
             <button class="subtle" data-go="maps" type="button">换地图</button>
@@ -222,18 +433,23 @@
         </div>
       </section>
 
-      <dialog id="guide" class="guide">
-        <div class="guide-head"><h2>操作说明</h2><button class="subtle" id="guide-close" type="button">关闭</button></div>
-        <div class="guide-grid">
-          <article><h3 class="p1">P1 玩家一</h3><dl id="guide-one"></dl></article>
-          <article><h3 class="p2">P2 玩家二</h3><dl id="guide-two"></dl></article>
+      <dialog id="guide" class="guide" aria-labelledby="guide-title">
+        <div class="guide-head"><h2 id="guide-title">操作说明</h2><button class="subtle" id="guide-close" type="button">关闭</button></div>
+        <div id="guide-controls">
+          <div class="guide-grid">
+            <article><h3 class="p1">P1 玩家一</h3><dl id="guide-one"></dl></article>
+            <article><h3 class="p2">P2 玩家二</h3><dl id="guide-two"></dl></article>
+          </div>
+          <p>二段跳和空中冲刺每次离地可选一次。角色旁的亮菱形表示还有机会。站在平台上可用下方向＋跳跃逐层下穿。</p>
+          <p>按 <kbd>Esc</kbd> 暂停，在暂停菜单打开招式表。自由训练中按 <kbd>H</kbd> 查看判定框和动作数据。</p>
         </div>
-        <p>公共角色普攻命中后可接到第三段并击倒对手；挑空后可起跳追打。倒地和起身期间有保护，站稳即可恢复攻防。</p>
-        <p><strong>大肥鱼</strong>：连按普攻依次左转抽尾、右转反抽、向上挑飞，三段等伤害。敌人必须实际格挡两次才会破防，后续命中才造成正常伤害。</p>
-        <p>技能1（B）向前直线投米饭，约六个身位落地；向上＋技能1以约60°直线上投。直击造成伤害并粘住1秒，踩中只粘住；连续投5次后会误吃，停投0.4秒恢复。技能2（C）原地成风并让风柱向前高速远行；向上＋技能2在敌人横坐标、自身高度生成定点旋风。两种技能2均无额外冷却，收招后可再次释放。</p>
-        <p>大肥鱼按防御立即戴盆；持续防御时接到正面近战或远程攻击，触发原地旋风并向两侧投饭。大招「开源！」消耗三格气，虎鲸空驶加速，接触敌人才张嘴减速攻击，最多造成12段伤害；打满后加速继续冲出场外。需二段跳至顶点才能越过，冲刺撞上仍会受伤。</p>
-        <p>命中和受击可积攒技能能量，技能释放会扣除所需能量。</p>
-        <p>每次离地可选一次二段跳或空中冲刺，角色标记旁的亮菱形表示还有机会。站在平台上时用下方向＋跳跃逐层下穿。<kbd>Esc</kbd> 暂停，<kbd>H</kbd> 显示判定框与训练动作数据。</p>
+        <div id="guide-moves" hidden>
+          <p class="move-rules">进攻技优先收录远程攻击，特色技用于角色机制。代表大招使用大招键，战术大招用上方向合按。各招的气量和姿态见下表。</p>
+          <div class="guide-grid">
+            <article id="move-guide-panel-one"><h3 class="p1"></h3><p class="move-chain"></p><dl class="move-list"></dl></article>
+            <article id="move-guide-panel-two"><h3 class="p2"></h3><p class="move-chain"></p><dl class="move-list"></dl></article>
+          </div>
+        </div>
       </dialog>
 
       <dialog id="settings" class="guide settings" aria-labelledby="settings-title">
@@ -258,7 +474,21 @@
     <footer class="cabinet-footer" id="cabinet-footer">
       <span id="footer-main">桌面浏览器 · 键盘操作</span>
       <span id="footer-detail">同机双人 / 人机 / 自由训练</span>
+      <div id="fight-key-hints" class="fight-key-hints" hidden>
+        <span id="fight-keys-one" class="p1"></span>
+        <span id="fight-keys-two" class="p2"></span>
+      </div>
     </footer>
+    <dialog id="online-room" aria-labelledby="online-title">
+      <h2 id="online-title">好友联机 · 1V1</h2>
+      <label>你的角色 <select id="online-fighter"></select></label>
+      <label>房主地图 <select id="online-arena"></select></label>
+      <button id="online-create" class="primary" type="button">创建房间</button>
+      <label>房间码 <input id="online-code" maxlength="8" autocomplete="off" spellcheck="false"></label>
+      <button id="online-join" class="subtle" type="button">加入房间</button>
+      <p id="online-status" role="status"></p>
+      <button id="online-close" class="subtle" type="button">返回</button>
+    </dialog>
   </main>
   <script src="./dist/game.bundle.js"></script>
 </body>

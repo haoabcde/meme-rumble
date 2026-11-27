@@ -180,38 +180,29 @@ test('three-stock ultimates choose the sampled direction and spend only the sele
   }
 });
 
-test('a paid signature skill shares skill energy even on a fighter without an ultimate', () => {
-  const paidMove = { ...probeB, direction: undefined, energyCost: 30 };
-  const entry = defineFighter({ ...empty, signatureMoves: [paidMove] });
+test('ordinary signature skills are free at every stock and a paid package is rejected', () => {
+  const move = { ...probeB, direction: undefined };
+  assert.throws(() => defineFighter({ ...empty, signatureMoves: [{ ...move, energyCost: 30 }] }),
+    /fixture.*普通动作不能消耗杀气/);
+  const entry = defineFighter({ ...empty, signatureMoves: [move] });
   const command = { ...NEUTRAL, pressed: ['B'] };
   for (const seat of [0, 1]) {
-    const duel = fighterDuel(seat, entry);
-    assert.equal(duel.player.energy, 0);
-    assert.equal(duel.target.energy, 0);
-    duel.tick(jab);
-    duel.hold(basicAttack.startup);
-    assert.equal(duel.player.energy, 20);
-    duel.hold(40);
-
-    assert.deepEqual(duel.tick(command).map(event => [event.kind, event.source]), [['ultimate-no-energy', seat]]);
-    assert.equal(duel.player.attack, null);
-    assert.equal(duel.player.energy, 20);
-    assert.deepEqual(duel.tick(), []);
-
-    duel.player.energy = 100;
-    assert.deepEqual(duel.tick(command).map(event => [event.kind, event.source]), [['swing', seat]]);
-    assert.equal(duel.player.attack.id, paidMove.id);
-    assert.equal(duel.player.energy, 70);
-    duel.target.x += duel.player.facing * 250;
-    const held = { ...NEUTRAL, held: ['B'] };
-    const events = duel.hold(paidMove.startup + paidMove.active + paidMove.recovery + 3, held);
-    assert.deepEqual(events.map(event => event.kind), ['whiff']);
-    assert.equal(duel.player.energy, 70);
+    for (const energy of [0, 100, 300]) {
+      const duel = fighterDuel(seat, entry);
+      duel.player.energy = energy;
+      duel.target.x += duel.player.facing * 250;
+      assert.deepEqual(duel.tick(command).map(event => [event.kind, event.source]), [['swing', seat]]);
+      assert.equal(duel.player.attack.id, move.id);
+      const held = { ...NEUTRAL, held: ['B'] };
+      const events = duel.hold(move.startup + move.active + move.recovery + 3, held);
+      assert.deepEqual(events.map(event => event.kind), ['whiff']);
+      assert.equal(duel.player.energy, energy);
+    }
   }
 });
 
-test('paid actions cannot be used as automatic counter responses', () => {
-  const paidMove = { ...probeB, energyCost: 30 };
+test('actions that cost a private resource cannot be used for an automatic counter', () => {
+  const paidMove = { ...probeB, tearCost: 30 };
   const spec = { ...empty, signatureMoves: [paidMove] };
   assert.throws(() => defineFighter({
     ...spec, guardCounter: { windowFrames: 3, actionId: paidMove.id }
@@ -256,7 +247,7 @@ test('ultimates follow posture and hit-cancel rules and retain their cost on a b
   const air = fighterDuel(0, linked);
   air.player.energy = 60;
   air.tick({ ...NEUTRAL, pressed: ['jump'] });
-  assert.deepEqual(air.tick(ultimateInput), []);
+  assert.deepEqual(air.tick(ultimateInput).map(event => [event.kind, event.ultimateReason]), [['ultimate-unavailable', 'ground']]);
   assert.equal(air.player.energy, 60);
   assert.equal(air.player.attack, null);
   for (const [entry, defense] of [[linked, NEUTRAL], [linked, guard], [charged, NEUTRAL]]) {

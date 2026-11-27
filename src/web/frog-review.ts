@@ -1,3 +1,4 @@
+import {drawHolyCombo} from './frog-combo.mjs';
 import {createMatch,step} from '../core/match.js';
 import {NEUTRAL,type InputFrame,type ActionKey,type MatchConfig} from '../core/types.js';
 import {frog} from '../content/fighters/frog.js';
@@ -85,7 +86,7 @@ for(const [id,clip]of Object.entries(frog.audio??{})){
  player.controls=true;player.preload='metadata';player.src=__FIGHTER_AUDIO__[clip.src];player.setAttribute('aria-label',label.textContent);
  box.append(label,player);voices.querySelector('.voice-grid')!.append(box);
 }
-const soundShelf=document.createElement('details');soundShelf.innerHTML='<summary>两位角色战斗音效 · 23段原素材试听（实战使用阶梯音量）</summary><div style="display:flex;flex-wrap:wrap;gap:14px"></div>';$('#effects').before(soundShelf);
+const soundShelf=document.createElement('details');soundShelf.innerHTML='<summary>战斗音效与大肥鱼配音试听（实战使用阶梯音量）</summary><div style="display:flex;flex-wrap:wrap;gap:14px"></div>';$('#effects').before(soundShelf);
 const listedSounds=new Set<string>();
 for(const [name,bank]of [['奶蛙',frog.audio],['大肥鱼',whale.audio]] as const)for(const [id,clip]of Object.entries(bank??{})){
  if(['laugh','ha','ultimate-bgm'].includes(id)||id.startsWith('skill2-')||listedSounds.has(clip.src))continue;listedSounds.add(clip.src);
@@ -137,7 +138,7 @@ function inputs():[InputFrame,InputFrame]{let c=NEUTRAL,opponent=NEUTRAL;if(!sta
  if(scene.includes('dodge')){c=trigger(scene==='power-air-dodge'?20:8,'dash')??NEUTRAL;if(scene==='power-air-dodge')c=trigger(4,'jump')??c;}
  if((scene==='power-guard'||scene==='normal-guard')&&tick>=8&&tick<170)c={...NEUTRAL,y:1};
  tick++;}return mirror?[opponent,c]:[c,opponent];}
-function advance(){const ev=step(state,inputs(),config);renderer.add(ev,state.arenaFrame);audio.update(config,state,ev);for(const e of ev)if(e.kind==='hit'&&e.source===(mirror?1:0)){hits++;damage+=e.amount??0;}save();}
+function advance(){const ev=step(state,inputs(),config);renderer.add(ev,state,config.fighters);audio.update(config,state,ev);for(const e of ev)if(e.kind==='hit'&&e.source===(mirror?1:0)){hits++;damage+=e.amount??0;}save();}
 function draw(){
  const panel=$('#body-compare');panel.hidden=scene!=='normal-guard';
  if(!panel.hidden){const g=$<HTMLCanvasElement>('#body-canvas').getContext('2d')!;g.fillStyle='#141c26';g.fillRect(0,0,1000,410);g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
@@ -150,8 +151,8 @@ function draw(){
  if(powered){g.fillStyle='#5b4c32';g.fillRect(24,50,300,5);g.fillStyle='#ffdf8c';g.fillRect(24,50,300*left/15,5);}
  $<HTMLInputElement>('#seek').value=String(state.frame);$('#stats').textContent=`${paused?'暂停':'播放'} · 战斗时间 ${(state.arenaFrame/60).toFixed(2)}s · ${hits}次实际命中 / ${damage}伤害 · ${cinematicOwner(state)!==undefined?'演出时停':c.attack?.id??(c.ascendEndVisual&&state.arenaFrame-c.ascendEndVisual.tick<36?'羽毛消散':'待机')}${powered?' · 强化剩余 '+left.toFixed(2)+'s':''}`;}
 $('#play').onclick=()=>{audio.enableFromGesture();paused=!paused;audio.setPaused(paused);$('#play').textContent=paused?'播放':'暂停';};$('#restart').onclick=()=>{audio.enableFromGesture();reset();};$('#step').onclick=()=>{audio.setPaused(true);paused=true;$('#play').textContent='播放';advance();draw();};$('#mirror').onclick=()=>{mirror=!mirror;$('#mirror').textContent='方向：'+(mirror?'左':'右');reset();};$<HTMLSelectElement>('#speed').onchange=e=>speed=Number((e.target as HTMLSelectElement).value);
-$<HTMLInputElement>('#seek').oninput=e=>{const target=Number((e.target as HTMLInputElement).value);audio.stopAll();audio.setPaused(true);paused=true;$('#play').textContent='播放';if(!history[target]){const last=history[history.length-1];state=structuredClone(last.state);tick=last.tick;hits=last.hits;damage=last.damage;seen=new Set(last.seen);while(state.frame<target)advance();}const s=history[target];state=structuredClone(s.state);tick=s.tick;hits=s.hits;damage=s.damage;seen=new Set(s.seen);draw();};
-const picks=[['thrust','普通拳脚 · 冲刺气流','melee/thrust','拳锋、踢击的短促定向气流；强化后更亮更宽。'],['spark','强化命中 · 星芒火花','impacts/hit-spark','强化普攻和所有技能命中的金白爆点，保留此效果。'],['smite','强化技能 · 天降圣光','holy/smite','保留用于强化飞踢；技能一已取消此放射效果。'],['sun','强化攻击 · 日轮放射','holy/sunburst','强化普攻哈震退的背后日轮；不再用于技能一。'],['blunt','拳脚命中','impacts/blunt-hit','适配左右拳、踢腿：短促实心命中与碎屑。'],['burst','普攻哈震退','arcane/mana-burst','仅保留用于普攻哈震退，所有技能一已取消此烟花式效果。'],['uppercut','飞踢气流','melee/uppercut','适配最后飞踢的弧光与爆点；随飞踢方向旋转。'],['pillar','变身 · 圣光柱','holy/holy-pillar','云层开光、光柱汇聚，适配指尖相触变身。'],['halo','强化光环','holy/halo','强化期间持续的光环流光。'],['feather','变身羽毛','holy/feather-burst','变身、强化技能及强化结束时保留黄白羽毛爆散，随后缓慢下落。'],['rays','演出天光','weather/god-rays','金色天光与浮尘，匹配参考图一。']] as const;
+$<HTMLInputElement>('#seek').oninput=e=>{const target=Number((e.target as HTMLInputElement).value);audio.stopAll();audio.setPaused(true);renderer.resetPresentation();paused=true;$('#play').textContent='播放';if(!history[target]){const last=history[history.length-1];state=structuredClone(last.state);tick=last.tick;hits=last.hits;damage=last.damage;seen=new Set(last.seen);while(state.frame<target)advance();}const s=history[target];state=structuredClone(s.state);tick=s.tick;hits=s.hits;damage=s.damage;seen=new Set(s.seen);draw();};
+const picks=[['thrust','普通拳脚 · 冲刺气流','melee/thrust','普通拳脚的短促定向气流；强化五段已使用上方白金焰羽。'],['spark','强化命中 · 星芒火花','impacts/hit-spark','强化普攻和所有技能命中的金白爆点，保留此效果。'],['smite','强化技能 · 天降圣光','holy/smite','仅作备选；当前强化第五段为六帧金龙抬头，技能一不使用此放射效果。'],['sun','强化攻击 · 日轮放射','holy/sunburst','旧版备选；V22强化第四段已改为白金环震。'],['blunt','拳脚命中','impacts/blunt-hit','适配左右拳、踢腿：短促实心命中与碎屑。'],['burst','普攻哈震退','arcane/mana-burst','仅保留用于普攻哈震退，所有技能一已取消此烟花式效果。'],['uppercut','飞踢气流','melee/uppercut','适配最后飞踢的弧光与爆点；随飞踢方向旋转。'],['pillar','变身 · 圣光柱','holy/holy-pillar','云层开光、光柱汇聚，适配指尖相触变身。'],['halo','强化光环','holy/halo','强化期间持续的光环流光。'],['feather','变身羽毛','holy/feather-burst','变身、强化技能及强化结束时保留黄白羽毛爆散，随后缓慢下落。'],['rays','演出天光','weather/god-rays','金色天光与浮尘，匹配参考图一。']] as const;
 const fxOffsets:number[]=[],fxCanvases:HTMLCanvasElement[]=[];for(const [id,name,path,note]of picks){const card=document.createElement('article');card.innerHTML=`<h3>${name}</h3><code>${path}</code><canvas width="320" height="220" aria-label="${name}原始特效"></canvas><p>${note}</p><button class="replay-fx" aria-label="重播${name}">重播此特效</button>`;$('#fx-grid').append(card);fxCanvases.push(card.querySelector('canvas')!);const index=fxCanvases.length-1;fxOffsets[index]=0;card.querySelector<HTMLButtonElement>('.replay-fx')!.onclick=()=>{fxOffsets[index]=fxTime;fxPaused=false;$('#fx-play').textContent='暂停特效';};}
 const motifCanvases=['强化命中星芒','强化技能符文环','螺旋光带（已停用）','强化哈星轨'].map(name=>{
  const card=document.createElement('article');card.innerHTML=`<h3>${name}</h3><canvas width="320" height="220" aria-label="${name}像素素材"></canvas>`;$('#motif-grid').append(card);return card.querySelector('canvas')!;

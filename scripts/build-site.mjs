@@ -6,9 +6,11 @@ import { build } from 'esbuild';
 import { roster } from '../dist/content/roster.js';
 import { embedFighterImages } from './fighter-art.mjs';
 import { embedFighterAudio } from './fighter-audio.mjs';
+import { loadOnlineConfig } from './online-config.mjs';
 import { listSoundBank } from './sound-bank.mjs';
 
 const root = new URL('../', import.meta.url);
+const { onlineBuild, onlineUrl } = await loadOnlineConfig(root);
 const siteDir = new URL('site/', root);
 const sitePath = fileURLToPath(siteDir);
 
@@ -73,9 +75,12 @@ const result = await build({
     __FIGHTER_IMAGES__: JSON.stringify(fighterImages),
     __FIGHTER_AUDIO__: JSON.stringify(fighterAudio),
     __GAGA_SOUNDS__: JSON.stringify(gagaSounds),
-    __BANANA_SOUNDS__: JSON.stringify(bananaSounds)
+    __BANANA_SOUNDS__: JSON.stringify(bananaSounds),
+    __ONLINE_BUILD__: JSON.stringify(onlineBuild),
+    __ONLINE_URL__: JSON.stringify(onlineUrl)
   }
 });
+await writeFile(new URL('online-version.txt', siteDir), onlineBuild + '\n');
 
 const entryRel = Object.entries(result.metafile.outputs)
   .find(([, meta]) => meta.entryPoint?.endsWith('game.ts'))?.[0];

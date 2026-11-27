@@ -1,6 +1,7 @@
 import { platformAt } from '../core/terrain.js';
 import type { ArenaDefinition, Platform } from '../core/types.js';
 import { backgrounds, harborProps, harborGantry } from './art.js';
+import { drawTravelRail } from './stage-art.js';
 
 // Source rectangles and measured walk lines in the hand-painted port atlas.
 // The ferry's walkable cabin roof is shorter than its hull.
@@ -122,6 +123,11 @@ export function drawHarborScenery(ctx: CanvasRenderingContext2D, arena: ArenaDef
   }
   const scenery = arena.platforms.filter(p => !p.travel).sort((a, b) => a.y - b.y);
   for (const p of scenery) drawProp(ctx, p, floor);
+  const lift = arena.platforms.find(p => p.travel);
+  if (lift?.travel) {
+    const center = (lift.left + lift.right) / 2;
+    drawTravelRail(ctx, center, rail - 6, center + lift.travel.distance, rail - 6);
+  }
   // Pier-end bollards mark the stop at each end of the playable quay.
   for (const end of [arena.left - 8, arena.right + 8]) {
     ctx.fillStyle = '#3f4149';

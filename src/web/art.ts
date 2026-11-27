@@ -29,7 +29,6 @@ import ringCast from '../../assets/arenas/ring-performers.webp';
 import dormKit from '../../assets/arenas/dorm-kit.webp';
 import courtKit from '../../assets/arenas/court-kit.webp';
 import stationKit from '../../assets/arenas/station-kit.webp';
-import broadcast from '../../assets/arenas/broadcast-flat-bg-v2.webp';
 import broadcastKit from '../../assets/arenas/broadcast-kit.webp';
 import { roster } from '../content/roster.js';
 import type { ActionDefinition, ArenaDefinition, FighterAction, FighterState, HitReaction, Projectile, ProjectileDefinition, Turret, TurretKind } from '../core/types.js';
@@ -45,7 +44,7 @@ function fighterSources(kind: 'portrait' | 'motion'): Record<string, string> {
   return Object.fromEntries(roster.map(({ fighter, art }) => [fighter.id, __FIGHTER_IMAGES__[art[kind]]]));
 }
 export const fighterArt = fighterSources('portrait');
-export const arenaArt: Record<ArenaDefinition['theme'], string> = { dorm, court, harbor, station, ring, broadcast };
+export const arenaArt = { dorm, court, harbor, station, ring };
 
 function loadImages(sources: Record<string, string>) {
   return Object.fromEntries(Object.entries(sources).map(([id, src]) => {
@@ -58,7 +57,10 @@ function loadImages(sources: Record<string, string>) {
 export const sprites = loadImages(fighterArt);
 export const motionArt = loadImages(Object.fromEntries(roster.map(({ fighter, art }) =>
   [fighter.id, __FIGHTER_IMAGES__[art.motion]])));
-export const backgrounds = loadImages(arenaArt);
+export const backgrounds = {
+  ...loadImages(arenaArt) as Record<keyof typeof arenaArt, HTMLImageElement>,
+  broadcast: undefined
+};
 export const { ringPerformers } = loadImages({ ringPerformers: ringCast });
 export const { dockProps: harborProps, gantry: harborGantry } = loadImages({ dockProps, gantry });
 export const stageKits = loadImages({ dorm: dormKit, court: courtKit, station: stationKit, broadcast: broadcastKit });

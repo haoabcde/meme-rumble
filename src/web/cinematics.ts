@@ -1,5 +1,4 @@
 import type { CombatEvent, EventKind, FighterState } from '../core/types.js';
-import type { GagaSample } from './audio.js';
 import type { GagaActionPose } from './art.js';
 
 /** An opening performed on the stage during the first round's countdown. The match is not paused for it and both
@@ -44,7 +43,7 @@ export interface Cinematic {
   frames: number;
   fade: number;
   /** Sample that plays with the shot, when the fighter ships one. */
-  sound?: GagaSample;
+  sound?: string;
   /** Frame on which the sample starts, when it follows an opening card. */
   soundAt?: number;
   /** Match sounds fired on given frames. */

@@ -1,0 +1,112 @@
+{
+  "4399": {
+    "url": "https://www.4399.com/flash/205551.htm",
+    "requests": [],
+    "frames": [
+      [
+        "https://www.4399.com/flash/205551.htm",
+        "登录 注册\n我玩过的\n猜你喜欢\n换肤\n首页\n动作\n体育\n益智\n射击\n冒险\n棋牌\n策略\n休闲\n女生\n装扮\n儿童\n过关\n双人\n云游戏\n闪艺互动\n手机游戏\n网页游戏\n游戏吧\n4399小游戏>动作小游戏 > 死神VS火影3.3\n玩动作类手游\n原神\n生死狙击\n造梦无双\n4399创世战车\n4399弹弹堂\n逃跑吧！少年\n4399火线精英\n4399三国杀\n4399迷你世界\n全屏1 \n全屏2\n死神VS火影3.3\n分类：动作小游戏  |  大小：69.07M  |  日期：2019-04-30\n专题：死神双人小游戏"
+      ],
+      [
+        "about:blank",
+        ""
+      ],
+      [
+        "https://www.4399.com/comment/www/pl3.html?fid=205551&menu=1&dialog=0&pic=1",
+        "[截图上传帮助]\n 我要评分(滑动星星评分)\n发表评论需知：\n1、请勿在评论中发表违法违规信息\n2、谢绝人身攻击、地域歧视、刷屏、广告等恶性言论\n3、所有评论均代表玩家本人意见，不代表4399立场\n4、用户发表的评论，经管理员审核后方可显示\n5、如果游戏出现问题，请在此以评论方式留言给我们\n如果游戏不能玩，请联系我们吧"
+      ],
+      [
+        "about:blank",
+        ""
+      ]
+    ]
+  },
+  "snokido": {
+    "url": "https://www.snokido.com/game/bleach-vs-naruto",
+    "requests": [
+      [
+        200,
+        "https://w8.snokido.com/games/flash/ruffle.html?g=bleach-vs-naruto/30/game&v=270225"
+      ],
+      [
+        302,
+        "https://unpkg.com/@ruffle-rs/ruffle"
+      ],
+      [
+        200,
+        "https://unpkg.com/@ruffle-rs/ruffle@0.8.0/ruffle.js"
+      ],
+      [
+        302,
+        "https://unpkg.com/@ruffle-rs/ruffle/ruffle_web_bg.QDRSAAAZ.wasm"
+      ],
+      [
+        200,
+        "https://unpkg.com/@ruffle-rs/ruffle@0.8.0/ruffle_web_bg.QDRSAAAZ.wasm"
+      ]
+    ],
+    "frames": [
+      [
+        "https://www.snokido.com/game/bleach-vs-naruto",
+        "Action\nAdventure\nPuzzle\nSports\nFNF\nMultiplayer\n2 players\nControls\n406 k\n37 k\n92%\nBleach vs Naruto 3.3\nDeveloper: 5Dplay | 4399   -   34 277 723 plays\n\nAfter almost 10 years of development the fighting game Bleach vs Naruto 3.3 is one of the most comp"
+      ],
+      [
+        "about:blank",
+        ""
+      ],
+      [
+        "about:blank",
+        ""
+      ],
+      [
+        "https://w8.snokido.com/embed/bleach-vs-naruto",
+        ""
+      ],
+      [
+        "https://w8.snokido.com/games/flash/ruffle.html?g=bleach-vs-naruto/30/game&v=270225",
+        ""
+      ]
+    ]
+  },
+  "bvnplay": {
+    "url": "https://bvnplay.online/",
+    "requests": [
+      [
+        200,
+        "https://gamebox.bvnplay.online/vendor/ruffle/ruffle.js"
+      ],
+      [
+        200,
+        "https://gamebox.bvnplay.online/games/bvn-3.3/main.swf"
+      ]
+    ],
+    "frames": [
+      [
+        "https://bvnplay.online/",
+        "BVNPlay\nGames\nVersions\nGuides\nAbout\nPLAYABLE NOW\nBleach vs Naruto\n⛶\nBVN ARCHIVE\nChoose another version\nAll BVN versions\nV3.5\nBVN 3.5\n▶\nV3.2\nBVN 3.2\n▶\nV3.1\nBVN 3.1\n▶\nV3.0\nBVN 3.0\n▶\nV2.6\nBVN 2.6\n▶\nV2.5\nBVN 2.5\n▶\nV2.4\nBVN 2.4\n▶\nV2.3\nBVN 2.3\n▶\nV2.2\nBVN 2"
+      ],
+      [
+        "https://gamebox.bvnplay.online/games/bvn-3.3/index.html",
+        "LOADING..."
+      ]
+    ]
+  },
+  "snokido-github": {
+    "url": "https://snokido.github.io/game/bleach-vs-naruto.html",
+    "requests": [],
+    "frames": [
+      [
+        "https://snokido.github.io/game/bleach-vs-naruto.html",
+        "Action\nAdventure\nPuzzle\nSports\nFNF\nMultiplayer\n2 players\nControls\n400 k\n36 k\n92%\nBleach vs Naruto 3.3\nDeveloper: 5Dplay | 4399   -   32 599 632 plays\n\nAfter almost 10 years of development the fighting game Bleach vs Naruto 3.3 is one of the most comp"
+      ],
+      [
+        "https://w8.snokido.com/index.html",
+        ""
+      ],
+      [
+        "about:blank",
+        ""
+      ]
+    ]
+  }
+}

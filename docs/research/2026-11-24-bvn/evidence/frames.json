@@ -1,0 +1,39 @@
+[
+  {
+    "tag": "classic",
+    "error": "TimeoutError: page.goto: Timeout 18000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"https://www.youtube.com/watch?v=XYalwWONHfA\", waiting until \"domcontentloaded\"\u001b[22m\n"
+  },
+  {
+    "tag": "classic-gameplay",
+    "error": "TimeoutError: page.goto: Timeout 18000ms exceeded.\nCall log:\n\u001b[2m  - navigating to \"https://www.bilibili.com/video/BV1S54y1z7XC/\", waiting until \"domcontentloaded\"\u001b[22m\n"
+  },
+  {
+    "tag": "local",
+    "records": [
+      {
+        "id": "gaga",
+        "key": "u",
+        "notice": "P1 的专属槽 B待接入",
+        "energy": "技能能量 0 / 300",
+        "ready": "false",
+        "action": "地面可操作"
+      },
+      {
+        "id": "gaga",
+        "key": "o",
+        "notice": "",
+        "energy": "技能能量 0 / 300",
+        "ready": "false",
+        "action": ""
+      },
+      {
+        "id": "frog",
+        "key": "o",
+        "notice": "",
+        "energy": "强化剩余 14.0 秒",
+        "ready": "true",
+        "action": "地面可操作"
+      }
+    ]
+  }
+]

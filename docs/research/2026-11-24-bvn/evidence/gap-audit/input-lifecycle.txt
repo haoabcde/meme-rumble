@@ -1,0 +1,14 @@
+whale/frog round 1 both O, selected seat 1
+whale/frog round 2 both O, selected seat 1
+frog/whale round 1 both O, selected seat 1
+frog/whale round 2 both O, selected seat 1
+banana/gaga round 1 both O, selected seat 1
+banana/gaga round 2 both O, selected seat 2
+gaga/banana round 1 both O, selected seat 1
+gaga/banana round 2 both O, selected seat 2
+whale unconfigured down+O spent 300: open-source
+frog unconfigured down+O spent 300: frog-ascend
+banana unconfigured down+O spent 300: banana-tilting-tear-sea
+gaga unconfigured down+O spent 300: gaga-summon-dijiang
+floor down+K stays grounded; K jumps
+two-frame grounded hit fixture retains C and launches tornado after recovery without new input

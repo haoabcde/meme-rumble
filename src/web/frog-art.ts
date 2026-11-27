@@ -2,6 +2,11 @@ import normalGuardSource from '../../assets/fighters/unified-handdrawn-v1/motion
 import basicSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/basics.png';
 import sceneSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/scenes.png';
 import {frogMotionSample} from './frog-motion.mjs';
+import locomotionV25 from '../../assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png';
+import {registerLocomotion,setActorMotion,setFrogHurtPoses,drawActorMotion} from './actor-motion.mjs';
+import holyComboSource from '../../assets/角色/特效/奶蛙/强化普攻_V22/白金焰羽_八部件.png';
+import dragonRiseSource from '../../assets/角色/特效/奶蛙/强化普攻_V24/金白流光_龙抬头六帧.png';
+import {drawHolyCombo,registeredDragonFrames} from './frog-combo.mjs';
 import type {FighterAction,FighterState,MatchConfig,MatchState} from '../core/types.js';
 import {frogPowered,FROG_RULES,frogCrouching} from '../core/frog-kit.js';
 import {cutGrid} from './pixel-sprites.mjs';
@@ -25,14 +30,19 @@ import angelSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-
 import introSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/intro.png';
 let normalGuard:HTMLCanvasElement;
 let basics:HTMLCanvasElement[]=[],scenes:HTMLCanvasElement[]=[];
+let holyComboArt:HTMLCanvasElement[]=[];
+let dragonRiseArt:HTMLCanvasElement[]=[];
 let moves:HTMLCanvasElement[]=[],angels:HTMLCanvasElement[]=[],travel:HTMLCanvasElement[]=[],gold:HTMLCanvasElement[]=[],crouch:HTMLCanvasElement,thinking:HTMLCanvasElement,intro:HTMLImageElement;
 const load=(src:string)=>{const im=new Image();im.src=src;return im.decode().then(()=>im)};
-const cutBody=(im:HTMLImageElement,columns:number,rows:number):HTMLCanvasElement[]=>cutGrid(im,columns,rows,{pixelate:false});
-void Promise.all([load(moveSource),load(angelSource),load(introSource),load(travelSource),load(goldSource),load(crouchSource)]).then(([m,a,i,t,v,c])=>{moves=cutBody(m,4,2);angels=cutBody(a,2,2);travel=cutBody(t,4,2);gold=cutGrid(v,2,2);crouch=cutBody(c,1,1)[0];intro=i;});
+const cutBody=(im:HTMLImageElement,columns:number,rows:number,cleanCells: number[] = []):HTMLCanvasElement[]=>cutGrid(im,columns,rows,{pixelate:false,cleanCells});
+void Promise.all([load(moveSource),load(angelSource),load(introSource),load(travelSource),load(goldSource),load(crouchSource)]).then(([m,a,i,t,v,c])=>{moves=cutBody(m,4,2,[6]);angels=cutBody(a,2,2);travel=cutBody(t,4,2);gold=cutGrid(v,2,2);crouch=cutBody(c,1,1)[0];intro=i;});
 void load(normalGuardSource).then(im=>normalGuard=cutBody(im,1,1)[0]);
-void load(basicSource).then(im=>basics=cutBody(im,4,4));
+void load(basicSource).then(im=>{basics=cutBody(im,4,4);setFrogHurtPoses([basics[8],basics[9]]);});
 void load(sceneSource).then(im=>scenes=cutBody(im,4,2));
 void load(thinkingSource).then(im=>thinking=cutBody(im,1,1)[0]);
+void load(locomotionV25).then(im=>registerLocomotion(im,'frog'));
+void load(holyComboSource).then(im=>holyComboArt=cutGrid(im,4,2));
+void load(dragonRiseSource).then(im=>dragonRiseArt=registeredDragonFrames(im));
 void load(starSource).then(im=>setStarArt(im));
 void Promise.all([load(spiralSource),load(discSource)]).then(([s,d])=>setWarpArt(cutGrid(s,2,1),cutGrid(d,2,1)));
 void load(guardSource).then(im=>setGuardArt(cutGrid(im,4,2)));
@@ -101,12 +111,14 @@ function dissolvingAngel(g:CanvasRenderingContext2D,age:number,tick:number){
  }
  g.restore();
 }
-export function drawFrogActor(g:CanvasRenderingContext2D,f:FighterState,state:MatchState,action?:FighterAction,seat:0|1=0){
+export function drawFrogActor(g:CanvasRenderingContext2D,f:FighterState,state:MatchState,action?:FighterAction,seat:0|1=0,actions:readonly FighterAction[]=[]){
  if(!moves.length)return;
  const frame=f.attack?.frame??0,powered=frogPowered(f,state),a=action&&'frog' in action?action.frog:undefined;
  const stage=['common-jab','common-sweep','frog-left-kick','frog-ha','common-finish'].indexOf(action?.id??'');
  let pose=f.guarding?7:a==='laugh'||a==='global'?6:stage>=0?stage+1:action?.id==='common-air'?3:0;
  const h=pose===5?100:130,evAge=state.arenaFrame-(f.poseEvent?.tick??-999);
+ setActorMotion('frog',{moves});
+ if(!powered&&state.phase==='fight'&&state.arenaFrame-(f.ascendEndVisual?.tick??-999)>=FROG_RULES.fadeTicks&&drawActorMotion(g,'frog',f,state,action,actions))return;
  const motion=frogMotionSample(f,state,seat);
  if(motion&&(!powered||motion.bank==='scene'||!f.hp)){
   const im=(motion.bank==='scene'?scenes:basics)[motion.cell];
@@ -238,6 +250,7 @@ function drawCastEffects(g:CanvasRenderingContext2D,f:FighterState,state:MatchSt
   if(stage<0&&c.id!=='common-air')continue;
   const t=(age-c.startup)/60;
   g.save();g.translate(c.x,c.y);g.scale(c.facing,1);
+  if(c.powered){drawHolyCombo(g,holyComboArt,stage<0?2:stage,age-c.startup,layer,dragonRiseArt);g.restore();continue;}
   if(stage===0||stage===1){
    g.save();g.translate(10,stage===0?-51:-43);g.rotate(stage===0?-.12:.1);
    drawPixelFx(g,'thrust',0,0,t+.07,c.powered?1.85:1.22,layer,true,c.powered?.9:.62);g.restore();
@@ -245,23 +258,12 @@ function drawCastEffects(g:CanvasRenderingContext2D,f:FighterState,state:MatchSt
   if(stage===2||c.id==='common-air'){
    g.save();g.translate(27,-18);g.rotate(.7);drawPixelFx(g,'uppercut',0,0,t+.08,c.powered?1.7:1.15,layer,true,.72);g.restore();
   }
-  if(c.powered){
-   if(stage===3){
-    const e=clamp((t+.06)*15)*clamp((.65-t)*3);
-    if(layer==='front')goldMotif(g,3,0,-75,180,.4*e,t*.3);
-    drawPixelFx(g,'sun',0,-75,Math.max(0,t),2.1,layer,true,.8*e);
-    drawPixelFx(g,'burst',0,-23,t+.22,1.5,layer,true,.75);
-   }else if(stage===4){
-    drawPixelFx(g,'smite',155,0,t+.54,1.1,layer,true,.85);
-    g.save();g.translate(30,-20);g.rotate(.8);drawPixelFx(g,'uppercut',0,0,t+.08,1.9,layer,true,.85);g.restore();
-   }else if(t>=0&&t<.5){
-    drawPixelFx(g,'sun',105,-70,t,1.05,layer,true,.6*clamp((.5-t)*4));
-   }
-  }
   g.restore();
  }
 }
 
+export function frogComboFrames(){return holyComboArt;}
+export function frogDragonFrames(){return dragonRiseArt;}
 export function frogGoldFrame(index:number){return gold[index];}
 // Review uses the same trimmed sprites and height as the live actor renderer.
 export function frogBodyComparison(){return [moves[0],normalGuard];}

@@ -1,5 +1,5 @@
 import { defineFighter, type NormalMove, type SignatureMove } from '../fighter-kit.js';
-import { MAX_ENERGY, type ActionDefinition } from '../../core/types.js';
+import { ENERGY_PER_STOCK, MAX_ENERGY, type ActionDefinition } from '../../core/types.js';
 
 export const bananaActionIds = {
   jab: 'banana-left-scratch', backhand: 'banana-right-scratch', headbutt: 'banana-headbutt',
@@ -16,6 +16,10 @@ export const bananaActionIds = {
   theWorld: 'banana-the-world'
 } as const;
 
+export const bananaAdditionalActionIds = {
+  airClaw: 'banana-air-claw', airPressure: 'banana-air-pressure', burst: 'banana-close-burst'
+} as const;
+
 export const bananaComboNames = ['左爪挠挠', '右爪挠挠', '蕉头顶撞', '嚎啕震开'];
 export const bananaWaveTitle = 'JO化觉醒';
 
@@ -26,7 +30,7 @@ const normalMoves: NormalMove[] = [
     hitbox: { x: 20, y: -95, w: 83, h: 57 },
     damage: 30, hitstun: 20, blockstun: 8, guardCost: 6, push: 2, lift: 0,
     stop: 2, advance: 5, advanceFrom: 2, activeAdvance: 2, pose: 'strike', swingOnActive: true,
-    impact: 'light', joReplacement: bananaActionIds.joJab,
+    impact: 'light', cancelOnHit: [bananaActionIds.lift], joReplacement: bananaActionIds.joJab,
     chain: { actionId: bananaActionIds.backhand, open: 8, close: 16 }
   },
   {
@@ -35,7 +39,8 @@ const normalMoves: NormalMove[] = [
     hitbox: { x: 18, y: -100, w: 90, h: 66 },
     damage: 34, hitstun: 26, blockstun: 9, guardCost: 7, push: 3, lift: 0,
     stop: 2, advance: 6, advanceFrom: 2, activeAdvance: 2, pose: 'sweep', swingOnActive: true,
-    impact: 'light', chain: { actionId: bananaActionIds.headbutt, open: 10, close: 18 }
+    impact: 'light', cancelOnHit: [bananaActionIds.lift],
+    chain: { actionId: bananaActionIds.headbutt, open: 10, close: 18 }
   },
   {
     id: bananaActionIds.headbutt, name: '蕉头顶撞', slot: 'A', posture: 'ground', linkOnly: true,
@@ -58,7 +63,7 @@ const normalMoves: NormalMove[] = [
     hitbox: { x: 10, y: -178, w: 92, h: 151 },
     damage: 85, hitstun: 27, blockstun: 12, guardCost: 15, push: 5, lift: 15,
     stop: 4, advance: 4, advanceFrom: 6, pose: 'rise', swingOnActive: true, impact: 'heavy',
-    joReplacement: bananaActionIds.joLift
+    cancelOnHit: ['jump'], joReplacement: bananaActionIds.joLift
   },
   {
     id: bananaActionIds.joLift, name: '白金升龙拳', slot: 'A', direction: 'up', posture: 'ground', linkOnly: true,
@@ -88,12 +93,10 @@ const normalMoves: NormalMove[] = [
     feedback: { color: '#d946ef', shake: 9, flash: .5, sound: 'heavy' }
   },
   {
-    id: bananaActionIds.tear, name: '空中水球', slot: 'A', posture: 'air', tearCost: 10,
-    startup: 6, active: 1, recovery: 14,
-    hitbox: { x: 0, y: 0, w: 0, h: 0 }, hitTimeline: [],
-    projectile: { kind: 'tear', x: 70, y: -51, vx: 20, vy: 6, gravity: 1, reach: 0, radius: 28, blastRadius: 120 },
-    damage: 72, hitstun: 20, blockstun: 9, guardCost: 10, push: 9, lift: 0,
-    stop: 3, advance: 0, pose: 'strike', swingOnActive: true, impact: 'medium',
+    id: bananaAdditionalActionIds.airClaw, name: '空中爪击', slot: 'A', posture: 'air',
+    startup: 6, active: 3, recovery: 14, hitbox: { x: 18, y: -107, w: 86, h: 73 },
+    damage: 40, hitstun: 18, blockstun: 8, guardCost: 8, push: 4, lift: 0,
+    stop: 3, advance: 0, airControl: .45, pose: 'strike', swingOnActive: true, impact: 'light',
     joReplacement: bananaActionIds.joAirDive
   },
   {
@@ -164,17 +167,28 @@ const normalMoves: NormalMove[] = [
 ];
 
 const pressureBox = { x: 18, y: -109, w: 440, h: 48 };
+const pressure: SignatureMove = {
+  id: bananaActionIds.pressure, name: '高压眼泪', slot: 'B', posture: 'ground', tearCost: 20,
+  channel: 'spray', slow: 45,
+  startup: 4, active: 12, recovery: 14,
+  hitbox: pressureBox,
+  hitTimeline: [{ from: 4, to: 16, group: 'spray', boxes: [pressureBox] }],
+  feedback: { color: '#8beaff', shake: 8 },
+  damage: 32, hitstun: 8, blockstun: 5, guardCost: 5, push: 2, lift: 0,
+  stop: 0, advance: 0, pose: 'strike', swingOnActive: true, impact: 'light',
+  joReplacement: bananaActionIds.joSheerHeart
+};
 
 const signatureMoves: SignatureMove[] = [
+  pressure,
+  { ...pressure, id: bananaAdditionalActionIds.airPressure, name: '空中高压眼泪', posture: 'air', direction: 'down' },
   {
-    id: bananaActionIds.pressure, name: '高压眼泪', slot: 'B', posture: 'any', tearCost: 20,
-    channel: 'spray', slow: 45,
-    startup: 4, active: 12, recovery: 14,
-    hitbox: pressureBox,
-    hitTimeline: [{ from: 4, to: 16, group: 'spray', boxes: [pressureBox] }],
-    feedback: { color: '#8beaff', shake: 8 },
-    damage: 32, hitstun: 8, blockstun: 5, guardCost: 5, push: 2, lift: 0,
-    stop: 0, advance: 0, pose: 'strike', swingOnActive: true, impact: 'light',
+    id: bananaActionIds.tear, name: '空中水球', slot: 'B', posture: 'air', tearCost: 10,
+    startup: 6, active: 1, recovery: 14,
+    hitbox: { x: 0, y: 0, w: 0, h: 0 }, hitTimeline: [],
+    projectile: { kind: 'tear', x: 70, y: -51, vx: 20, vy: 6, gravity: 1, reach: 0, radius: 28, blastRadius: 120 },
+    damage: 72, hitstun: 20, blockstun: 9, guardCost: 10, push: 9, lift: 0,
+    stop: 3, advance: 0, pose: 'strike', swingOnActive: true, impact: 'medium',
     joReplacement: bananaActionIds.joSheerHeart
   },
   {
@@ -242,6 +256,17 @@ const signatureMoves: SignatureMove[] = [
   }
 ];
 
+const wave: Omit<ActionDefinition, 'slot' | 'energyCost'> = {
+  id: bananaActionIds.wave, name: '泪海滔天', posture: 'ground',
+  cutIn: { at: 14, duration: 50 },
+  startup: 22, active: 1, recovery: 28,
+  hitbox: { x: 0, y: 0, w: 0, h: 0 }, hitTimeline: [],
+  projectile: { kind: 'wave', x: 105, y: -98, vx: 31, vy: 0, gravity: 0,
+    reach: 0, radius: 98, halfWidth: 104, life: 40 },
+  damage: 240, hitstun: 34, blockstun: 18, guardCost: 28, push: 27, lift: 15, knockdown: true,
+  stop: 6, advance: 0, pose: 'rise', swingOnActive: true, impact: 'heavy'
+};
+
 const joAwaken: Omit<ActionDefinition, 'slot' | 'energyCost'> = {
   id: bananaActionIds.joAwaken, name: bananaWaveTitle, posture: 'ground',
   awakenJo: true, cutIn: { at: 6, duration: 68 },
@@ -261,11 +286,26 @@ const theWorld: Omit<ActionDefinition, 'slot' | 'energyCost'> = {
   feedback: { color: '#fde047', shake: 22, flash: 1, sound: 'heavy' }
 };
 
+const burst: Omit<ActionDefinition, 'slot' | 'energyCost'> = {
+  id: bananaAdditionalActionIds.burst, name: '回身泪爆', direction: 'up', posture: 'ground',
+  startup: 7, active: 3, recovery: 19,
+  hitbox: { x: -94, y: -123, w: 188, h: 120 }, radial: true,
+  damage: 108, hitstun: 26, blockstun: 13, guardCost: 22, push: 13, lift: 0,
+  stop: 5, advance: 0, pose: 'rise', impact: 'medium', feedback: { color: '#8beaff', shake: 4 }
+};
+
 export const banana = defineFighter({
   id: 'banana', name: '香蕉猫', accent: '#ff9c62', height: 145,
   art: { portrait: 'banana-reference-portrait.webp', motion: 'banana-motion.webp' },
   stats: { usesTears: true, bodyWidth: 54 },
   normalMoves, signatureMoves,
   moveSummary: bananaComboNames.join(' → '),
-  ultimate: { cost: MAX_ENERGY, move: joAwaken, variants: [{ cost: MAX_ENERGY, move: theWorld }], gain: { onHit: 12, onHurt: 18 } }
+  ultimate: {
+    cost: MAX_ENERGY, move: wave, gain: { onHit: 12, onHurt: 18 },
+    variants: [
+      { cost: ENERGY_PER_STOCK, move: burst },
+      { cost: MAX_ENERGY, move: joAwaken },
+      { cost: MAX_ENERGY, move: theWorld }
+    ]
+  }
 });

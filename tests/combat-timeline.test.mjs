@@ -111,6 +111,165 @@ test('timed hurt regions suppress early contact then allow a trade from the same
   assert.equal(match.target.attack, null);
 });
 
+test('contact tiers shape short hitstop while preserving authored damage and hitstun', () => {
+  const cases = [
+    ['light', { impact: 'light', stop: 2 }, 2],
+    ['medium', { impact: 'medium', stop: 2 }, 3],
+    ['heavy', { impact: 'heavy', stop: 2 }, 4],
+    ['launch', { impact: 'heavy', lift: 13, stop: 5 }, 5],
+    ['ultimate', { slot: 'ULT', energyCost: 100, stop: 6 }, 6],
+    ['ultimate', { slot: 'ULT', energyCost: 100, stop: 1 }, 1],
+    ['heavy', { impact: 'heavy', stop: 0 }, 0]
+  ];
+  for (const seat of [0, 1]) {
+    for (const [tier, impact, stop] of cases) {
+      const action = { ...move, push: 4, damage: 80, hitstun: 22, ...impact };
+      const session = opening(fighter('tier', [action]), seat);
+      session.player.energy = 100;
+      session.tick(input([action.slot]));
+      const hit = session.tick().find(event => event.kind === 'hit');
+      assert.equal(hit.impactTier, tier);
+      assert.equal(hit.hitstop, stop);
+      assert.equal(session.state.freeze, stop);
+      assert.equal(session.target.hp, 920);
+      assert.equal(session.target.hitstun, 22);
+      for (let frame = 0; frame < stop; frame++) session.tick();
+      assert.equal(session.target.hitstun, 22, 'freeze does not consume hitstun');
+      session.tick();
+      assert.equal(session.target.hitstun, 21);
+    }
+  }
+});
+
+test('guard and guard break have distinct stop, no damage and no heavy recoil', () => {
+  const action = { ...move, impact: 'heavy', push: 14, stop: 5, guardCost: 20, blockstun: 11 };
+  const guard = input([], { y: 1 });
+  for (const [stamina, stop, tiers] of [[100, 2, ['guard']], [10, 4, ['guard', 'guard-break']]]) {
+    const session = opening(fighter('weight', [action]));
+    session.target.guard = stamina;
+    session.tick(input(['B']), guard);
+    const events = session.tick(NEUTRAL, guard);
+    assert.deepEqual(events.map(event => event.impactTier), tiers);
+    assert.ok(events.every(event => event.hitstop === stop && !event.trade));
+    assert.equal(session.state.freeze, stop);
+    assert.equal(session.target.hp, 1000);
+    assert.equal(session.target.blockstun, 11);
+    assert.equal(session.target.push, 7);
+    assert.equal(session.target.pushAccent, undefined);
+  }
+});
+
+test('a heavy hit leads with recoil after freeze and preserves total unobstructed travel', () => {
+  for (const seat of [0, 1]) {
+    const action = { ...move, impact: 'heavy', push: 10, stop: 4 };
+    const session = opening(fighter('heavy', [action]), seat);
+    const direction = seat === 0 ? 1 : -1;
+    session.tick(input(['B']));
+    const [hit] = session.tick();
+    const x = session.target.x;
+    for (let frame = 0; frame < hit.hitstop; frame++) session.tick();
+    assert.equal(session.target.x, x);
+    session.tick();
+    assert.equal(session.target.x, x + direction * 12.5);
+    session.restore();
+    session.tick();
+    assert.equal(session.target.x, x + direction * 19);
+    for (let frame = 0; frame < 8; frame++) session.tick();
+    assert.equal(session.target.x, x + direction * 55);
+    assert.equal(session.target.push, 0);
+    assert.equal(session.target.pushAccent, undefined);
+  }
+});
+
+test('simultaneous opposing hits share the longest contact pause and keep both reactions', () => {
+  const quick = { ...move, impact: 'light', damage: 40, hitstun: 14, stop: 2 };
+  const heavy = { ...move, impact: 'heavy', damage: 80, hitstun: 25, stop: 5 };
+  for (const seat of [0, 1]) {
+    const session = opening(fighter('short', [quick]), seat, fighter('heavy', [heavy]));
+    session.tick(input(['B']), input(['B']));
+    const events = session.tick();
+    assert.equal(events.length, 2);
+    assert.ok(events.every(event => event.trade && event.hitstop === 5));
+    assert.equal(session.state.freeze, 5);
+    assert.deepEqual([session.player.hp, session.target.hp], [920, 960]);
+    assert.deepEqual([session.player.hitstun, session.target.hitstun], [25, 14]);
+  }
+});
+
+test('three hit groups can relaunch a fighter before landing, with their own lift speeds', () => {
+  const followUpBox = { ...hitbox, y: -150, h: 120 };
+  const timed = {
+    ...move, hitTimeline: [
+      window(1, 3, 'lift-1', [hitbox], { lift: 8 }),
+      window(4, 5, 'lift-2', [followUpBox], { lift: 12 }),
+      window(6, 7, 'lift-3', [followUpBox], { lift: 16 })
+    ]
+  };
+  const authored = fighter('relaunch', [timed]);
+  for (const seat of [0, 1]) {
+    const session = opening(authored, seat);
+    const landY = session.target.y;
+    const contacts = [];
+    session.tick(input(['B']));
+    for (let frame = 1; frame <= 6; frame++) {
+      for (const event of session.tick().filter(event => event.kind === 'hit')) {
+        assert.equal(event.impactTier, 'launch');
+        assert.equal(session.target.ground, null);
+        assert.equal(session.target.launched, true);
+        assert.ok(!session.target.recovery);
+        if (contacts.length) assert.ok(session.target.y < landY);
+        contacts.push([frame, event.chain, session.target.vy]);
+      }
+    }
+    assert.deepEqual(contacts, [[1, 1, -8], [4, 2, -12], [6, 3, -16]]);
+    for (let frame = 0; frame < 60 && !session.target.recovery; frame++) session.tick();
+    assert.equal(session.target.y, landY);
+    assert.equal(session.target.recovery?.phase, 'down');
+  }
+});
+
+test('a hit group can explicitly clear a move-level lift or inherit it', () => {
+  const timed = {
+    ...move, lift: 13, stop: 0, hitTimeline: [
+      window(1, 2, 'ground-hit', [hitbox], { lift: 0 }),
+      window(3, 4, 'launch-hit')
+    ]
+  };
+  const session = opening(fighter('lift-default', [timed]));
+  session.tick(input(['B']));
+  assert.equal(session.tick().find(event => event.kind === 'hit')?.chain, 1);
+  assert.equal(session.target.ground, 'floor');
+  assert.equal(session.target.vy, 0);
+  session.tick();
+  assert.equal(session.tick().find(event => event.kind === 'hit')?.chain, 2);
+  assert.equal(session.target.ground, null);
+  assert.equal(session.target.vy, -13);
+});
+
+test('a simultaneous weak projectile cannot overwrite a launch or its landing protection', () => {
+  const launch = {
+    ...move, damage: 80, hitstun: 24, lift: 15, push: 7, stop: 5,
+    entities: [{ ...projectile, offset: { x: 65, y: -60 }, hitstun: 4, push: 1, stop: 1 }]
+  };
+  for (const seat of [0, 1]) {
+    const session = opening(fighter('combo', [launch]), seat);
+    session.tick(input(['B']));
+    const hits = session.tick().filter(event => event.kind === 'hit');
+    assert.deepEqual(hits.map(event => event.impactTier), ['launch', 'light']);
+    assert.ok(hits.every(event => !event.trade));
+    assert.equal(session.target.hitstun, 24);
+    assert.equal(session.target.vy, -15);
+    assert.equal(session.target.push, seat === 0 ? 7 : -7);
+    assert.equal(session.target.ground, null);
+    for (let frame = 0; frame < 60 && !session.target.recovery; frame++) session.tick();
+    assert.equal(session.target.recovery?.phase, 'down');
+    assert.equal(session.target.recovery.remaining, 30);
+    for (let frame = 0; frame < 30; frame++) session.tick();
+    assert.equal(session.target.recovery?.phase, 'rise');
+    assert.equal(session.target.recovery.remaining, 18);
+  }
+});
+
 test('blocked and parried contacts consume the group and a later group can connect', () => {
   const timed = {
     ...move, hitTimeline: [window(1, 3, 'first', [hitbox], { blockstun: 0 }), window(3, 5, 'second')]

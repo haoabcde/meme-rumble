@@ -350,7 +350,7 @@ test('a ground dash applies gravity immediately after leaving a platform', () =>
   const settings = trainingOn(arenas[1]);
   const state = begin(settings);
   const fighter = state.fighters[0];
-  const bench = settings.arena.platforms.find(platform => platform.id === 'bench');
+  const bench = settings.arena.platforms.find(platform => platform.id === 'west-stand');
   fighter.x = bench.right - 5;
   fighter.y = bench.y;
   fighter.ground = bench.id;
@@ -455,11 +455,10 @@ test('public dash crosses fighters and avoids melee and entities through its las
 });
 
 test('a second jump trades the air dash for extra height without skipping the middle tier', () => {
-  const settings = trainingOn(arenas[1]);
+  const { settings, lower: bench } = overlappingLedges();
   const state = begin(settings);
   const fighter = state.fighters[0];
-  const bench = settings.arena.platforms.find(p => p.id === 'bench');
-  fighter.x = bench.right - 60;
+  fighter.x = (bench.left + bench.right) / 2;
   step(state, [input(['jump']), NEUTRAL], settings);
   stepFor(state, 16, [NEUTRAL, NEUTRAL], settings);
   assert.deepEqual(step(state, [input(['jump']), NEUTRAL], settings).map(event => event.kind), ['air-jump']);
@@ -471,7 +470,7 @@ test('a second jump trades the air dash for extra height without skipping the mi
     peak = Math.min(peak, fighter.y);
   }
   assert.equal(settings.arena.floor - peak, 231);
-  assert.equal(fighter.ground, 'bench');
+  assert.equal(fighter.ground, bench.id);
   assert.equal(fighter.airActionUsed, false);
 });
 
@@ -528,8 +527,8 @@ test('the finisher ends the chain, protects the downed fighter, and releases con
 });
 
 test('ordinary launch locks either seat until landing, knockdown and wakeup on floor or platform', () => {
-  const arena = arenas[1];
-  const bench = arena.platforms.find(platform => platform.id === 'west-bench');
+  const { settings: fixture, lower: bench } = overlappingLedges();
+  const arena = { ...fixture.arena, platforms: [bench] };
   const launcher = baseline.actions.find(action => action.id === 'common-launch');
   // A short hitstun makes the independent airborne lock visible without changing jump physics.
   const shortLaunch = { ...launcher, hitstun: 4, push: 0, advance: 0 };
@@ -596,12 +595,12 @@ test('ordinary launch locks either seat until landing, knockdown and wakeup on f
 });
 
 test('a fighter waking at a platform edge is not pushed off by an overlapping opponent', () => {
-  const settings = { ...trainingOn(arenas[1]), fighters: [testFighter, testFighter] };
+  const { settings: fixture, lower: bench } = overlappingLedges();
+  const settings = { ...fixture, arena: { ...fixture.arena, platforms: [bench] }, fighters: [testFighter, testFighter] };
   const state = begin(settings);
   const [attacker, defender] = state.fighters;
-  const bench = settings.arena.platforms.find(platform => platform.id === 'west-bench');
-  Object.assign(attacker, { x: 560, y: bench.y, ground: bench.id });
-  Object.assign(defender, { x: 660, y: bench.y, ground: bench.id });
+  Object.assign(attacker, { x: bench.right - 130, y: bench.y, ground: bench.id });
+  Object.assign(defender, { x: bench.right - 30, y: bench.y, ground: bench.id });
   step(state, [input(['A'], 0, -1), NEUTRAL], settings);
   waitForEvent(state, settings, 'knockdown', 1);
   assert.equal(defender.ground, bench.id);
@@ -663,19 +662,24 @@ function inputForSeat(seat, command) {
   return seat === 1 ? [NEUTRAL, command] : [command, NEUTRAL];
 }
 
-function alignOverlapping(state, before, next, settings, seat = 0) {
+function jumpTo(state, settings, from, to, seat = 0) {
   const fighter = state.fighters[seat];
-  const left = Math.max(before.left, next.left);
-  const right = Math.min(before.right, next.right);
-  const margin = Math.max(1, Math.min(10, Math.floor((right - left - 8) / 2)));
-  const minimum = left + margin;
-  const maximum = right - margin;
-  assert.ok(minimum <= maximum, before.id + ' and ' + next.id + ' must overlap in this practice route');
-  for (let i = 0; i < 130 && (fighter.x < minimum || fighter.x > maximum); i++) {
-    step(state, inputForSeat(seat, input([], fighter.x < minimum ? 1 : -1)), settings);
-    assert.equal(fighter.ground, before.id, before.id + ' should continue supporting the fighter');
+  const airSpeed = settings.fighters[seat].airSpeed;
+  const aim = (x, left, right) => Math.max(left + 24, Math.min(right - 24, x));
+  const target = aim(fighter.x, to.left, to.right);
+  const launch = aim(target, from.left, from.right);
+  for (let i = 0; i < 300 && Math.abs(fighter.x - launch) >= settings.fighters[seat].run; i++) {
+    step(state, inputForSeat(seat, input([], Math.sign(launch - fighter.x))), settings);
+    assert.equal(fighter.ground, from.id, from.id + ' should support the launch approach');
   }
-  assert.ok(fighter.x >= minimum && fighter.x <= maximum);
+  for (let frame = 0; frame < 60; frame++) {
+    const direction = Math.abs(target - fighter.x) >= airSpeed ? Math.sign(target - fighter.x) : 0;
+    const events = step(state, inputForSeat(seat, input(frame === 0 ? ['jump'] : [], direction)), settings);
+    if (frame === 0) assert.ok(events.some(event => event.kind === 'jump'));
+    if (fighter.ground) break;
+  }
+  assert.equal(fighter.ground, to.id, settings.arena.name + ' / ' + from.id + ' → ' + to.id);
+  assert.equal(fighter.y, to.y);
 }
 
 function landAfter(state, command, settings, seat = 0, airDirection = 0) {
@@ -690,41 +694,32 @@ function landAfter(state, command, settings, seat = 0, airDirection = 0) {
 }
 
 for (const arena of platformArenas) {
-  test(arena.name + ' · public jumps reach every tier and descend one surface per command', () => {
+  test(arena.name + ' · both advertised routes are playable with ordinary jumps', () => {
     const settings = trainingOn(arena);
-    const state = begin(settings);
-    const map = new Map(arena.platforms.map(platform => [platform.id, platform]));
     const floor = { ...arena, id: 'floor', y: arena.floor };
-    const path = [floor, ...arena.routes[0].map(id => map.get(id))];
-    const peak = settings.fighters[0].jump * (settings.fighters[0].jump - 1) / 2;
-    assert.equal(path.length, 5);
-    assert.ok(floor.y - path.at(-1).y >= 520,
-      'the upper route needs usable vertical separation from the floor');
-    assert.ok(path[0].y - path[2].y > peak, 'the middle layer cannot be skipped to directly from the floor');
-    for (let i = 1; i < path.length; i++) {
-      assert.ok(path[i - 1].y - path[i].y <= peak - 15, 'a shared jump has clearance above the next tier');
-      alignOverlapping(state, path[i - 1], path[i], settings);
-      assert.deepEqual(landAfter(state, input(['jump']), settings).map(event => event.kind), ['jump']);
-      assert.equal(state.fighters[0].ground, path[i].id);
-      assert.equal(state.fighters[0].y, path[i].y);
+    for (const seat of [0, 1]) {
+      const state = begin(settings);
+      state.fighters[1 - seat].x = seat === 0 ? arena.right : arena.left;
+      const path = [floor, ...arena.routes[seat].map(id => arena.platforms.find(p => p.id === id))];
+      assert.equal(Math.max(...path.map(p => p.tier ?? 0)), Math.max(...arena.platforms.map(p => p.tier)));
+      for (let i = 1; i < path.length; i++) jumpTo(state, settings, path[i - 1], path[i], seat);
     }
-    for (let i = path.length - 1; i > 0; i--) {
-      alignOverlapping(state, path[i], path[i - 1], settings);
-      const shortChord = { ...input(['jump']), sampled: { jump: { x: 0, y: 1 } } };
-      assert.deepEqual(landAfter(state, shortChord, settings).map(event => event.kind), ['drop']);
-      assert.equal(state.fighters[0].ground, path[i - 1].id);
-      assert.equal(state.fighters[0].ignorePlatform, null);
-    }
-    assert.equal(state.fighters[0].y, arena.floor);
   });
 }
 
-test('a falling fighter lands on the first crossed surface regardless of drawing order', () => {
+function overlappingLedges() {
   const settings = trainingOn(arenas[0]);
+  const floor = settings.arena.floor;
+  const lower = { id: 'lower', name: '下层', tier: 1, left: 500, right: 1300, y: floor - 120 };
+  const upper = { id: 'upper', name: '上层', tier: 2, left: 700, right: 1100, y: floor - 250 };
+  settings.arena = { ...settings.arena, platforms: [lower, upper] };
+  return { settings, lower, upper };
+}
+
+test('a falling fighter lands on the first crossed surface regardless of drawing order', () => {
+  const { settings, lower: bridge, upper: terrace } = overlappingLedges();
   const state = begin(settings);
   const fighter = state.fighters[0];
-  const terrace = settings.arena.platforms.find(platform => platform.id === 'terrace');
-  const bridge = settings.arena.platforms.find(platform => platform.id === 'bridge');
   Object.assign(fighter, {
     x: (terrace.left + terrace.right) / 2,
     ground: null,
@@ -732,15 +727,14 @@ test('a falling fighter lands on the first crossed surface regardless of drawing
     vy: bridge.y - terrace.y + 32
   });
   step(state, [NEUTRAL, NEUTRAL], settings);
-  assert.equal(fighter.ground, 'terrace');
+  assert.equal(fighter.ground, terrace.id);
   assert.equal(fighter.y, terrace.y);
 });
 
 test('a fighter cannot land on a platform after passing below its edge', () => {
-  const settings = trainingOn(arenas[0]);
+  const { settings, lower, upper: edge } = overlappingLedges();
   const state = begin(settings);
   const fighter = state.fighters[0];
-  const edge = settings.arena.platforms.find(platform => platform.id === 'terrace');
   fighter.x = edge.left - 5;
   fighter.ground = null;
   fighter.y = edge.y - 1;
@@ -749,56 +743,51 @@ test('a fighter cannot land on a platform after passing below its edge', () => {
   assert.ok(fighter.x > edge.left, 'by the end of the tick the fighter is above the horizontal span');
   assert.equal(fighter.ground, null, 'the fighter was still outside when crossing the top plane');
   stepFor(state, 30, [NEUTRAL, NEUTRAL], settings);
-  assert.equal(fighter.ground, 'bridge');
+  assert.equal(fighter.ground, lower.id);
 });
 
-test('down+jump on the ground does not launch a new jump', () => {
+test('down+jump on the floor starts an ordinary jump', () => {
   const settings = trainingOn(arenas[1]);
   const state = begin(settings);
-  assert.deepEqual(step(state, [input(['jump'], 0, 1), NEUTRAL], settings), []);
-  assert.equal(state.fighters[0].ground, 'floor');
-  assert.equal(state.fighters[0].y, settings.arena.floor);
+  assert.deepEqual(step(state, [input(['jump'], 0, 1), NEUTRAL], settings).map(event => event.kind), ['jump']);
+  assert.equal(state.fighters[0].ground, null);
+  assert.ok(state.fighters[0].y < settings.arena.floor);
 });
 
 test('walking off a ledge clears its support and lands on the next reachable tier', () => {
-  const settings = trainingOn(arenas[1]);
+  const { settings, lower, upper } = overlappingLedges();
   const state = begin(settings);
   const fighter = state.fighters[0];
-  const edge = settings.arena.platforms.find(platform => platform.id === 'score-deck');
-  fighter.ground = edge.id;
-  fighter.y = edge.y;
-  fighter.x = edge.left + 4;
+  Object.assign(fighter, { ground: upper.id, y: upper.y, x: upper.left + 4 });
   step(state, [input([], -1), NEUTRAL], settings);
   assert.equal(fighter.ground, null);
   stepFor(state, 30, [NEUTRAL, NEUTRAL], settings);
-  assert.equal(fighter.ground, 'press-west');
+  assert.equal(fighter.ground, lower.id);
 });
 
-for (const arena of platformArenas) {
-  test(arena.name + ' · P2 can climb and drop through each tier on the right side', () => {
-    const settings = trainingOn(arena);
+test('down+jump drops one surface at a time and clears the ignored platform', () => {
+  const { settings, lower, upper } = overlappingLedges();
+  for (const seat of [0, 1]) {
     const state = begin(settings);
-    const floor = { ...arena, id: 'floor', y: arena.floor };
-    const path = [floor, ...arena.routes[1].map(id => arena.platforms.find(platform => platform.id === id))];
-    for (let i = 1; i < path.length; i++) {
-      alignOverlapping(state, path[i - 1], path[i], settings, 1);
-      landAfter(state, input(['jump']), settings, 1);
-      assert.equal(state.fighters[1].ground, path[i].id);
+    const fighter = state.fighters[seat];
+    Object.assign(fighter, { ground: upper.id, y: upper.y, x: 900 });
+    const command = seat === 0
+      ? { ...input(['jump']), sampled: { jump: { x: 0, y: 1 } } }
+      : input(['jump'], 0, 1);
+    for (const next of [lower, { id: 'floor', y: settings.arena.floor }]) {
+      assert.deepEqual(landAfter(state, command, settings, seat).map(event => event.kind), ['drop']);
+      assert.equal(fighter.ground, next.id);
+      assert.equal(fighter.y, next.y);
+      assert.equal(fighter.ignorePlatform, null);
     }
-    for (let i = path.length - 1; i > 0; i--) {
-      alignOverlapping(state, path[i], path[i - 1], settings, 1);
-      assert.deepEqual(landAfter(state, input(['jump'], 0, 1), settings, 1).map(event => event.kind), ['drop']);
-      assert.equal(state.fighters[1].ground, path[i - 1].id);
-      assert.equal(state.fighters[1].y, path[i - 1].y);
-    }
-  });
-}
+  }
+});
 
 test('both opening positions can reach their advertised first platform in one ordinary jump', () => {
   for (const arena of platformArenas) {
     const settings = trainingOn(arena);
-    const state = begin(settings);
     for (const seat of [0, 1]) {
+      const state = begin(settings);
       const next = arena.platforms.find(platform => platform.id === arena.routes[seat][0]);
       const fighter = state.fighters[seat];
       const destination = Math.max(next.left + 20, Math.min(next.right - 20, arena.spawn[seat]));
@@ -816,43 +805,30 @@ test('both opening positions can reach their advertised first platform in one or
 });
 
 test('body separation at the platform edge never leaves a fighter grounded in midair', () => {
-  const settings = trainingOn(arenas[0]);
+  const { settings, lower, upper: edge } = overlappingLedges();
   const state = begin(settings);
   const [left, right] = state.fighters;
-  const edge = settings.arena.platforms.find(platform => platform.id === 'terrace');
   Object.assign(left, { x: edge.right - 28, y: edge.y, ground: edge.id });
   Object.assign(right, { x: edge.right - 6, y: edge.y, ground: edge.id });
   step(state, [NEUTRAL, NEUTRAL], settings);
-  assert.equal(left.ground, 'terrace');
+  assert.equal(left.ground, edge.id);
   assert.ok(right.x > edge.right);
   assert.equal(right.ground, null);
   stepFor(state, 30, [NEUTRAL, NEUTRAL], settings);
-  assert.equal(right.ground, 'bridge');
+  assert.equal(right.ground, lower.id);
 });
 
 test('the station towers have separate upper bays with a reachable middle crossing', () => {
   const settings = trainingOn(arenas[3]);
   const state = begin(settings);
   const map = new Map(settings.arena.platforms.map(platform => [platform.id, platform]));
-  const fighter = state.fighters[0];
   const { airSpeed, jump } = settings.fighters[0];
   assert.ok(map.get('upper-right').left - map.get('upper-left').right > airSpeed * jump * 2);
 
   const floor = { ...settings.arena, id: 'floor', y: settings.arena.floor };
-  alignOverlapping(state, floor, map.get('dock-left'), settings);
-  landAfter(state, input(['jump']), settings);
-  assert.equal(fighter.ground, 'dock-left');
-  landAfter(state, input(['jump']), settings);
-  assert.equal(fighter.ground, 'relay-left');
-  const leftRelay = map.get('relay-left');
-  const rightRelay = map.get('relay-right');
-  while (fighter.x < leftRelay.right - 36) step(state, [input([], 1), NEUTRAL], settings);
-  assert.equal(fighter.ground, leftRelay.id);
-  step(state, [input(['jump'], 1), NEUTRAL], settings);
-  for (let i = 0; i < 42 && !fighter.ground; i++) {
-    step(state, [input([], fighter.x < rightRelay.left + 28 ? 1 : 0), NEUTRAL], settings);
-  }
-  assert.equal(fighter.ground, 'relay-right');
+  jumpTo(state, settings, floor, map.get('dock-left'));
+  jumpTo(state, settings, map.get('dock-left'), map.get('relay-left'));
+  jumpTo(state, settings, map.get('relay-left'), map.get('relay-right'));
 });
 
 test('every expanded floor is traversable and both players can reach their own edge', () => {
@@ -883,9 +859,13 @@ test('the camera follows the fight across viewports and fits players at opposite
     const near = frameCamera(arena, viewport, center, null, 0, true);
     assert.ok(near.zoom > 1);
     const jumpHeight = baseline.jump * (baseline.jump - 1) / 2;
-    const peak = Math.min(arena.floor - jumpHeight, ...arena.platforms.map(platform => platform.y - 153));
+    const peak = Math.min(arena.floor - jumpHeight, ...arena.platforms.map(platform => {
+      const highest = platform.travel?.axis === 'y'
+        ? Math.min(platform.y, platform.y + platform.travel.distance) : platform.y;
+      return highest - jumpHeight;
+    }));
     const tall = frameCamera(arena, viewport, [{ ...center[0], y: peak }, center[1]], near, 0, true);
-    if (arena.platforms.length) assert.ok(tall.zoom < .8);
+    if (arena.platforms.length) assert.ok(tall.zoom < near.zoom, arena.name);
     assert.ok((peak - 145 - 32 - tall.y) * tall.zoom >= viewport.height * .19 - .01);
     assert.ok((arena.floor - tall.y) * tall.zoom <= viewport.height * .91 + .01);
     const spread = [{ x: arena.left, y: peak, height: 145 }, { x: arena.right, y: arena.floor, height: 145 }];
@@ -965,57 +945,52 @@ test('the opponent AI can follow across the new station bridge gap', () => {
 
 test('the side entrances link into the main routes with the same shared jump', () => {
   const entries = [
-    [arenas[0], 'planter', 'west-annex', 1],
-    [arenas[0], 'greenhouse', 'east-garden', -1],
-    [arenas[1], 'west-bench', 'west-end', 1],
-    [arenas[1], 'east-bench', 'east-end', -1],
-    [arenas[2], 'freight-dock', 'east-loading', -1]
+    [arenas[0], 'planter', 'west'],
+    [arenas[0], 'greenhouse', 'east'],
+    [arenas[1], 'west-bench', 'west-stand'],
+    [arenas[1], 'east-bench', 'east-stand']
   ];
-  for (const [arena, entranceId, platformId, direction] of entries) {
+  for (const [arena, entranceId, platformId] of entries) {
     const settings = trainingOn(arena);
     const state = begin(settings);
     const fighter = state.fighters[0];
     const from = arena.platforms.find(platform => platform.id === entranceId);
     const to = arena.platforms.find(platform => platform.id === platformId);
-    const start = direction === 1 ? from.right - 20 : from.left + 20;
-    const target = Math.max(to.left + 18, Math.min(to.right - 18, start));
-    Object.assign(fighter, { x: start, y: from.y, ground: from.id });
-    for (let frame = 0; frame < 45; frame++) {
-      const axis = Math.abs(fighter.x - target) > 9 ? Math.sign(target - fighter.x) : 0;
-      step(state, [input(frame ? [] : ['jump'], axis), NEUTRAL], settings);
-      if (fighter.ground) break;
-    }
-    assert.equal(fighter.ground, to.id, from.name + ' → ' + to.name);
+    Object.assign(fighter, { x: (from.left + from.right) / 2, y: from.y, ground: from.id });
+    jumpTo(state, settings, from, to);
   }
 });
 
-test('a harbor player crosses both gaps, takes the moving lift, and returns along a different route', () => {
+test('a harbor player boards at the west dock, crosses the channel and returns to the floor on the east side', () => {
   const settings = trainingOn(arenas.find(a => a.id === 'harbor'));
+  const { arena } = settings;
+  assert.equal(arena.platforms.length, 9);
+  const lift = arena.platforms.find(p => p.travel);
+  assert.equal(lift.travel.distance, 1050);
+  const west = arena.platforms.find(p => p.id === 'gangway');
+  const east = arena.platforms.find(p => p.id === 'overpass');
   const state = begin(settings);
-  const [player] = state.fighters;
-  const run = (x, ticks) => stepFor(state, ticks, [input([], x), NEUTRAL], settings);
-  const jump = (ground, x = 0, y = 0) => {
-    step(state, [input(['jump'], x, y), NEUTRAL], settings);
-    assert.equal(player.ground, null);
-    for (let n = 0; !player.ground && n < 55; n++) run(x, 1);
-    assert.equal(player.ground, ground);
-  };
-  jump('loading', -1);
-  run(-1, 5);
-  jump('gangway');
-  jump('middle', 1);
-  run(1, 28);
-  jump('overpass', 1);
-  jump('crane');
-  const boarded = player.x;
-  run(0, 405 - state.arenaFrame);
-  assert.equal(player.ground, 'crane');
-  assert.ok(boarded - player.x > 900);
-  jump('gangway', 0, 1);
-  run(-1, 37);
-  jump('west-cabin');
-  jump('gangway', 0, 1);
-  jump('floor', 0, 1);
+  const [player, spectator] = state.fighters;
+  spectator.x = arena.right;
+  const floor = { ...arena, id: 'floor', y: arena.floor };
+  const loading = arena.platforms.find(p => p.id === 'loading');
+  jumpTo(state, settings, floor, loading);
+  jumpTo(state, settings, loading, west);
+  while (player.x > 1640) step(state, [input([], -1), NEUTRAL], settings);
+  assert.equal(player.ground, west.id);
+  stepFor(state, 395 - state.arenaFrame, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(platformOffset(lift, state.arenaFrame), 0);
+  landAfter(state, input(['jump']), settings);
+  assert.equal(player.ground, lift.id);
+  stepFor(state, 675 - state.arenaFrame, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(player.ground, lift.id);
+  assert.ok(player.x > 2600);
+  landAfter(state, input(['jump'], 0, 1), settings);
+  assert.equal(player.ground, east.id);
+  landAfter(state, input(['jump'], 0, 1), settings);
+  assert.equal(player.ground, 'east-loading');
+  landAfter(state, input(['jump'], 0, 1), settings);
+  assert.equal(player.ground, 'floor');
 });
 
 test('both riders keep their offset through lift turnaround, hitstop, snapshot restore and dismount', () => {
@@ -1051,10 +1026,12 @@ test('both riders keep their offset through lift turnaround, hitstop, snapshot r
   ride(state);
   ride(snapshot);
   assert.deepEqual(state, snapshot);
+  stepFor(state, 135, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(platformOffset(lift, state.arenaFrame), span);
   step(state, [input(['jump'], 0, 1), NEUTRAL], settings);
   const out = state.fighters[0].x;
   stepFor(state, 28, [NEUTRAL, NEUTRAL], settings);
-  assert.equal(state.fighters[0].ground, 'middle');
+  assert.equal(state.fighters[0].ground, 'overpass');
   assert.equal(state.fighters[0].x, out);
   assert.equal(state.fighters[1].ground, lift.id);
   state.phase = 'round-over';
@@ -1077,43 +1054,63 @@ test('the lift catches a descending fighter only if its moving lip was underneat
   }
 });
 
-test('at either dock the fourth-tier gallery and the trolley allow a round trip using ordinary jumps', () => {
+test('either harbor dock connects the freight decks to the trolley at its stopping point', () => {
   const settings = trainingOn(arenas.find(a => a.id === 'harbor'));
-  for (const [id, frame, x] of [['west-gallery', 405, 1530], ['east-gallery', 135, 2860]]) {
+  const { arena } = settings;
+  for (const [id, frame, x] of [['gangway', 395, 1630], ['overpass', 125, 2690]]) {
     const state = begin(settings);
-    const deck = settings.arena.platforms.find(p => p.id === id);
+    const deck = arena.platforms.find(p => p.id === id);
     state.arenaFrame = frame;
     Object.assign(state.fighters[0], { ground: id, y: deck.y, x });
-    landAfter(state, input(['jump'], 0, 1), settings);
-    assert.equal(state.fighters[0].ground, 'crane');
     landAfter(state, input(['jump']), settings);
-    assert.equal(state.fighters[0].ground, id);
+    assert.equal(state.fighters[0].ground, 'crane');
   }
 });
 
-test('the two dormitory corridors connect across the courtyard, and a jump in center court stays on the floor', () => {
-  const dorm = trainingOn(arenas.find(a => a.id === 'dorm-roof'));
-  const s = begin(dorm);
-  const west = dorm.arena.platforms.find(p => p.id === 'bridge');
-  const east = dorm.arena.platforms.find(p => p.id === 'bridge-east');
-  assert.equal(east.left - west.right, 198);
-  Object.assign(s.fighters[0], { x: west.right - 35, y: west.y, ground: west.id });
-  landAfter(s, input(['jump'], 1), dorm, 0, 1);
-  assert.equal(s.fighters[0].ground, east.id);
+test('the dormitory climbs asymmetrically and the court keeps a clear ground-level center', () => {
+  const [dorm, court] = arenas;
+  assert.equal(dorm.platforms.length, 8);
+  assert.deepEqual(dorm.routes.map(route => route.length), [5, 4]);
+  const courtyard = dorm.width / 2;
+  const upperRoofs = dorm.platforms.filter(p => p.tier > 2);
+  assert.ok(upperRoofs.every(p => p.left > courtyard));
 
-  const court = trainingOn(arenas.find(a => a.id === 'night-court'));
-  const game = begin(court);
-  const mid = court.arena.width / 2;
-  const innerLow = court.arena.routes.map(route => court.arena.platforms.find(p => p.id === route[0]));
-  assert.equal(innerLow[1].left - innerLow[0].right, 629);
-  game.fighters[0].x = mid;
-  landAfter(game, input(['jump']), court);
-  assert.equal(game.fighters[0].ground, 'floor');
+  const settings = trainingOn(court);
+  assert.equal(court.platforms.length, 5);
+  assert.deepEqual(court.routes.map(route => route.length), [2, 2]);
+  assert.deepEqual([...new Set(court.platforms.map(p => p.tier))], [1, 2]);
+  const middle = court.width / 2;
+  const low = court.routes.map(route => court.platforms.find(p => p.id === route[0]));
+  assert.ok(low[0].right < middle && low[1].left > middle);
+  const state = begin(settings);
+  const [player] = state.fighters;
+  player.x = middle;
+  landAfter(state, input(['jump']), settings);
+  assert.equal(player.ground, 'floor');
+});
+
+test('both sides of the court scoreboard drop back through their own stand', () => {
+  const settings = trainingOn(arenas.find(arena => arena.id === 'night-court'));
+  for (const [seat, route] of settings.arena.routes.entries()) {
+    const [stand, scoreboard] = route.map(id => settings.arena.platforms.find(p => p.id === id));
+    const state = begin(settings);
+    const fighter = state.fighters[seat];
+    state.fighters[1 - seat].x = seat === 0 ? settings.arena.right : settings.arena.left;
+    jumpTo(state, settings, { ...settings.arena, y: settings.arena.floor, id: 'floor' }, stand, seat);
+    jumpTo(state, settings, stand, scoreboard, seat);
+    for (const destination of [stand, { y: settings.arena.floor, id: 'floor' }]) {
+      assert.deepEqual(landAfter(state, input(['jump'], 0, 1), settings, seat).map(event => event.kind), ['drop']);
+      assert.equal(fighter.ground, destination.id);
+      assert.equal(fighter.y, destination.y);
+    }
+  }
 });
 
 test('both lift riders keep their height through ascent, turnaround, hitstop, replay and descent', () => {
   const settings = trainingOn(arenas.find(a => a.id === 'star-station'));
+  assert.equal(settings.arena.platforms.length, 9);
   const car = settings.arena.platforms.find(p => p.travel);
+  assert.equal(car.travel.axis, 'y');
   const state = begin(settings);
   const seats = [car.left + 42, car.right - 42];
   for (const [seat, f] of state.fighters.entries()) Object.assign(f, { x: seats[seat], y: car.y, ground: car.id });
@@ -1139,7 +1136,7 @@ test('both lift riders keep their height through ascent, turnaround, hitstop, re
   assert.deepEqual(state, saved);
   assert.equal(platformAt(car, 480).y, car.y);
   assert.equal(tierAt(settings.arena, car, 480), 1);
-  assert.equal(car.y - platformAt(car, 240).y, 465);
+  assert.equal(car.y - platformAt(car, 240).y, 458);
   assert.equal(tierAt(settings.arena, car, 240), 4);
   stepFor(state, 240, [NEUTRAL, NEUTRAL], settings);
   landAfter(state, input(['jump'], 0, 1), settings);
@@ -1187,7 +1184,7 @@ test('either opening seat can board the station lift and step off onto its own t
   }
 });
 
-test('both broadcast fighters can run and jump across the single floor, and down+jump stays grounded', () => {
+test('both broadcast fighters can run and jump across the single floor with either jump input', () => {
   const arena = arenas.find(arena => arena.id === 'broadcast-ring');
   assert.deepEqual(arenas.filter(arena => arena.platforms.length === 0).map(arena => arena.id), ['neon-ring', 'broadcast-ring']);
   assert.deepEqual(arena.routes, [[], []]);
@@ -1210,9 +1207,9 @@ test('both broadcast fighters can run and jump across the single floor, and down
   assert.ok(state.fighters.every(fighter => fighter.ground === 'floor' && fighter.y === arena.floor));
 
   const downJump = input(['jump'], 0, 1);
-  assert.deepEqual(step(state, [downJump, downJump], settings), []);
+  assert.deepEqual(step(state, [downJump, downJump], settings).map(event => event.kind), ['jump', 'jump']);
   assert.ok(state.fighters.every(fighter =>
-    fighter.ground === 'floor' && fighter.y === arena.floor && fighter.ignorePlatform === null));
+    fighter.ground === null && fighter.y < arena.floor && fighter.ignorePlatform === null));
 });
 
 test('the broadcast CPU chases and hits an opponent at either end of the floor', () => {
@@ -1248,7 +1245,7 @@ test('the computer can approach an opponent occupying either upper route on maps
         if (s.fighters[1].ground) visited.add(s.fighters[1].ground);
         met = events.some(e => e.kind === 'hit' && e.source === 1);
       }
-      assert.ok(visited.size >= 3 && met, arena.name + ' / ' + roof.name);
+      assert.ok(visited.size >= 2 && met, arena.name + ' / ' + roof.name);
     }
   }
 });

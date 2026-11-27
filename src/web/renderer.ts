@@ -1,20 +1,21 @@
 import { motionGrid } from '../content/fighter-kit.js';
 import { ringLayers } from './ring-art.js';
 import { bananaActionIds } from '../content/fighters/banana.js';
-import { gagaActionIds } from '../content/fighters/gaga.js';
+import { gagaActionIds, gagaAirThrow } from '../content/fighters/gaga.js';
 import { roster } from '../content/roster.js';
 import type { EntityState } from '../core/entities.js';
 import { frogPowered } from '../core/frog-kit.js';
 import { actionFor, hitRegionsFor, hurtRegionsFor, isActiveFrame, recoveryDuration, worldBox } from '../core/match.js';
 import { summonFallFrames } from '../core/summon.js';
-import { platformAt } from '../core/terrain.js';
+import { platformAt, platformOffset } from '../core/terrain.js';
 import { turretBoosted, turretBuildTicks } from '../core/turret.js';
 import { DEFAULT_RISE_FRAMES, isAttack } from '../core/types.js';
-import type { ActionDefinition, ArenaDefinition, Box, CombatEvent, FighterAction, FighterState, MatchConfig, MatchState, Summon } from '../core/types.js';
+import type { ActionDefinition, ArenaDefinition, Box, CombatEvent, FighterAction, FighterState, ImpactTier, MatchConfig, MatchState, Platform, Summon } from '../core/types.js';
 import { cinematicOwner } from '../core/whale-kit.js';
-import { backgrounds, harborProps, harborGantry, ringPerformers, stageKits, drawEngineeringCrate, drawGagaLaunchTrail,
-  drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose, gagaReactionPose, gagaStatePose,
-  motionArt, sprites, type PolePose } from './art.js';
+import { drawInkBackdrop, drawInkFloor, drawInkMechanism, drawInkScenery, redrawWhenBackdropReady } from './arena-ink.js';
+import { backgrounds, ringPerformers, drawEngineeringCrate, drawGagaLaunchTrail,
+  drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose,
+  gagaReactionPose, gagaStatePose, motionArt, sprites, type PolePose } from './art.js';
 import { drawBanana, drawBananaJoDashTrail, drawBananaTheWorldStrike, drawBananaWorldStand, type StandLinger } from './banana-art.js';
 import { bananaEffectLife, drawBananaEffect, drawBananaProjectile, drawBananaWave,
   drawKillerQueenDetonation, drawKillerQueenMark, drawKillerQueenOrb, drawKillerQueenPlant,
@@ -22,48 +23,45 @@ import { bananaEffectLife, drawBananaEffect, drawBananaProjectile, drawBananaWav
 import { drawBananaImpact } from './banana-hit-art.js';
 import { drawBananaJoCutIn, drawBananaWaveCutIn, drawJoShatterBurst } from './banana-wave-art.js';
 import { frameCamera, frameDijiangLength, frameDijiangImpact, frameEntrance, frameTimeStopCamera, type CameraView } from './camera.js';
-import { shotFading, shotOpacity, type FeatureShot, type FighterIntro } from './cinematics.js';
+import { shotFading, shotOpacity, type FeatureShot } from './cinematics.js';
+import { comicBeat, comicPalettes, drawComicFrame, drawComicImpactPanel } from './comic-stage.js';
 import { dijiangImpactLife, drawDijiang, drawDijiangGround, drawDijiangImpact, drawDijiangPressure,
   drawSummonCutIn } from './dijiang.js';
 import { drawFrogActor, drawFrogEffects, drawFrogIntro } from './frog-art.js';
-import { drawGagaContact, drawGagaReceive, gagaContact, type GagaContact } from './gaga-contact.js';
-import { drawCrystalLockOnBeam, drawCrystalPlant, drawCrystalShatter, drawCrystalSpire, drawDiveLandImpact, drawOriginiumCrystalMark, drawPowerPylonField, drawPylonExpireEffect, drawPylonPlantEffect, drawSparkProjectile, drawSwordChargeGlint, drawSwordReleaseSlash, drawSwordWaveProjectile, drawTurretSpeedBoost, drawXiraniteBurstEffect } from './gaga-fx.js';
+import { drawGagaContact, gagaContact } from './gaga-contact.js';
+import { drawCrystalLockOnBeam, drawCrystalPlant, drawCrystalShatter, drawCrystalSpire, drawDiveLandImpact,
+  drawOriginiumCrystalMark, drawPowerPylonField, drawPylonExpireEffect, drawPylonPlantEffect, drawSparkProjectile,
+  drawSwordChargeGlint, drawSwordReleaseSlash, drawSwordWaveProjectile, drawTurretSpeedBoost, drawXiraniteBurstEffect } from './gaga-fx.js';
 import { drawGagaImpact, gagaStrike } from './gaga-hit-art.js';
 import { gagaIntro } from './gaga-intro.js';
 import { drawPoleDust, drawPoleEarthBurst, drawPoleGroundMark, poleDustLife, poleImpactLife,
   poleSwingFor, type PoleSwing } from './gaga-pole-fx.js';
 import { drawTurretEffect, isTurretEffect, turretEffectLife } from './gaga-turret-fx.js';
 import { drawGagaWalk, GagaWalk } from './gaga-walk.js';
-import { drawHarborScenery, drawHarborLift, drawQuay } from './harbor-art.js';
+import { drawImpactInk } from './impact-ink.js';
 import { drawKnockdownDust, drawKnockdownPose, knockdownPose } from './knockdown-art.js';
-import { drawStageBackdrop, drawStageMechanism, drawStageScenery } from './stage-art.js';
 import { drawWhaleActor, drawWhaleEntities, drawWhaleIntro } from './whale-art.js';
 
 export const seatColors = ['#61d8ff', '#ff849e'];
+const roundEntrances = new Set(['gaga', 'banana']);
+export const openingTicks = (fighters: MatchConfig['fighters']) =>
+  fighters.some(fighter => roundEntrances.has(fighter.id)) ? 192 : 120;
+
 export const recoveryLabels = { fall: '击倒', down: '倒地', rise: '起身' };
-const entrances: Partial<Record<string, FighterIntro>> = { gaga: gagaIntro };
-/** The banana cat brings its own entrance, drawn by its own art. */
-const stageEntrance = (fighter: MatchConfig['fighters'][number]) => fighter.id === 'banana' || Boolean(entrances[fighter.id]);
-/** Length of each round's opening. It stretches from the usual 120 frames whenever a fighter performs an entrance. */
-export const openingTicks = (fighters: MatchConfig['fighters']) => fighters.some(stageEntrance) ? 192 : 120;
-/** Frame of the entrance, counted from the first frame of the opening, or -1 once the round is under way. */
 export const openingFrame = (state: MatchState, fighters: MatchConfig['fighters']) =>
   state.phase === 'ready' ? openingTicks(fighters) - state.phaseTicks : -1;
-/** The entrance a fighter performs on the stage, when it brings one. */
-export const entranceFor = (fighter: MatchConfig['fighters'][number]) => entrances[fighter.id];
-const arenaColors = { dorm: '#ffc08c', court: '#8faaff', harbor: '#8de9cd', station: '#bc9bff', ring: '#fe72be', broadcast: '#f05aaa' };
-const tierColors = ['#6adfff', '#ffdd87', '#edacff', '#c1ebad'];
+export const entranceFor = (fighter: MatchConfig['fighters'][number]) =>
+  fighter.id === 'gaga' ? gagaIntro : undefined;
+const stageFinishes: Record<ArenaDefinition['theme'], { edge: string; shade: string }> = {
+  dorm: { edge: '#e3c7a0', shade: '#252237' },
+  court: { edge: '#b4cede', shade: '#101c32' },
+  harbor: { edge: '#e4c79b', shade: '#2d2739' },
+  station: { edge: '#b9c5db', shade: '#1a1a33' },
+  ring: { edge: '#fe72be', shade: '#17112b' },
+  broadcast: { edge: '#ddbadb', shade: '#17112b' }
+};
+const movingEdge = '#ffcf53';
 const artSizes = new Map(roster.map(entry => [entry.fighter.id, entry.height]));
-const harborLayers = { backdrop: drawQuay, scenery: drawHarborScenery, mechanism: drawHarborLift };
-const campusLayers = { backdrop: drawStageBackdrop, scenery: drawStageScenery, mechanism: drawStageMechanism };
-const layersFor = (arena: ArenaDefinition) => {
-  if (arena.theme === 'ring') return ringLayers;
-  return arena.theme === 'harbor' ? harborLayers : campusLayers;
-};
-const sheetsFor = (arena: ArenaDefinition) => {
-  if (arena.theme === 'ring') return [ringPerformers];
-  return arena.theme === 'harbor' ? [harborProps, harborGantry] : [stageKits[arena.theme]];
-};
 type Point = [number, number];
 const poses = {
   run: 0, stride: 1, jump: 2, guard: 3, windup: 4, strike: 5,
@@ -151,6 +149,7 @@ type Trail = [Point, Point, Point];
 
 const attackTrails: Partial<Record<string, Trail[]>> = {
   [gagaActionIds.jab]: [[[34, -49], [67, -57], [111, -61]]],
+  [gagaActionIds.airStrike]: [[[25, -43], [88, -41], [105, -92]]],
   [gagaActionIds.backhand]: [[[-43, -96], [32, -125], [98, -55]]],
   [gagaActionIds.poleSweep]: [[[24, -50], [147, -19], [266, -84]]],
   [gagaActionIds.poleBacksweep]: [[[25, -72], [162, -91], [265, -24]]],
@@ -241,6 +240,31 @@ function drawEntity(ctx: CanvasRenderingContext2D, entity: EntityState, debug: b
   ctx.restore();
 }
 
+function drawFrogShockwave(ctx: CanvasRenderingContext2D, entity: EntityState, powered: boolean) {
+  const { x, y, age, definition } = entity;
+  const progress = Math.min(1, (age + 1) / definition.lifetime);
+  const radius = definition.hitbox.w * .5;
+  ctx.save();
+  ctx.globalAlpha *= 1 - progress * .48;
+  ctx.beginPath();
+  ctx.arc(x, y, radius * (.73 + progress * .27), 0, Math.PI * 2);
+  ctx.strokeStyle = '#e6a84eb0';
+  ctx.lineWidth = powered ? 18 : 13;
+  ctx.stroke();
+  ctx.strokeStyle = '#fff2c7';
+  ctx.lineWidth = powered ? 6 : 4;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function gagaPoseAction(action: ActionDefinition): ActionDefinition {
+  if (action.id === gagaActionIds.groundThrow) {
+    return { ...action, id: gagaActionIds.airThrow, projectile: gagaAirThrow.projectile };
+  }
+  if (action.id === gagaActionIds.airStrike) return { ...action, id: gagaActionIds.jab };
+  return action;
+}
+
 function drawStageArt(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, image: HTMLImageElement) {
   for (let band = 1; band < arena.artFrame.length; band++) {
     const start = arena.artFrame[band - 1];
@@ -250,45 +274,129 @@ function drawStageArt(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, ima
   }
 }
 
-export function paintArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {
-  const { width, height, left, right, floor } = arena;
-  const accent = arenaColors[arena.theme];
+function drawArenaSurfaces(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, decks: readonly Platform[],
+  frame: number, spawnOpacity: number) {
+  const { floor, left, right, spawn } = arena;
+  const { edge, shade } = stageFinishes[arena.theme];
+  ctx.fillStyle = shade;
+  ctx.fillRect(left, floor, right - left, 12);
+  ctx.fillStyle = edge;
+  ctx.fillRect(left, floor, right - left, 3);
+
+  // The center stripe and spawn marks sit on the fascia below the physical floor.
+  const center = (spawn[0] + spawn[1]) / 2;
+  const centerStripe = ctx.createLinearGradient(center - 130, 0, center + 130, 0);
+  centerStripe.addColorStop(0, edge + '00');
+  centerStripe.addColorStop(.5, edge + 'c4');
+  centerStripe.addColorStop(1, edge + '00');
+  ctx.fillStyle = centerStripe;
+  ctx.fillRect(center - 130, floor, 260, 3);
+  ctx.fillStyle = edge + 'a6';
+  for (const x of [left, right]) ctx.fillRect(x - 2, floor, 4, 15);
+  if (spawnOpacity > 0) {
+    ctx.save();
+    ctx.globalAlpha = spawnOpacity;
+    for (const seat of [0, 1] as const) {
+      const x = spawn[seat];
+      ctx.fillStyle = seatColors[seat] + '20';
+      ctx.fillRect(x - 48, floor + 4, 96, 16);
+      ctx.strokeStyle = seatColors[seat] + 'ac';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x - 48, floor + 4);
+      ctx.lineTo(x - 48, floor + 16);
+      ctx.lineTo(x - 31, floor + 16);
+      ctx.moveTo(x + 31, floor + 16);
+      ctx.lineTo(x + 48, floor + 16);
+      ctx.lineTo(x + 48, floor + 4);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  for (const [index, p] of decks.entries()) {
+    const width = p.right - p.left;
+    const cap = comicPalettes[arena.theme].paper;
+    const surface = p.travel ? movingEdge : edge;
+    ctx.fillStyle = '#101322';
+    ctx.fillRect(p.left, p.y, width, 12);
+    ctx.fillStyle = surface;
+    ctx.fillRect(p.left, p.y, width, 3);
+    for (const [x, inward] of [[p.left, 1], [p.right, -1]]) {
+      polygon(ctx, p.travel ? '#ec695a' : cap,
+        [[x, p.y], [x + inward * 26, p.y], [x + inward * 15, p.y + 10], [x, p.y + 10]]);
+    }
+    if (!p.travel) {
+      // Down chevrons start below the marked landing plane.
+      ctx.strokeStyle = surface;
+      ctx.lineWidth = 3;
+      for (const x of [p.left + 42, p.right - 42]) {
+        ctx.beginPath();
+        ctx.moveTo(x - 6, p.y + 9);
+        ctx.lineTo(x, p.y + 15);
+        ctx.lineTo(x + 6, p.y + 9);
+        ctx.stroke();
+      }
+      continue;
+    }
+
+    for (let x = p.left + 35; x + 14 < p.right - 29; x += 20) {
+      polygon(ctx, movingEdge, [[x + 5, p.y + 4], [x + 14, p.y + 4], [x + 9, p.y + 13], [x, p.y + 13]]);
+    }
+    const source = arena.platforms[index];
+    const direction = Math.sign(platformOffset(source, frame + 1) - platformOffset(source, frame));
+    ctx.save();
+    ctx.translate((p.left + p.right) / 2, p.y + 13);
+    ctx.fillStyle = shade + 'e0';
+    ctx.fillRect(-14, -9, 28, 19);
+    ctx.strokeStyle = movingEdge;
+    ctx.lineWidth = 2.5;
+    if (!direction) {
+      ctx.beginPath();
+      ctx.moveTo(-3, -4);
+      ctx.lineTo(-3, 4);
+      ctx.moveTo(3, -4);
+      ctx.lineTo(3, 4);
+      ctx.stroke();
+    } else {
+      if (p.travel.axis === 'y') ctx.rotate(Math.PI / 2);
+      ctx.scale(direction, 1);
+      ctx.beginPath();
+      ctx.moveTo(-3, -5);
+      ctx.lineTo(3, 0);
+      ctx.lineTo(-3, 5);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+function usesInkArena(arena: ArenaDefinition) {
+  return arena.theme !== 'ring' && (arena.theme === 'broadcast' || !arena.artFrame.length);
+}
+
+export function paintArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, frame = 0) {
+  const { width, height } = arena;
   const image = backgrounds[arena.theme];
   ctx.fillStyle = '#211f4b';
   ctx.fillRect(0, 0, width, height);
-  if (!arena.artFrame.length) {
-    const layers = layersFor(arena);
-    if (arena.theme === 'broadcast') drawStageBackdrop(ctx, arena, arena.width / 2, true);
-    else layers.backdrop(ctx, arena, arena.width / 2);
-    layers.scenery(ctx, arena);
-  } else if (image.naturalWidth) drawStageArt(ctx, arena, image);
+  if (arena.theme === 'ring') {
+    ringLayers.backdrop(ctx, arena);
+    ringLayers.scenery();
+    ringLayers.mechanism(ctx, arena, frame);
+  } else if (usesInkArena(arena)) {
+    drawInkBackdrop(ctx, arena, width / 2);
+    drawInkScenery(ctx, arena);
+    drawInkMechanism(ctx, arena, frame);
+    drawInkFloor(ctx, arena);
+  } else if (image?.naturalWidth) drawStageArt(ctx, arena, image);
 
   const shade = ctx.createLinearGradient(0, 0, 0, 190);
   shade.addColorStop(0, '#0c0d33ac');
   shade.addColorStop(1, '#0c0d3300');
   ctx.fillStyle = shade;
   ctx.fillRect(0, 0, width, 190);
-  ctx.fillStyle = '#13172748';
-  ctx.fillRect(0, floor, width, height - floor);
-  ctx.fillStyle = accent + 'a5';
-  ctx.fillRect(left, floor, right - left, 1);
-  ctx.fillStyle = '#10142988';
-  ctx.fillRect(0, floor, left, height - floor);
-  ctx.fillRect(right, floor, width - right, height - floor);
-  for (const x of [left, right]) {
-    polygon(ctx, accent, [[x - 7, floor + 10], [x + 7, floor + 10], [x, floor + 18]]);
-  }
-
-  for (const p of arena.platforms) {
-    if (p.prop) continue;
-    const ledgeWidth = p.right - p.left;
-    const tier = tierColors[p.tier - 1];
-    ctx.fillStyle = tier + (image.naturalWidth ? '75' : 'ff');
-    ctx.fillRect(p.left, p.y, ledgeWidth, image.naturalWidth ? 1 : 4);
-    ctx.fillStyle = tier;
-    ctx.fillRect(p.left, p.y, 11, 2);
-    ctx.fillRect(p.right - 11, p.y, 11, 2);
-  }
+  drawArenaSurfaces(ctx, arena, arena.platforms.map(p => platformAt(p, 0)), 0, .9);
 }
 
 function paintRoute(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, side: 0 | 1) {
@@ -317,10 +425,10 @@ function paintRoute(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, side:
     ctx.moveTo(...from);
     ctx.lineTo(takeoff, support.y);
     ctx.quadraticCurveTo((takeoff + x) / 2 + (side === 0 ? -72 : 72), platform.y - 56, x, platform.y);
-    ctx.lineWidth = 24;
+    ctx.lineWidth = 29;
     ctx.strokeStyle = outline;
     ctx.stroke();
-    ctx.lineWidth = 13;
+    ctx.lineWidth = 16;
     ctx.strokeStyle = color;
     ctx.stroke();
     ctx.beginPath();
@@ -338,42 +446,79 @@ function paintRoute(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, side:
 export function previewArena(canvas: HTMLCanvasElement, arena: ArenaDefinition, route = false, frame = 0) {
   const ctx = canvas.getContext('2d')!;
   const variant = arena.id + (route ? '-route' : '');
+  const ink = usesInkArena(arena);
   canvas.dataset.variant = variant;
   const draw = () => {
     if (canvas.dataset.variant !== variant) return;
-    ctx.setTransform(canvas.width / arena.width, 0, 0, canvas.height / arena.height, 0, 0);
-    paintArena(ctx, arena);
-    if (!arena.artFrame.length) layersFor(arena).mechanism(ctx, arena, 0);
+    const top = ink ? Math.max(0, arena.floor - 1255) : 0;
+    const bottom = ink ? Math.min(arena.height, arena.floor + 250) : arena.height;
+    const scaleY = canvas.height / (bottom - top);
+    ctx.setTransform(canvas.width / arena.width, 0, 0, scaleY, 0, -top * scaleY);
+    paintArena(ctx, arena, frame);
     if (route) {
-      ctx.fillStyle = '#10152b2b';
+      ctx.fillStyle = '#10152b69';
       ctx.fillRect(0, 0, arena.width, arena.height);
       for (const side of [0, 1] as const) paintRoute(ctx, arena, side);
     }
     ctx.resetTransform();
   };
   draw();
-  for (const image of [backgrounds[arena.theme], ...sheetsFor(arena)]) {
-    if (!image.complete) image.addEventListener('load', draw, { once: true });
-  }
+  const image = arena.theme === 'ring' ? ringPerformers : backgrounds[arena.theme];
+  if (ink) redrawWhenBackdropReady(arena, draw);
+  else if (image && !image.complete) image.addEventListener('load', draw, { once: true });
 }
 
 interface Effect {
   event: CombatEvent;
   start: number;
   life: number;
-  cue?: GagaContact;
+  viewStart: number;
+  tier?: ImpactTier;
   poleSwing?: PoleSwing;
   swordSwing?: boolean;
+  cue?: ReturnType<typeof gagaContact>;
   gagaReceives?: boolean;
   bananaImpact?: boolean;
   gagaImpact?: boolean;
   knockdownDust?: boolean;
   shake?: number;
+  fighterImpact?: 'gaga' | 'banana';
 }
+
+const impacts: Record<ImpactTier, { life: number; shake: number; flash: number }> = {
+  light: { life: 8, shake: 2, flash: .23 },
+  medium: { life: 11, shake: 4, flash: .38 },
+  heavy: { life: 14, shake: 7, flash: .57 },
+  launch: { life: 14, shake: 6, flash: .5 },
+  guard: { life: 10, shake: 0, flash: 0 },
+  'guard-break': { life: 14, shake: 7, flash: 0 },
+  parry: { life: 10, shake: 0, flash: 0 },
+  ultimate: { life: 14, shake: 9, flash: .65 }
+};
+
+function impactTier(event: CombatEvent): ImpactTier | undefined {
+  if (event.impactTier) return event.impactTier;
+  switch (event.kind) {
+    case 'hit': return event.reaction === 'air' ? 'launch' : event.impact ?? (event.heavy ? 'heavy' : 'light');
+    case 'block': return 'guard';
+    case 'break': return 'guard-break';
+    case 'parry': return 'parry';
+    case 'ultimate':
+    case 'summon-impact': return 'ultimate';
+  }
+}
+
+function drawImpact(ctx: CanvasRenderingContext2D, event: CombatEvent, tier: ImpactTier, age: number,
+  reducedMotion: boolean, compact: boolean) {
+  drawImpactInk(ctx, event, tier, age / impacts[tier].life, reducedMotion, compact);
+}
+
+type AirTracePoint = { x: number; y: number; frame: number };
+type PresentationClock = Pick<MatchState, 'frame' | 'arenaFrame' | 'round'>;
 
 const expiresAfter: Partial<Record<CombatEvent['kind'], number>> = {
   hit: 12, break: 17, block: 10, parry: 15, ultimate: 13,
-  dash: 12, land: 12, drop: 12, 'air-jump': 12, knockdown: 12
+  dash: 12, land: 12, drop: 12, 'air-jump': 12, knockdown: 12, ko: 13
 };
 
 export class Renderer {
@@ -386,8 +531,9 @@ export class Renderer {
   private gagaWalks = [new GagaWalk(), new GagaWalk()];
   private standLinger: [ { actionId: string; lastFrame: number; age: number } | null,
     { actionId: string; lastFrame: number; age: number } | null ] = [null, null];
-  private previousArenaFrame?: number;
-  private previousRound?: number;
+  private previousDrawArenaFrame?: number;
+  private effectClock?: PresentationClock;
+  private airTraces: [AirTracePoint[], AirTracePoint[]] = [[], []];
 
   constructor(canvas: HTMLCanvasElement, arena: ArenaDefinition) {
     this.ctx = canvas.getContext('2d', { alpha: false })!;
@@ -396,44 +542,57 @@ export class Renderer {
 
   load(arena: ArenaDefinition) {
     const layer = this.background;
-    if (!arena.artFrame.length) {
+    if (arena.theme === 'ring') {
+      layer.width = arena.width;
+      layer.height = arena.height;
+      this.sceneryTop = 0;
+      ringLayers.scenery();
+    } else if (usesInkArena(arena)) {
       // Keep the detailed foreground at world resolution. Background and mechanisms have their own transforms.
       layer.width = arena.width;
       layer.height = 1024;
       this.sceneryTop = arena.floor - 950;
-      layer.dataset.variant = arena.id;
-      const draw = () => {
-        if (layer.dataset.variant !== arena.id) return;
-        const ctx = layer.getContext('2d')!;
-        ctx.resetTransform();
-        ctx.clearRect(0, 0, layer.width, layer.height);
-        ctx.translate(0, -this.sceneryTop);
-        layersFor(arena).scenery(ctx, arena);
-      };
-      draw();
-      for (const prop of sheetsFor(arena)) {
-        if (!prop.complete) prop.addEventListener('load', draw, { once: true });
-      }
+      const ctx = layer.getContext('2d')!;
+      ctx.setTransform(1, 0, 0, 1, 0, -this.sceneryTop);
+      drawInkScenery(ctx, arena);
     } else {
       layer.width = Math.min(2560, arena.width);
       layer.height = Math.round(layer.width * arena.height / arena.width);
       previewArena(layer, arena);
     }
+    this.resetPresentation();
+  }
+
+  resetPresentation() {
     this.effects = [];
     this.camera = null;
     this.dive = null;
     this.gagaWalks.forEach(walk => walk.reset());
-    this.previousArenaFrame = undefined;
-    this.previousRound = undefined;
+    this.previousDrawArenaFrame = undefined;
+    this.effectClock = undefined;
+    this.airTraces = [[], []];
   }
 
-  add(events: CombatEvent[], frame: number, fighters?: MatchConfig['fighters']) {
-    for (const event of events) {
-      const { kind, actionId, source } = event;
+  private syncPresentation({ frame, arenaFrame, round }: PresentationClock) {
+    const previous = this.effectClock;
+    if (previous && (round !== previous.round || frame < previous.frame || arenaFrame < previous.arenaFrame)) {
+      this.resetPresentation();
+    }
+    this.effectClock = { frame, arenaFrame, round };
+  }
+
+  add(events: CombatEvent[], clock: PresentationClock, fighters?: MatchConfig['fighters']) {
+    this.syncPresentation(clock);
+    for (const received of events) {
+      const fighter = fighters?.[received.source];
+      const move = fighter?.id === 'banana' ? fighter.actions.find(action => action.id === received.actionId) : undefined;
+      const event = isAttack(move) && move.channel === 'spray' && received.actionId !== bananaActionIds.pressure
+        ? { ...received, actionId: bananaActionIds.pressure } : received;
+      const { kind, actionId } = event;
       if (kind === 'ultimate' && (actionId === bananaActionIds.wave || actionId === gagaActionIds.dijiang)) continue;
-      const actor = fighters?.[source].id;
-      const target = fighters?.[source === 0 ? 1 : 0].id;
-      const jet = isTearJet(actionId);
+      const actor = fighter?.id;
+      const target = fighters?.[event.source === 0 ? 1 : 0]?.id;
+      const jet = Boolean(actionId && isTearJet(actionId));
       const wave = actionId === bananaActionIds.wave;
       const poleSwing = poleSwingFor(event);
       const swordSwing = kind === 'swing' && actionId === gagaActionIds.swordSlash;
@@ -447,16 +606,16 @@ export class Renderer {
           (actor === 'banana' || target === 'banana');
       const knockdownDust = kind === 'knockdown' && (actor === 'gaga' || actor === 'banana');
       const bananaLife = bananaEffectLife(event);
-      let life = kind === 'hit' && event.heavy ? 16 : expiresAfter[kind];
+      const tier = kind === 'ko' ? 'ultimate' : impactTier(event);
+      let life = Math.max(tier ? impacts[tier].life : 0, expiresAfter[kind] ?? 0, bananaLife ?? 0);
       let shake: number | undefined;
 
       if (kind === 'tear-splash') {
-        life = bananaLife;
-        shake = 5;
+        shake = 3;
       } else if (isTurretEffect(event)) {
         life = turretEffectLife[event.kind];
-        if (event.kind === 'grenade-impact') shake = 9;
-        if (event.kind === 'turret-burst' || event.kind === 'turret-ready') shake = 6;
+        if (event.kind === 'grenade-impact') shake = 6;
+        if (event.kind === 'turret-burst' || event.kind === 'turret-ready') shake = 4;
       } else if (poleSwing) {
         life = poleDustLife;
       } else if (swordSwing) {
@@ -464,7 +623,7 @@ export class Renderer {
         shake = 8;
       } else if (kind === 'pole-impact') {
         life = poleImpactLife;
-        shake = 8.5;
+        shake = 6;
       } else if (kind === 'summon-impact') {
         life = dijiangImpactLife;
       } else if (kind === 'summon-catch') {
@@ -505,16 +664,16 @@ export class Renderer {
       } else if (kind === 'jo-shatter') {
         life = 28;
         shake = 22;
-      } else if (knockdownDust) {
+      } else if (knockdownDust || kind === 'knockdown') {
         life = 22;
       } else if (kind === 'land' && actionId === gagaActionIds.airDive) {
         life = 22;
         shake = 10;
-      } else if (bananaImpact || gagaImpact) {
-        life = kind === 'land' ? 22 : 19;
+      } else if (kind === 'land' && bananaImpact) {
+        life = 22;
       } else if (bananaLife) {
         life = bananaLife;
-      } else if (cue || gagaReceives) {
+      } else if (cue && cue !== 'guard') {
         life = cue === 'light' || event.impact === 'light' ? 14 : event.impact === 'heavy' ? 22 : 23;
       } else if (kind === 'dash' && event.heavy) {
         life = 24;
@@ -527,12 +686,19 @@ export class Renderer {
         shake = 7;
       } else if (kind === 'land' && actionId === bananaActionIds.joAirDive) {
         shake = 10;
-      } else if ((kind === 'hit' || kind === 'break') && (jet || wave || cue || gagaReceives || bananaLife || gagaImpact || bananaImpact)) {
-        const strength = jet ? (actionId === bananaActionIds.uppercut ? 13 : 8)
-          : event.impact === 'heavy' ? 10 : event.impact === 'light' ? 2.5 : 4;
-        shake = Math.max(wave ? 16 : 0, event.feedback?.shake ?? strength);
+      } else if (tier && shake === undefined) {
+        const base = impacts[tier].shake;
+        shake = base && Math.min(9, event.feedback?.shake ?? base);
+        if (event.hitstop !== undefined && event.hitstop <= 1 && (kind === 'hit' || kind === 'break')) shake *= .35;
+        if (event.trade) shake *= .66;
       }
-      if (life) this.effects.push({ event, life, start: frame, cue, poleSwing, swordSwing, gagaReceives, bananaImpact, gagaImpact, knockdownDust, shake });
+      const fighterImpact = (kind === 'hit' && event.amount && !bananaLife &&
+        (actor === 'banana' || (actor === 'gaga' && Boolean(gagaStrike(event))))) || cue === 'guard'
+        ? (cue === 'guard' || actor === 'gaga' ? 'gaga' : 'banana') : undefined;
+      if (life) this.effects.push({
+        event, life, start: clock.arenaFrame, viewStart: clock.frame,
+        tier, poleSwing, swordSwing, cue, gagaReceives, bananaImpact, gagaImpact, knockdownDust, shake, fighterImpact
+      });
     }
   }
 
@@ -551,14 +717,9 @@ export class Renderer {
     ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, width, height);
     const arenaFrame = state.arenaFrame;
-    if (this.previousRound !== state.round || arenaFrame < (this.previousArenaFrame ?? 0)) {
-      this.camera = null;
-      this.dive = null;
-      this.gagaWalks.forEach(walk => walk.reset());
-    }
-    const motionFrames = Math.max(0, arenaFrame - (this.previousArenaFrame ?? arenaFrame));
-    this.previousRound = state.round;
-    this.previousArenaFrame = arenaFrame;
+    this.syncPresentation(state);
+    const motionFrames = arenaFrame - (this.previousDrawArenaFrame ?? arenaFrame);
+    this.previousDrawArenaFrame = arenaFrame;
     this.effects = this.effects.filter(({ start, life }) => arenaFrame >= start && arenaFrame - start < life);
     if (state.cutIn) {
       const cutInAction = actionFor(config, state, state.cutIn.source);
@@ -581,54 +742,60 @@ export class Renderer {
     const jetTips = ([0, 1] as const).flatMap(seat => {
       const fighter = state.fighters[seat];
       const action = actionFor(config, state, seat);
-      if (!isAttack(action) || action.id !== bananaActionIds.pressure || !fighter.attack ||
+      if (!isAttack(action) || action.channel !== 'spray' || !fighter.attack ||
         fighter.attack.frame >= action.startup + action.active + 7) return [];
       const box = worldBox(action.hitbox, fighter.x, fighter.y, fighter.facing);
       const tip = fighter.facing === 1 ? box.x + box.w : box.x;
       return [{ x: Math.max(0, Math.min(config.arena.width, tip)), y: Math.max(0, box.y) }];
     });
     const frozen = state.phase === 'fight' && (state.freeze > 0 || cinematicOwner(state) !== undefined);
-    const framing = frameCamera(config.arena, { width, height },
+    const playCamera = frameCamera(config.arena, { width, height },
       [{ x: a.x, y: a.y, height: heights[0] }, { x: b.x, y: b.y, height: heights[1] }],
       this.camera, frozen ? 0 : elapsed, focus, opening, summon, jetTips);
-    const openingIdx = reducedMotion ? -1 : openingFrame(state, config.fighters);
-    const shown = ([0, 1] as const).map(seat => {
-      const entrance = entranceFor(config.fighters[seat]);
-      return entrance && openingIdx >= 0 && openingIdx < entrance.frames ? entrance : undefined;
-    });
-    const close = shown.find(Boolean)?.close(openingIdx);
     const ts = state.timeStop;
-    const sight = close ? frameEntrance(config.arena, { width, height }, framing,
-      [{ x: a.x, y: a.y, height: heights[0] }, { x: b.x, y: b.y, height: heights[1] }], close)
-      : ts && !reducedMotion ? frameTimeStopCamera(config.arena, { width, height }, framing,
+    const introFrame = state.phase === 'ready' && !config.training && !reducedMotion
+      ? Math.max(0, openingTicks(config.fighters) - state.phaseTicks) : -1;
+    const performing = ([0, 1] as const).map(seat => introFrame >= 0 && config.fighters[seat].id === 'gaga');
+    const standing = (seat: 0 | 1) => {
+      const fighter = state.fighters[seat];
+      return fighter.x + (performing[seat] ? gagaIntro.shift(introFrame) * fighter.facing : 0);
+    };
+    const sight = performing.some(Boolean) ? frameEntrance(config.arena, { width, height }, playCamera,
+      [{ x: standing(0), y: a.y, height: heights[0] }, { x: standing(1), y: b.y, height: heights[1] }],
+      gagaIntro.close(introFrame))
+      : ts && !reducedMotion ? frameTimeStopCamera(config.arena, { width, height }, playCamera,
         { x: state.fighters[ts.source].x, y: state.fighters[ts.source].y, height: heights[ts.source] },
         { x: state.fighters[1 - ts.source].x, y: state.fighters[1 - ts.source].y, height: heights[1 - ts.source] },
         ts)
-      : framing;
-    this.camera = ts ? framing : sight;
-    const standing = (seat: 0 | 1) =>
-      state.fighters[seat].x + (shown[seat]?.shift(openingIdx) ?? 0) * state.fighters[seat].facing;
+      : playCamera;
+    this.camera = playCamera;
     const impact = this.effects.find(effect => effect.event.kind === 'summon-impact');
-    const camera = impact && shakeEnabled && !reducedMotion
+    const framing = impact && shakeEnabled && !reducedMotion
       ? frameDijiangImpact(config.arena, { width, height }, sight, impact.event, arenaFrame - impact.start) : sight;
-    const { x, y, zoom } = camera;
-    const [shakeX, shakeY] = shakeEnabled && !reducedMotion ? this.shakeOffset(arenaFrame) : [0, 0];
+    const { x, y, zoom } = framing;
+    const [shakeX, shakeY] = shakeEnabled && !reducedMotion ? this.shakeOffset(state.frame) : [0, 0];
     const dx = Math.min(x * zoom, Math.max(width - (config.arena.width - x) * zoom, shakeX));
     const dy = Math.min(y * zoom, Math.max(height - (config.arena.height - y) * zoom, shakeY));
     ctx.setTransform(zoom, 0, 0, zoom, -x * zoom + dx, -y * zoom + dy);
     const worldGray = ts ? 'grayscale(' + Math.round(Math.min(1, ts.frame / 28) * 100) + '%) contrast(1.16)' : 'none';
     ctx.filter = worldGray;
-    const layered = !config.arena.artFrame.length;
-    if (layered) {
-      const layers = layersFor(config.arena);
-      layers.backdrop(ctx, config.arena, x + width / (2 * zoom));
+    const decks = config.arena.platforms.map(p => platformAt(p, arenaFrame));
+    const layered = usesInkArena(config.arena);
+    if (config.arena.theme === 'ring') {
+      ringLayers.backdrop(ctx, config.arena);
       ctx.drawImage(this.background, 0, this.sceneryTop);
-      layers.mechanism(ctx, config.arena, config.arena.theme === 'ring' && reducedMotion ? 0 : arenaFrame, state, config);
+      ringLayers.mechanism(ctx, config.arena, reducedMotion ? 0 : arenaFrame);
+    } else if (layered) {
+      const center = x + width / (2 * zoom);
+      drawInkBackdrop(ctx, config.arena, center);
+      ctx.drawImage(this.background, 0, this.sceneryTop);
+      drawInkMechanism(ctx, config.arena, arenaFrame, state, config);
+      drawInkFloor(ctx, config.arena);
+      const spawnOpacity = state.phase === 'ready' ? .9 : Math.max(0, .9 - arenaFrame / 85);
+      drawArenaSurfaces(ctx, config.arena, decks, arenaFrame, spawnOpacity);
     } else {
       ctx.drawImage(this.background, 0, 0, config.arena.width, config.arena.height);
     }
-    ctx.fillStyle = layered ? '#10153312' : '#10153324';
-    ctx.fillRect(x - dx / zoom, y - dy / zoom, width / zoom, height / zoom);
     const waveLive = state.projectiles.some(p => p.actionId === bananaActionIds.wave) ||
       state.fighters.some((fighter, seat) => {
         const move = actionFor(config, state, seat as 0 | 1);
@@ -641,7 +808,21 @@ export class Renderer {
       ctx.fillRect(0, 0, width, height);
       ctx.restore();
     }
-    const decks = config.arena.platforms.map(p => platformAt(p, arenaFrame));
+    let panel: { x: number; y: number; beat: NonNullable<ReturnType<typeof comicBeat>> } | undefined;
+    for (const { event, tier, viewStart } of this.effects) {
+      if (!tier) continue;
+      const beat = comicBeat(event, tier, state.frame - viewStart, reducedMotion);
+      if (!beat || (panel && beat.strength <= panel.beat.strength)) continue;
+      const center = event.kind === 'ko' ? state.fighters[event.source === 0 ? 1 : 0] : event;
+      panel = { x: (center.x - x) * zoom + dx, y: (center.y - y) * zoom + dy, beat };
+    }
+    if (panel) drawComicImpactPanel(ctx, panel.x, panel.y, panel.beat, config.arena.theme);
+    const dash = (a.dashActive ? a.facing : 0) + (b.dashActive ? b.facing : 0);
+    ctx.save();
+    ctx.resetTransform();
+    drawComicFrame(ctx, config.arena.theme, reducedMotion ? 0 : Math.sign(dash) as -1 | 0 | 1);
+    ctx.restore();
+    this.drawReactionTrails(state, reducedMotion);
     if (summon?.phase === 'fall') {
       drawDijiangPressure(ctx, summon.x, summon.y, summon.frame / summonFallFrames, reducedMotion);
     } else if (impact && arenaFrame - impact.start < 24) {
@@ -678,8 +859,14 @@ export class Renderer {
     } else if (!summon) {
       this.dive = null;
     }
-    const carrying = summon?.phase === 'fall' && summon.carry;
-    if (carrying && summon && this.dive) drawDijiang(ctx, summon, this.dive.length, debug, reducedMotion);
+    if (summon && this.dive) drawDijiang(ctx, summon, this.dive.length, debug, reducedMotion);
+    if (impact) {
+      ctx.save();
+      ctx.translate(impact.event.x, impact.event.y);
+      ctx.globalAlpha = .69;
+      drawDijiangImpact(ctx, state.frame - impact.viewStart, reducedMotion);
+      ctx.restore();
+    }
 
     const swingTrails: { paths: Trail[]; x: number; y: number; facing: number; alpha: number; wide: boolean; color?: string }[] = [];
     const poles: { pose: PolePose; x: number; y: number; facing: number; action: ActionDefinition; frame: number }[] = [];
@@ -708,6 +895,11 @@ export class Renderer {
     }
     drawWhaleEntities(ctx, state, config, 'back', reducedMotion ? 0 : presentationFraction);
     drawFrogEffects(ctx, state, config, 'back');
+    for (const entity of state.entities ?? []) {
+      if (entity.definition.id === 'frog-short-shockwave-hit') {
+        drawFrogShockwave(ctx, entity, frogPowered(state.fighters[entity.owner], state));
+      }
+    }
     const riseFrames = recoveryDuration(config.rules.riseFrames, DEFAULT_RISE_FRAMES);
     const drawOrder: readonly (0 | 1)[] = ts ? [ts.source === 0 ? 1 : 0, ts.source]
       : a.attack && b.hitstun ? [1, 0] : [0, 1];
@@ -732,21 +924,19 @@ export class Renderer {
       const isBanana = def.id === 'banana';
       const sharedArt = def.id !== 'whale' && def.id !== 'frog';
       const authoredPose = Boolean(move?.animation?.length && sheet?.naturalWidth && pose !== undefined);
-      const entrance = shown[seat];
-      const attackPose = !authoredPose && isGaga && move && f.hp && !f.recovery && !f.hitstun
-        ? gagaActionPose(move, phase, Boolean(f.ground)) : undefined;
-      const gagaPose = entrance ? entrance.pose(openingIdx) ?? attackPose : attackPose;
+      const canDrawAction = !authoredPose && isGaga && move && f.hp && !f.recovery && !f.hitstun;
+      const gagaPose = canDrawAction ? gagaActionPose(action ? gagaPoseAction(action) : move, phase, Boolean(f.ground)) : undefined;
       const reaction = isGaga && f.hp && !move && !f.walk && !f.dash && !f.guarding ? f.reaction : undefined;
       const hurtPose = reaction ? gagaReactionPose(reaction, f.vy) : undefined;
       const canWalk = isGaga && f.ground && f.hp && !move && !f.guarding && !f.dash &&
         !f.hitstun && !f.blockstun && !f.guardBreak && !f.recovery;
       const walk = this.gagaWalks[seat];
       if (!canWalk) walk.reset();
-      const gait = entrance && entrance.travelled(openingIdx) > 0 && openingIdx < 40
-        ? { direction: 'forward' as const, distance: entrance.travelled(openingIdx) } : f.walk;
+      const gait = performing[seat] && introFrame < 34
+        ? { direction: 'forward' as const, distance: gagaIntro.travelled(introFrame) } : f.walk;
       const statePose = isGaga && !hurtPose && !gagaPose && f.hp && !f.hitstun && !f.guardBreak && !f.recovery
         ? gagaStatePose(f, canWalk ? gait?.distance : undefined) : undefined;
-      const drawnPose = hurtPose ?? gagaPose ?? statePose;
+      const drawnPose = (performing[seat] ? gagaIntro.pose(introFrame) : undefined) ?? hurtPose ?? gagaPose ?? statePose;
       const walkPose = canWalk && !drawnPose ? walk.sample(gait, motionFrames) : undefined;
       const fallingPose = knockdownPose(def.id, f, getUp);
       const barrageEnd = ts ? ts.flickAt + Math.max(20, ts.releaseAt - ts.flickAt - 51) : 0;
@@ -770,12 +960,15 @@ export class Renderer {
       ctx.save();
       ctx.translate(at, f.y);
       ctx.scale(fallingPose?.facing ?? (hurtPose && reaction ? reaction.facing : f.facing), 1);
-      const flash = this.hitFlash(seat, arenaFrame, f.hitstun > 0 && state.freeze > 0);
+      const flash = reducedMotion ? 0 : this.hitFlash(seat, state.frame);
       if (def.id === 'whale') {
         if (flash > 0) ctx.filter = `brightness(${1 + flash * .36})`;
-        drawWhaleActor(ctx, f, state, seat, move);
+        const poseMove = action?.id === 'whale-shelter' ? { ...action, whale: undefined } : move;
+        drawWhaleActor(ctx, f, state, seat, poseMove, def.actions);
       } else if (def.id === 'frog') {
-        drawFrogActor(ctx, f, state, move, seat);
+        if (flash > 0) ctx.filter = `brightness(${1 + flash * .36})`;
+        const poseMove = action?.id === 'common-launch' ? { ...action, id: 'common-finish' } : move;
+        drawFrogActor(ctx, f, state, poseMove, seat, def.actions);
       } else {
         const spriteWidth = sprite?.naturalHeight ? height * sprite.naturalWidth / sprite.naturalHeight : 0;
         const drawFromSheet = !isGaga && !isBanana && Boolean(sheet?.naturalWidth) && pose !== undefined;
@@ -826,11 +1019,13 @@ export class Renderer {
           drawPose(ctx, sheet, pose, height);
         } else if (isBanana) {
           const readyTotal = openingTicks(config.fighters);
-          const stageCue = state.phase === 'ready'
-            ? { kind: 'entrance' as const, frame: Math.max(0, readyTotal - state.phaseTicks) }
-            : state.phase === 'round-over' && state.result?.winner === seat
-              ? { kind: 'victory' as const, frame: Math.max(0, 192 - state.phaseTicks) }
-              : undefined;
+          const stageCue = introFrame >= 0
+            ? { kind: 'entrance' as const, frame: introFrame }
+            : state.phase === 'ready'
+              ? { kind: 'entrance' as const, frame: Math.max(0, readyTotal - state.phaseTicks) }
+              : !config.training && state.phase === 'round-over' && state.result?.winner === seat
+                ? { kind: 'victory' as const, frame: Math.max(0, 192 - state.phaseTicks) }
+                : undefined;
           let lingerCue: StandLinger | undefined;
           if (state.phase === 'fight' && f.joAwakened) {
             const isKq = action?.id === bananaActionIds.kqBomb || action?.id === bananaActionIds.kqDetonate;
@@ -848,7 +1043,9 @@ export class Renderer {
           } else {
             this.standLinger[seat] = null;
           }
-          drawBanana(ctx, f, action, state.frame, reducedMotion, stageCue, lingerCue);
+          const poseMove = action?.channel === 'spray' && action.id !== bananaActionIds.pressure
+            ? { ...action, id: bananaActionIds.pressure } : action;
+          drawBanana(ctx, f, poseMove, state.frame, reducedMotion, stageCue, lingerCue);
         } else if (drawnPose?.image) {
           const { image, region, scaleX, scaleY } = drawnPose;
           ctx.drawImage(image, region.x, region.y, region.width, region.height,
@@ -985,7 +1182,9 @@ export class Renderer {
       } else if (data.kind === 'wave') {
         drawBananaWave(ctx, projectile, data, reducedMotion);
       } else {
-        drawThrownPole(ctx, projectile, data);
+        const poleData = projectile.actionId === gagaActionIds.groundThrow && gagaAirThrow.projectile
+          ? { ...data, reach: gagaAirThrow.projectile.reach } : data;
+        drawThrownPole(ctx, projectile, poleData);
       }
       if (debug) {
         const halfWidth = data.halfWidth ?? data.radius;
@@ -1015,8 +1214,8 @@ export class Renderer {
       }
       ctx.restore();
     }
-    if (!carrying && summon && this.dive) {
-      drawDijiang(ctx, summon, this.dive.length, debug, reducedMotion);
+    for (const seat of [0, 1] as const) {
+      if (performing[seat]) gagaIntro.effect?.(ctx, introFrame, state.fighters[seat]);
     }
     if (ts) {
       ctx.filter = 'none';
@@ -1025,8 +1224,7 @@ export class Renderer {
       drawTimeStopOverlay(ctx, ts, caster.x, caster.y, opp.x, opp.y, x, y, zoom, dx, dy, reducedMotion);
     }
     ctx.filter = 'none';
-    for (const seat of [0, 1] as const) shown[seat]?.effect?.(ctx, openingIdx, state.fighters[seat]);
-    this.drawEffects(arenaFrame, Boolean(config.training), reducedMotion);
+    this.drawEffects(arenaFrame, state.frame, Boolean(config.training), reducedMotion);
     ctx.resetTransform();
     for (const seat of [0, 1] as const) {
       const f = state.fighters[seat];
@@ -1050,7 +1248,7 @@ export class Renderer {
       }
     }
     if (config.arena.theme !== 'ring' && (debug || Math.abs(a.x - b.x) > width / zoom * .7)) {
-      this.drawPositionStrip(config.arena, [a.x, b.x], camera);
+      this.drawPositionStrip(config.arena, [a.x, b.x], framing);
     }
     const shatter = this.effects.find(effect => effect.event.kind === 'jo-shatter' && arenaFrame - effect.start < 9);
     if (shatter && !reducedMotion) {
@@ -1062,6 +1260,7 @@ export class Renderer {
     drawFrogIntro(ctx, config, state);
     if (shot) {
       ctx.save();
+      ctx.resetTransform();
       ctx.globalAlpha = shotOpacity(shot);
       shot.paint(ctx);
       ctx.restore();
@@ -1092,33 +1291,85 @@ export class Renderer {
   private shakeOffset(frame: number): Point {
     let offset: Point = [0, 0];
     let remaining = 0;
-    for (const { event, start, shake } of this.effects) {
-      if (shake === undefined && event.kind !== 'hit' && event.kind !== 'break') continue;
-      const heavy = event.heavy || event.kind === 'break' || (shake ?? 0) >= 8;
-      const strength = shake ?? Math.min(10, event.feedback?.shake ?? (heavy ? 8 : 3));
-      if (strength <= 0) continue;
-      const age = frame - start;
-      const weight = strength * Math.max(0, 1 - age / (shake ?? (heavy ? 9 : 5)));
+    for (const { event, viewStart, tier, shake } of this.effects) {
+      if (!shake) continue;
+      const age = frame - viewStart;
+      const duration = shake >= 5 ? 7 : 4;
+      const weight = Math.min(8, shake) * Math.max(0, 1 - age / duration) ** 2;
       if (weight <= remaining) continue;
       remaining = weight;
-      const pulse = Math.cos(age * 2.3) * weight;
-      offset = [pulse * (event.direction ?? event.facing ?? 1) * (heavy ? .45 : .8), -pulse * (heavy ? .9 : .24)];
+      const pulse = Math.cos(age * 1.6) * weight;
+      const direction = event.trade ? 0 : event.direction ?? event.facing ?? 1;
+      offset = [pulse * direction * (tier === 'launch' ? .4 : 1), -pulse * (tier === 'launch' ? .82 : .29)];
     }
     return offset;
   }
 
-  private hitFlash(seat: 0 | 1, frame: number, frozenInHitstun: boolean) {
+  private hitFlash(seat: 0 | 1, frame: number) {
     for (let i = this.effects.length - 1; i >= 0; i--) {
-      const { event, start } = this.effects[i];
-      if (event.kind !== 'hit' || event.source === seat) continue;
-      const amount = event.feedback?.flash;
-      if (amount !== undefined) return Math.max(0, 1 - (frame - start) / 6) * Math.max(0, Math.min(amount, 1));
-      break;
+      const { event, tier, viewStart } = this.effects[i];
+      if (event.kind !== 'hit' || event.source === seat || !tier) continue;
+      if (event.trade || (event.hitstop !== undefined && event.hitstop <= 1)) return 0;
+      const amount = Math.min(.74, event.feedback?.flash ?? impacts[tier].flash);
+      return Math.max(0, 1 - (frame - viewStart) / 3) * amount;
     }
-    return frozenInHitstun ? 1 : 0;
+    return 0;
   }
 
-  private drawEffects(frame: number, training: boolean, reducedMotion: boolean) {
+  private drawReactionTrails(state: MatchState, reducedMotion: boolean) {
+    const ctx = this.ctx;
+    const frame = state.arenaFrame;
+    for (const seat of [0, 1] as const) {
+      const fighter = state.fighters[seat];
+      if (reducedMotion || fighter.ground || (!fighter.launched && fighter.recovery?.phase !== 'fall')) {
+        this.airTraces[seat].length = 0;
+        continue;
+      }
+      const track = this.airTraces[seat];
+      while (track.length && frame - track[0].frame > 15) track.shift();
+      const last = track.at(-1);
+      const side = fighter.reaction?.facing ?? fighter.recovery?.facing ?? fighter.facing;
+      const trailY = fighter.y - 30;
+      if (!last || (frame - last.frame >= 3 && Math.hypot(last.x - fighter.x, last.y - trailY) >= 8)) {
+        track.push({ x: fighter.x, y: trailY, frame });
+      }
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#e3e8fa';
+      for (let i = 1; i < track.length; i++) {
+        const from = track[i - 1];
+        const to = track[i];
+        ctx.globalAlpha = .59 * (1 - (frame - from.frame) / 16);
+        ctx.beginPath();
+        ctx.moveTo(from.x - side * 38, from.y);
+        ctx.lineTo(to.x - side * 38, to.y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    for (const { event, start } of this.effects) {
+      if (event.kind !== 'knockdown') continue;
+      const age = frame - start;
+      ctx.save();
+      ctx.translate(event.x, event.y);
+      ctx.globalAlpha = .62 * Math.max(0, 1 - age / 14);
+      ctx.strokeStyle = '#ffdfa7';
+      ctx.lineWidth = 2;
+      const spread = 44 + age * 3.1;
+      ctx.beginPath();
+      ctx.ellipse(0, 5, spread, 4 + age * .35, 0, 0, Math.PI * 2);
+      for (const side of [-1, 1]) {
+        ctx.moveTo(side * (spread * .75), -7);
+        ctx.lineTo(side * (spread + 12), -11);
+      }
+      ctx.stroke();
+      if (!reducedMotion) drawKnockdownDust(ctx, age);
+      ctx.restore();
+    }
+  }
+
+  private drawEffects(frame: number, viewFrame: number, training: boolean, reducedMotion: boolean) {
     const ctx = this.ctx;
     const latestHit: [Effect | undefined, Effect | undefined] = [undefined, undefined];
     if (training) {
@@ -1127,10 +1378,11 @@ export class Renderer {
       }
     }
     for (const effect of this.effects) {
-      const { event, start, life, cue, poleSwing, swordSwing, bananaImpact, gagaReceives, knockdownDust } = effect;
-      if (event.kind === 'swing' && !poleSwing && !swordSwing) continue;
+      const { event, start, life, cue, poleSwing, swordSwing, bananaImpact, knockdownDust, tier, viewStart, fighterImpact } = effect;
+      if ((event.kind === 'swing' && !poleSwing && !swordSwing) || (event.kind === 'knockdown' && !knockdownDust)) continue;
       const age = frame - start;
-      const color = event.kind === 'block' ? '#84e8ff' : event.kind === 'break' ? '#ff8c88' : event.feedback?.color ?? '#ffdfa0';
+      const viewAge = viewFrame - viewStart;
+      const bananaLife = bananaEffectLife(event);
       ctx.save();
       ctx.globalAlpha = Math.min(1, (life - age) / 6);
       ctx.translate(event.x, event.y);
@@ -1140,8 +1392,6 @@ export class Renderer {
         drawSwordReleaseSlash(ctx, age, life, event.facing, reducedMotion);
       } else if (event.kind === 'pole-impact') {
         drawPoleEarthBurst(ctx, age, event.facing);
-      } else if (event.kind === 'summon-impact') {
-        drawDijiangImpact(ctx, age, reducedMotion);
       } else if (event.kind === 'summon-catch') {
         ctx.save();
         drawGagaContact(ctx, 'heavy', age, event.facing);
@@ -1172,82 +1422,42 @@ export class Renderer {
         drawJoShatterBurst(ctx, age, life, reducedMotion);
       } else if (isTurretEffect(event)) {
         drawTurretEffect(ctx, event, age);
-      } else if (bananaEffectLife(event)) {
-        drawBananaEffect(ctx, event, age, life);
+      } else if (bananaLife) {
+        drawBananaEffect(ctx, event, Math.min(life - 1, viewAge), life);
       } else if (cue && cue !== 'guard') {
-        drawGagaContact(ctx, cue, age, event.facing ?? event.direction);
+        drawGagaContact(ctx, cue, viewAge, event.facing ?? event.direction);
       } else if (knockdownDust) {
-        drawKnockdownDust(ctx, age);
-      } else if (bananaImpact && event.kind === 'land') {
-        drawBananaImpact(ctx, event, age, life, reducedMotion);
+        drawKnockdownDust(ctx, viewAge);
+      } else if (event.kind === 'land' && bananaImpact) {
+        drawBananaImpact(ctx, event, viewAge, life, reducedMotion);
       } else if (event.kind === 'land' && event.actionId === gagaActionIds.airDive) {
-        drawDiveLandImpact(ctx, age, life, reducedMotion);
-      } else if (event.kind === 'ultimate') {
-        ctx.strokeStyle = '#efd28a';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.ellipse(0, 0, 24 + age * 4, 6 + age, 0, 0, 2 * Math.PI);
-        ctx.stroke();
+        drawDiveLandImpact(ctx, viewAge, life, reducedMotion);
       } else if (event.kind === 'dash' && event.heavy) {
-        drawBananaJoDashTrail(ctx, event, age, life, reducedMotion);
+        drawBananaJoDashTrail(ctx, event, viewAge, life, reducedMotion);
       } else if (event.kind === 'dash') {
         ctx.fillStyle = seatColors[event.source];
         ctx.scale(event.direction ?? 1, 1);
         for (let i = 0; i < 4; i++) ctx.fillRect(-37 - age * 2 + i * 5, -15 - i * 15, 10 + age, 2);
-      } else if (event.kind === 'land' || event.kind === 'drop' || event.kind === 'air-jump' || event.kind === 'knockdown') {
+      } else if (event.kind === 'land' || event.kind === 'drop' || event.kind === 'air-jump') {
         const air = event.kind === 'air-jump';
         ctx.strokeStyle = air ? seatColors[event.source] : '#fbdfb7cf';
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.ellipse(0, event.kind === 'drop' || air ? age * 1.8 : -1,
-          (event.kind === 'knockdown' ? 22 : 9) + age * 2.7, 3 + age * .25, 0, 0, 2 * Math.PI);
-        ctx.stroke();
-      } else if (event.kind === 'parry') {
-        const radius = 12 + age * 1.8;
-        polygon(ctx, '#ffe399', [[0, -radius], [4, -4], [radius, 0], [4, 4],
-          [0, radius], [-4, 4], [-radius, 0], [-4, -4]]);
-      } else if (event.kind === 'block') {
-        ctx.scale(event.direction ?? 1, 1);
-        const radius = 15 + age * 1.6;
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.arc(-6, 0, radius, -1.29, 1.29);
-        ctx.stroke();
-        ctx.strokeStyle = '#e8f9ff';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(-8, 0, radius * .73, -.97, .97);
+          9 + age * 2.7, 3 + age * .25, 0, 0, 2 * Math.PI);
         ctx.stroke();
       } else if (event.feedback?.shape === 'ring') {
         ctx.strokeStyle = '#fff2cf';
         ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.arc(0, 0, 10 + age * 1.7, 0, Math.PI * 2); ctx.stroke();
-      } else if (effect.gagaImpact) {
-        drawGagaImpact(ctx, event, age, life, reducedMotion);
-      } else if (!bananaImpact) {
-        const heavy = event.heavy || event.kind === 'break';
-        if (heavy) {
-          const radius = 24 + age * 2.25;
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 2.5 - age * .08;
-          ctx.beginPath();
-          ctx.ellipse(0, 0, radius, radius * .76, -.32, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-        ctx.save();
-        const scale = (heavy ? .97 : .62) * (age < 3 ? 1 + age * .08 : 1.18 - age * .041);
-        ctx.scale(scale * (event.direction ?? 1), scale);
-        ctx.rotate(-.14 + age * .014);
-        polygon(ctx, color, [[0, -39], [7, -11], [34, -18], [15, 0], [34, 18],
-          [7, 10], [0, 36], [-8, 10], [-29, 16], [-14, 0], [-30, -19], [-7, -10]]);
-        polygon(ctx, '#fff8e2', [[0, -17], [5, -5], [17, 0], [5, 4], [0, 17], [-6, 5], [-17, 0], [-5, -5]]);
-        ctx.fillStyle = color;
-        for (let i = 0; i < 5; i++) ctx.fillRect(19 + age * (1.3 + i * .12), (i - 2) * (12 + age * .42), 7, 2);
-        ctx.restore();
+        ctx.beginPath(); ctx.arc(0, 0, 10 + viewAge * 1.7, 0, Math.PI * 2); ctx.stroke();
       }
-      if (bananaImpact && event.kind === 'hit') drawBananaImpact(ctx, event, age, life, reducedMotion);
-      if (gagaReceives) drawGagaReceive(ctx, age, event.facing ?? event.direction);
+      if (fighterImpact === 'gaga') {
+        drawGagaImpact(ctx, event, viewAge, life, reducedMotion);
+      } else if (fighterImpact === 'banana') {
+        drawBananaImpact(ctx, event, viewAge, life, reducedMotion);
+      } else if (tier && event.kind !== 'ko') {
+        drawImpact(ctx, event, tier, viewAge, reducedMotion, Boolean(bananaLife || event.kind === 'summon-impact'));
+      }
       if (event.amount && latestHit[event.source] === effect) {
         const offset = 42 * (event.direction ?? 1);
         ctx.font = '950 20px system-ui';

@@ -1,0 +1,883 @@
+{
+  "out": [
+    {
+      "name": "20-training",
+      "screen": "match",
+      "phase": "fight",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "P1 J 五段连击 · I 炮台 · O 帝江",
+      "notice": null,
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "0",
+        "0"
+      ],
+      "ready": [
+        "false",
+        "false"
+      ],
+      "energyLabel": "0",
+      "state1": "",
+      "state2": "",
+      "keys": "",
+      "platform": "地面",
+      "pause": "直播擂台 · 第 1 回合 · 0 : 0",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "21-training-options",
+      "dummy": [
+        "静止",
+        "防御",
+        "重复直拳",
+        "跟随"
+      ],
+      "speed": [
+        "1×",
+        "0.5×"
+      ]
+    },
+    {
+      "name": "22-gaga-empty-slot",
+      "screen": "match",
+      "phase": "fight",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "P1 J 五段连击 · I 炮台 · O 帝江",
+      "notice": "P1 的专属槽 B待接入",
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "0",
+        "0"
+      ],
+      "ready": [
+        "false",
+        "false"
+      ],
+      "energyLabel": "0",
+      "state1": "地面可操作",
+      "state2": "防御",
+      "keys": "—",
+      "platform": "地面",
+      "pause": "直播擂台 · 第 1 回合 · 0 : 0",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "23-gaga-no-energy",
+      "screen": "match",
+      "phase": "fight",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "P1 J 五段连击 · I 炮台 · O 帝江",
+      "notice": "P1 需要 1 格气",
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "0",
+        "0"
+      ],
+      "ready": [
+        "false",
+        "false"
+      ],
+      "energyLabel": "0",
+      "state1": "地面可操作",
+      "state2": "防御",
+      "keys": "I",
+      "platform": "地面",
+      "pause": "直播擂台 · 第 1 回合 · 0 : 0",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "24-training-floor-downjump",
+      "screen": "match",
+      "phase": "fight",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "P1 J 五段连击 · I 炮台 · O 帝江",
+      "notice": "P1 需要 1 格气",
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "0",
+        "0"
+      ],
+      "ready": [
+        "false",
+        "false"
+      ],
+      "energyLabel": "0",
+      "state1": "地面可操作",
+      "state2": "防御",
+      "keys": "I   S+K",
+      "platform": "地面",
+      "pause": "直播擂台 · 第 1 回合 · 0 : 0",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "25-gaga-air-ready",
+      "screen": "match",
+      "phase": "fight",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "P1 J 五段连击 · I 炮台 · O 帝江",
+      "notice": "P1 需要 1 格气",
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "300",
+        "0"
+      ],
+      "ready": [
+        "true",
+        "false"
+      ],
+      "energyLabel": "3",
+      "state1": "空中机动可用",
+      "state2": "防御",
+      "keys": "I   S+K   K   O",
+      "platform": "空中",
+      "pause": "直播擂台 · 第 1 回合 · 0 : 0",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "26-gaga-turret-spend",
+      "screen": "match",
+      "phase": "fight",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "P1 J 五段连击 · I 炮台 · O 帝江",
+      "notice": "P1 需要 1 格气",
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "200",
+        "0"
+      ],
+      "ready": [
+        "true",
+        "false"
+      ],
+      "energyLabel": "2",
+      "state1": "空投榴弹炮 · 起手 5/8",
+      "state2": "防御",
+      "keys": "S+K   K   O   I",
+      "platform": "地面",
+      "pause": "直播擂台 · 第 1 回合 · 0 : 0",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "26b-gaga-ready-ground-fails",
+      "screen": "match",
+      "phase": "fight",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "P1 J 五段连击 · I 炮台 · O 帝江",
+      "notice": "P1 需要 3 格气",
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "200",
+        "0"
+      ],
+      "ready": [
+        "true",
+        "false"
+      ],
+      "energyLabel": "2",
+      "state1": "地面可操作",
+      "state2": "防御",
+      "keys": "K   O   I   O",
+      "platform": "地面",
+      "pause": "直播擂台 · 第 1 回合 · 0 : 0",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "27-training-pause",
+      "screen": "pause",
+      "phase": "pause",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "W / S 选择 · J 确认 · Esc 返回",
+      "notice": null,
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "200",
+        "0"
+      ],
+      "ready": [
+        "true",
+        "false"
+      ],
+      "energyLabel": "2",
+      "state1": "地面可操作",
+      "state2": "防御",
+      "keys": "K   O   I   O",
+      "platform": "地面",
+      "pause": "星电站 · 第 240 帧",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "28-training-stepped",
+      "screen": "pause",
+      "phase": "pause",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "W / S 选择 · J 确认 · Esc 返回",
+      "notice": null,
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "200",
+        "0"
+      ],
+      "ready": [
+        "true",
+        "false"
+      ],
+      "energyLabel": "2",
+      "state1": "地面可操作",
+      "state2": "防御",
+      "keys": "K   O   I   O",
+      "platform": "地面",
+      "pause": "星电站 · 第 241 帧",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "29-training-restart",
+      "screen": "match",
+      "phase": "fight",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "P1 J 五段连击 · I 炮台 · O 帝江",
+      "notice": null,
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "0",
+        "0"
+      ],
+      "ready": [
+        "false",
+        "false"
+      ],
+      "energyLabel": "0",
+      "state1": "地面可操作",
+      "state2": "地面可操作",
+      "keys": "—",
+      "platform": "地面",
+      "pause": "星电站 · 第 241 帧",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "30-buffer-in-first-strike",
+      "screen": "match",
+      "phase": "fight",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "P1 J 五段连击 · I 炮台 · O 帝江",
+      "notice": null,
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "0",
+        "0"
+      ],
+      "ready": [
+        "false",
+        "false"
+      ],
+      "energyLabel": "0",
+      "state1": "前鳍直击 · 起手 2/5",
+      "state2": "防御",
+      "keys": "J",
+      "platform": "地面",
+      "pause": "星电站 · 第 241 帧",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "31-buffer-paused",
+      "screen": "pause",
+      "phase": "pause",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "W / S 选择 · J 确认 · Esc 返回",
+      "notice": null,
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "0",
+        "0"
+      ],
+      "ready": [
+        "false",
+        "false"
+      ],
+      "energyLabel": "0",
+      "state1": "前鳍直击 · 起手 2/5",
+      "state2": "防御",
+      "keys": "J",
+      "platform": "地面",
+      "pause": "星电站 · 第 4 帧",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "32-after-pause-0",
+      "screen": "match",
+      "phase": "fight",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "P1 J 五段连击 · I 炮台 · O 帝江",
+      "notice": null,
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "0",
+        "0"
+      ],
+      "ready": [
+        "false",
+        "false"
+      ],
+      "energyLabel": "0",
+      "state1": "前鳍直击 · 起手 3/5",
+      "state2": "防御",
+      "keys": "J",
+      "platform": "地面",
+      "pause": "星电站 · 第 4 帧",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "32-after-pause-1",
+      "screen": "match",
+      "phase": "fight",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "P1 J 五段连击 · I 炮台 · O 帝江",
+      "notice": null,
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "0",
+        "0"
+      ],
+      "ready": [
+        "false",
+        "false"
+      ],
+      "energyLabel": "0",
+      "state1": "前鳍直击 · 起手 4/5",
+      "state2": "防御",
+      "keys": "J",
+      "platform": "地面",
+      "pause": "星电站 · 第 4 帧",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "32-after-pause-2",
+      "screen": "match",
+      "phase": "fight",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "P1 J 五段连击 · I 炮台 · O 帝江",
+      "notice": null,
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "0",
+        "0"
+      ],
+      "ready": [
+        "false",
+        "false"
+      ],
+      "energyLabel": "0",
+      "state1": "前鳍直击 · 有效 1/2",
+      "state2": "防御",
+      "keys": "J",
+      "platform": "地面",
+      "pause": "星电站 · 第 4 帧",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "32-after-pause-3",
+      "screen": "match",
+      "phase": "fight",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "P1 J 五段连击 · I 炮台 · O 帝江",
+      "notice": null,
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "0",
+        "0"
+      ],
+      "ready": [
+        "false",
+        "false"
+      ],
+      "energyLabel": "0",
+      "state1": "前鳍直击 · 有效 2/2",
+      "state2": "防御",
+      "keys": "J",
+      "platform": "地面",
+      "pause": "星电站 · 第 4 帧",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "32-after-pause-4",
+      "screen": "match",
+      "phase": "fight",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "P1 J 五段连击 · I 炮台 · O 帝江",
+      "notice": null,
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "0",
+        "0"
+      ],
+      "ready": [
+        "false",
+        "false"
+      ],
+      "energyLabel": "0",
+      "state1": "前鳍直击 · 收招 2/14",
+      "state2": "防御",
+      "keys": "J",
+      "platform": "地面",
+      "pause": "星电站 · 第 4 帧",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "32-after-pause-5",
+      "screen": "match",
+      "phase": "fight",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "P1 J 五段连击 · I 炮台 · O 帝江",
+      "notice": null,
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "0",
+        "0"
+      ],
+      "ready": [
+        "false",
+        "false"
+      ],
+      "energyLabel": "0",
+      "state1": "前鳍直击 · 收招 3/14",
+      "state2": "防御",
+      "keys": "J",
+      "platform": "地面",
+      "pause": "星电站 · 第 4 帧",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "32-after-pause-6",
+      "screen": "match",
+      "phase": "fight",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "P1 J 五段连击 · I 炮台 · O 帝江",
+      "notice": null,
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "0",
+        "0"
+      ],
+      "ready": [
+        "false",
+        "false"
+      ],
+      "energyLabel": "0",
+      "state1": "前鳍直击 · 收招 4/14",
+      "state2": "防御",
+      "keys": "J",
+      "platform": "地面",
+      "pause": "星电站 · 第 4 帧",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "32-after-pause-7",
+      "screen": "match",
+      "phase": "fight",
+      "cinematic": false,
+      "mode": "自由训练 · 星电站",
+      "footer": "P1 J 五段连击 · I 炮台 · O 帝江",
+      "notice": null,
+      "p1": "P1 · 姑姑嘎嘎",
+      "p2": "陪练 · 香蕉猫",
+      "hp": [
+        "1000",
+        "1000"
+      ],
+      "guard": [
+        "100",
+        "100"
+      ],
+      "energy": [
+        "0",
+        "0"
+      ],
+      "ready": [
+        "false",
+        "false"
+      ],
+      "energyLabel": "0",
+      "state1": "前鳍直击 · 收招 6/14",
+      "state2": "防御",
+      "keys": "J",
+      "platform": "地面",
+      "pause": "星电站 · 第 4 帧",
+      "result": [
+        "P1 获胜",
+        "1 : 0",
+        "最后回合 · 超时 · 生命比例领先",
+        "第 1 回合 · P1 · 超时 · 生命比例领先"
+      ],
+      "time": "∞",
+      "guide": null,
+      "binding": null,
+      "combo1": null
+    },
+    {
+      "name": "30-reload-persistence",
+      "rebound": "N",
+      "shake": false
+    }
+  ],
+  "errors": []
+}

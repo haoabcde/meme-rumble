@@ -68,7 +68,7 @@ export interface SampleVoice {
 declare const __GAGA_SOUNDS__: Partial<Record<GagaSample, string>>;
 declare const __BANANA_SOUNDS__: Partial<Record<BananaSample, string>>;
 
-type HitSound = NonNullable<HitFeedback['sound']>;
+type HitSound = NonNullable<HitFeedback['sound']> | 'medium';
 type Seat = CombatEvent['source'];
 type EmbeddedAudio = Readonly<Record<string, string>>;
 type Playback = {
@@ -78,6 +78,7 @@ type Playback = {
   musicSeat?: Seat;
   interruptibleAttack?: Attack;
 };
+type ContactSample = { buffer: AudioBuffer; volume: number };
 type TrackedAction = { attack: Attack; action: FighterAction };
 
 const seats = [0, 1] as const;
@@ -86,6 +87,59 @@ function level(value: number | undefined, fallback = 1) {
   return value === undefined || !Number.isFinite(value) ? fallback : Math.max(0, Math.min(1, value));
 }
 
+const hitTones: Record<HitSound, Tone> = {
+  light: [213, 87, .063, 'triangle', .115],
+  medium: [164, 58, .098, 'triangle', .16],
+  heavy: [126, 42, .133, 'triangle', .21],
+  sharp: [440, 138, .075, 'sawtooth', .09]
+};
+
+const hitTransients: Record<HitSound, Noise> = {
+  light: [1850, .031, .12], medium: [1200, .046, .14],
+  heavy: [620, .067, .17], sharp: [3350, .035, .12]
+};
+const hitToneRanks: Record<HitSound, number> = { light: 0, medium: 1, sharp: 2, heavy: 3 };
+
+function hitSound(event: CombatEvent): HitSound | undefined {
+  if (event.kind !== 'hit') return;
+  if (event.feedback?.sound) return event.feedback.sound;
+  const tier = event.impactTier ?? event.impact ?? (event.heavy ? 'heavy' : 'light');
+  if (tier === 'ultimate' || tier === 'launch' || tier === 'heavy') return 'heavy';
+  return tier === 'medium' ? 'medium' : 'light';
+}
+
+const tones: Partial<Record<EventKind, Tone>> = {
+  swing: [316, 168, .06, 'triangle', .042],
+  ultimate: [260, 540, .17, 'triangle', .12],
+  block: [870, 430, .085, 'sine', .14],
+  parry: [740, 1480, .12, 'sine', .16],
+  break: [191, 52, .22, 'square', .11],
+  dash: [210, 79, .085, 'triangle', .054],
+  jump: [183, 340, .09, 'triangle', .038],
+  'air-jump': [298, 562, .09, 'triangle', .052],
+  drop: [226, 123, .07, 'triangle', .029],
+  land: [104, 53, .075, 'triangle', .026],
+  knockdown: [128, 42, .114, 'triangle', .14],
+  rise: [192, 310, .071, 'sine', .044],
+  'pole-impact': [113, 38, .23, 'triangle', .32],
+  'crystal-plant': [880, 1320, .09, 'sine', .14],
+  'crystal-shatter': [190, 58, .26, 'triangle', .34],
+  'crystal-spire': [240, 82, .20, 'triangle', .28],
+  'xiranite-burst': [260, 88, .22, 'triangle', .28],
+  'pylon-plant': [175, 62, .22, 'triangle', .28],
+  'pylon-expire': [520, 210, .16, 'sine', .14],
+  'turret-land': [145, 65, .14, 'triangle', .18],
+  'turret-ready': [235, 92, .18, 'triangle', .19],
+  'turret-fire': [1020, 285, .085, 'triangle', .105],
+  'turret-burst': [123, 39, .26, 'sawtooth', .14],
+  'grenade-impact': [105, 38, .29, 'triangle', .34],
+  'summon-start': [128, 205, .20, 'triangle', .15],
+  'summon-confirm': [912, 457, .13, 'square', .10],
+  'summon-drop': [238, 62, .59, 'sawtooth', .14],
+  'summon-catch': [270, 89, .12, 'triangle', .28],
+  'summon-impact': [104, 36, .64, 'triangle', .53],
+  ko: [121, 44, .42, 'triangle', .14]
+};
 const poleSamples: Record<PoleSwing, GagaSample> = {
   sweep: 'pole-sweep', reverse: 'pole-reverse', launch: 'pole-launch'
 };
@@ -216,44 +270,6 @@ const bananaEvents: Partial<Record<EventKind, BananaSound>> = {
   'kq-lock': { tone: [880, 1320, .09, 'square', .16], transient: [3800, .04, .18] }
 };
 
-const hitTones: Record<HitSound, Tone> = {
-  light: [202, 76, .085, 'triangle', .16],
-  heavy: [133, 39, .18, 'triangle', .27],
-  sharp: [440, 138, .075, 'sawtooth', .11]
-};
-
-const tones: Partial<Record<EventKind, Tone>> = {
-  swing: [316, 168, .06, 'triangle', .042],
-  block: [870, 430, .085, 'sine', .14],
-  break: [191, 52, .22, 'square', .11],
-  dash: [210, 79, .085, 'triangle', .054],
-  jump: [183, 340, .09, 'triangle', .038],
-  drop: [226, 123, .07, 'triangle', .029],
-  land: [104, 53, .075, 'triangle', .026],
-  'pole-impact': [113, 38, .23, 'triangle', .32],
-  'crystal-plant': [880, 1320, .09, 'sine', .14],
-  'crystal-shatter': [190, 58, .26, 'triangle', .34],
-  'crystal-spire': [240, 82, .20, 'triangle', .28],
-  'xiranite-burst': [260, 88, .22, 'triangle', .28],
-  'pylon-plant': [175, 62, .22, 'triangle', .28],
-  'pylon-expire': [520, 210, .16, 'sine', .14],
-  'turret-land': [145, 65, .14, 'triangle', .18],
-  'turret-ready': [235, 92, .18, 'triangle', .19],
-  'turret-fire': [1020, 285, .085, 'triangle', .105],
-  'turret-burst': [123, 39, .26, 'sawtooth', .14],
-  'grenade-impact': [105, 38, .29, 'triangle', .34],
-  'summon-start': [128, 205, .20, 'triangle', .15],
-  'summon-confirm': [912, 457, .13, 'square', .10],
-  'summon-drop': [238, 62, .59, 'sawtooth', .14],
-  'summon-catch': [270, 89, .12, 'triangle', .28],
-  'summon-impact': [104, 36, .64, 'triangle', .53],
-  'air-jump': [298, 562, .09, 'triangle', .052],
-  parry: [740, 1480, .12, 'sine', .16],
-  knockdown: [128, 42, .114, 'triangle', .14],
-  rise: [192, 310, .071, 'sine', .044],
-  ultimate: [260, 540, .17, 'triangle', .12],
-  ko: [121, 44, .42, 'triangle', .14]
-};
 export class FightAudio {
   private context: AudioContext | null = null;
   private output: GainNode | null = null;
@@ -279,7 +295,6 @@ export class FightAudio {
   private effectVolume = 1;
   private dialogueVolume = 1;
   private entityAges = new Map<number, number>();
-  private lastPhase: MatchState['phase'] | undefined;
 
   get enabled() { return this.soundEnabled; }
   set enabled(value: boolean) {
@@ -332,7 +347,6 @@ export class FightAudio {
     this.actions = [undefined, undefined];
     this.round = undefined;
     this.entityAges.clear();
-    this.lastPhase = undefined;
   }
 
   setPaused(value: boolean) {
@@ -457,10 +471,6 @@ export class FightAudio {
   update(config: MatchConfig, state: MatchState, events: readonly CombatEvent[]) {
     if (this.round !== undefined && this.round !== state.round) this.stopAll();
     this.round = state.round;
-    if (state.phase === 'ready' && this.lastPhase !== 'ready') {
-      for (const seat of seats) this.playNamed(seat, 'event-entry');
-    }
-    this.lastPhase = state.phase;
     for (const seat of seats) this.updateAction(config, state, seat);
     const silentVoices = seats.filter(seat => config.fighters[seat]?.id === 'frog' &&
       (frogPowered(state.fighters[seat], state) || state.fighters[seat].attack?.id === 'frog-ascend'));
@@ -470,15 +480,19 @@ export class FightAudio {
         this.fadeMusic(playback);
       }
     }
+    const musicStarts = new Set<string>();
     for (const { source, actionAudio } of events) {
       if (!actionAudio) continue;
       const { attack, cue } = actionAudio;
       if (cue.channel === 'voice' && silentVoices.includes(source)) continue;
-      if (cue.stopOnInterrupt === false) this.playClip(source, cue);
-      else if (state.fighters[source].attack === attack) this.playClip(source, cue, attack);
+      const interruptible = cue.stopOnInterrupt !== false;
+      if (interruptible && state.fighters[source].attack !== attack) continue;
+      if (this.playClip(source, cue, interruptible ? attack : undefined) && cue.clip === 'ultimate-bgm') {
+        musicStarts.add(source + ':' + attack.id);
+      }
     }
     this.updateEntities(state);
-    this.play(events, config.fighters);
+    this.play(events, config.fighters, musicStarts);
   }
 
   private playNamed(seat: Seat, clip: string) {
@@ -557,17 +571,26 @@ export class FightAudio {
     if(music)for(const playback of this.playing){
       if(playback.musicSeat!==undefined)this.fadeMusic(playback);
     }
+    const playback = this.playTrackSample(context, bus, buffer, this.clipVolume(clipId, clip, cue.volume));
+    this.track({ ...playback, voiceSeat: voice ? seat : undefined, musicSeat: music ? seat : undefined, interruptibleAttack });
+    return true;
+  }
+
+  private clipVolume(id: string, clip: FighterAudioBank[string], volume?: number) {
+    const target = soundTarget(id);
+    const stats = this.levels.get(clip.src);
+    return level(clip.volume) * level(volume) * (target !== undefined && stats ? calibratedGain(stats, target) : 1) *
+      (id === 'ultimate-bgm' ? 10 ** (7 / 20) : 1);
+  }
+
+  private playTrackSample(context: AudioContext, bus: GainNode, buffer: AudioBuffer, volume: number) {
     const source = context.createBufferSource();
     const gain = context.createGain();
-    const target=soundTarget(clipId),stats=this.levels.get(clip.src);
-    gain.gain.value = level(clip.volume) * level(cue.volume) *
-      (target!==undefined&&stats?calibratedGain(stats,target):1) *
-      (clipId==='ultimate-bgm'?10**(7/20):1);
+    gain.gain.value = volume;
     source.buffer = buffer;
     source.connect(gain).connect(bus);
     source.start();
-    this.track({ source, gain, voiceSeat: voice ? seat : undefined, musicSeat: music ? seat : undefined, interruptibleAttack });
-    return true;
+    return { source, gain };
   }
 
   startSample(name: GagaSample, delay = 0): SampleVoice | null {
@@ -671,44 +694,69 @@ export class FightAudio {
     playback.source.stop(now + .3);
   }
 
-  private play(events: readonly CombatEvent[], fighters: MatchConfig['fighters']) {
+  private play(events: readonly CombatEvent[], fighters: MatchConfig['fighters'], musicStarts: ReadonlySet<string>) {
     const ctx = this.context;
     const output = this.sfx;
     if (!ctx || !output || !this.canPlay()) return;
     const sounds = new Map<string, { event: CombatEvent; contact?: GagaContact }>();
     const played = new Set<string>();
+    // One event batch represents one simulation tick. Different contact kinds retain their own samples.
+    const contactSamples = new Map<string, ContactSample>();
     const now = ctx.currentTime;
     for (const event of events) {
       if (event.kind === 'hit' && this.oraVoices.has(1 - event.source)) {
         this.activeRushUntil.delete(1 - event.source);
         this.stopOraVoice(1 - event.source, now, .06);
       }
-      if (event.kind === 'action-audio') continue;
-      if (event.kind === 'ultimate' && this.banks[event.source]?.['ultimate-bgm']) continue;
+      const { kind, source, actionId } = event;
+      if (kind === 'action-audio' || (kind === 'ultimate' && musicStarts.has(source + ':' + actionId))) continue;
+      const isContact = kind === 'hit' || kind === 'block' || kind === 'break' || kind === 'parry';
+      const playContact = (seat: Seat, id: string, volume?: number) => {
+        const bank = this.banks[seat];
+        const clip = bank && Object.hasOwn(bank, id) ? bank[id] : undefined;
+        if (!clip) return false;
+        const buffer = this.buffers.get(clip.src);
+        if (!buffer) return false;
+        const key = kind + ':' + clip.src;
+        const gain = this.clipVolume(id, clip, volume);
+        const previous = contactSamples.get(key);
+        if (!previous || gain > previous.volume) contactSamples.set(key, { buffer, volume: gain });
+        return true;
+      };
       // Block and break source is the attacker; defensive foley belongs to the other seat.
-      if ((event.kind === 'block' || event.kind === 'break') &&
-        this.playNamed(event.source === 0 ? 1 : 0, 'event-' + event.kind)) continue;
-      const impact = event.kind === 'hit' || event.kind === 'block' ? event.feedback?.audio : undefined;
-      if (impact && this.playClip(event.source, impact)) continue;
-      if (this.playCharacterCue(ctx, output, now, event, fighters, played, events)) continue;
-      if (this.playNamed(event.source, 'event-' + event.kind)) continue;
-      const preset = event.kind === 'hit' ? event.feedback?.sound ?? (event.heavy ? 'heavy' : 'light') : undefined;
+      if ((kind === 'block' || kind === 'break') && playContact(source === 0 ? 1 : 0, 'event-' + kind)) continue;
+      const impact = kind === 'hit' || kind === 'block' ? event.feedback?.audio : undefined;
+      if (impact) {
+        if (playContact(source, impact.clip, impact.volume)) continue;
+        if (!Object.hasOwn(this.banks[source] ?? {}, impact.clip)) {
+          this.report('Unknown clip on player ' + (source + 1) + ': ' + impact.clip);
+        }
+      }
+      if (this.playCharacterCue(ctx, output, now, event, fighters, played, events, isContact ? playContact : undefined)) continue;
+      if (isContact ? playContact(source, 'event-' + kind) : this.playNamed(source, 'event-' + kind)) continue;
+      const preset = hitSound(event);
       const contact = event.kind === 'hit' && event.feedback?.sound ? undefined : gagaContact(event, fighters);
-      const key = contact ? 'gaga-' + event.kind : preset ? 'hit-' + preset : event.kind;
-      if (event.heavy || contact === 'heavy' || !sounds.has(key)) sounds.set(key, { event, contact });
+      const key = contact ? 'gaga-' + event.kind : event.kind;
+      const previous = sounds.get(key);
+      const previousPreset = previous && hitSound(previous.event);
+      if (!previous || (preset && previousPreset && hitToneRanks[preset] > hitToneRanks[previousPreset])) {
+        sounds.set(key, { event, contact });
+      }
+    }
+    for (const { buffer, volume } of contactSamples.values()) {
+      this.track(this.playTrackSample(ctx, output, buffer, volume));
     }
     for (const { event, contact } of sounds.values()) {
       const { kind } = event;
-      const sound = kind === 'hit' ? event.feedback?.sound ?? (event.heavy ? 'heavy' : 'light') : undefined;
+      const sound = hitSound(event);
       const special = contact ? gagaSounds[contact] : undefined;
       const tone = special?.tone ?? (sound ? hitTones[sound] : tones[kind]);
       if (!tone) continue;
       this.playTone(ctx, output, tone, now);
       if (special) this.playTransient(ctx, output, special.transient, now);
-      else if (kind === 'hit' || kind === 'block' || kind === 'break') {
-        const heavy = sound === 'heavy' || kind === 'break';
-        this.impact(ctx, output, now, kind === 'block', heavy, sound === 'sharp');
-      }
+      else if (sound) this.playTransient(ctx, output, hitTransients[sound], now);
+      else if (kind === 'block') this.playTransient(ctx, output, [2490, .043, .13], now);
+      else if (kind === 'break') this.playTransient(ctx, output, [980, .069, .17], now);
       if (kind === 'pole-impact' || kind === 'grenade-impact') this.playTransient(ctx, output, earthTransient, now);
       if (kind === 'summon-drop') this.playWind(ctx, output, dijiangDiveRoar, now, .78);
       if (kind === 'summon-impact') {
@@ -719,7 +767,8 @@ export class FightAudio {
   }
 
   private playCharacterCue(ctx: AudioContext, output: GainNode, now: number, event: CombatEvent,
-    fighters: MatchConfig['fighters'], played: Set<string>, events: readonly CombatEvent[]) {
+    fighters: MatchConfig['fighters'], played: Set<string>, events: readonly CombatEvent[],
+    playContact?: (seat: Seat, id: string) => boolean) {
     const { actionId, kind, source } = event;
     const bananaId = actionId && Object.hasOwn(bananaHits, actionId) ? actionId as BananaActionId : undefined;
     const bananaSound = kind === 'hit' && bananaId ? bananaHits[bananaId] : bananaEvents[kind];
@@ -802,12 +851,16 @@ export class FightAudio {
     const poleSwing = poleSwingFor(event);
     const sample = gagaSampleFor(event, fighters, poleSwing);
     if (sample) {
-      const key = kind + ':gaga:' + sample;
-      if (played.has(key)) return true;
       const seat = fighters[source].id === 'gaga' ? source : source === 0 ? 1 : 0;
-      if (this.playNamed(seat, sample)) {
-        played.add(key);
-        return true;
+      if (playContact) {
+        if (playContact(seat, sample)) return true;
+      } else {
+        const key = kind + ':gaga:' + sample;
+        if (played.has(key)) return true;
+        if (this.playNamed(seat, sample)) {
+          played.add(key);
+          return true;
+        }
       }
     }
     const swingWind = poleSwing ? poleWind[poleSwing] : wind;
@@ -869,15 +922,6 @@ export class FightAudio {
     source.stop(now + duration);
     this.track({ source, gain });
     return { filter, gain: gain.gain };
-  }
-
-  private impact(ctx: AudioContext, output: GainNode, now: number, blocked: boolean, heavy: boolean, sharp: boolean) {
-    const duration = heavy ? .09 : .04;
-    const { filter, gain } = this.filteredNoise(ctx, output, now, duration);
-    filter.frequency.value = sharp ? 3250 : blocked ? 2300 : heavy ? 490 : 1450;
-    filter.Q.value = .8;
-    gain.setValueAtTime(heavy ? .33 : .22, now);
-    gain.exponentialRampToValueAtTime(.001, now + duration);
   }
 
   private playTransient(ctx: AudioContext, output: GainNode, [frequency, duration, volume]: Noise, now: number) {

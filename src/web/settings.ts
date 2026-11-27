@@ -1,4 +1,5 @@
 import type { ActionKey, Duo } from '../core/types.js';
+import { closeDialogSmooth } from './ui-art.js';
 
 export type Control = 'left' | 'right' | 'up' | 'down' | ActionKey;
 export type Seat = 0 | 1;
@@ -25,12 +26,12 @@ const legacyControls: Control[] = ['left', 'right', 'up', 'down', 'jump', 'dash'
 const controls: Control[] = [...legacyControls, 'ULT'];
 const namedControls: Record<Control, string> = {
   left: '向左', right: '向右', up: '向上', down: '向下 / 防御',
-  jump: '跳跃', dash: '冲刺', A: '基础攻击', B: '专属槽 B', C: '专属槽 C', ULT: '大招'
+  jump: '跳跃', dash: '冲刺', A: '普攻', B: '进攻技', C: '特色技', ULT: '大招'
 };
 const namedKeys: Record<string, string> = {
   ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓',
   ShiftLeft: '左 Shift', ShiftRight: '右 Shift', Enter: 'Enter', Space: '空格',
-  Comma: ',', Period: '.', Slash: '/', Semicolon: ';', Quote: "'",
+  Comma: '逗号', Period: '句号', Slash: '斜杠', Semicolon: ';', Quote: '单引号',
   BracketLeft: '[', BracketRight: ']', Minus: '-', Equal: '=', Backslash: '\\',
   NumpadAdd: '小键盘 +', NumpadSubtract: '小键盘 -', NumpadDecimal: '小键盘 .'
 };
@@ -118,7 +119,7 @@ function element<T extends HTMLElement>(id: string): T {
 }
 
 export function renderGuide(preferences: Preferences) {
-  const ultimateAlias = bindingMap(preferences).get('Numpad6');
+  const boundKeys = bindingMap(preferences);
   const guideRows = [
     { title: '左右移动', controls: ['left', 'right'] },
     { title: '跳跃 / 二段跳', controls: ['jump'] },
@@ -126,9 +127,11 @@ export function renderGuide(preferences: Preferences) {
     { title: '下穿平台', controls: ['down', 'jump'], join: ' + ' },
     { title: '防御', controls: ['down'] },
     { title: '普攻 / 空中攻击', controls: ['A'] },
-    { title: '公共挑空（大肥鱼除外）', controls: ['up', 'A'], join: ' + ' },
-    { title: '角色专属槽 B / C', controls: ['B', 'C'] },
-    { title: '大招', controls: ['ULT'] }
+    { title: '地面挑空（见招式表）', controls: ['up', 'A'], join: ' + ' },
+    { title: '进攻技（远程优先）', controls: ['B'] },
+    { title: '特色技', controls: ['C'] },
+    { title: '代表大招', controls: ['ULT'] },
+    { title: '战术大招（见招式表）', controls: ['up', 'ULT'], join: ' + ' }
   ] as const;
   for (const seat of seats) {
     const list = element(seat === 0 ? 'guide-one' : 'guide-two');
@@ -144,11 +147,13 @@ export function renderGuide(preferences: Preferences) {
         key.textContent = keyLabel(preferences.bindings[seat][control]);
         keys.append(key);
       });
-      if (seat === 1 && row.controls[0] === 'ULT' && ultimateAlias?.seat === 1 && ultimateAlias.control === 'ULT' &&
-          preferences.bindings[1].ULT === defaults[1].ULT) {
-        const alias = document.createElement('kbd');
-        alias.textContent = keyLabel('Numpad6');
-        keys.append(' / ', alias);
+      const last = row.controls.at(-1)!;
+      const alias = seat === 1 && aliases[last];
+      if (alias && boundKeys.get(alias)?.seat === 1 && boundKeys.get(alias)?.control === last) {
+        const alternative = document.createElement('kbd');
+        const prefix = row.controls.slice(0, -1).map(control => keyLabel(preferences.bindings[seat][control]));
+        alternative.textContent = [...prefix, keyLabel(alias)].join(' + ');
+        keys.append(' / ', alternative);
       }
       pair.append(label, keys);
       list.append(pair);
@@ -227,7 +232,11 @@ export function installSettings(preferences: Preferences, changed: () => void) {
     status.textContent = '已恢复双人默认键位。';
     commit();
   });
-  element('settings-close').addEventListener('click', () => dialog.close());
+  element('settings-close').addEventListener('click', () => { void closeDialogSmooth(dialog); });
+  dialog.addEventListener('cancel', event => {
+    event.preventDefault();
+    void closeDialogSmooth(dialog);
+  });
   dialog.addEventListener('close', () => { awaiting = undefined; });
   dialog.addEventListener('keydown', event => {
     if (!awaiting || event.repeat || event.metaKey || event.ctrlKey || event.altKey || event.code === 'Tab') return;
@@ -243,11 +252,13 @@ export function installSettings(preferences: Preferences, changed: () => void) {
       return;
     }
     const { seat, control } = awaiting;
-    const used = seats.find(player => controls.some(action =>
-      (player !== seat || action !== control) && preferences.bindings[player][action] === event.code));
-    if (used !== undefined) {
-      status.textContent = keyLabel(event.code) + ' 已分配给 P' + (used + 1) + '，请选择其他键。';
-      return;
+    for (const player of seats) {
+      const action = controls.find(action =>
+        (player !== seat || action !== control) && preferences.bindings[player][action] === event.code);
+      if (action) {
+        status.textContent = keyLabel(event.code) + ' 已分配给 P' + (player + 1) + '「' + namedControls[action] + '」。';
+        return;
+      }
     }
     preferences.bindings[seat][control] = event.code;
     awaiting = undefined;
