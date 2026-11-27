@@ -5,7 +5,7 @@ import { actionFor, clearBufferedInputs, createMatch, joAwakenInput, step, ultim
 import { createRelayMatch, stepRelayMatch, type RelayRoster, type RelaySession } from '../core/relay.js';
 import { frogPowered } from '../core/frog-kit.js';
 import { cinematicOwner } from '../core/whale-kit.js';
-import { ENERGY_PER_STOCK, MAX_ENERGY, MAX_TEARS, NEUTRAL, TEAR_UNITS_PER_POINT, isAttack, type ActionKey, type Axis, type Direction, type Duo, type FighterAction, type FighterDefinition, type InputFrame, type MatchConfig, type RoundResult, type Slot, type Stick, type UltimateUnavailable } from '../core/types.js';
+import { ENERGY_PER_STOCK, MAX_ENERGY, MAX_TEARS, NEUTRAL, TEAR_UNITS_PER_POINT, isAttack, maxPendingPresses, type ActionKey, type Axis, type CombatEvent, type Direction, type Duo, type FighterAction, type FighterDefinition, type InputFrame, type MatchConfig, type RoundResult, type Slot, type Stick, type UltimateUnavailable } from '../core/types.js';
 import { arcadeArt, comicArt, arenaArt, fighterArt } from './art.js';
 import { fighterPresentation, fitPresentationArt } from './fighter-presentation.js';
 import { closeDialogSmooth, inkSymbol, setRansomText } from './ui-art.js';
@@ -165,7 +165,7 @@ const selected: Duo<number> = [0, 3];
 const relayPicks: Duo<[number, number | null]> = [[0, null], [3, null]];
 const activeSlots: Duo<Seat> = [0, 0];
 const confirmed: Duo<boolean> = [false, false];
-const pending: Duo<Map<ActionKey, Stick>> = [new Map(), new Map()];
+const pending: Duo<Array<{ key: ActionKey; stick: Stick }>> = [[], []];
 const held = new Set<string>();
 const ultimateCues: Duo<Array<{ prompt: MovePrompt; node: HTMLElement; label: HTMLElement }>> = [[], []];
 const audio = new FightAudio();
@@ -253,6 +253,7 @@ const onlineRoom = new OnlineRoom(enterOnlineMatch, ({ state: next, events }) =>
   if (previous === 'fight' && state.phase === 'round-over' && state.result) {
     roundHistory.push({ ...state.result, round: state.round });
   }
+  renderCombatNotices(events);
   renderer.add(events, state, config.fighters);
   audio.update(config, state, events);
   if (state.phase === 'match-over') endMatch();
@@ -612,16 +613,16 @@ function notify(message: string) {
   toastTimer = window.setTimeout(() => { node.hidden = true; }, 2200);
 }
 
-function clearInputs(keepMovement = false) {
-  if (keepMovement) {
+function clearInputs(keepDirections = false) {
+  if (keepDirections) {
     for (const code of held) {
       const control = matchBinding(code)?.control;
-      if (control !== 'left' && control !== 'right') held.delete(code);
+      if (!control || !isDirection(control)) held.delete(code);
     }
   } else {
     held.clear();
   }
-  for (const commands of pending) commands.clear();
+  for (const commands of pending) commands.length = 0;
   clearBufferedInputs(state);
   trainingDownHeld = false;
 }
@@ -1179,6 +1180,11 @@ guide.addEventListener('cancel', event => {
 });
 element('settings-open').addEventListener('click', openSettings);
 element('pause-settings').addEventListener('click', openSettings);
+for (const dialog of [guide, settings.dialog]) {
+  dialog.addEventListener('close', () => {
+    if (screen === 'match' && !guide.open && !settings.dialog.open) canvas.focus();
+  });
+}
 
 function refreshDisplayButton() {
   document.documentElement.classList.toggle('window-fit', windowFit);
@@ -1268,6 +1274,10 @@ function navigationKey(event: KeyboardEvent) {
   return true;
 }
 
+function isDirection(control: Control) {
+  return control === 'left' || control === 'right' || control === 'up' || control === 'down';
+}
+
 function matchBinding(code: string) {
   const binding = bindings.get(code);
   if (mode === 'local' || binding?.seat === 0) return binding;
@@ -1303,9 +1313,9 @@ window.addEventListener('keydown', event => {
   if (!binding) return;
   event.preventDefault();
   const { seat, control } = binding;
-  const movement = control === 'left' || control === 'right';
-  if (state.phase !== 'fight' && !movement) return;
-  if (held.has(event.code) || (event.repeat && !movement)) return;
+  const directional = isDirection(control);
+  if (state.phase !== 'fight' && !directional) return;
+  if (held.has(event.code) || (event.repeat && !directional)) return;
   audio.enableFromGesture();
   held.add(event.code);
   const actor = mode === 'online' ? onlineSeat : seat;
@@ -1317,7 +1327,9 @@ window.addEventListener('keydown', event => {
     return;
   }
   if (control === 'A' || control === 'B' || control === 'C' || control === 'ULT' || control === 'jump' || control === 'dash') {
-    pending[seat].set(control, stickFor(seat));
+    const commands = pending[seat];
+    if (commands.length === maxPendingPresses) commands.shift();
+    commands.push({ key: control, stick: stickFor(seat) });
   }
 });
 window.addEventListener('keyup', event => held.delete(event.code));
@@ -1343,8 +1355,12 @@ function readInput(seat: Seat): InputFrame {
       heldActions.push(binding.control as ActionKey);
     }
   }
-  const input = { ...stickFor(seat), held: heldActions, pressed: [...commands.keys()], sampled: Object.fromEntries(commands) };
-  commands.clear();
+  const input = {
+    ...stickFor(seat), held: heldActions,
+    pressed: commands.map(command => command.key),
+    sampled: commands.map(command => command.stick)
+  };
+  commands.length = 0;
   return input;
 }
 
@@ -1530,6 +1546,29 @@ function renderHUD() {
   }
 }
 
+function renderCombatNotices(events: readonly CombatEvent[]) {
+  const notices: string[] = [];
+  for (const event of events) {
+    if (mode === 'local' || event.source === (mode === 'online' ? onlineSeat : 0)) {
+      const who = mode === 'online' ? '你' : seatName(event.source);
+      if (event.kind === 'ultimate-no-energy') {
+        notices.push(who + (event.amount ? ' 需要 ' + event.amount / ENERGY_PER_STOCK + ' 格气' : ' 杀气不足'));
+      } else if (event.kind === 'tears-short') {
+        notices.push(who + (event.amount ? ' 需要 ' + event.amount + ' 点眼泪' : ' 眼泪不足'));
+      } else if (event.kind === 'skill-unavailable') {
+        const name = config.fighters[event.source].actions.find(action => action.id === event.actionId)?.name ?? '进攻技';
+        const requirement = event.requirement === 'ground' ? '落地后使用' : '等当前状态结束后使用';
+        notices.push(who + ' ' + requirement + '「' + name + '」');
+      } else if (event.ultimateReason) {
+        notices.push(who + ' ' + unavailableLabels[event.ultimateReason]);
+      } else if (event.kind === 'dash-no-stamina') {
+        notices.push(who + ' 耐力不足');
+      }
+    }
+  }
+  if (notices.length) notify([...new Set(notices)].join(' · '));
+}
+
 function tick(player: InputFrame) {
   const previous = state.phase;
   const generation = relay?.generation;
@@ -1553,29 +1592,12 @@ function tick(player: InputFrame) {
   if (previous === 'fight' && state.phase === 'round-over' && !relay && !config.training &&
       !reducedMotion.matches && state.result?.winner != null &&
       config.fighters[state.result.winner].id === 'banana') state.phaseTicks = 192;
-  const notices: string[] = [];
+  renderCombatNotices(events);
   for (const event of events) {
-    if (event.source === 0 || mode === 'local') {
-      const who = seatName(event.source);
-      if (event.kind === 'ultimate-no-energy') {
-        notices.push(who + (event.amount ? ' 需要 ' + event.amount / ENERGY_PER_STOCK + ' 格气' : ' 杀气不足'));
-      } else if (event.kind === 'tears-short') {
-        notices.push(who + (event.amount ? ' 需要 ' + event.amount + ' 点眼泪' : ' 眼泪不足'));
-      } else if (event.kind === 'skill-unavailable') {
-        const name = config.fighters[event.source].actions.find(action => action.id === event.actionId)?.name ?? '进攻技';
-        const requirement = event.requirement === 'ground' ? '落地后使用' : '等当前状态结束后使用';
-        notices.push(who + ' ' + requirement + '「' + name + '」');
-      } else if (event.ultimateReason) {
-        notices.push(who + ' ' + unavailableLabels[event.ultimateReason]);
-      } else if (event.kind === 'dash-no-stamina') {
-        notices.push(who + ' 耐力不足');
-      }
-    }
     if (event.kind === 'hit' && event.chain !== undefined) {
       lastChains[event.source] = event.chain > 1 ? { hits: event.chain, until: state.frame + 33 } : null;
     }
   }
-  if (notices.length) notify([...new Set(notices)].join(' · '));
   if (config.training && previous === 'fight') {
     const down = player.y === 1;
     if (down && !trainingDownHeld && !player.pressed.length) {
@@ -1639,7 +1661,7 @@ function frame(now: number) {
     if (introRemaining <= 0) enterMatch();
   }
   if (screen === 'match' && mode === 'online') {
-    if (now - lastOnlineInputAt >= tickMs - 1) {
+    if (onlineRoom.canSendInput && now - lastOnlineInputAt >= tickMs - 1) {
       onlineRoom.sendInput(readInput(0));
       lastOnlineInputAt = now;
     }

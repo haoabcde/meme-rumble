@@ -66,9 +66,13 @@ export class OnlineRoom {
     this.dialog.showModal();
   }
 
+  get canSendInput() {
+    return this.socket?.readyState === WebSocket.OPEN && this.socket.bufferedAmount < 8192;
+  }
+
   sendInput(input: InputFrame) {
-    if (this.socket?.readyState === WebSocket.OPEN && this.socket.bufferedAmount < 8192) {
-      this.socket.send(JSON.stringify({ type: 'input', input }));
+    if (this.canSendInput) {
+      this.socket?.send(JSON.stringify({ type: 'input', input }));
     }
   }
 
