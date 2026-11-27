@@ -612,8 +612,15 @@ function notify(message: string) {
   toastTimer = window.setTimeout(() => { node.hidden = true; }, 2200);
 }
 
-function clearInputs() {
-  held.clear();
+function clearInputs(keepMovement = false) {
+  if (keepMovement) {
+    for (const code of held) {
+      const control = matchBinding(code)?.control;
+      if (control !== 'left' && control !== 'right') held.delete(code);
+    }
+  } else {
+    held.clear();
+  }
   for (const commands of pending) commands.clear();
   clearBufferedInputs(state);
   trainingDownHeld = false;
@@ -1150,7 +1157,7 @@ element('step-training').addEventListener('click', () => {
 trainingDummy.addEventListener('change', () => canvas.focus());
 trainingSpeed.addEventListener('change', () => canvas.focus());
 trainingPanel.addEventListener('toggle', () => {
-  if (!trainingPanel.open && screen === 'match') canvas.focus();
+  if (screen === 'match' && document.activeElement === trainingPanel.querySelector('summary')) canvas.focus();
 });
 debugButton.addEventListener('click', toggleDebug);
 function openGuide(moves: boolean) {
@@ -1261,10 +1268,20 @@ function navigationKey(event: KeyboardEvent) {
   return true;
 }
 
+function matchBinding(code: string) {
+  const binding = bindings.get(code);
+  if (mode === 'local' || binding?.seat === 0) return binding;
+  if (code === 'ArrowLeft') return { seat: 0, control: 'left' } as const;
+  if (code === 'ArrowRight') return { seat: 0, control: 'right' } as const;
+}
+
 function stickFor(seat: Seat): Stick {
   const codes = preferences.bindings[seat];
+  const directionHeld = (control: 'left' | 'right', arrow: string) =>
+    held.has(codes[control]) || (mode !== 'local' && seat === 0 &&
+      held.has(arrow) && matchBinding(arrow)?.control === control);
   return {
-    x: (Number(held.has(codes.right)) - Number(held.has(codes.left))) as Axis,
+    x: (Number(directionHeld('right', 'ArrowRight')) - Number(directionHeld('left', 'ArrowLeft'))) as Axis,
     y: (Number(held.has(codes.down)) - Number(held.has(codes.up))) as Axis
   };
 }
@@ -1282,14 +1299,15 @@ window.addEventListener('keydown', event => {
   if (screen !== 'match' || document.activeElement !== canvas) return;
   if (event.code === 'KeyH' && !event.repeat) toggleDebug();
   if (event.code === 'KeyR' && mode === 'training' && !event.repeat) startMatch(true);
-  const binding = bindings.get(event.code);
+  const binding = matchBinding(event.code);
   if (!binding) return;
   event.preventDefault();
-  if (relay && state.phase !== 'fight') return;
-  if (held.has(event.code) || event.repeat || (binding.seat === 1 && mode !== 'local')) return;
+  const { seat, control } = binding;
+  const movement = control === 'left' || control === 'right';
+  if (state.phase !== 'fight' && !movement) return;
+  if (held.has(event.code) || (event.repeat && !movement)) return;
   audio.enableFromGesture();
   held.add(event.code);
-  const { seat, control } = binding;
   const actor = mode === 'online' ? onlineSeat : seat;
   if ((control === 'B' || control === 'C' || control === 'ULT') &&
       !acceptsSkillInput(config.fighters[actor], control)) {
@@ -1303,7 +1321,7 @@ window.addEventListener('keydown', event => {
   }
 });
 window.addEventListener('keyup', event => held.delete(event.code));
-canvas.addEventListener('blur', clearInputs);
+canvas.addEventListener('blur', () => clearInputs());
 canvas.addEventListener('click', () => { audio.enableFromGesture(); finishFeature(); });
 canvas.addEventListener('pointerdown', () => audio.enableFromGesture());
 function pauseOnHide() {
@@ -1527,7 +1545,7 @@ function tick(player: InputFrame) {
     footer();
     return;
   }
-  if (state.phase !== previous) clearInputs();
+  if (state.phase !== previous) clearInputs(state.phase === 'fight');
   if (state.phase === 'ready' && previous !== 'ready') {
     lastChains = [null, null];
     if (!relay && !reducedMotion.matches) state.phaseTicks = openingTicks(config.fighters);
