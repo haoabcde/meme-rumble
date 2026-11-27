@@ -1,0 +1,1949 @@
+{
+  "revisions": {
+    "characters": "4af7d13a09a4c848fbfaee140da12f4bc7d641ab",
+    "captain": "d2d09fd7e1421a489707b2da0af537185b287105"
+  },
+  "recordingMethod": "定稿场景每逻辑帧以PNG直接送入一次H.264 QP16编码，1920×1080较近取景，60帧正常速度；音轨复用此前实机录制，事件逐帧一致。",
+  "clips": [
+    {
+      "id": "whale.combo",
+      "frames": 215,
+      "wallSeconds": 3.6430999999996274,
+      "fps": 59.0156734649123,
+      "p95Ms": 16.799999999999272,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 216,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 18,
+          "kind": "hit",
+          "source": 0,
+          "damage": 45
+        },
+        {
+          "tick": 30,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 36,
+          "kind": "hit",
+          "source": 0,
+          "damage": 45
+        },
+        {
+          "tick": 48,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 56,
+          "kind": "hit",
+          "source": 0,
+          "damage": 45
+        }
+      ],
+      "frameExport": {
+        "id": "whale.combo",
+        "frames": 216,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 3.6,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 12,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 18,
+            "kind": "hit",
+            "source": 0,
+            "damage": 45
+          },
+          {
+            "tick": 30,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 36,
+            "kind": "hit",
+            "source": 0,
+            "damage": 45
+          },
+          {
+            "tick": 48,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 56,
+            "kind": "hit",
+            "source": 0,
+            "damage": 45
+          }
+        ]
+      },
+      "video": "videos/大肥鱼/01_三段甩尾.mp4",
+      "bytes": 5199177,
+      "sha256": "cb475157a72869c46fc66ce4cd452a1106a6bce8bee334a0d4a1e45e83682e05"
+    },
+    {
+      "id": "whale.air",
+      "frames": 169,
+      "wallSeconds": 2.819699999999255,
+      "fps": 59.935454126341334,
+      "p95Ms": 16.799999999999272,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 168,
+      "events": [
+        {
+          "tick": 24,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 30,
+          "kind": "hit",
+          "source": 0,
+          "damage": 45
+        }
+      ],
+      "frameExport": {
+        "id": "whale.air",
+        "frames": 168,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 2.8,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 24,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 30,
+            "kind": "hit",
+            "source": 0,
+            "damage": 45
+          }
+        ]
+      },
+      "video": "videos/大肥鱼/02_空中尾击.mp4",
+      "bytes": 2843858,
+      "sha256": "708474c85c34ecd5f82c621ca926b621458432e675bd587331678eb4f35603d9"
+    },
+    {
+      "id": "whale.guard",
+      "frames": 229,
+      "wallSeconds": 3.835,
+      "fps": 59.71316818774446,
+      "p95Ms": 16.799999999999272,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 228,
+      "events": [
+        {
+          "tick": 38,
+          "kind": "swing",
+          "source": 1
+        },
+        {
+          "tick": 43,
+          "kind": "parry",
+          "source": 0
+        },
+        {
+          "tick": 47,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 47,
+          "kind": "hit",
+          "source": 0,
+          "damage": 20
+        },
+        {
+          "tick": 64,
+          "kind": "hit",
+          "source": 0,
+          "damage": 30
+        },
+        {
+          "tick": 68,
+          "kind": "hit",
+          "source": 0,
+          "damage": 30
+        },
+        {
+          "tick": 76,
+          "kind": "hit",
+          "source": 0,
+          "damage": 0
+        }
+      ],
+      "frameExport": {
+        "id": "whale.guard",
+        "frames": 228,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 3.8,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 38,
+            "kind": "swing",
+            "source": 1
+          },
+          {
+            "tick": 43,
+            "kind": "parry",
+            "source": 0
+          },
+          {
+            "tick": 47,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 47,
+            "kind": "hit",
+            "source": 0,
+            "damage": 20
+          },
+          {
+            "tick": 64,
+            "kind": "hit",
+            "source": 0,
+            "damage": 30
+          },
+          {
+            "tick": 68,
+            "kind": "hit",
+            "source": 0,
+            "damage": 30
+          },
+          {
+            "tick": 76,
+            "kind": "hit",
+            "source": 0,
+            "damage": 0
+          }
+        ]
+      },
+      "video": "videos/大肥鱼/03_铁盆防御与旋风反击.mp4",
+      "bytes": 3267859,
+      "sha256": "232c9a6ea1ffc22978a32b8fd0a3c67598548873b9b25a44cd7592211f8f3889"
+    },
+    {
+      "id": "whale.rice",
+      "frames": 229,
+      "wallSeconds": 3.8372000000011175,
+      "fps": 59.67893255497063,
+      "p95Ms": 16.799999999999272,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 228,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 29,
+          "kind": "hit",
+          "source": 0,
+          "damage": 30
+        }
+      ],
+      "frameExport": {
+        "id": "whale.rice",
+        "frames": 228,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 3.8,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 12,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 29,
+            "kind": "hit",
+            "source": 0,
+            "damage": 30
+          }
+        ]
+      },
+      "video": "videos/大肥鱼/04_米饭投手.mp4",
+      "bytes": 1508072,
+      "sha256": "08c7069d7da2f006f0b87ba56c97c0d97221d56a752e2691c0c27b83f13295de"
+    },
+    {
+      "id": "whale.ground-rice",
+      "frames": 229,
+      "wallSeconds": 3.8325999999996276,
+      "fps": 59.75056097688834,
+      "p95Ms": 16.799999999999272,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 228,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 64,
+          "kind": "hit",
+          "source": 0,
+          "damage": 0
+        }
+      ],
+      "frameExport": {
+        "id": "whale.ground-rice",
+        "frames": 228,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 3.8,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 12,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 64,
+            "kind": "hit",
+            "source": 0,
+            "damage": 0
+          }
+        ]
+      },
+      "video": "videos/大肥鱼/05_踩中落地米饭.mp4",
+      "bytes": 2370398,
+      "sha256": "ec293524b556df13e2adc975a83a25e092002ec23eb6450bff0b508ea7ee6f0a"
+    },
+    {
+      "id": "whale.rice-up",
+      "frames": 211,
+      "wallSeconds": 3.533699999999255,
+      "fps": 59.71078472989911,
+      "p95Ms": 16.80000000000291,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 210,
+      "events": [
+        {
+          "tick": 22,
+          "kind": "swing",
+          "source": 0
+        }
+      ],
+      "frameExport": {
+        "id": "whale.rice-up",
+        "frames": 210,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 3.5,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 22,
+            "kind": "swing",
+            "source": 0
+          }
+        ]
+      },
+      "video": "videos/大肥鱼/06_向上投米饭.mp4",
+      "bytes": 5068429,
+      "sha256": "b25439d4754bb4ebaf47efe51e93656c098932a86b462889d994467d3369be68"
+    },
+    {
+      "id": "whale.eat",
+      "frames": 121,
+      "wallSeconds": 2.0325,
+      "fps": 59.53259532595325,
+      "p95Ms": 16.80000000000291,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 120,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "swing",
+          "source": 0
+        }
+      ],
+      "frameExport": {
+        "id": "whale.eat",
+        "frames": 120,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 2,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 12,
+            "kind": "swing",
+            "source": 0
+          }
+        ]
+      },
+      "video": "videos/大肥鱼/07_贪吃反噬.mp4",
+      "bytes": 847560,
+      "sha256": "ecdb51d3c1cc1783609a6e7d1dce522a7788fcd6d3685899cdc0879eff77bf7f"
+    },
+    {
+      "id": "whale.tornado",
+      "frames": 229,
+      "wallSeconds": 3.8220999999996277,
+      "fps": 59.91470657492538,
+      "p95Ms": 16.799999999995634,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 228,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 39,
+          "kind": "hit",
+          "source": 0,
+          "damage": 30
+        }
+      ],
+      "frameExport": {
+        "id": "whale.tornado",
+        "frames": 228,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 3.8,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 12,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 39,
+            "kind": "hit",
+            "source": 0,
+            "damage": 30
+          }
+        ]
+      },
+      "video": "videos/大肥鱼/08_旋风推进.mp4",
+      "bytes": 3855056,
+      "sha256": "7cec77e6183bdb1709602d5360788da86d21f448fb61af0b59da41df3e0d09e9"
+    },
+    {
+      "id": "whale.tornado-up",
+      "frames": 211,
+      "wallSeconds": 3.5327000000011175,
+      "fps": 59.72768703822381,
+      "p95Ms": 16.799999999995634,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 210,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 24,
+          "kind": "hit",
+          "source": 0,
+          "damage": 30
+        }
+      ],
+      "frameExport": {
+        "id": "whale.tornado-up",
+        "frames": 210,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 3.5,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 12,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 24,
+            "kind": "hit",
+            "source": 0,
+            "damage": 30
+          }
+        ]
+      },
+      "video": "videos/大肥鱼/09_定点旋风.mp4",
+      "bytes": 3357425,
+      "sha256": "928e3f7ee214b6eed6f2438e597dbff584d88157417dc71c2f4d88cfcbd20278"
+    },
+    {
+      "id": "whale.ultimate",
+      "frames": 312,
+      "wallSeconds": 5.332699999999255,
+      "fps": 58.506947700047554,
+      "p95Ms": 16.80000000000291,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 318,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "ultimate",
+          "source": 0
+        },
+        {
+          "tick": 108,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 116,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 124,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 132,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 140,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 148,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 156,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 164,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 172,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 180,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 188,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 196,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        }
+      ],
+      "frameExport": {
+        "id": "whale.ultimate",
+        "frames": 318,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 5.3,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 12,
+            "kind": "ultimate",
+            "source": 0
+          },
+          {
+            "tick": 108,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 116,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 124,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 132,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 140,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 148,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 156,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 164,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 172,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 180,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 188,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 196,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          }
+        ]
+      },
+      "video": "videos/大肥鱼/10_水潭与巨鲸.mp4",
+      "bytes": 19769296,
+      "sha256": "ef67c0c159a95db574fc55ba6eaa64313445e9690e629b3c48debe79b2c4df54"
+    },
+    {
+      "id": "whale.rice-ultimate",
+      "frames": 349,
+      "wallSeconds": 5.8335999999996275,
+      "fps": 59.82583653319087,
+      "p95Ms": 16.799999999995634,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 348,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 29,
+          "kind": "hit",
+          "source": 0,
+          "damage": 30
+        },
+        {
+          "tick": 33,
+          "kind": "ultimate",
+          "source": 0
+        },
+        {
+          "tick": 129,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 137,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 145,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 153,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 161,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 169,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 177,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 185,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 193,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 201,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 209,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        },
+        {
+          "tick": 217,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        }
+      ],
+      "frameExport": {
+        "id": "whale.rice-ultimate",
+        "frames": 348,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 5.8,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 12,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 29,
+            "kind": "hit",
+            "source": 0,
+            "damage": 30
+          },
+          {
+            "tick": 33,
+            "kind": "ultimate",
+            "source": 0
+          },
+          {
+            "tick": 129,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 137,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 145,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 153,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 161,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 169,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 177,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 185,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 193,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 201,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 209,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          },
+          {
+            "tick": 217,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          }
+        ]
+      },
+      "video": "videos/大肥鱼/11_投饭接水潭.mp4",
+      "bytes": 20629627,
+      "sha256": "e813fc5f7e79583eedbd8575331f23543e835a79154fdbb3a13cb5ecd794ed2c"
+    },
+    {
+      "id": "frog.combo",
+      "frames": 255,
+      "wallSeconds": 4.3195,
+      "fps": 59.034610487324926,
+      "p95Ms": 16.80000000000291,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 264,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 17,
+          "kind": "hit",
+          "source": 0,
+          "damage": 28
+        },
+        {
+          "tick": 26,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 31,
+          "kind": "hit",
+          "source": 0,
+          "damage": 28
+        },
+        {
+          "tick": 40,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 45,
+          "kind": "hit",
+          "source": 0,
+          "damage": 32
+        },
+        {
+          "tick": 54,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 59,
+          "kind": "hit",
+          "source": 0,
+          "damage": 20
+        },
+        {
+          "tick": 68,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 75,
+          "kind": "hit",
+          "source": 0,
+          "damage": 50
+        }
+      ],
+      "frameExport": {
+        "id": "frog.combo",
+        "frames": 264,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 4.4,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 12,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 17,
+            "kind": "hit",
+            "source": 0,
+            "damage": 28
+          },
+          {
+            "tick": 26,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 31,
+            "kind": "hit",
+            "source": 0,
+            "damage": 28
+          },
+          {
+            "tick": 40,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 45,
+            "kind": "hit",
+            "source": 0,
+            "damage": 32
+          },
+          {
+            "tick": 54,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 59,
+            "kind": "hit",
+            "source": 0,
+            "damage": 20
+          },
+          {
+            "tick": 68,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 75,
+            "kind": "hit",
+            "source": 0,
+            "damage": 50
+          }
+        ]
+      },
+      "video": "videos/奶蛙/01_五段拳脚.mp4",
+      "bytes": 6004593,
+      "sha256": "3335645d4dbe4733aa3f51d3f142029fd93f5a586f88bb70804802669c60717b"
+    },
+    {
+      "id": "frog.air",
+      "frames": 168,
+      "wallSeconds": 2.802699999999255,
+      "fps": 59.94219859422866,
+      "p95Ms": 16.80000000000291,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 168,
+      "events": [
+        {
+          "tick": 24,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 29,
+          "kind": "hit",
+          "source": 0,
+          "damage": 32
+        }
+      ],
+      "frameExport": {
+        "id": "frog.air",
+        "frames": 168,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 2.8,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 24,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 29,
+            "kind": "hit",
+            "source": 0,
+            "damage": 32
+          }
+        ]
+      },
+      "video": "videos/奶蛙/02_空中踢腿.mp4",
+      "bytes": 2342100,
+      "sha256": "5217437232d267509f937d4a6b06927ed911171d6cee916df30f6d31246123c8"
+    },
+    {
+      "id": "frog.guard",
+      "frames": 163,
+      "wallSeconds": 2.733699999999255,
+      "fps": 59.62614771190856,
+      "p95Ms": 16.79999999998836,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 162,
+      "events": [
+        {
+          "tick": 38,
+          "kind": "swing",
+          "source": 1
+        },
+        {
+          "tick": 43,
+          "kind": "block",
+          "source": 1
+        }
+      ],
+      "frameExport": {
+        "id": "frog.guard",
+        "frames": 162,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 2.7,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 38,
+            "kind": "swing",
+            "source": 1
+          },
+          {
+            "tick": 43,
+            "kind": "block",
+            "source": 1
+          }
+        ]
+      },
+      "video": "videos/奶蛙/03_护腹防御.mp4",
+      "bytes": 1296535,
+      "sha256": "85f080a6d2dec368332281faf3ef3381764283312b077b1673f5f652b5be366b"
+    },
+    {
+      "id": "frog.laugh",
+      "frames": 211,
+      "wallSeconds": 3.5230999999996273,
+      "fps": 59.890437398888004,
+      "p95Ms": 16.80000000000291,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 210,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 28,
+          "kind": "hit",
+          "source": 0,
+          "damage": 28
+        },
+        {
+          "tick": 40,
+          "kind": "hit",
+          "source": 0,
+          "damage": 28
+        },
+        {
+          "tick": 52,
+          "kind": "hit",
+          "source": 0,
+          "damage": 44
+        }
+      ],
+      "frameExport": {
+        "id": "frog.laugh",
+        "frames": 210,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 3.5,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 12,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 28,
+            "kind": "hit",
+            "source": 0,
+            "damage": 28
+          },
+          {
+            "tick": 40,
+            "kind": "hit",
+            "source": 0,
+            "damage": 28
+          },
+          {
+            "tick": 52,
+            "kind": "hit",
+            "source": 0,
+            "damage": 44
+          }
+        ]
+      },
+      "video": "videos/奶蛙/04_捧腹大笑.mp4",
+      "bytes": 4680530,
+      "sha256": "1831b42763e66a10f2d9b30ebbcef4f45954ad0ef4261a302abe3c6fda00fdab"
+    },
+    {
+      "id": "frog.global",
+      "frames": 199,
+      "wallSeconds": 3.3327999999988824,
+      "fps": 59.70955352858459,
+      "p95Ms": 16.80000000000291,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 198,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 44,
+          "kind": "hit",
+          "source": 0,
+          "damage": 25
+        }
+      ],
+      "frameExport": {
+        "id": "frog.global",
+        "frames": 198,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 3.3,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 12,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 44,
+            "kind": "hit",
+            "source": 0,
+            "damage": 25
+          }
+        ]
+      },
+      "video": "videos/奶蛙/05_响彻天地.mp4",
+      "bytes": 2854499,
+      "sha256": "b6c8ac694ca62b477d78b2968999f5e74e8e403adeeae393948fe505f4a5a0de"
+    },
+    {
+      "id": "frog.counter",
+      "frames": 229,
+      "wallSeconds": 3.8312999999988824,
+      "fps": 59.77083496465085,
+      "p95Ms": 16.80000000000291,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 228,
+      "events": [
+        {
+          "tick": 8,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 38,
+          "kind": "swing",
+          "source": 1
+        },
+        {
+          "tick": 43,
+          "kind": "parry",
+          "source": 0
+        }
+      ],
+      "frameExport": {
+        "id": "frog.counter",
+        "frames": 228,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 3.8,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 8,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 38,
+            "kind": "swing",
+            "source": 1
+          },
+          {
+            "tick": 43,
+            "kind": "parry",
+            "source": 0
+          }
+        ]
+      },
+      "video": "videos/奶蛙/06_调皮下蹲与绕背.mp4",
+      "bytes": 5114767,
+      "sha256": "3580bf8be8b554e589abad5dfe8bc04e40607e2e2f155abc5c2138401eda8ac1"
+    },
+    {
+      "id": "frog.burrow",
+      "frames": 199,
+      "wallSeconds": 3.3250999999996274,
+      "fps": 59.847824125596915,
+      "p95Ms": 16.79999999998836,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 198,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "swing",
+          "source": 0
+        }
+      ],
+      "frameExport": {
+        "id": "frog.burrow",
+        "frames": 198,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 3.3,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 12,
+            "kind": "swing",
+            "source": 0
+          }
+        ]
+      },
+      "video": "videos/奶蛙/07_脚下钻出.mp4",
+      "bytes": 5866951,
+      "sha256": "de12d3aa7fcc5d34a2f649f997ecaa2897315e3ad263e24f1d0d1655b8455411"
+    },
+    {
+      "id": "frog.ultimate",
+      "frames": 361,
+      "wallSeconds": 6.02410000000149,
+      "fps": 59.92596404440675,
+      "p95Ms": 16.70000000001164,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 360,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "ultimate",
+          "source": 0
+        }
+      ],
+      "frameExport": {
+        "id": "frog.ultimate",
+        "frames": 360,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 6,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 12,
+            "kind": "ultimate",
+            "source": 0
+          }
+        ]
+      },
+      "video": "videos/奶蛙/08_神圣变身.mp4",
+      "bytes": 11080637,
+      "sha256": "8cc5e405968758afd56850e938288d6ec2a7e7d3ec2cf97d31c7220abc884846"
+    },
+    {
+      "id": "frog.power-combo",
+      "frames": 265,
+      "wallSeconds": 4.423400000000372,
+      "fps": 59.90866754080068,
+      "p95Ms": 16.80000000000291,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 264,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 17,
+          "kind": "hit",
+          "source": 0,
+          "damage": 42
+        },
+        {
+          "tick": 26,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 31,
+          "kind": "hit",
+          "source": 0,
+          "damage": 42
+        },
+        {
+          "tick": 40,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 45,
+          "kind": "hit",
+          "source": 0,
+          "damage": 48
+        },
+        {
+          "tick": 54,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 59,
+          "kind": "hit",
+          "source": 0,
+          "damage": 30
+        },
+        {
+          "tick": 68,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 75,
+          "kind": "hit",
+          "source": 0,
+          "damage": 75
+        }
+      ],
+      "frameExport": {
+        "id": "frog.power-combo",
+        "frames": 264,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 4.4,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 12,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 17,
+            "kind": "hit",
+            "source": 0,
+            "damage": 42
+          },
+          {
+            "tick": 26,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 31,
+            "kind": "hit",
+            "source": 0,
+            "damage": 42
+          },
+          {
+            "tick": 40,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 45,
+            "kind": "hit",
+            "source": 0,
+            "damage": 48
+          },
+          {
+            "tick": 54,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 59,
+            "kind": "hit",
+            "source": 0,
+            "damage": 30
+          },
+          {
+            "tick": 68,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 75,
+            "kind": "hit",
+            "source": 0,
+            "damage": 75
+          }
+        ]
+      },
+      "video": "videos/奶蛙/09_神圣五段重击.mp4",
+      "bytes": 11494999,
+      "sha256": "cd4be6591df2aa57d92b7df5b94db1478717ad2d8331a2d2d2fc272f79f7c55a"
+    },
+    {
+      "id": "frog.power-laugh",
+      "frames": 259,
+      "wallSeconds": 4.33360000000149,
+      "fps": 59.765552889032435,
+      "p95Ms": 16.79999999998836,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 258,
+      "events": [
+        {
+          "tick": 25,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 41,
+          "kind": "hit",
+          "source": 0,
+          "damage": 39.2
+        },
+        {
+          "tick": 53,
+          "kind": "hit",
+          "source": 0,
+          "damage": 39.2
+        },
+        {
+          "tick": 65,
+          "kind": "hit",
+          "source": 0,
+          "damage": 61.6
+        }
+      ],
+      "frameExport": {
+        "id": "frog.power-laugh",
+        "frames": 258,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 4.3,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 25,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 41,
+            "kind": "hit",
+            "source": 0,
+            "damage": 39.2
+          },
+          {
+            "tick": 53,
+            "kind": "hit",
+            "source": 0,
+            "damage": 39.2
+          },
+          {
+            "tick": 65,
+            "kind": "hit",
+            "source": 0,
+            "damage": 61.6
+          }
+        ]
+      },
+      "video": "videos/奶蛙/10_神圣三连波.mp4",
+      "bytes": 15400702,
+      "sha256": "6fb5a3b9c42b9fceace7302129a2f90109abc9b27422b23949a26741369f6101"
+    },
+    {
+      "id": "frog.power-global",
+      "frames": 211,
+      "wallSeconds": 3.528,
+      "fps": 59.807256235827666,
+      "p95Ms": 16.80000000000291,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 210,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 44,
+          "kind": "hit",
+          "source": 0,
+          "damage": 35
+        }
+      ],
+      "frameExport": {
+        "id": "frog.power-global",
+        "frames": 210,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 3.5,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 12,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 44,
+            "kind": "hit",
+            "source": 0,
+            "damage": 35
+          }
+        ]
+      },
+      "video": "videos/奶蛙/11_神圣全图波.mp4",
+      "bytes": 10302764,
+      "sha256": "28ee6c9340e1e0e8f97faee38d097ad0912cf7a656369b2f588c1c031f00c75b"
+    },
+    {
+      "id": "frog.power-counter",
+      "frames": 277,
+      "wallSeconds": 4.631299999998882,
+      "fps": 59.810420400334,
+      "p95Ms": 16.80000000000291,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 276,
+      "events": [
+        {
+          "tick": 8,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 38,
+          "kind": "swing",
+          "source": 1
+        },
+        {
+          "tick": 43,
+          "kind": "parry",
+          "source": 0
+        },
+        {
+          "tick": 55,
+          "kind": "swing",
+          "source": 0
+        },
+        {
+          "tick": 71,
+          "kind": "hit",
+          "source": 0,
+          "damage": 39.2
+        },
+        {
+          "tick": 83,
+          "kind": "hit",
+          "source": 0,
+          "damage": 39.2
+        },
+        {
+          "tick": 95,
+          "kind": "hit",
+          "source": 0,
+          "damage": 61.6
+        }
+      ],
+      "frameExport": {
+        "id": "frog.power-counter",
+        "frames": 276,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 4.6,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 8,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 38,
+            "kind": "swing",
+            "source": 1
+          },
+          {
+            "tick": 43,
+            "kind": "parry",
+            "source": 0
+          },
+          {
+            "tick": 55,
+            "kind": "swing",
+            "source": 0
+          },
+          {
+            "tick": 71,
+            "kind": "hit",
+            "source": 0,
+            "damage": 39.2
+          },
+          {
+            "tick": 83,
+            "kind": "hit",
+            "source": 0,
+            "damage": 39.2
+          },
+          {
+            "tick": 95,
+            "kind": "hit",
+            "source": 0,
+            "damage": 61.6
+          }
+        ]
+      },
+      "video": "videos/奶蛙/12_神圣绕背与追击.mp4",
+      "bytes": 21479059,
+      "sha256": "ada6ebb4205ce0742c21beb79416890a8b1e00e733482c3934ed2c042a43622f"
+    },
+    {
+      "id": "frog.power-burrow",
+      "frames": 223,
+      "wallSeconds": 3.7188999999985097,
+      "fps": 59.9639678399767,
+      "p95Ms": 16.80000000000291,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 222,
+      "events": [
+        {
+          "tick": 12,
+          "kind": "swing",
+          "source": 0
+        }
+      ],
+      "frameExport": {
+        "id": "frog.power-burrow",
+        "frames": 222,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 3.7,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": [
+          {
+            "tick": 12,
+            "kind": "swing",
+            "source": 0
+          }
+        ]
+      },
+      "video": "videos/奶蛙/13_神圣钻出.mp4",
+      "bytes": 11885395,
+      "sha256": "069f79360ec3c44f9265b80d9da8c50c33301aacf2c096ba22bd34593c95a99b"
+    },
+    {
+      "id": "frog.power-dodge",
+      "frames": 199,
+      "wallSeconds": 3.3255999999996275,
+      "fps": 59.838826076504176,
+      "p95Ms": 16.80000000000291,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 198,
+      "events": [],
+      "frameExport": {
+        "id": "frog.power-dodge",
+        "frames": 198,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 3.3,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": []
+      },
+      "video": "videos/奶蛙/14_神圣瞬移闪避.mp4",
+      "bytes": 9103380,
+      "sha256": "e391700bf4c8a06ce873867c0711b601adeb9630235584376a36d83ca6a7162a"
+    },
+    {
+      "id": "frog.power-end",
+      "frames": 205,
+      "wallSeconds": 3.4215999999996276,
+      "fps": 59.91349076456112,
+      "p95Ms": 16.80000000000291,
+      "width": 1280,
+      "height": 720,
+      "speed": 1,
+      "audio": true,
+      "simulationCalls": 204,
+      "events": [],
+      "frameExport": {
+        "id": "frog.power-end",
+        "frames": 204,
+        "width": 1920,
+        "height": 1080,
+        "virtualWidth": 960,
+        "virtualHeight": 540,
+        "logicalFps": 60,
+        "seconds": 3.4,
+        "speed": 1,
+        "method": "逐帧PNG直出，H.264 QP16单次编码，复用原实机音轨",
+        "events": []
+      },
+      "video": "videos/奶蛙/15_强化结束.mp4",
+      "bytes": 3554842,
+      "sha256": "c2d7d042b044e1b3bbee4b74e4c9ee146f0734944b4d19f86c8e836797c37ddc"
+    }
+  ]
+}

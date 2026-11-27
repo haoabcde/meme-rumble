@@ -1,0 +1,219 @@
+{
+  "passed": true,
+  "characters": 2,
+  "clips": 26,
+  "posters": 26,
+  "totalVideoBytes": 191178510,
+  "allVideoAndAudioDecoded": true,
+  "sourceFrameExports": true,
+  "checks": [
+    {
+      "id": "whale.combo",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "whale.air",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "whale.guard",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "whale.rice",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "whale.ground-rice",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "whale.rice-up",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "whale.eat",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "whale.tornado",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "whale.tornado-up",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "whale.ultimate",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "whale.rice-ultimate",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "frog.combo",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "frog.air",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "frog.guard",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "frog.laugh",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "frog.global",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "frog.counter",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "frog.burrow",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "frog.ultimate",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "frog.power-combo",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "frog.power-laugh",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "frog.power-global",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "frog.power-counter",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "frog.power-burrow",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "frog.power-dodge",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    },
+    {
+      "id": "frog.power-end",
+      "decoded": true,
+      "width": 1920,
+      "height": 1080,
+      "logicalFps": 60,
+      "measuredFps": null
+    }
+  ]
+}
