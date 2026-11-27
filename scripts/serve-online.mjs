@@ -6,7 +6,7 @@ import { arenas } from '../dist/content/arenas.js';
 import { rules } from '../dist/content/demo.js';
 import { roster } from '../dist/content/roster.js';
 import { createMatch, step } from '../dist/core/match.js';
-import { NEUTRAL } from '../dist/core/types.js';
+import { maxPendingPresses, NEUTRAL } from '../dist/core/types.js';
 
 const build = (await readFile(new URL('../dist/online-version.txt', import.meta.url), 'utf8')).trim();
 const fighters = new Map(roster.map(entry => [entry.fighter.id, entry.fighter]));
@@ -23,12 +23,18 @@ const send = (socket, message) => {
 };
 
 function packetInput(packet) {
-  const pressed = commands(packet.pressed);
-  const sampled = Object.fromEntries(pressed.map(key => {
-    const stick = packet.sampled?.[key];
-    return [key, { x: axis(stick?.x), y: axis(stick?.y) }];
-  }));
-  return { x: axis(packet.x), y: axis(packet.y), pressed, held: commands(packet.held), sampled };
+  const x = axis(packet.x);
+  const y = axis(packet.y);
+  const pressed = [];
+  const sampled = [];
+  for (const [index, key] of (Array.isArray(packet.pressed) ? packet.pressed : []).entries()) {
+    if (!controls.has(key)) continue;
+    const stick = Array.isArray(packet.sampled) ? packet.sampled[index] : packet.sampled?.[key];
+    pressed.push(key);
+    sampled.push({ x: axis(stick?.x ?? x), y: axis(stick?.y ?? y) });
+    if (pressed.length === maxPendingPresses) break;
+  }
+  return { x, y, pressed, held: commands(packet.held), sampled };
 }
 
 function endRoom(room, notice) {
@@ -88,8 +94,11 @@ sockets.on('connection', socket => {
     if (!message || typeof message !== 'object') return;
     if (message.type === 'input' && peer.room?.match && message.input && typeof message.input === 'object') {
       const next = packetInput(message.input);
-      peer.input = { ...next, pressed: [...new Set([...peer.input.pressed, ...next.pressed])],
-        sampled: { ...peer.input.sampled, ...next.sampled } };
+      peer.input = {
+        ...next,
+        pressed: [...peer.input.pressed, ...next.pressed].slice(-maxPendingPresses),
+        sampled: [...(peer.input.sampled ?? []), ...next.sampled].slice(-maxPendingPresses)
+      };
       peer.inputAt = now;
       return;
     }
@@ -137,7 +146,7 @@ function tickRooms() {
     const phase = state.phase;
     const events = step(state, input, config);
     for (const peer of room.players) {
-      peer.input = { ...peer.input, pressed: [], sampled: {} };
+      peer.input = { ...peer.input, pressed: [], sampled: [] };
     }
     if (phase !== 'ready' && state.phase === 'ready' && config.fighters.some(fighter => fighter.id === 'gaga' || fighter.id === 'banana')) {
       state.phaseTicks = 192;

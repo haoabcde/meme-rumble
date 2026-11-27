@@ -10,6 +10,7 @@ export type Side = -1 | 1;
 export type Slot = 'A' | 'B' | 'C' | 'ULT';
 export type Direction = 'up' | 'down' | 'forward' | 'back';
 export type ActionKey = Slot | 'jump' | 'dash';
+export const maxPendingPresses = 24;
 export type Duo<T> = [T, T];
 export type Axis = -1 | 0 | 1;
 
