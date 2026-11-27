@@ -80,6 +80,9 @@ export function cpuInput(state: MatchState, config: MatchConfig): InputFrame {
     if (cpu.energy >= MAX_ENERGY && distance < 840 && higher > -41 && higher < 150 && beat % 12 === 3) {
       return { x: 0, y: 0, pressed: ['ULT'] };
     }
+    if (!cpu.joAwakened && cpu.energy >= MAX_ENERGY && distance >= 310 && beat % 18 === 6) {
+      return { x: 0, y: -1, pressed: ['C'] };
+    }
     if (tears < 40 && distance >= 310) return { x: 0, y: 0, pressed: ['C'], held: ['C'] };
     if (tears >= 35 && uppercut && higher > 60 && higher < -uppercut.y - 25 && distance < 110 && beat % 8 === 0) {
       return { x: 0, y: -1, pressed: ['B'] };

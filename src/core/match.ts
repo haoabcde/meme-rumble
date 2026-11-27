@@ -322,6 +322,8 @@ const postureMatches = (action: FighterAction, fighter: FighterState) =>
 const exclusiveUltimate = (action: ActionDefinition) =>
   action.cinematicFreeze || action.cutIn || action.summon || action.timeStop;
 
+export const joAwakenInput = { slot: 'C', direction: 'up' } as const;
+
 function tryStartJoAwaken(state: MatchState, config: MatchConfig, events: CombatEvent[]) {
   if (state.phase !== 'fight' || state.freeze > 0) return { started: [] as (0 | 1)[], paused: false };
   const started: (0 | 1)[] = [];
@@ -333,9 +335,13 @@ function tryStartJoAwaken(state: MatchState, config: MatchConfig, events: Combat
     if (!action) continue;
     const cost = action.energyCost ?? MAX_ENERGY;
     const command = fighter.buffer.find(item =>
-      item.key === 'C' && !item.directions.includes('up') && !item.directions.includes('down'));
-    if (!command || fighter.energy < cost) continue;
+      item.key === joAwakenInput.slot && item.directions.includes(joAwakenInput.direction));
+    if (!command) continue;
     fighter.buffer = fighter.buffer.filter(item => item !== command);
+    if (fighter.energy < cost) {
+      rejectUltimate(fighter, seat, events, 'energy', action, cost);
+      continue;
+    }
     const canCancelCry = Boolean(action.cutIn && attackFor(config, state, seat)?.channel === 'cry');
     const pendingCutIn = seats.some(source => {
       const pending = attackFor(config, state, source)?.cutIn;

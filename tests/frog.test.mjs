@@ -85,7 +85,8 @@ test('angel basics extend horizontal reach another 1.2x, keeping damage and skil
  for(const raw of frog.fighter.actions.filter(a=>a.slot==='A')){t.caster.attack={id:raw.id,frame:0,connected:false,landed:false};const a=actionFor(t.config,t.state,0);assert.equal(a.damage,raw.damage*1.5);assert.ok(Math.abs(a.hitbox.w-raw.hitbox.w*1.8)<1e-9);assert.equal(a.hitbox.h,raw.hitbox.h*1.5);}
  t.caster.attack={id:'frog-laugh-global',frame:0,connected:false,landed:false};assert.equal(actionFor(t.config,t.state,0).entities[0].damage,35);
  const near=setup(0,330);near.caster.ascendUntil=900;near.caster.energy=100;near.press('B');const hits=near.run(85).filter(e=>e.kind==='hit');assert.deepEqual(hits.map(e=>e.amount),[39.2,39.2,61.6]);assert.equal(near.target.hp,860);
- assert.equal(near.caster.energy,160);
+ // During ascension, confirmed hits do not refill the meter.
+ assert.equal(near.caster.energy,100);
 });
 test('extra empowered jab reach actually connects beyond the former range on both facings',()=>{
  for(const seat of [0,1])for(const powered of [false,true]){

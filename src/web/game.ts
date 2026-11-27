@@ -1,7 +1,7 @@
 import { rules } from '../content/demo.js';
 import { arenas } from '../content/arenas.js';
 import { roster } from '../content/roster.js';
-import { actionFor, clearBufferedInputs, createMatch, step, ultimateAvailability } from '../core/match.js';
+import { actionFor, clearBufferedInputs, createMatch, joAwakenInput, step, ultimateAvailability } from '../core/match.js';
 import { createRelayMatch, stepRelayMatch, type RelayRoster, type RelaySession } from '../core/relay.js';
 import { frogPowered } from '../core/frog-kit.js';
 import { cinematicOwner } from '../core/whale-kit.js';
@@ -420,7 +420,9 @@ function commandHint(seat: Seat, move: MovePrompt, comboKeys: Slot[] = []) {
 
 function directMoves(fighter: FighterDefinition, move: MovePrompt) {
   return fighter.actions.filter(action => !action.linkOnly && !action.comboKeys?.length &&
-    action.slot === move.slot && action.direction === move.direction);
+    (isAttack(action) && action.awakenJo
+      ? move.slot === joAwakenInput.slot && move.direction === joAwakenInput.direction
+      : action.slot === move.slot && action.direction === move.direction));
 }
 
 function costHint(action: FighterAction) {
@@ -436,6 +438,20 @@ function postureHint(action: FighterAction) {
     return '地面／强化可空中';
   }
   return action.posture === 'any' ? '地空' : action.posture === 'ground' ? '地面' : '空中';
+}
+
+function moveDetail(action: FighterAction, fighter: FighterDefinition) {
+  const notes = [moveUses[action.id], postureHint(action), costHint(action)];
+  if (isAttack(action)) {
+    if (action.requiresJo) notes.push('觉醒后');
+    const variants = [action.joReplacement, action.joDetonateReplacement]
+      .filter(Boolean).map(id => fighter.actions.find(move => move.id === id)?.name).filter(Boolean);
+    if (variants.length) notes.push('觉醒后 ' + variants.join(' → '));
+  } else {
+    const counter = fighter.actions.find(move => move.id === action.counterTo);
+    if (counter?.name) notes.push('防反成功 → ' + counter.name);
+  }
+  return notes.filter(Boolean).join(' · ');
 }
 
 function makeMoveRow(seat: Seat, prompt: MovePrompt, title: string, detail?: string, comboKeys?: Slot[]) {
@@ -458,18 +474,27 @@ function makeMoveRow(seat: Seat, prompt: MovePrompt, title: string, detail?: str
 }
 
 function renderMoveList(list: HTMLElement, fighter: FighterDefinition, seat: Seat, detailed: boolean) {
-  const prompts = directMoves(fighter, thirdUltimate).length > 0
-    ? [...commonMovePrompts, thirdUltimate] : commonMovePrompts;
-  const visible = detailed ? prompts : prompts.filter(prompt => prompt.slot !== 'A');
+  if (detailed) {
+    const rows = (['A', 'B', 'C', 'ULT'] as const).flatMap(slot =>
+      fighter.actions.filter(action => !action.linkOnly).flatMap(action => {
+        const input = isAttack(action) && action.awakenJo ? joAwakenInput : action;
+        if (input.slot !== slot) return [];
+        const label = action.name ?? (input.direction ? directionLabels[input.direction] + '变招' : '招式');
+        return [makeMoveRow(seat, { slot, direction: input.direction, label }, label, moveDetail(action, fighter), action.comboKeys)];
+      })
+    );
+    list.replaceChildren(...rows);
+    return;
+  }
+  const prompts = [...commonMovePrompts];
+  if (directMoves(fighter, thirdUltimate).length) prompts.push(thirdUltimate);
+  if (fighter.actions.some(action => isAttack(action) && action.awakenJo)) {
+    prompts.push({ ...joAwakenInput, label: '觉醒' });
+  }
+  const visible = prompts.filter(prompt => prompt.slot !== 'A');
   const rows = visible.flatMap(prompt => {
     const moves = directMoves(fighter, prompt);
-    if (!moves.length) return [makeMoveRow(seat, prompt, prompt.label + ' · 未接入')];
-    if (detailed) return moves.map(action => {
-      const name = action.name ?? prompt.label;
-      const use = moveUses[action.id];
-      const detail = [use, postureHint(action), costHint(action)].filter(Boolean).join(' · ');
-      return makeMoveRow(seat, prompt, name, detail);
-    });
+    if (!moves.length) return [];
     const action = moves[0];
     const usage = action.name ?? prompt.label;
     const name = prompt.slot === 'C' && moves.length > 1 && fighter.id === 'gaga' ? '部署炮台' : moveUses[action.id] ?? usage;
@@ -479,13 +504,6 @@ function renderMoveList(list: HTMLElement, fighter: FighterDefinition, seat: Sea
       : moves.map(move => (move.posture === 'air' ? '空' : '地') + ' ' + costHint(move)).join('／');
     return [makeMoveRow(seat, prompt, name, detail)];
   });
-  if (detailed) for (const action of fighter.actions) {
-    if (action.linkOnly || (!action.comboKeys?.length && (!action.direction ||
-        prompts.some(prompt => prompt.slot === action.slot && prompt.direction === action.direction)))) continue;
-    const label = action.name ?? (action.direction ? directionLabels[action.direction] + '变招' : '变招');
-    rows.push(makeMoveRow(seat, { slot: action.slot, direction: action.direction, label }, label,
-      postureHint(action) + ' · ' + costHint(action), action.comboKeys));
-  }
   list.replaceChildren(...rows);
 }
 

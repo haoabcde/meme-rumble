@@ -117,7 +117,7 @@ test('Frog ascension and a pending Banana wave resume in order with resources an
   assert.ok(cat.energy > initialEnergy);
   const wave = banana.fighter.actions.find(move => move.id === bananaActionIds.joAwaken);
   cat.energy = naiva.energy = MAX_ENERGY;
-  assert.ok(step(state, [press('C'), NEUTRAL], config).some(event => event.kind === 'wave-windup'));
+  assert.ok(step(state, [vertical('C', -1), NEUTRAL], config).some(event => event.kind === 'wave-windup'));
   assert.ok(step(state, [NEUTRAL, press('ULT')], config).some(event => event.actionId === 'frog-ascend'));
   const pendingWave = structuredClone(cat.attack);
   const frogStart = state.arenaFrame;
@@ -180,6 +180,33 @@ test('Whale’s pool cinematic pauses Gaga’s deployed turret and lets both sys
 const production = [whale, frog, banana, gaga];
 const dummy = { fighter: testFighter };
 const vertical = (key, y) => ({ ...press(key), y });
+
+test('every directly bound production move can be started by both players', () => {
+  for (const entry of production) {
+    for (const move of entry.fighter.actions.filter(action => !action.linkOnly)) {
+      for (const seat of [0, 1]) {
+        const fighters = seat === 0 ? [entry, dummy] : [dummy, entry];
+        const { state, config } = match(fighters, 500);
+        const caster = state.fighters[seat];
+        caster.energy = MAX_ENERGY;
+        if (move.requiresJo) caster.joAwakened = true;
+        if (move.posture === 'air') {
+          caster.ground = null;
+          caster.y -= 120;
+        }
+        const key = move.awakenJo ? 'C' : move.slot;
+        const direction = move.awakenJo ? 'up' : move.direction;
+        const x = direction === 'back' ? -caster.facing : direction === 'forward' ? caster.facing : 0;
+        const y = direction === 'down' ? 1 : direction === 'up' ? -1 : 0;
+        const command = { x, y, pressed: [key], held: [key, ...(move.comboKeys ?? [])] };
+        const events = step(state, seat === 0 ? [command, NEUTRAL] : [NEUTRAL, command], config);
+        assert.ok(caster.attack?.id === move.id || events.some(event =>
+          event.kind === 'ultimate' && event.source === seat && event.actionId === move.id),
+          entry.fighter.id + ' / ' + move.id + ' / player ' + (seat + 1));
+      }
+    }
+  }
+});
 
 test('all four roles can confirm either early J into launcher, jump cancel and air J at zero energy', () => {
   for (const entry of production) {

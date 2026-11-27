@@ -37,8 +37,8 @@ const rice=(up=false):ActionDefinition&{slot:'B'}=>({
  startup:8,active:1,recovery:9,whale:up?'rice-up':'rice',hitTimeline:[],hitbox:{x:0,y:0,w:1,h:1},damage:0,hitstun:0,blockstun:0,guardCost:0,push:0,lift:0,stop:0,advance:0,pose:'strike',
  animation:[{frame:0,cell:68},{frame:8,cell:up?70:69},{frame:15,cell:77}],entities:[projectile(up?'rice-up':'rice','rice',8)]
 });
-const spin=(up=false):ActionDefinition&{slot:'B'}=>({
- id:up?'tornado-up':'tornado',name:up?'定点旋风':'旋风推进',slot:'B',posture:'ground',direction:up?'forward':'down',
+const spin=(up=false):ActionDefinition&{slot:'C'}=>({
+ id:up?'tornado-up':'tornado',name:up?'定点旋风':'旋风推进',slot:'C',posture:'ground',direction:up?'up':undefined,
  audioTimeline:[sfx(12,'wind')],
  startup:12,active:1,recovery:15,whale:up?'spin-up':'spin',hitTimeline:[],hitbox:{x:0,y:0,w:1,h:1},damage:0,hitstun:0,blockstun:0,guardCost:0,push:0,lift:0,stop:0,advance:0,pose:'strike',
  animation:[{frame:0,cell:up?76:72},{frame:6,cell:up?76:74},{frame:22,cell:77}],entities:[projectile(up?'spin-up':'spin',up?'spin-up':'spin',12)]
@@ -51,7 +51,7 @@ const counter:ActionDefinition&{slot:'C'}={...spin(),slot:'C',direction:undefine
  })],
  animation:[{frame:0,cell:72},{frame:3,cell:73},{frame:6,cell:74},{frame:9,cell:75},{frame:12,cell:77}]};
 const shelter:ActionDefinition&{slot:'C'}={
- ...counter,id:'whale-shelter',name:'护身旋风',linkOnly:false,startup:9,active:1,recovery:19,
+ ...counter,id:'whale-shelter',name:'护身旋风',direction:'down',linkOnly:false,startup:9,active:1,recovery:19,
  audioTimeline:[sfx(9,'wind')],entities:[projectile('whale-shelter','counter',9)]
 };
 const ult:ActionDefinition={...spin(),id:'open-source',name:'开源！',slot:'ULT',direction:undefined,whale:'open-source',cinematicFreeze:true,audioTimeline:[voice('ultimate-voice'),sfx(0,'summon')],startup:60,active:1,recovery:0,

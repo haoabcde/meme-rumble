@@ -61,11 +61,11 @@ test('rice direct hit damages and roots, floor contact only roots, airborne root
   const miss=setup(source,1300);miss.press('B');miss.run(135);assert.equal(miss.state.entities.length,0);
  }
 });
-test('down U tornado travels off stage, forward U tornado snapshots target x/caster y',()=>{
+test('I tornado travels off stage, up I tornado snapshots target x/caster y',()=>{
  for(const source of [0,1]){
-  const t=setup(source,800),x=t.caster.x;t.press('B',1);t.run(14);const e=t.state.entities.find(e=>e.definition.behavior==='spin');const ex=e.x;t.run(8);assert.equal(e.x-ex,24*e.facing*8);assert.equal(t.caster.x,x);
+  const t=setup(source,800),x=t.caster.x;t.press('C');t.run(14);const e=t.state.entities.find(e=>e.definition.behavior==='spin');const ex=e.x;t.run(8);assert.equal(e.x-ex,24*e.facing*8);assert.equal(t.caster.x,x);
   t.run(180);assert.equal(t.state.entities.length,0);
-  const up=setup(source,800);up.target.y-=120;up.target.ground=null;up.press('B',0,up.caster.facing);up.run(12);const u=up.state.entities.find(e=>e.definition.behavior==='spin-up');assert.equal(u.x,up.target.x);assert.equal(u.y,up.caster.y);const ux=u.x;up.target.x+=200;up.run(20);assert.equal(u.x,ux);assert.equal(u.windTicks,20);up.run(40);assert.equal(up.state.entities.length,0);
+  const up=setup(source,800);up.target.y-=120;up.target.ground=null;up.press('C',-1);up.run(12);const u=up.state.entities.find(e=>e.definition.behavior==='spin-up');assert.equal(u.x,up.target.x);assert.equal(u.y,up.caster.y);const ux=u.x;up.target.x+=200;up.run(20);assert.equal(u.x,ux);assert.equal(u.windTicks,20);up.run(40);assert.equal(up.state.entities.length,0);
  }
 });
 test('counter emits exactly eight equally spaced rice rays with mirrored authored velocity and unchanged rice effects',()=>{
@@ -126,10 +126,20 @@ test('holding the basin well beyond four ticks counters later melee and remote c
   t.run(8,...guard);assert.ok(t.state.entities.some(e=>e.definition.behavior==='counter'));
  }
 });
+test('down I creates the shelter on either seat', () => {
+ for (const seat of [0, 1]) {
+  const t = setup(seat, 900);
+  t.press('C', 1);
+  assert.equal(t.caster.attack?.id, 'whale-shelter');
+  t.run(10);
+  assert.ok(t.state.entities.some(entity => entity.definition.id === 'whale-shelter'));
+ }
+});
+
 test('both ranged tornado commands can be cast back-to-back without spending energy',()=>{
  for(const source of [0,1]){
   const t=setup(source,1000);
-  for(const fixed of [false,true,false,true]){const time=t.state.arenaFrame,energy=t.caster.energy;t.press('B',fixed?0:1,fixed?t.caster.facing:0);assert.equal(t.caster.attack.id,fixed?'tornado-up':'tornado');assert.equal(t.caster.energy,energy);for(let i=0;i<40&&t.caster.attack;i++)t.tick();assert.equal(t.caster.attack,null);assert.ok(t.state.arenaFrame-time<40);}
+  for(const fixed of [false,true,false,true]){const time=t.state.arenaFrame,energy=t.caster.energy;t.press('C',fixed?-1:0);assert.equal(t.caster.attack.id,fixed?'tornado-up':'tornado');assert.equal(t.caster.energy,energy);for(let i=0;i<40&&t.caster.attack;i++)t.tick();assert.equal(t.caster.attack,null);assert.ok(t.state.arenaFrame-time<40);}
  }
 });
 test('whale state, projectile physics, multihits and root restore deterministically; freeze pauses ages',()=>{
