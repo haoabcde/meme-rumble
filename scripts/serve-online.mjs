@@ -119,7 +119,13 @@ const http = createServer((request, response) => {
   if (siteHandler) return void siteHandler(request, response);
   response.writeHead(404).end();
 });
-const sockets = new WebSocketServer({ noServer: true, maxPayload: 2048 });
+const sockets = new WebSocketServer({ noServer: true, maxPayload: 2048,
+  // Repeated 60 Hz snapshots otherwise compete with artwork on small uplinks.
+  perMessageDeflate: {
+    threshold: 1024, serverNoContextTakeover: true, clientNoContextTakeover: true,
+    concurrencyLimit: 4, zlibDeflateOptions: { level: 3 }
+  }
+});
 http.on('upgrade', (request, socket, head) => {
   const origin = request.headers.origin ?? '';
   const allowed = isAllowedOrigin(origin, request.headers.host, acceptedOrigins);
