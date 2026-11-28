@@ -84,7 +84,7 @@ export function cpuInput(state: MatchState, config: MatchConfig): InputFrame {
     if (tears >= 35 && uppercut && higher > 60 && higher < -uppercut.y - 25 && distance < 110 && beat % 8 === 0) {
       return { x: 0, y: -1, pressed: ['B'] };
     }
-    if (tears >= 20 && Math.abs(higher) < 54 && distance >= 105 && distance <= sprayReach - 8 && beat % 12 === 0) {
+    if (tears >= 16 && Math.abs(higher) < 54 && distance >= 105 && distance <= sprayReach - 8 && beat % 12 === 0) {
       return { x: 0, y: 0, pressed: ['B'], held: ['B'] };
     }
   }

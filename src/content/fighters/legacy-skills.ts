@@ -8,6 +8,14 @@ import type { NormalMove, SignatureMove } from '../fighter-kit.js';
 export const LEGACY_ARCHIVE_BASELINE = 'origin/main@871cdb1';
 
 export const LEGACY_BANANA_SKILLS = Object.freeze({
+  // 2026-11-29 balance version, before the subsequent Banana usability pass.
+  usabilityPass: {
+    jabHitbox: { x: 20, y: -95, w: 83, h: 57 }, jabAdvance: 7, jabActiveAdvance: 2,
+    backhandHitbox: { x: 18, y: -100, w: 90, h: 66 },
+    headbuttHitbox: { x: 15, y: -113, w: 107, h: 85 },
+    pressureHitbox: { x: 18, y: -109, w: 440, h: 48 }, pressureTearCost: 20,
+    sheerHeartEnergyGain: 12, sheerHeartBlastRadius: 145, sheerHeartLife: 150
+  },
   cryEnergyPerTick: 2,
   joAwakenTrigger: 'C (I key) at 300 energy -> permanent joAwakened',
   joJabHitbox: { x: 20, y: -112, w: 276, h: 80 },

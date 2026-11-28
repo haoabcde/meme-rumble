@@ -29,12 +29,12 @@ test('gaga retains turret and counter identity with bounded field and slide dama
   assert.equal(action(gaga, gagaActionIds.xiraniteGuard).counterTo, gagaActionIds.xiraniteBurst);
 });
 
-test('banana gains baseline damage while JO projectile generates less energy', () => {
+test('banana retains baseline damage and restored JO projectile', () => {
   assert.equal(action(banana, bananaActionIds.jab).damage, 34);
   assert.equal(action(banana, bananaActionIds.backhand).damage, 38);
   const projectile = action(banana, bananaActionIds.joSheerHeart);
-  assert.equal(projectile.energyGain, 12);
-  assert.equal(projectile.projectile.life, 150);
-  assert.equal(projectile.projectile.blastRadius, 145);
+  assert.equal(projectile.energyGain, 28);
+  assert.equal(projectile.projectile.life, 210);
+  assert.equal(projectile.projectile.blastRadius, 165);
   assert.equal(action(banana, bananaActionIds.joAwaken).awakenJo, true);
 });

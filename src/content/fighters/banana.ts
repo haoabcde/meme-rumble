@@ -28,16 +28,16 @@ const normalMoves: NormalMove[] = [
   {
     id: bananaActionIds.jab, name: '左爪挠挠', slot: 'A', posture: 'ground',
     startup: 4, active: 2, recovery: 11,
-    hitbox: { x: 20, y: -95, w: 83, h: 57 },
+    hitbox: { x: 20, y: -105, w: 105, h: 72 },
     damage: 34, hitstun: 20, blockstun: 8, guardCost: 6, push: 2, lift: 0,
-    stop: 2, advance: 7, advanceFrom: 2, activeAdvance: 2, pose: 'strike', swingOnActive: true,
+    stop: 2, advance: 10, advanceFrom: 2, activeAdvance: 3, pose: 'strike', swingOnActive: true,
     impact: 'light', cancelOnHit: [bananaActionIds.lift, 'dash'], joReplacement: bananaActionIds.joJab,
     chain: { actionId: bananaActionIds.backhand, open: 8, close: 16 }
   },
   {
     id: bananaActionIds.backhand, name: '右爪挠挠', slot: 'A', posture: 'ground', linkOnly: true,
     startup: 5, active: 2, recovery: 12,
-    hitbox: { x: 18, y: -100, w: 90, h: 66 },
+    hitbox: { x: 18, y: -108, w: 108, h: 78 },
     damage: 38, hitstun: 26, blockstun: 9, guardCost: 7, push: 3, lift: 0,
     stop: 2, advance: 8, advanceFrom: 2, activeAdvance: 2, pose: 'sweep', swingOnActive: true,
     impact: 'light', cancelOnHit: [bananaActionIds.lift, 'dash'],
@@ -46,7 +46,7 @@ const normalMoves: NormalMove[] = [
   {
     id: bananaActionIds.headbutt, name: '蕉头顶撞', slot: 'A', posture: 'ground', linkOnly: true,
     startup: 9, active: 3, recovery: 16,
-    hitbox: { x: 15, y: -113, w: 107, h: 85 },
+    hitbox: { x: 15, y: -120, w: 120, h: 92 },
     damage: 58, hitstun: 32, blockstun: 12, guardCost: 11, push: 6, lift: 0,
     stop: 3, advance: 26, advanceFrom: 3, activeAdvance: 22, pose: 'strike', swingOnActive: true,
     impact: 'medium', chain: { actionId: bananaActionIds.cry, open: 15, close: 27 }
@@ -167,9 +167,9 @@ const normalMoves: NormalMove[] = [
   }
 ];
 
-const pressureBox = { x: 18, y: -109, w: 440, h: 48 };
+const pressureBox = { x: 18, y: -125, w: 440, h: 80 };
 const pressure: SignatureMove = {
-  id: bananaActionIds.pressure, name: '高压眼泪', slot: 'B', posture: 'ground', tearCost: 20,
+  id: bananaActionIds.pressure, name: '高压眼泪', slot: 'B', posture: 'ground', tearCost: 16,
   channel: 'spray', slow: 45,
   startup: 4, active: 12, recovery: 14,
   hitbox: pressureBox,
@@ -194,12 +194,12 @@ const signatureMoves: SignatureMove[] = [
   },
   {
     id: bananaActionIds.joSheerHeart, name: '第二炸弹·枯萎穿心攻击', slot: 'B', posture: 'any', linkOnly: true,
-    tearCost: 0, energyGain: 12, cancelOnHit: ['C'],
+    tearCost: 0, energyGain: 28, cancelOnHit: ['C'],
     startup: 5, active: 2, recovery: 12,
     hitbox: { x: 0, y: 0, w: 0, h: 0 }, hitTimeline: [],
     projectile: {
       kind: 'sheer-heart', x: 52, y: -12, vx: 4.6, vy: 0, gravity: 1, reach: 0,
-      radius: 24, blastRadius: 145, life: 150
+      radius: 24, blastRadius: 165, life: 210
     },
     damage: 112, hitstun: 30, blockstun: 14, guardCost: 22, push: 16, lift: 14,
     stop: 6, advance: 0, pose: 'strike', swingOnActive: true, standAttack: 'sheer-heart', impact: 'heavy',
