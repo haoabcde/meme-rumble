@@ -2,8 +2,6 @@ import normalGuardSource from '../../assets/fighters/unified-handdrawn-v1/motion
 import basicSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/basics.png';
 import sceneSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/scenes.png';
 import {frogMotionSample} from './frog-motion.mjs';
-import locomotionV25 from '../../assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png';
-import {registerLocomotion,setActorMotion,setFrogHurtPoses,drawActorMotion} from './actor-motion.mjs';
 import holyComboSource from '../../assets/角色/特效/奶蛙/强化普攻_V22/白金焰羽_八部件.png';
 import dragonRiseSource from '../../assets/角色/特效/奶蛙/强化普攻_V24/金白流光_龙抬头六帧.png';
 import {drawHolyCombo,registeredDragonFrames} from './frog-combo.mjs';
@@ -37,10 +35,9 @@ const load=(src:string)=>{const im=new Image();im.src=src;return im.decode().the
 const cutBody=(im:HTMLImageElement,columns:number,rows:number,cleanCells: number[] = []):HTMLCanvasElement[]=>cutGrid(im,columns,rows,{pixelate:false,cleanCells});
 void Promise.all([load(moveSource),load(angelSource),load(introSource),load(travelSource),load(goldSource),load(crouchSource)]).then(([m,a,i,t,v,c])=>{moves=cutBody(m,4,2,[6]);angels=cutBody(a,2,2);travel=cutBody(t,4,2);gold=cutGrid(v,2,2);crouch=cutBody(c,1,1)[0];intro=i;});
 void load(normalGuardSource).then(im=>normalGuard=cutBody(im,1,1)[0]);
-void load(basicSource).then(im=>{basics=cutBody(im,4,4);setFrogHurtPoses([basics[8],basics[9]]);});
+void load(basicSource).then(im=>{basics=cutBody(im,4,4);});
 void load(sceneSource).then(im=>scenes=cutBody(im,4,2));
 void load(thinkingSource).then(im=>thinking=cutBody(im,1,1)[0]);
-void load(locomotionV25).then(im=>registerLocomotion(im,'frog'));
 void load(holyComboSource).then(im=>holyComboArt=cutGrid(im,4,2));
 void load(dragonRiseSource).then(im=>dragonRiseArt=registeredDragonFrames(im));
 void load(starSource).then(im=>setStarArt(im));
@@ -115,10 +112,13 @@ export function drawFrogActor(g:CanvasRenderingContext2D,f:FighterState,state:Ma
  if(!moves.length)return;
  const frame=f.attack?.frame??0,powered=frogPowered(f,state),a=action&&'frog' in action?action.frog:undefined;
  const stage=['common-jab','common-sweep','frog-left-kick','frog-ha','common-finish'].indexOf(action?.id??'');
- let pose=f.guarding?7:a==='laugh'||a==='global'?6:stage>=0?stage+1:action?.id==='common-air'?3:0;
+ let pose=f.guarding?7:a==='laugh'||a==='global'?6:stage>=0?stage+1:action?.id==='common-air'||action?.id==='frog-air-pounce'?3:action?.id==='frog-guard-break'?5:0;
  const h=pose===5?100:130,evAge=state.arenaFrame-(f.poseEvent?.tick??-999);
- setActorMotion('frog',{moves});
- if(!powered&&state.phase==='fight'&&state.arenaFrame-(f.ascendEndVisual?.tick??-999)>=FROG_RULES.fadeTicks&&drawActorMotion(g,'frog',f,state,action,actions))return;
+ const warp=f.frogWarps?.at(-1),warpAge=state.arenaFrame-(warp?.tick??-999);
+ const dodge=f.frogDodge;
+ if(dodge&&dodge.arrivedAt===undefined&&f.dashActive&&f.hp>0&&!f.hitstun&&!f.recovery)return;
+ if(warpAge<FROG_RULES.warpHidden)return;
+ // Use the approved hand-drawn pose and travel sheets, rather than the older V25 silhouette.
  const motion=frogMotionSample(f,state,seat);
  if(motion&&(!powered||motion.bank==='scene'||!f.hp)){
   const im=(motion.bank==='scene'?scenes:basics)[motion.cell];
@@ -129,12 +129,8 @@ export function drawFrogActor(g:CanvasRenderingContext2D,f:FighterState,state:Ma
    actorImage(g,im,motion.height);g.restore();return;
   }
  }
- const warp=f.frogWarps?.at(-1),warpAge=state.arenaFrame-(warp?.tick??-999);
  g.save();g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
- const dodge=f.frogDodge;
- if(dodge&&dodge.arrivedAt===undefined&&f.dashActive&&f.hp>0&&!f.hitstun&&!f.recovery){g.restore();return;}
  if(dodge?.arrivedAt!==undefined&&state.arenaFrame-dodge.arrivedAt<3)g.globalAlpha*=clamp((state.arenaFrame-dodge.arrivedAt+1)/3);
- if(warpAge<FROG_RULES.warpHidden){g.restore();return;}
  if(warpAge<16){
   const rise=clamp((warpAge-FROG_RULES.warpHidden+1)/10),height=powered?182:104;
   g.beginPath();g.rect(-250,-300,500,300);g.clip();g.translate(0,height*(1-rise));

@@ -450,8 +450,8 @@ test('pool sounds follow entity age once through hitstop, ending with a distinct
  const config={fighters:[testFighter,testFighter]},entity={id:7,owner:0,definition:{behavior:'pool'},age:0};
  const state={round:1,phase:'fight',arenaFrame:0,fighters:[{attack:null},{attack:null}],entities:[entity]};
  audio.update(config,state,[]);audio.update(config,state,[]);assert.deepEqual(markers(context),[1]);
- entity.age=35;audio.update(config,state,[]);assert.equal(context.clips.length,1);
- for(let i=0;i<12;i++){entity.age=36+i*7;audio.update(config,state,[]);audio.update(config,state,[]);}
+ entity.age=41;audio.update(config,state,[]);assert.equal(context.clips.length,1);
+ for(let i=0;i<12;i++){entity.age=42+i*7;audio.update(config,state,[]);audio.update(config,state,[]);}
  assert.deepEqual(markers(context),[1,...Array(11).fill(2),3]);
  audio.stopAll();audio.update(config,state,[]);assert.equal(context.clips.length,14);
 });

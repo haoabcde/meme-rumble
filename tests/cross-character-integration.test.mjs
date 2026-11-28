@@ -43,7 +43,7 @@ function replay(state, config, ticks) {
   }
 }
 
-test('a held iron-basin guard counters Gaga’s airborne pole on either seat after its tap window expires', () => {
+test('a timed iron-basin guard counters Gaga’s airborne pole while holding past 8 frames blocks normally', () => {
   for (const gagaSeat of [0, 1]) {
     const whaleSeat = 1 - gagaSeat;
     const { state, config } = match(gagaSeat === 0 ? [gaga, whale] : [whale, gaga], 195);
@@ -56,17 +56,24 @@ test('a held iron-basin guard counters Gaga’s airborne pole on either seat aft
     assert.equal(defender.guarding, true);
 
     Object.assign(attacker, { y: config.arena.floor - 170, ground: null });
-    const unguarded = structuredClone(state);
+    const heldBlocked = structuredClone(state);
     const poleInput = [...neutral];
     poleInput[gagaSeat] = press('B');
-    const plainHit = [...step(unguarded, poleInput, config), ...advance(unguarded, config, 24)];
-    assert.deepEqual(plainHit.filter(event => event.kind === 'hit').map(event => event.actionId), [gagaActionIds.airThrow]);
-
     poleInput[whaleSeat] = guard;
-    const countered = [...step(state, poleInput, config), ...advance(state, config, 24, heldGuard)];
+    const blockedEvents = [...step(heldBlocked, poleInput, config), ...advance(heldBlocked, config, 24, heldGuard)];
+    assert.equal(blockedEvents.some(event => event.kind === 'parry'), false);
+    assert.ok(blockedEvents.some(event => event.kind === 'block'));
+
+    // Release and perform a fresh timed press within the 8-frame parry window as the thrown pole arrives.
+    advance(state, config, 1, neutral);
+    const poleOnly = [...neutral];
+    poleOnly[gagaSeat] = press('B');
+    step(state, poleOnly, config);
+    advance(state, config, 7, neutral);
+    const countered = [...advance(state, config, 20, heldGuard)];
     assert.deepEqual(countered.filter(event => event.kind === 'parry').map(event => event.source), [whaleSeat]);
     assert.ok(countered.some(event => event.kind === 'swing' && event.actionId === 'whale-counter'));
-    assert.equal(state.entities?.filter(entity => entity.definition.behavior === 'rice').length, 8);
+    assert.equal(state.entities?.filter(entity => entity.definition.behavior === 'rice').length, 7);
     assert.equal(defender.hp, whale.fighter.maxHp);
     assert.equal(defender.guard, rules.guardMax);
   }
@@ -78,16 +85,21 @@ test('two Banana tear blasts on the same tick trigger one Frog warp and are both
   const action = banana.fighter.actions.find(move => move.id === bananaActionIds.tear);
   const { vx, vy } = action.projectile;
   // Restore two existing shots one tick before both reach the same defender.
-  state.projectiles = [
+  const twoShots = [
     { x: defender.x - 65, y: defender.y - 70 },
     { x: defender.x - 70, y: defender.y - 80 }
   ].map(position => ({ ...position, actionId: action.id, source: 0, facing: 1, vx, vy, connected: false }));
   const unguarded = structuredClone(state);
+  unguarded.projectiles = structuredClone(twoShots);
   assert.equal(step(unguarded, neutral, config).filter(event => event.kind === 'hit').length, 2);
 
   const initialTears = attacker.tearUnits;
   const crouch = { ...press('C'), held: ['C'] };
-  const contact = step(state, [NEUTRAL, crouch], config);
+  // Enter active crouch window (2-frame startup) before the tear blasts arrive.
+  step(state, [NEUTRAL, crouch], config);
+  step(state, [NEUTRAL, { ...NEUTRAL, held: ['C'] }], config);
+  state.projectiles = structuredClone(twoShots);
+  const contact = step(state, [NEUTRAL, { ...NEUTRAL, held: ['C'] }], config);
   assert.equal(contact.filter(event => event.kind === 'tear-splash').length, 2);
   assert.deepEqual(contact.filter(event => event.kind === 'parry').map(event => event.source), [1]);
   assert.ok(!contact.some(event => event.kind === 'hit'));
@@ -117,7 +129,7 @@ test('Frog ascension and a pending Banana wave resume in order with resources an
   assert.ok(cat.energy > initialEnergy);
   const wave = banana.fighter.actions.find(move => move.id === bananaActionIds.joAwaken);
   cat.energy = naiva.energy = MAX_ENERGY;
-  assert.ok(step(state, [press('C'), NEUTRAL], config).some(event => event.kind === 'wave-windup'));
+  assert.ok(step(state, [press('ULT'), NEUTRAL], config).some(event => event.kind === 'wave-windup'));
   assert.ok(step(state, [NEUTRAL, press('ULT')], config).some(event => event.actionId === 'frog-ascend'));
   const pendingWave = structuredClone(cat.attack);
   const frogStart = state.arenaFrame;

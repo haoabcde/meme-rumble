@@ -265,7 +265,7 @@ function validateMoves(owner: string, actions: FighterAction[], audio: FighterAu
       previous = key.frame;
     }
   }
-  const legalTargets = new Set([...ids, 'A', 'B', 'C', 'jump']);
+  const legalTargets = new Set([...ids, 'A', 'B', 'C', 'jump', 'dash']);
   if (actions.some(action => action.slot === 'ULT')) legalTargets.add('ULT');
   for (const action of actions) {
     if ('chain' in action && action.chain) {

@@ -7,7 +7,7 @@ export const rules: Ruleset = {
   guardMax: 100,
   guardDelay: 60,
   guardBreak: 45,
-  dashGuardCost: { ground: 20, air: 30 },
+  dashGuardCost: { ground: 12, air: 18 },
   dashInvulnerable: true,
   dashPassThrough: true,
   airDashPauseGravity: true,

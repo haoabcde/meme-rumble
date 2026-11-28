@@ -440,7 +440,7 @@
             <article><h3 class="p1">P1 玩家一</h3><dl id="guide-one"></dl></article>
             <article><h3 class="p2">P2 玩家二</h3><dl id="guide-two"></dl></article>
           </div>
-          <p>二段跳和空中冲刺每次离地可选一次。角色旁的亮菱形表示还有机会。站在平台上可用下方向＋跳跃逐层下穿。</p>
+          <p>每次离地后，二段跳和空中冲刺各可使用一次，落地后恢复。站在平台上可用下方向＋跳跃逐层下穿。</p>
           <p>按 <kbd>Esc</kbd> 暂停，在暂停菜单打开招式表。自由训练中按 <kbd>H</kbd> 查看判定框和动作数据。</p>
         </div>
         <div id="guide-moves" hidden>
@@ -474,6 +474,8 @@
     <footer class="cabinet-footer" id="cabinet-footer">
       <span id="footer-main">桌面浏览器 · 键盘操作</span>
       <span id="footer-detail">同机双人 / 人机 / 自由训练</span>
+      <button type="button" id="quick-moves-button" class="subtle" hidden aria-expanded="false" aria-controls="quick-moves">招式</button>
+      <aside id="quick-moves" class="quick-moves" hidden aria-label="快速招式对照"><div id="quick-moves-one"></div><div id="quick-moves-two"></div></aside>
       <div id="fight-key-hints" class="fight-key-hints" hidden>
         <span id="fight-keys-one" class="p1"></span>
         <span id="fight-keys-two" class="p2"></span>

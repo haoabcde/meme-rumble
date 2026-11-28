@@ -2,7 +2,13 @@ import type {ActionDefinition,Box,FighterState,MatchConfig,MatchState} from './t
 import type {EntityState} from './entities.js';
 import {platformAt} from './terrain.js';
 
-export const WHALE_RULES=Object.freeze({riceLife:120,bind:72,eatChance:.2,riceSpeed:28,riceUpSpeed:32,riceRange:518.4,wind:20,whale:48,windSpeed:24,cinematic:60,telegraph:36,ultimateHits:12,hitGap:7,finalLift:18});
+export const WHALE_RULES=Object.freeze({riceLife:120,riceHp:40,bind:72,eatChance:.2,riceSpeed:28,riceUpSpeed:32,riceRange:518.4,wind:20,whale:48,windSpeed:24,cinematic:60,telegraph:42,ultimateHits:12,hitGap:7,finalLift:18});
+export function destructibleEntityBox(e:EntityState):Box|undefined{
+ if(e.definition.behavior==='rice'&&e.grounded&&(e.hp??0)>0){
+  return {x:e.x-24,y:e.y-44,w:48,h:48};
+ }
+ return undefined;
+}
 /** All randomness lives in the snapshot, never in Math.random or the renderer. */
 export function riceRoll(state:MatchState){
  let x=state.randomState??0x6d2b79f5;
@@ -54,7 +60,7 @@ export function advanceKitEntity(e:EntityState,state:MatchState,config:MatchConf
   }return true;}
   e.x+=e.vx;e.y+=e.vy;
   if(e.vy>0){let floor=config.arena.floor-5,support='floor';for(const raw of config.arena.platforms){const p=platformAt(raw,state.arenaFrame);if(e.x>=p.left&&e.x<=p.right&&(e.previousY??e.y)<=p.y-5&&e.y>=p.y-5&&p.y-5<floor){floor=p.y-5;support=p.id;}}
-   if((e.previousY??e.y)<=floor&&e.y>=floor){const portion=(floor-(e.previousY??e.y))/e.vy;e.x=(e.previousX??e.x)+e.vx*portion;e.grounded=true;e.support=support;e.y=floor;e.vx=e.vy=0;}}
+   if((e.previousY??e.y)<=floor&&e.y>=floor){const portion=(floor-(e.previousY??e.y))/e.vy;e.x=(e.previousX??e.x)+e.vx*portion;e.grounded=true;e.support=support;e.y=floor;e.vx=e.vy=0;e.hp=WHALE_RULES.riceHp;e.maxHp=WHALE_RULES.riceHp;}}
   if(e.x<config.arena.left-64||e.x>config.arena.right+64||e.y< -64)e.endingAge=e.age;
   return true;
  }

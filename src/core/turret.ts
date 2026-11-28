@@ -4,7 +4,8 @@ import { isAttack, type CombatEvent, type MatchConfig, type MatchState, type Pow
 export const turretBuildTicks = 20;
 const buildWaveRadius = 112;
 const turretKeyframes = [0, 3, 7, 11, 16, turretBuildTicks];
-const turretHealth = 2;
+export const turretHealth = 90;
+export const pylonHealth = 110;
 const turretIntervalSeconds = 2;
 const turretLifetimeSeconds = 30;
 const turretSlots = ['bolt', 'howitzer', 'bolt-second', 'howitzer-second'] as const;
@@ -15,6 +16,15 @@ export function turretBoosted(state: MatchState, turret: Turret): PowerPylon | u
   return Math.hypot(turret.x - pylon.x, turret.y - pylon.y) <= pylon.radius ? pylon : undefined;
 }
 
+export function pylonBox(pylon: PowerPylon) {
+  return { x: pylon.x - 28, y: pylon.y - 108, w: 56, h: 108 };
+}
+
+export function opposingPylon(state: MatchState, owner: 0 | 1): PowerPylon | undefined {
+  const pylon = state.powerPylons?.[1 - owner];
+  return pylon && pylon.remaining > 0 && pylon.hp > 0 ? pylon : undefined;
+}
+
 export function plantPowerPylon(state: MatchState, source: 0 | 1, x: number, y: number, facing: Side,
   radius: number, duration: number, events: CombatEvent[], support?: string) {
   state.powerPylons ??= [null, null];
@@ -22,8 +32,19 @@ export function plantPowerPylon(state: MatchState, source: 0 | 1, x: number, y: 
   if (old) {
     events.push({ kind: 'pylon-expire', source, x: old.x, y: old.y, radius: old.radius });
   }
-  state.powerPylons[source] = { owner: source, x, y, facing, age: 0, remaining: duration, radius, ...(support && { support }) };
+  state.powerPylons[source] = {
+    owner: source, x, y, facing, age: 0, remaining: duration, radius,
+    hp: pylonHealth, maxHp: pylonHealth, ...(support && { support })
+  };
   events.push({ kind: 'pylon-plant', source, x, y, facing, radius });
+}
+
+export function damagePowerPylon(state: MatchState, pylon: PowerPylon, events: CombatEvent[], amount = 45) {
+  pylon.hp = Math.max(0, pylon.hp - Math.max(1, Math.round(amount)));
+  if (pylon.hp === 0 && state.powerPylons?.[pylon.owner] === pylon) {
+    state.powerPylons[pylon.owner] = null;
+    events.push({ kind: 'pylon-expire', source: pylon.owner, x: pylon.x, y: pylon.y, radius: pylon.radius });
+  }
 }
 
 export function stepPowerPylons(state: MatchState, events: CombatEvent[]) {
@@ -72,13 +93,15 @@ export function deployTurret(state: MatchState, kind: TurretKind, source: 0 | 1,
     slots.find(key => !state.turrets[key]);
   if (!slot) return;
   clearTurret(state, slot, events);
-  state.turrets[slot] = { kind, owner: source, x, y, facing, age: 0, hp: turretHealth, charge: 0, ...(support && { support }) };
+  state.turrets[slot] = { kind, owner: source, x, y, facing, age: 0, hp: turretHealth, maxHp: turretHealth, charge: 0, ...(support && { support }) };
   events.push({ kind: 'turret-land', source, turretKind: kind, x, y, facing });
 }
 
-export function damageTurret(state: MatchState, turret: Turret, events: CombatEvent[]) {
+export function damageTurret(state: MatchState, turret: Turret, events: CombatEvent[], amount = 45) {
   const slot = turretSlots.find(key => state.turrets[key] === turret);
-  if (slot && --turret.hp === 0) clearTurret(state, slot, events);
+  if (!slot) return;
+  turret.hp = Math.max(0, turret.hp - Math.max(1, Math.round(amount)));
+  if (turret.hp === 0) clearTurret(state, slot, events);
 }
 
 export function fireTurretShot(state: MatchState, config: MatchConfig, turret: Turret, events: CombatEvent[]) {

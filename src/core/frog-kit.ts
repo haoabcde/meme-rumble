@@ -1,17 +1,22 @@
 import {MAX_ENERGY,type ActionDefinition,type Box,type FighterAction,type FighterState,type MatchConfig,type MatchState} from './types.js';
 import {platformAt} from './terrain.js';
 
-export const FROG_RULES=Object.freeze({buffTicks:900,fadeTicks:36,fadeLife:180,body:80,laughRadius:240,poweredLaughRange:1.4,poweredLaughDamage:1.4,poweredSpeed:1.5,incomingDamage:.7,warpGain:20,warpHidden:6});
+export const FROG_RULES=Object.freeze({
+ buffTicks:660,fadeTicks:36,fadeLife:180,body:80,laughRadius:240,
+ poweredMeleeScale:1.25,poweredLaughRange:1.25,poweredLaughDamage:1.25,
+ poweredSpeed:1.25,poweredDashScale:1.35,incomingDamage:.88,
+ warpGain:15,warpHidden:6,crouchStartup:2,crouchMaxTicks:36,crouchCooldown:90,globalCooldown:240
+});
 export const frogPowered=(f:FighterState,state:MatchState)=>(f.ascendUntil??0)>state.arenaFrame;
 export function frogBox(box:Box,scale:number):Box{return {x:box.x*scale,y:(box.y+65)*scale-65,w:box.w*scale,h:box.h*scale};}
 export function frogAction(action:FighterAction|undefined,f:FighterState,state:MatchState):FighterAction|undefined{
  if(!action||'counterTo' in action||!frogPowered(f,state))return action;
- const reach='frog' in action&&action.frog==='laugh'?FROG_RULES.poweredLaughRange:1.5;
+ const reach='frog' in action&&action.frog==='laugh'?FROG_RULES.poweredLaughRange:FROG_RULES.poweredMeleeScale;
  const basic=action.slot==='A';
  const combo=['common-jab','common-sweep','frog-left-kick','frog-ha','common-finish'].indexOf(action.id);
- const attackBox=(box:Box)=>{const b=frogBox(box,1.5);return basic?{...b,x:b.x*1.2,w:b.w*1.2}:b;};
+ const attackBox=(box:Box)=>frogBox(box,FROG_RULES.poweredMeleeScale);
  const hitClip=basic?'holy-melee-hit':'holy-hit';
- const damage=action.frog==='laugh'||action.frog==='global'?FROG_RULES.poweredLaughDamage:1.5;
+ const damage=action.frog==='laugh'||action.frog==='global'?FROG_RULES.poweredLaughDamage:FROG_RULES.poweredMeleeScale;
  const scaleDamage=(n:number)=>Math.round(n*damage*1000)/1000;
  return {...action,audioTimeline:action.audioTimeline?.map(c=>c.channel==='sfx'?{...c,clip:basic&&c.clip==='melee-swing'?'holy-combo-'+(combo<0?3:combo+1):['wave','global-wave'].includes(c.clip)?'holy-wave':c.clip}:c),feedback:action.feedback?{...action.feedback,audio:{clip:hitClip}}:action.feedback,damage:scaleDamage(action.damage),hitbox:attackBox(action.hitbox),
   hitTimeline:action.hitTimeline?.map(w=>({...w,boxes:w.boxes.map(attackBox),...(w.damage!==undefined?{damage:scaleDamage(w.damage)}:{})})),
@@ -20,16 +25,23 @@ export function frogAction(action:FighterAction|undefined,f:FighterState,state:M
 export function frogCanStart(action:FighterAction,f:FighterState,state:MatchState){
  if(!('frog' in action))return true;
  if((action.frog==='laugh'||action.frog==='global')&&!f.ground&&!frogPowered(f,state))return false;
+ if(action.frog==='crouch'&&(f.frogCrouchCooldownUntil??0)>state.arenaFrame)return false;
+ if(action.frog==='global'&&(f.frogGlobalCooldownUntil??0)>state.arenaFrame)return false;
  return !(action.frog==='ascend'&&frogPowered(f,state));
 }
 export function startFrog(action:ActionDefinition,f:FighterState,state:MatchState,config:MatchConfig,seat:0|1){
  if(action.frog==='burrow')warpFrog(state,config,seat,seat===0?1:0,'burrow');
+ if(action.frog==='global')f.frogGlobalCooldownUntil=state.arenaFrame+FROG_RULES.globalCooldown;
  if(action.slot==='A'||action.frog==='laugh'||action.frog==='global'){
   (f.frogCasts??=[]).push({id:action.id,tick:state.arenaFrame,x:f.x,y:f.y,facing:f.facing,powered:frogPowered(f,state),startup:action.startup});
  }
 }
-/** Holding C catches contact from either side; it is not a guard or a damaging attack. */
-export function frogCrouching(f:FighterState){return f.attack?.id==='frog-crouch'&&Boolean(f.ground)&&!f.hitstun&&!f.blockstun&&!f.recovery;}
+/** Holding C catches contact only during its active window (frames 2..37); not infinite. */
+export function frogCrouching(f:FighterState){
+ return f.attack?.id==='frog-crouch'&&f.attack.frame>=FROG_RULES.crouchStartup&&
+  f.attack.frame<FROG_RULES.crouchStartup+FROG_RULES.crouchMaxTicks&&
+  Boolean(f.ground)&&!f.hitstun&&!f.blockstun&&!f.recovery;
+}
 export function warpFrog(state:MatchState,config:MatchConfig,seat:0|1,target:0|1,kind:'behind'|'burrow'){
  const f=state.fighters[seat],enemy=state.fighters[target],arena=config.arena;
  const fromX=f.x,fromY=f.y,powered=frogPowered(f,state);
@@ -44,11 +56,11 @@ export function warpFrog(state:MatchState,config:MatchConfig,seat:0|1,target:0|1
  f.ground=support?.id??(f.y>=arena.floor?'floor':null);f.vy=0;f.push=0;f.dash=0;f.dashActive=false;
  f.guarding=false;f.moving=false;f.ignorePlatform=null;f.buffer=[];delete f.guardCounterLeft;
  f.facing=f.x===enemy.x?enemy.facing===1?-1:1:f.x<enemy.x?1:-1;
- if(f.ground){f.airActionUsed=false;f.jumpCount=0;f.secondApex=false;}
+ if(f.ground){f.airActionUsed=false;f.airJumpUsed=false;f.airDashUsed=false;f.jumpCount=0;f.secondApex=false;}
  (f.frogWarps??=[]).push({tick:state.arenaFrame,fromX,fromY,toX:f.x,toY:f.y,powered,kind});
  if(kind==='behind'){
+  f.frogCrouchCooldownUntil=state.arenaFrame+FROG_RULES.crouchCooldown;
   f.attack={id:'frog-evade',frame:0,connected:true,landed:false};
-  if(powered)f.frogFollowup=true;
   f.energy=Math.min(MAX_ENERGY,f.energy+FROG_RULES.warpGain);
  }
 }

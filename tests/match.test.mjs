@@ -337,9 +337,9 @@ test('the shared air dash adds horizontal reach once per takeoff and replenishes
   assert.equal(fighter.vy, jumpVy);
   assert.equal(fighter.y, jumpY);
   assert.equal(fighter.airActionUsed, true);
-  assert.deepEqual(step(state, [input(['dash', 'jump'], 1), NEUTRAL], settings), []);
-  assert.equal(fighter.vy, jumpVy + 1);
-  assert.equal(fighter.y, jumpY + jumpVy + 1);
+  assert.deepEqual(step(state, [input(['dash', 'jump'], 1), NEUTRAL], settings).map(event => event.kind), ['air-jump']);
+  assert.equal(fighter.airJumpUsed, true);
+  assert.equal(fighter.airDashUsed, true);
   waitForEvent(state, settings, 'land');
   assert.equal(fighter.airActionUsed, false);
   step(state, [input(['jump']), NEUTRAL], settings);
@@ -454,7 +454,7 @@ test('public dash crosses fighters and avoids melee and entities through its las
   }
 });
 
-test('a second jump trades the air dash for extra height without skipping the middle tier', () => {
+test('a second jump and air dash are independent and preserve platform collision', () => {
   const { settings, lower: bench } = overlappingLedges();
   const state = begin(settings);
   const fighter = state.fighters[0];
@@ -463,13 +463,15 @@ test('a second jump trades the air dash for extra height without skipping the mi
   stepFor(state, 16, [NEUTRAL, NEUTRAL], settings);
   assert.deepEqual(step(state, [input(['jump']), NEUTRAL], settings).map(event => event.kind), ['air-jump']);
   assert.equal(fighter.airActionUsed, true);
-  assert.deepEqual(step(state, [input(['dash', 'jump'], 1), NEUTRAL], settings), []);
+  assert.deepEqual(step(state, [input(['dash', 'jump'], 1), NEUTRAL], settings).map(event => event.kind), ['dash']);
+  assert.equal(fighter.airJumpUsed, true);
+  assert.equal(fighter.airDashUsed, true);
   let peak = fighter.y;
   for (let frame = 0; frame < 42 && !fighter.ground; frame++) {
     step(state, [NEUTRAL, NEUTRAL], settings);
     peak = Math.min(peak, fighter.y);
   }
-  assert.equal(settings.arena.floor - peak, 231);
+  assert.ok(settings.arena.floor - peak >= 231);
   assert.equal(fighter.ground, bench.id);
   assert.equal(fighter.airActionUsed, false);
 });

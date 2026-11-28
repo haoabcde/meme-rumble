@@ -91,11 +91,11 @@ export function cpuInput(state: MatchState, config: MatchConfig): InputFrame {
   const route = approachPlatform(state, config);
   if (route) return route;
   if (!cpu.ground) {
-    if (!cpu.airActionUsed && airJump && cpu.vy >= -3 && higher > 60 && higher < 131 &&
+    if (!cpu.airJumpUsed && airJump && cpu.vy >= -3 && higher > 60 && higher < 131 &&
       distance < 164 && beat % 9 === 2) {
       return { x: direction, y: 0, pressed: ['jump'] };
     }
-    if (airDash && !cpu.airActionUsed && distance > 150 && distance < 340 &&
+    if (airDash && !cpu.airDashUsed && distance > 150 && distance < 340 &&
       Math.abs(higher) < 110 && beat % 9 === 2) {
       return { x: direction, y: 0, pressed: ['dash'] };
     }

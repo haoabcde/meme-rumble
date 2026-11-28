@@ -1,7 +1,5 @@
 import type {FighterAction,FighterState,MatchConfig,MatchState} from '../core/types.js';
 import {motionArt} from './art.js';
-import locomotionV25 from '../../assets/角色/基础动作/大肥鱼/V25/步态与起落_十六帧.png';
-import {registerLocomotion,setActorMotion,drawActorMotion} from './actor-motion.mjs';
 import {whaleTailPose} from './whale-tail-cleanup.mjs';
 import {createUnifiedTornadoRenderer} from '../../assets/角色/防御/大肥鱼/蓝色龙卷风/旋风鲸影_统一渲染_V8.mjs';
 import {createUltimateRenderer} from './whale-ultimate.mjs';
@@ -19,7 +17,6 @@ import fishSchool from '../../assets/角色/特效/大肥鱼/水鲸鱼群_V3/流
 
 let tornado:any,ultimate:any,water:any;
 const load=(src:string)=>{const im=new Image();im.src=src;return im.decode().then(()=>im)};
-void load(locomotionV25).then(im=>registerLocomotion(im,'whale'));
 
 void Promise.all(Object.entries({portrait,waterWhale,waterParts,runeParts,whaleTurn,whaleLeap,fishSchool,poolParts}).map(async([k,v])=>[k,await load(v)] as const)).then(entries=>{
  const images=Object.fromEntries(entries);water=createWaterRenderer(images,{preview:true});tornado=createUnifiedTornadoRenderer(water.whales[0]);ultimate=createUltimateRenderer(images,water);
@@ -47,8 +44,6 @@ export function whaleCell(f:FighterState,state:MatchState,seat:0|1,action?:Fight
 }
 export function drawWhaleActor(ctx:CanvasRenderingContext2D,f:FighterState,state:MatchState,seat:0|1,action?:FighterAction,actions:readonly FighterAction[]=[]){
  const sheet=motionArt.whale;if(!sheet?.naturalWidth)return;
- setActorMotion('whale',{sheet});
- if(state.phase==='fight'&&drawActorMotion(ctx,'whale',f,state,action,actions))return;
  let cell=whaleCell(f,state,seat,action);
  if(action&&'whale' in action&&(action.whale==='spin'||action.whale==='counter')){
   const age=f.attack?.frame??0;if(age<(action.whale==='counter'?20:12))return;
@@ -74,6 +69,7 @@ export function drawWhaleEntities(ctx:CanvasRenderingContext2D,state:MatchState,
  }
  for(const seat of [0,1] as const){const f=state.fighters[seat],a=config.fighters[seat].actions.find(a=>a.id===f.attack?.id),age=f.attack?.frame??0;
   if(a&&'whale' in a&&a.whale==='spin'&&age<12)tornado?.formation(ctx,{x:f.x,y:f.y},age,layer);
+  if(a?.id==='whale-whirlwind-dash' && age>=a.startup && age<a.startup+a.active) tornado?.wind(ctx,f.x,f.y,age-a.startup,layer,a.active);
   if(config.fighters[seat].id==='whale')water?.motion(ctx,f,state,a,layer);
   if(layer==='front'&&(f.bindUntil??0)>state.arenaFrame)riceBlob(ctx,f.x,f.y-3,21);
  }

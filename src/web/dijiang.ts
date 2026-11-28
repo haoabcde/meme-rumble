@@ -1,4 +1,4 @@
-import portrait from '../../assets/fighters/gaga-dijiang.webp';
+import portrait from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-dijiang.webp';
 import ship from '../../assets/props/dijiang-impact.webp';
 import { dijiangPitch, dijiangTip, summonArea, summonFallFrames, summonImpactFrames } from '../core/summon.js';
 import type { Summon } from '../core/types.js';
@@ -15,7 +15,7 @@ shipArt.src = ship;
 
 /** Close-ups in the order the summon is performed: reaching for a pocket, raising the terminal, pressing it, clenching a fist. */
 export const summonPoses = [
-  [130, 5, 266, 262], [623, 5, 259, 257], [106, 347, 298, 258], [623, 345, 275, 255]
+  [160, 8, 445, 393], [920, 8, 437, 386], [163, 520, 464, 387], [932, 516, 431, 382]
 ] as const;
 // Where the pressed key and the lit screen sit inside the third close-up.
 export const summonTerminal = { key: [.633, .783], screen: [.778, .320] } as const;

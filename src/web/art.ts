@@ -1,23 +1,23 @@
 import arcade from '../../assets/ui/arcade.webp';
 import comic from '../../assets/ui/comic-paper.webp';
-import gagaActions from '../../assets/fighters/gaga-actions.webp';
+import gagaActions from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-actions.webp';
 import gagaBase from '../../assets/fighters/gaga-base.webp';
 import gagaSword from '../../assets/fighters/gaga-sword.webp';
 import gagaSwordWave from '../../assets/fighters/gaga-sword-wave.webp';
 import gagaCrystalSpire from '../../assets/fighters/gaga-crystal-spire.webp';
 import gagaXiranite from '../../assets/fighters/gaga-xiranite.webp';
 import gagaDive from '../../assets/fighters/gaga-dive.webp';
-import gagaCombo from '../../assets/fighters/gaga-basic-combo.webp';
-import gagaFinish from '../../assets/fighters/gaga-combo-finish.webp';
-import gagaPoleAttacks from '../../assets/fighters/gaga-pole-attacks.webp';
-import gagaPoleLaunch from '../../assets/fighters/gaga-pole-launch.webp';
-import gagaAirPole from '../../assets/fighters/gaga-air-pole.webp';
-import gagaTurretTerminal from '../../assets/fighters/gaga-turret-terminal.webp';
+import gagaCombo from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-basic-combo.webp';
+import gagaFinish from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-combo-finish.webp';
+import gagaPoleAttacks from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-pole-attacks.webp';
+import gagaPoleLaunch from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-pole-launch.webp';
+import gagaAirPole from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-air-pole.webp';
+import gagaTurretTerminal from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-turret-terminal.webp';
 import gagaTurretDeploy from '../../assets/props/gaga-turret-deploy.webp';
 import gagaHowitzerDeploy from '../../assets/props/gaga-howitzer-deploy.webp';
 import gagaPole from '../../assets/fighters/gaga-pole.webp';
 import gagaPolePlant from '../../assets/fighters/gaga-pole-plant.webp';
-import gagaReactions from '../../assets/fighters/gaga-hit-reactions.webp';
+import gagaReactions from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-hit-reactions.webp';
 import dorm from '../../assets/arenas/dorm-bg.webp';
 import court from '../../assets/arenas/court-bg.webp';
 import harbor from '../../assets/arenas/harbor-quay.webp';
@@ -80,16 +80,16 @@ function pose(left: number, top: number, width: number, height: number, pivot: n
 
 const reactionPoses: Record<HitReaction['kind'], [ActionPose, ActionPose, ActionPose, ActionPose]> = {
   light: [
-    pose(48, 8, 159, 210, 132), pose(287, 8, 165, 209, 391),
-    pose(546, 8, 168, 209, 630), pose(804, 6, 161, 211, 891)
+    pose(87, 18, 214, 306, 198), pose(444, 16, 234, 308, 587),
+    pose(834, 27, 227, 297, 945), pose(1232, 17, 208, 307, 1336)
   ],
   heavy: [
-    pose(32, 235, 181, 206, 121), pose(278, 238, 205, 203, 379),
-    pose(544, 254, 178, 187, 630), pose(811, 233, 160, 209, 891)
+    pose(55, 359, 267, 298, 182), pose(428, 364, 301, 293, 568),
+    pose(842, 391, 240, 267, 945), pose(1229, 358, 218, 300, 1336)
   ],
   air: [
-    pose(32, 458, 194, 202, 127), pose(274, 458, 186, 178, 377),
-    pose(520, 458, 192, 218, 627), pose(802, 487, 169, 189, 887)
+    pose(52, 690, 292, 292, 190), pose(427, 691, 263, 259, 565),
+    pose(788, 699, 284, 311, 940), pose(1219, 737, 225, 275, 1330)
   ]
 };
 
@@ -107,22 +107,22 @@ export function gagaReactionPose(reaction: HitReaction, vy: number) {
   } else {
     index = elapsed < 3 ? 0 : elapsed < 7 ? 1 : elapsed < 12 ? 2 : 3;
   }
-  return { image: reactionAtlas, region: reactionPoses[kind][index], scaleX: .58, scaleY: .58 };
+  return { image: reactionAtlas, region: reactionPoses[kind][index], scaleX: .45, scaleY: .45 };
 }
 
 // Feet stay on the same ground plane as the body turns and changes shape.
 const gagaComboPoses: Partial<Record<string, [ActionPose, ActionPose, ActionPose, ActionPose]>> = {
   [gagaActionIds.jab]: [
-    pose(42, 11, 164, 203, 115), pose(286, 12, 173, 202, 369),
-    pose(526, 16, 227, 198, 625), pose(808, 10, 156, 204, 891)
+    pose(70, 22, 228, 298, 173), pose(440, 24, 255, 293, 554),
+    pose(816, 31, 333, 287, 937), pose(1224, 22, 221, 297, 1336)
   ],
   [gagaActionIds.backhand]: [
-    pose(51, 234, 145, 210, 122), pose(273, 236, 182, 207, 371),
-    pose(527, 245, 201, 198, 618), pose(811, 235, 164, 209, 895)
+    pose(85, 362, 213, 300, 183), pose(434, 358, 249, 302, 556),
+    pose(804, 378, 298, 280, 927), pose(1232, 362, 230, 300, 1342)
   ]
 };
 
-const rushPose = pose(22, 105, 230, 178, 121);
+const rushPose = pose(31, 161, 330, 261, 182);
 
 const impactStretch: Partial<Record<string, [number, number]>> = {
   [gagaActionIds.jab]: [1.12, .93],
@@ -150,7 +150,7 @@ export interface GagaActionPose {
 /** Frames of each round's opening on which a step of the terminal routine begins. The opening runs 192 frames. */
 export const gagaIntroBeats = { pocket: 40, take: 63, press: 83, point: 107, relax: 159 } as const;
 
-const poleScale = .59;
+const poleScale = .45;
 
 function poleFrame(region: ActionPose, handX: number, handY: number, angle: number, projection: number) {
   return {
@@ -165,16 +165,16 @@ function poleFrame(region: ActionPose, handX: number, handY: number, angle: numb
 // Horizontal moves shorten the pole through the turn in depth.
 const gagaPolePoses: Map<string, ReturnType<typeof poleFrame>[]> = new Map([
   [gagaActionIds.poleSweep, [
-    poleFrame(pose(34, 6, 176, 208, 125), 82, 161, .03, -.85),
-    poleFrame(pose(291, 6, 173, 208, 378), 386, 149, .09, -.34),
-    poleFrame(pose(527, 9, 203, 205, 621), 708, 129, -.13, 1),
-    poleFrame(pose(804, 6, 167, 208, 887), 861, 139, .10, .78)
+    poleFrame(pose(55, 12, 266, 306, 187), 123, 241, .03, -.85),
+    poleFrame(pose(439, 12, 251, 306, 567), 579, 224, .09, -.34),
+    poleFrame(pose(796, 21, 305, 297, 931), 1062, 193, -.13, 1),
+    poleFrame(pose(1207, 15, 248, 303, 1330), 1292, 208, .10, .78)
   ]],
   [gagaActionIds.poleBacksweep, [
-    poleFrame(pose(36, 232, 168, 211, 119), 81, 333, .10, .72),
-    poleFrame(pose(292, 233, 167, 210, 379), 384, 350, -.10, .28),
-    poleFrame(pose(531, 235, 202, 207, 621), 706, 353, .17, 1),
-    poleFrame(pose(802, 235, 172, 208, 887), 915, 394, -.13, -.82)
+    poleFrame(pose(57, 350, 250, 311, 178), 121, 500, .10, .72),
+    poleFrame(pose(442, 353, 242, 308, 569), 576, 526, -.10, .28),
+    poleFrame(pose(801, 356, 302, 305, 931), 1059, 530, .17, 1),
+    poleFrame(pose(1205, 356, 251, 305, 1330), 1372, 591, -.13, -.82)
   ]]
 ]);
 
@@ -296,22 +296,23 @@ const gagaDivePoses = [
 ] as const;
 
 export function gagaStatePose(fighter: FighterState, walkDistance?: number): GagaActionPose | undefined {
-  if (!baseAtlas.naturalWidth) return undefined;
-  let region: ActionPose | undefined;
-  if (fighter.dash > 0) region = gagaBaseStates.dash;
-  else if (!fighter.ground) region = fighter.vy < 0 ? gagaBaseStates.jump : gagaBaseStates.fall;
-  else if (fighter.guarding) region = gagaBaseStates.guard;
-  else if (walkDistance !== undefined) region = gagaBaseWalk[Math.floor(walkDistance / 34) % gagaBaseWalk.length];
-  return region ? { image: baseAtlas, region, scaleX: gagaBaseScale, scaleY: gagaBaseScale } : undefined;
+  const sheet = motionArt.gaga;
+  if (!sheet?.naturalWidth) return undefined;
+  const frame = fighter.dash > 0 ? 4 : !fighter.ground ? (fighter.vy < 0 ? 5 : 6)
+    : fighter.guarding ? 7 : walkDistance !== undefined ? Math.floor(walkDistance / 34) % 4 : -1;
+  if (frame < 0) return undefined;
+  const size = 432, scale = 139 / 378;
+  return { image: sheet, region: { x: frame % 4 * size, y: Math.floor(frame / 4) * size,
+    width: size, height: size, footX: 216, footY: 416 }, scaleX: scale, scaleY: scale };
 }
 
 const terminalFrames = [
-  pose(66, 20, 202, 306, 167),
-  pose(408, 21, 189, 305, 503),
-  pose(751, 22, 192, 304, 845),
-  pose(56, 364, 211, 302, 162),
-  pose(385, 362, 240, 305, 489),
-  pose(748, 362, 199, 304, 847)
+  pose(87, 31, 326, 458, 250),
+  pose(599, 31, 313, 458, 754),
+  pose(1111, 33, 316, 456, 1268),
+  pose(77, 545, 330, 455, 243),
+  pose(555, 543, 406, 457, 733),
+  pose(1111, 543, 320, 457, 1270)
 ];
 const deployFrames = [
   pose(135, 323, 242, 153, 256),
@@ -338,7 +339,7 @@ function terminalPose(action: ActionDefinition, frame: number): GagaActionPose {
   const index = frame < 4 ? 0 : frame < 8 ? 1 : frame < 12 ? 2 : frame < action.startup ? 3
     : frame < action.startup + 7 ? 4 : 5;
   return { image: frame < action.startup + 14 ? terminalAtlas : null, region: terminalFrames[index],
-    scaleX: .45, scaleY: .45, heldCrate: index === 3 ? { x: -37, y: -61, kind: 'bolt' } : undefined };
+    scaleX: .30, scaleY: .30, heldCrate: index === 3 ? { x: -37, y: -61, kind: 'bolt' } : undefined };
 }
 
 export function drawEngineeringCrate(ctx: CanvasRenderingContext2D, kind: TurretKind, x: number, y: number, angle = 0) {
@@ -396,12 +397,12 @@ export function drawGrenade(ctx: CanvasRenderingContext2D, { x, y, vx, vy }: Pro
   ctx.restore();
 }
 
-const launchScale = .295;
+const launchScale = .266;
 const launchFrames = [
-  { region: pose(89, 76, 330, 356, 254), handX: 226, handY: 381 },
-  { region: pose(547, 80, 417, 350, 743), handX: 908, handY: 279 },
-  { region: pose(81, 505, 344, 394, 273), handX: 343, handY: 649 },
-  { region: pose(578, 478, 339, 420, 751), handX: 612, handY: 618 }
+  { region: pose(118, 95, 417, 449, 325), handX: 290, handY: 489 },
+  { region: pose(705, 103, 521, 440, 952), handX: 1163, handY: 358 },
+  { region: pose(105, 655, 435, 492, 350), handX: 440, handY: 832 },
+  { region: pose(750, 615, 417, 531, 962), handX: 784, handY: 792 }
 ] as const;
 
 function launchPose(action: ActionDefinition, frame: number) {
@@ -494,10 +495,10 @@ const poleLengthScale = .448;
 const mastReach = (poleGrip.y - poleSections[0][1]) * poleLengthScale;
 
 const airPoleFrames = [
-  { region: pose(110, 48, 290, 373, 271), x: 162, y: 112 },
-  { region: pose(563, 11, 351, 423, 726), x: 872, y: 181 },
-  { region: pose(78, 470, 351, 414, 232) },
-  { region: pose(560, 453, 339, 465, 742) }
+  { region: pose(141, 19, 371, 520, 347), x: 208, y: 143 },
+  { region: pose(710, 13, 470, 542, 930), x: 1117, y: 232 },
+  { region: pose(92, 602, 466, 530, 297) },
+  { region: pose(713, 580, 443, 597, 951) }
 ] as const;
 
 function airPolePose(action: ActionDefinition, frame: number): GagaActionPose {
@@ -505,7 +506,7 @@ function airPolePose(action: ActionDefinition, frame: number): GagaActionPose {
     : frame < action.startup + 7 ? 2 : 3;
   const key = airPoleFrames[index];
   const { region } = key;
-  const scale = .28;
+  const scale = .237;
   const pose: GagaActionPose = { image: airPoleAtlas, region, scaleX: scale, scaleY: scale };
   if ('x' in key) {
     const x = (key.x - region.x - region.footX) * scale;
@@ -611,10 +612,10 @@ export function drawThrownPole(ctx: CanvasRenderingContext2D, projectile: Projec
 
 const gagaSpecialPoses: Partial<Record<string, [ActionPose, ActionPose, ActionPose]>> = {
   [gagaActionIds.lift]: [
-    pose(101, 21, 144, 148, 173), pose(429, 3, 156, 166, 494), pose(770, 3, 151, 166, 846)
+    pose(162, 41, 205, 211, 260), pose(652, 9, 225, 244, 741), pose(1166, 8, 209, 244, 1269)
   ],
   [gagaActionIds.slide]: [
-    pose(98, 190, 156, 143, 164), pose(395, 211, 210, 120, 498), pose(749, 185, 175, 148, 831)
+    pose(151, 294, 224, 202, 246), pose(602, 321, 295, 175, 747), pose(1127, 284, 252, 212, 1247)
   ]
 };
 
@@ -625,12 +626,12 @@ comboAtlas.src = gagaCombo;
 const finishAtlas = new Image();
 finishAtlas.src = gagaFinish;
 
-const summonFinish = pose(635, 346, 252, 325, 752);
+const summonFinish = pose(936, 519, 423, 488, 1128);
 
 export function gagaIdlePose() {
   if (!comboAtlas.naturalWidth) return undefined;
   const region = gagaComboPoses[gagaActionIds.jab]![0];
-  return { image: comboAtlas, region, scaleX: .60, scaleY: .60 };
+  return { image: comboAtlas, region, scaleX: .465, scaleY: .465 };
 }
 
 export function gagaActionPose(move: FighterAction, frame: number, grounded: boolean): GagaActionPose | undefined {
@@ -643,7 +644,7 @@ export function gagaActionPose(move: FighterAction, frame: number, grounded: boo
   }
   const action = move;
   if (action.summon && summonAtlas.naturalWidth && frame < action.startup + 11) {
-    return { image: summonAtlas, region: summonFinish, scaleX: .38, scaleY: .38 };
+    return { image: summonAtlas, region: summonFinish, scaleX: .28, scaleY: .28 };
   }
   if (action.id === gagaActionIds.turret && terminalAtlas.naturalWidth) {
     return terminalPose(action, frame);
@@ -739,7 +740,7 @@ export function gagaActionPose(move: FighterAction, frame: number, grounded: boo
   }
   const combo = gagaComboPoses[action.id];
   if (combo && comboAtlas.naturalWidth) {
-    const scale = .60;
+    const scale = .465;
     const stretch = index === 2 ? impactStretch[action.id] : undefined;
     return {
       image: settling ? null : comboAtlas, region: combo[index],
@@ -750,10 +751,10 @@ export function gagaActionPose(move: FighterAction, frame: number, grounded: boo
   if (special && actionAtlas.naturalWidth) {
     if (action.id === gagaActionIds.lift && finishAtlas.naturalWidth &&
       frame >= (action.advanceFrom ?? 0) && frame < (action.advanceUntil ?? action.startup)) {
-      return { image: finishAtlas, region: rushPose, scaleX: .57, scaleY: .54, rushing: true };
+      return { image: finishAtlas, region: rushPose, scaleX: .45, scaleY: .42, rushing: true };
     }
     const index = frame < action.startup ? 0 : recoveryFrame < 0 ? 1 : 2;
-    return { image: settling ? null : actionAtlas, region: special[index], scaleX: .72, scaleY: .72 };
+    return { image: settling ? null : actionAtlas, region: special[index], scaleX: .56, scaleY: .56 };
   }
 }
 
@@ -768,5 +769,5 @@ export function gagaIntroPose(frame: number): GagaActionPose | undefined {
   if (!terminalAtlas.naturalWidth) return undefined;
   let cell = -1;
   for (const [from, index] of introCells) if (frame >= from) cell = index;
-  return cell < 0 ? undefined : { image: terminalAtlas, region: terminalFrames[cell], scaleX: .45, scaleY: .45 };
+  return cell < 0 ? undefined : { image: terminalAtlas, region: terminalFrames[cell], scaleX: .30, scaleY: .30 };
 }
