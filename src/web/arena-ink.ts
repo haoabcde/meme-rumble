@@ -551,19 +551,12 @@ function harborArchitecture(ctx: CanvasRenderingContext2D, arena: ArenaDefinitio
         bar(ctx, '#39384a66', rib, y + 24, 6, arena.floor - y - 41);
       }
       eave(ctx, p, '#c9ad8e', '#654955', 18);
-    } else if (p.prop === 'bridge') {
-      for (const x of [left + 86, right - 86]) pilaster(ctx, c, x, y + 41, arena.floor - 24, 24);
-      poly(ctx, '#325869', [[left, y + 5], [right, y + 5],
-        [right - 28, y + 55], [left + 28, y + 55]]);
-      for (let x = left + 75; x < right - 37; x += 125) {
-        disc(ctx, '#212e43', x, y + 37, 16);
-        disc(ctx, '#687b76', x, y + 37, 8);
-      }
-      eave(ctx, p, '#abc6bb', '#517983', 18);
     } else {
       const upper = p.prop === 'gallery';
       if (!upper) {
-        for (const x of [left + 83, right - 112]) pilaster(ctx, c, x, y + 8, arena.floor, 39);
+        for (const x of [left + 83, left + width / 3, right - width / 3, right - 112]) {
+          pilaster(ctx, c, x, y + 8, arena.floor, 39);
+        }
       }
       bar(ctx, '#3e4154', left + 10, y + 10, width - 20, upper ? 37 : 48);
       lattice(ctx, '#917375', left + 17, y + 17, width - 34, upper ? 25 : 34, 105);

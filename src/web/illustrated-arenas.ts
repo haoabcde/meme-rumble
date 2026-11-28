@@ -42,8 +42,7 @@ const scenes = new Map<string, Illustration>([
     { row: 184, rise: 730 },
     { row: 294, rise: 456 },
     { row: 399, rise: 386, lips: [['west-gallery', 248, 726, 399], ['east-gallery', 1373, 1831, 399]] },
-    { row: 473, rise: 256, lips: [['gangway', 381, 852, 473], ['overpass', 1238, 1698, 473]] },
-    { row: 485, rise: 230, lips: [['pontoon', 833, 1260, 485]] },
+    { row: 473, rise: 256, lips: [['gangway', 381, 1698, 473]] },
     { row: 536, rise: 128, lips: [['loading', 506, 895, 536], ['east-loading', 1189, 1564, 536]] },
     { row: 542, rise: 116, lips: [['boat-bow', 153, 565, 542], ['end-boat', 1514, 1940, 542]] },
     { row: 611, rise: 0 }

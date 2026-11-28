@@ -943,34 +943,45 @@ test('the opponent AI can follow across the new station bridge gap', () => {
   assert.equal(cpu.ground, right.id);
 });
 
-test('both players can cross the middle of the harbor and station without a moving platform', () => {
-  const crossings = [
-    ['harbor', ['gangway', 'pontoon', 'overpass']],
-    ['star-station', ['relay-left', 'relay-right']]
-  ];
-  for (const [id, route] of crossings) {
-    const settings = trainingOn(arenas.find(arena => arena.id === id));
-    const { arena } = settings;
-    for (const seat of [0, 1]) {
-      const state = begin(settings);
-      state.fighters[1 - seat].x = seat === 0 ? arena.right : arena.left;
-      const floor = { ...arena, id: 'floor', y: arena.floor };
-      const path = [floor, ...arena.routes[seat].slice(0, 2).map(id => arena.platforms.find(p => p.id === id))];
-      const across = seat === 0 ? route : [...route].reverse();
-      path.push(...across.slice(1).map(id => arena.platforms.find(p => p.id === id)));
-      for (let i = 1; i < path.length; i++) {
-        const from = path[i - 1], to = path[i];
-        if (to.id === 'pontoon') {
-          const opening = (Math.max(from.left, to.left) + Math.min(from.right, to.right)) / 2;
-          moveOn(state, settings, from, opening, seat);
-          landAfter(state, input(['jump'], 0, 1), settings, seat);
-          assert.equal(state.fighters[seat].ground, to.id);
-          continue;
-        }
-        const landing = i <= 2 ? undefined : seat === 0 ? to.left + 90 : to.right - 90;
-        jumpTo(state, settings, from, to, seat, landing);
-      }
-    }
+test('both players can jump across the station cable gap without using the elevator', () => {
+  const settings = trainingOn(arenas.find(arena => arena.id === 'star-station'));
+  const { arena } = settings;
+  const floor = { ...arena, id: 'floor', y: arena.floor };
+  for (const seat of [0, 1]) {
+    const state = begin(settings);
+    state.fighters[1 - seat].x = seat === 0 ? arena.right : arena.left;
+    const [dock, relay] = arena.routes[seat].slice(0, 2).map(id => arena.platforms.find(p => p.id === id));
+    const opposite = arena.platforms.find(p => p.id === arena.routes[1 - seat][1]);
+    jumpTo(state, settings, floor, dock, seat);
+    jumpTo(state, settings, dock, relay, seat);
+    jumpTo(state, settings, relay, opposite, seat, seat === 0 ? opposite.left + 90 : opposite.right - 90);
+  }
+});
+
+test('both sides can sprint across the whole level harbor catwalk and drop to the other shore', () => {
+  const settings = trainingOn(arenas.find(arena => arena.id === 'harbor'));
+  const { arena } = settings;
+  const floor = { ...arena, id: 'floor', y: arena.floor };
+  const deck = arena.platforms.find(p => p.id === 'gangway');
+  const outer = ['boat-bow', 'end-boat'].map(id => arena.platforms.find(p => p.id === id));
+  const ends = [975, 3440];
+  for (const seat of [0, 1]) {
+    const state = begin(settings);
+    state.fighters[1 - seat].x = seat === 0 ? arena.right : arena.left;
+    const fighter = state.fighters[seat];
+    jumpTo(state, settings, floor, outer[seat], seat, ends[seat]);
+    jumpTo(state, settings, outer[seat], deck, seat, ends[seat]);
+    const direction = seat === 0 ? 1 : -1;
+    step(state, inputForSeat(seat, input(['dash'], direction)), settings);
+    assert.ok(fighter.dash);
+    assert.equal(fighter.ground, deck.id);
+    moveOn(state, settings, deck, arena.width / 2, seat);
+    moveOn(state, settings, deck, ends[1 - seat], seat);
+    assert.equal(fighter.y, deck.y);
+    landAfter(state, input(['jump'], 0, 1), settings, seat);
+    assert.equal(fighter.ground, outer[1 - seat].id);
+    landAfter(state, input(['jump'], 0, 1), settings, seat);
+    assert.equal(fighter.ground, 'floor');
   }
 });
 
@@ -1007,7 +1018,7 @@ test('both outer wings of each multilayer map lead into its elevated routes', ()
   const wings = [
     ['dorm-roof', [[890, 'planter', 'bridge'], [3330, 'greenhouse', 'bridge']]],
     ['night-court', [[830, 'west-bench', 'west-stand'], [3650, 'east-bench', 'east-stand']]],
-    ['harbor', [[900, 'boat-bow', 'gangway', 'west-gallery'], [3490, 'end-boat', 'overpass', 'east-gallery']]],
+    ['harbor', [[900, 'boat-bow', 'gangway', 'west-gallery'], [3490, 'end-boat', 'gangway', 'east-gallery']]],
     ['star-station', [[1140, 'dock-left', 'relay-left', 'upper-left', 'coil-left'],
       [3210, 'dock-right', 'relay-right', 'upper-right', 'coil-right']]]
   ];
@@ -1034,17 +1045,16 @@ test('a harbor player boards at the west dock, crosses the channel and returns t
   const { arena } = settings;
   const lift = arena.platforms.find(p => p.travel);
   assert.equal(lift.travel.distance, 1050);
-  const west = arena.platforms.find(p => p.id === 'gangway');
-  const east = arena.platforms.find(p => p.id === 'overpass');
+  const deck = arena.platforms.find(p => p.id === 'gangway');
   const state = begin(settings);
   const [player, spectator] = state.fighters;
   spectator.x = arena.right;
   const floor = { ...arena, id: 'floor', y: arena.floor };
   const loading = arena.platforms.find(p => p.id === 'loading');
   jumpTo(state, settings, floor, loading);
-  jumpTo(state, settings, loading, west);
+  jumpTo(state, settings, loading, deck);
   while (player.x > 1640) step(state, [input([], -1), NEUTRAL], settings);
-  assert.equal(player.ground, west.id);
+  assert.equal(player.ground, deck.id);
   stepFor(state, 395 - state.arenaFrame, [NEUTRAL, NEUTRAL], settings);
   assert.equal(platformOffset(lift, state.arenaFrame), 0);
   landAfter(state, input(['jump']), settings);
@@ -1053,7 +1063,7 @@ test('a harbor player boards at the west dock, crosses the channel and returns t
   assert.equal(player.ground, lift.id);
   assert.ok(player.x > 2600);
   landAfter(state, input(['jump'], 0, 1), settings);
-  assert.equal(player.ground, east.id);
+  assert.equal(player.ground, deck.id);
   landAfter(state, input(['jump'], 0, 1), settings);
   assert.equal(player.ground, 'east-loading');
   landAfter(state, input(['jump'], 0, 1), settings);
@@ -1098,7 +1108,7 @@ test('both riders keep their offset through lift turnaround, hitstop, snapshot r
   step(state, [input(['jump'], 0, 1), NEUTRAL], settings);
   const out = state.fighters[0].x;
   stepFor(state, 28, [NEUTRAL, NEUTRAL], settings);
-  assert.equal(state.fighters[0].ground, 'overpass');
+  assert.equal(state.fighters[0].ground, 'gangway');
   assert.equal(state.fighters[0].x, out);
   assert.equal(state.fighters[1].ground, lift.id);
   state.phase = 'round-over';
@@ -1124,11 +1134,11 @@ test('the lift catches a descending fighter only if its moving lip was underneat
 test('either harbor dock connects the freight decks to the trolley at its stopping point', () => {
   const settings = trainingOn(arenas.find(a => a.id === 'harbor'));
   const { arena } = settings;
-  for (const [id, frame, x] of [['gangway', 395, 1630], ['overpass', 125, 2690]]) {
+  const deck = arena.platforms.find(p => p.id === 'gangway');
+  for (const [frame, x] of [[395, 1630], [125, 2690]]) {
     const state = begin(settings);
-    const deck = arena.platforms.find(p => p.id === id);
     state.arenaFrame = frame;
-    Object.assign(state.fighters[0], { ground: id, y: deck.y, x });
+    Object.assign(state.fighters[0], { ground: deck.id, y: deck.y, x });
     landAfter(state, input(['jump']), settings);
     assert.equal(state.fighters[0].ground, 'crane');
   }

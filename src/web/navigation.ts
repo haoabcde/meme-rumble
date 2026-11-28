@@ -36,6 +36,8 @@ export function approachPlatform(state: MatchState, config: MatchConfig): InputF
   const surfaces = raw.map(p => platformAt(p, state.arenaFrame));
   const goal = surfaces.find(p => p.id === destination.id)!;
   const support = surfaces.find(p => p.id === cpu.ground);
+  const oneBranch = arena.routes.filter(route => route.includes(goal.id)).length === 1;
+  const sharedSurfaces = arena.routes[0].filter(id => arena.routes[1].includes(id));
   const costs = new Map<Platform, number>([[goal, 0]]);
   const pending = new Set(surfaces);
 
@@ -54,7 +56,10 @@ export function approachPlatform(state: MatchState, config: MatchConfig): InputF
       const ticks = descendingTicks(p.y, -jump, next.y);
       const gap = Math.max(p.left - next.right, next.left - p.right, -2 * inset) + 2 * inset;
       if (!ticks || gap > (ticks - 2) * airSpeed) continue;
-      const approach = Math.abs(p.left + p.right - next.left - next.right) / (2 * run);
+      // When one branch leads to the goal, favor its end of the shared platform.
+      const nextX = oneBranch && sharedSurfaces.includes(next.id)
+        ? nearest(target.x, next) : (next.left + next.right) / 2;
+      const approach = Math.abs((p.left + p.right) / 2 - nextX) / run;
       const total = cost + ticks + approach;
       if (total < (costs.get(p) ?? Infinity)) costs.set(p, total);
     }
