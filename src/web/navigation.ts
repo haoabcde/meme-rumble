@@ -26,12 +26,21 @@ function flightTo(p: Platform, frame: number, y: number, vy: number) {
   return 0;
 }
 
+// Plan the second jump near the first apex, preserving maximal ascent. The
+// actual input is sent only after the fighter reaches that point in the air.
+function doubleFlightTo(p: Platform, frame: number, y: number, vy: number, airJump: number) {
+  const beforeJump = Math.max(0, Math.ceil(-2 - vy));
+  const apexY = y + beforeJump * vy + beforeJump * (beforeJump + 1) / 2;
+  const afterJump = flightTo(p, frame + beforeJump, apexY, -airJump);
+  return afterJump ? beforeJump + afterJump : 0;
+}
+
 export function approachPlatform(state: MatchState, config: MatchConfig): InputFrame | undefined {
   const [target, cpu] = state.fighters;
   const arena = config.arena;
   const destination = arena.platforms.find(p => p.id === target.ground);
   if (!destination || cpu.ground === destination.id || (cpu.ground && target.y - cpu.y > 40)) return;
-  const { jump, airSpeed, run } = config.fighters[1];
+  const { jump, airJump, airSpeed, run } = config.fighters[1];
   const raw = arena.platforms.filter(p => !p.travel || p.id === destination.id || p.id === cpu.ground);
   const surfaces = raw.map(p => platformAt(p, state.arenaFrame));
   const goal = surfaces.find(p => p.id === destination.id)!;
@@ -53,7 +62,8 @@ export function approachPlatform(state: MatchState, config: MatchConfig): InputF
     pending.delete(next);
     for (const p of pending) {
       if (next.y > p.y + 40) continue;
-      const ticks = descendingTicks(p.y, -jump, next.y);
+      const ticks = descendingTicks(p.y, -jump, next.y) ||
+        (airJump ? doubleFlightTo(next, state.arenaFrame, p.y, -jump, airJump) : 0);
       const gap = Math.max(p.left - next.right, next.left - p.right, -2 * inset) + 2 * inset;
       if (!ticks || gap > (ticks - 2) * airSpeed) continue;
       // When one branch leads to the goal, favor its end of the shared platform.
@@ -71,7 +81,11 @@ export function approachPlatform(state: MatchState, config: MatchConfig): InputF
     const remaining = costs.get(p);
     if (remaining === undefined || p === support || p.id === cpu.ignorePlatform) continue;
     if (support && p.y > support.y + 40) continue;
-    const ticks = flightTo(raw[i], state.arenaFrame, cpu.y, cpu.ground ? -jump : cpu.vy);
+    const vy = cpu.ground ? -jump : cpu.vy;
+    const singleTicks = flightTo(raw[i], state.arenaFrame, cpu.y, vy);
+    const doubleTicks = !singleTicks && airJump && (cpu.ground || !cpu.airJumpUsed)
+      ? doubleFlightTo(raw[i], state.arenaFrame, cpu.y, vy, airJump) : 0;
+    const ticks = singleTicks || doubleTicks;
     if (!ticks) continue;
     const landing = p.travel ? platformAt(raw[i], state.arenaFrame + ticks) : p;
     const entry = nearest(cpu.x, landing);
@@ -84,7 +98,10 @@ export function approachPlatform(state: MatchState, config: MatchConfig): InputF
     const time = walk / run + ticks + remaining + Math.abs(entry - finishX) / run;
     if (time >= bestTime) continue;
     bestTime = time;
-    best = { x: cpu.ground && walk > 0 ? launch : finishX, jumpNow: Boolean(cpu.ground && walk <= 0) };
+    best = {
+      x: cpu.ground && walk > 0 ? launch : finishX,
+      jumpNow: Boolean((cpu.ground && walk <= 0) || (!cpu.ground && doubleTicks && cpu.vy >= -2))
+    };
   }
   if (!best) return;
   return { x: heading(cpu.x, best.x, cpu.ground ? run : airSpeed), y: 0, pressed: best.jumpNow ? ['jump'] : [] };

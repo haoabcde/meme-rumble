@@ -28,14 +28,14 @@ if(hq){
  $('h1').textContent='两角色技能高清逐帧导出';$('main>p').textContent='复用已定稿动画源；1920×1080清晰近景，每个逻辑帧直接输出PNG，再一次编码。保持60帧正常速度，声音复用实机录制。';
  $('#all').textContent='导出全部高清技能';$('#one').textContent='导出所选高清技能';
 }
-const renderer=new Renderer(renderCanvas,arenas[2]),audio=new FightAudio();
+const renderer=new Renderer(renderCanvas,arenas.find(arena => arena.id === 'harbor')),audio=new FightAudio();
 for(const s of skills){const o=document.createElement('option');o.value=s.id;o.textContent=characters.find(c=>c.id===s.character).name+' · '+s.name;$('#pick').append(o);const li=document.createElement('li');li.id=s.id;li.textContent=o.textContent;$('#list').append(li);}
 let state,config,scene,sent,comboSent,scriptTick=0,calls=0,running=false,last=0,clock=0,recorder,chunks=[],stream,audioTrack,recordStart=0,draws=0,intervals=[],eventsSeen=[],queue=[];
 const input=(pressed=[],x=0,y=0,held=[])=>({x,y,pressed,held});
 function setup(s){
  scene=s;sent=new Set();comboSent=new Set();scriptTick=0;calls=0;eventsSeen=[];draws=0;intervals=[];last=0;clock=0;
  const actor=roster.find(r=>r.fighter.id===s.character),enemy=roster.find(r=>r.fighter.id==='banana');
- config={rules,training:true,arena:arenas[2],fighters:[actor.fighter,enemy.fighter],randomSeed:s.scenario==='eat'?1:123456789};
+ config={rules,training:true,arena:arenas.find(arena => arena.id === 'harbor'),fighters:[actor.fighter,enemy.fighter],randomSeed:s.scenario==='eat'?1:123456789};
  state=createMatch(config);state.phase='fight';state.phaseTicks=0;
  const sc=s.scenario,powered=sc.startsWith('power-'),distance=['rice','rice-ultimate'].includes(sc)?300:sc==='ground-rice'?600:sc==='rice-up'?180:sc==='tornado'?450:sc==='tornado-up'?350:sc==='ultimate'&&s.character==='whale'?330:sc==='global'||sc==='power-global'?480:['burrow','power-burrow','power-dodge'].includes(sc)?260:95;
  Object.assign(state.fighters[0],{x:1850,y:config.arena.floor,ground:'floor',facing:1,energy:300});

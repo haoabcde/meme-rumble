@@ -3,7 +3,7 @@ import test from 'node:test';
 import { createMatch, step } from '../dist/core/match.js';
 import { NEUTRAL } from '../dist/core/types.js';
 import { rules, testFighter } from '../dist/content/demo.js';
-import { arenas } from '../dist/content/arenas.js';
+import { arenas, archivedCourt } from '../dist/content/arenas.js';
 import { roster } from '../dist/content/roster.js';
 import { defineFighter } from '../dist/content/fighter-kit.js';
 import { frameCamera } from '../dist/web/camera.js';
@@ -104,7 +104,7 @@ test('same-frame hits on the final tick are simultaneous and can cause a double 
 });
 
 test('a lethal launcher keeps round scoring immediate and lands after hitstop', () => {
-  const settings = { ...config, arena: arenas[1], fighters: [testFighter, testFighter] };
+  const settings = { ...config, arena: archivedCourt, fighters: [testFighter, testFighter] };
   const state = begin(settings);
   const [attacker, defender] = state.fighters;
   attacker.x = 2190;
@@ -292,7 +292,7 @@ test('a whiff cannot start a chain and a guarded jab leaves time for a counterat
 });
 
 test('either player can branch from a jab into a launcher and jump-cancel into a distinct aerial hit', () => {
-  const settings = trainingOn(arenas[2]);
+  const settings = trainingOn(arenas.find(a => a.id === 'harbor'));
   for (const seat of [0, 1]) {
     const state = begin(settings);
     closeDistance(state);
@@ -410,7 +410,7 @@ test('only skills pressed during an uninterrupted normal use the longer buffer',
 });
 
 test('the shared air dash adds horizontal reach once per takeoff and replenishes on landing', () => {
-  const settings = trainingOn(arenas[3]);
+  const settings = trainingOn(arenas.find(a => a.id === 'star-station'));
   const state = begin(settings);
   const fighter = state.fighters[0];
   const start = fighter.x;
@@ -437,7 +437,7 @@ test('the shared air dash adds horizontal reach once per takeoff and replenishes
 });
 
 test('a ground dash applies gravity immediately after leaving a platform', () => {
-  const settings = trainingOn(arenas[1]);
+  const settings = trainingOn(archivedCourt);
   const state = begin(settings);
   const fighter = state.fighters[0];
   const bench = settings.arena.platforms.find(platform => platform.id === 'west-stand');
@@ -515,7 +515,7 @@ test('every fighter dashes immediately along the retained or sampled ground dire
 
 test('either seat spends public stamina once per legal dash and resets it between rounds', () => {
   for (const seat of [0, 1]) {
-    const settings = { ...trainingOn(arenas[3]), training: false };
+    const settings = { ...trainingOn(arenas.find(a => a.id === 'star-station')), training: false };
     const state = begin(settings);
     const fighter = state.fighters[seat];
     const outward = -fighter.facing;
@@ -888,7 +888,7 @@ test('a fighter waking at a platform edge is not pushed off by an overlapping op
 });
 
 test('the combo cap stays protective through a high fall until actual ground contact', () => {
-  const settings = { ...trainingOn(arenas[2]), rules: { ...rules, comboControlLimit: 5 } };
+  const settings = { ...trainingOn(arenas.find(a => a.id === 'harbor')), rules: { ...rules, comboControlLimit: 5 } };
   const state = begin(settings);
   const defender = state.fighters[1];
   Object.assign(defender, {
@@ -909,7 +909,7 @@ test('the combo cap stays protective through a high fall until actual ground con
 });
 
 test('the combo cap on the ground starts protected knockdown and allows both players to recover', () => {
-  const settings = { ...trainingOn(arenas[2]), rules: { ...rules, comboControlLimit: 5 } };
+  const settings = { ...trainingOn(arenas.find(a => a.id === 'harbor')), rules: { ...rules, comboControlLimit: 5 } };
   for (const seat of [0, 1]) {
     const state = begin(settings);
     const fighter = state.fighters[seat];
@@ -948,7 +948,8 @@ function inputForSeat(seat, command) {
 
 function moveOn(state, settings, surface, target, seat = 0) {
   const fighter = state.fighters[seat];
-  for (let frame = 0; frame < 300 && Math.abs(fighter.x - target) >= settings.fighters[seat].run; frame++) {
+  const budget = Math.ceil(Math.abs(fighter.x - target) / settings.fighters[seat].run) + 24;
+  for (let frame = 0; frame < budget && Math.abs(fighter.x - target) >= settings.fighters[seat].run; frame++) {
     step(state, inputForSeat(seat, input([], Math.sign(target - fighter.x))), settings);
     assert.equal(fighter.ground, surface.id, surface.id + ' should support the approach');
   }
@@ -985,6 +986,8 @@ function landAfter(state, command, settings, seat = 0, airDirection = 0) {
 
 for (const arena of platformArenas) {
   test(arena.name + ' · every fighter can jump up and drop back down either route', () => {
+    // Its platforms intentionally require double jump; dedicated route tests cover it.
+    if (arena.id === 'mist-street' || arena.id === 'layered-street') return;
     const floor = { ...arena, id: 'floor', y: arena.floor };
     for (const { fighter } of roster) {
       const settings = { ...trainingOn(arena), fighters: [fighter, fighter] };
@@ -1046,7 +1049,7 @@ test('a fighter cannot land on a platform after passing below its edge', () => {
 });
 
 test('down+jump on the floor starts an ordinary jump', () => {
-  const settings = trainingOn(arenas[1]);
+  const settings = trainingOn(archivedCourt);
   const state = begin(settings);
   assert.deepEqual(step(state, [input(['jump'], 0, 1), NEUTRAL], settings).map(event => event.kind), ['jump']);
   assert.equal(state.fighters[0].ground, null);
@@ -1084,6 +1087,9 @@ test('down+jump drops one surface at a time and clears the ignored platform', ()
 
 test('both opening positions can reach their advertised first platform in one ordinary jump', () => {
   for (const arena of platformArenas) {
+    // This reference-inspired map intentionally starts beneath a clear gap and uses a two-jump opening route.
+    // Its specific opening reachability is verified in spring-village.test.mjs.
+    if (arena.id === 'spring-village' || arena.id === 'mist-street' || arena.id === 'layered-street') continue;
     const settings = trainingOn(arena);
     for (const seat of [0, 1]) {
       const state = begin(settings);
@@ -1118,7 +1124,7 @@ test('body separation at the platform edge never leaves a fighter grounded in mi
 });
 
 test('the station towers have separate upper bays with a reachable middle crossing', () => {
-  const settings = trainingOn(arenas[3]);
+  const settings = trainingOn(arenas.find(a => a.id === 'star-station'));
   const state = begin(settings);
   const map = new Map(settings.arena.platforms.map(platform => [platform.id, platform]));
   const { airSpeed, jump } = settings.fighters[0];
@@ -1215,7 +1221,7 @@ test('each round opens on its approach routes and the combat camera holds still 
 });
 
 test('the opponent AI can follow across the new station bridge gap', () => {
-  const settings = trainingOn(arenas[3]);
+  const settings = trainingOn(arenas.find(a => a.id === 'star-station'));
   const state = begin(settings);
   const [player, cpu] = state.fighters;
   const left = settings.arena.platforms.find(platform => platform.id === 'relay-left');
@@ -1277,7 +1283,7 @@ test('players stay on the same level across the former low-platform seams in bot
     ['harbor', [['loading', 850, 1340], ['east-loading', 2950, 3500]]]
   ];
   for (const [id, wings] of straightRuns) {
-    const settings = trainingOn(arenas.find(map => map.id === id));
+    const settings = trainingOn(id === 'night-court' ? archivedCourt : arenas.find(map => map.id === id));
     const { arena } = settings;
     const floor = { ...arena, id: 'floor', y: arena.floor };
     for (const [seat, [id, start, end]] of wings.entries()) {
@@ -1333,7 +1339,7 @@ test('both outer wings of each multilayer map lead into its elevated routes', ()
       [3210, 'dock-right', 'relay-right', 'upper-right', 'coil-right']]]
   ];
   for (const [arenaId, routes] of wings) {
-    const arena = arenas.find(candidate => candidate.id === arenaId);
+    const arena = arenaId === 'night-court' ? archivedCourt : arenas.find(candidate => candidate.id === arenaId);
     const settings = trainingOn(arena);
     const floor = { ...arena, id: 'floor', y: arena.floor };
     for (const [seat, [x, ...ids]] of routes.entries()) {
@@ -1347,6 +1353,58 @@ test('both outer wings of each multilayer map lead into its elevated routes', ()
         from = target;
       }
     }
+  }
+});
+
+test('station has usable, connected outer approaches for every fighter', () => {
+  for (const id of ['star-station']) {
+    const arena = arenas.find(candidate => candidate.id === id);
+    const floor = { ...arena, id: 'floor', y: arena.floor };
+    for (const { fighter } of roster) {
+      const settings = { ...trainingOn(arena), fighters: [fighter, fighter] };
+      for (const seat of [0, 1]) {
+        const state = begin(settings);
+        const outside = seat === 0 ? 340 : arena.width - 340;
+        state.fighters[1 - seat].x = seat === 0 ? arena.right : arena.left;
+        moveOn(state, settings, floor, outside, seat);
+        const route = arena.routes[seat].map(platformId => arena.platforms.find(p => p.id === platformId));
+        jumpTo(state, settings, floor, route[0], seat, outside);
+        assert.ok(Math.abs(state.fighters[seat].x - outside) < 32, `${id} / ${fighter.id} / ${seat}: edge entry`);
+        let from = route[0];
+        for (const to of route.slice(1)) {
+          const sharedX = (Math.max(from.left, to.left) + Math.min(from.right, to.right)) / 2;
+          jumpTo(state, settings, from, to, seat, sharedX);
+          from = to;
+        }
+      }
+    }
+  }
+});
+
+test('the rooftop upper-right surface supports a real fight and a return via the east wing', () => {
+  const arena = arenas.find(candidate => candidate.id === 'dorm-roof');
+  const settings = trainingOn(arena);
+  const bridge = arena.platforms.find(p => p.id === 'bridge');
+  const tank = arena.platforms.find(p => p.id === 'tank');
+  const east = arena.platforms.find(p => p.id === 'east');
+  assert.ok(tank.right - tank.left >= 1000);
+  for (const seat of [0, 1]) {
+    const state = begin(settings);
+    const actor = state.fighters[seat], defender = state.fighters[1 - seat];
+    Object.assign(actor, { x: 3100, y: bridge.y, ground: bridge.id });
+    Object.assign(defender, { x: 3430, y: tank.y, ground: tank.id });
+    jumpTo(state, settings, bridge, tank, seat, 3100);
+    moveOn(state, settings, tank, 3350, seat);
+    const hits = step(state, inputForSeat(seat, input(['A'])), settings)
+      .concat(stepFor(state, 8, undefined, settings));
+    assert.ok(hits.some(event => event.kind === 'hit' && event.source === seat));
+    stepFor(state, 24, undefined, settings);
+    landAfter(state, input(['jump'], 0, 1), settings, seat);
+    assert.equal(actor.ground, bridge.id);
+    landAfter(state, input(['jump'], 0, 1), settings, seat);
+    assert.equal(actor.ground, east.id);
+    landAfter(state, input(['jump'], 0, 1), settings, seat);
+    assert.equal(actor.ground, 'floor');
   }
 });
 
@@ -1460,7 +1518,7 @@ test('players can pursue and land a hit across the dorm corridor, then drop on e
   const bridge = arena.platforms.find(p => p.id === 'bridge');
   assert.equal(arena.width, 4160);
   assert.deepEqual([arena.left, arena.right], [96, 4064]);
-  assert.equal(bridge.right - bridge.left, 2680);
+  assert.equal(bridge.right - bridge.left, 2820);
   for (const seat of [0, 1]) {
     const state = begin(settings);
     const wings = ['west', 'east'].map(id => arena.platforms.find(p => p.id === id));
@@ -1484,7 +1542,7 @@ test('players can pursue and land a hit across the dorm corridor, then drop on e
 });
 
 test('the market runway supports ground pursuit and a hit at either end', () => {
-  const settings = trainingOn(arenas.find(arena => arena.id === 'night-court'));
+  const settings = trainingOn(archivedCourt);
   const { arena } = settings;
   const runway = arena.platforms.find(platform => platform.id === 'runway');
   const floor = { ...arena, id: 'floor', y: arena.floor };
@@ -1505,7 +1563,7 @@ test('the market runway supports ground pursuit and a hit at either end', () => 
 });
 
 test('both sides of the market can cross the short balconies and take the high roof shortcut down', () => {
-  const arena = arenas.find(arena => arena.id === 'night-court');
+  const arena = archivedCourt;
   const floor = { ...arena, id: 'floor', y: arena.floor };
   for (const { fighter } of roster) {
     const settings = { ...trainingOn(arena), fighters: [fighter, fighter] };
@@ -1540,6 +1598,8 @@ test('both sides of the market can cross the short balconies and take the high r
 
 test('both fighters can land on the first tier directly from each multi-level spawn', () => {
   for (const arena of platformArenas) {
+    // The spring-village opening requires steering/double jumping, tested separately for all fighters.
+    if (arena.id === 'spring-village' || arena.id === 'mist-street' || arena.id === 'layered-street') continue;
     for (const { fighter } of roster) {
       const settings = { ...trainingOn(arena), fighters: [fighter, fighter] };
       for (const seat of [0, 1]) {
@@ -1685,10 +1745,12 @@ test('the computer can approach an opponent occupying either upper route on maps
       Object.assign(s.fighters[0], { x: (roof.left + roof.right) / 2, y: roof.y, ground: id });
       const visited = new Set([s.fighters[1].ground]);
       let met = false;
-      for (let n = 0; n < 240 && !met; n++) {
+      // An airborne attack may connect before the CPU lands on the roof.
+      // Keep watching until both a hit and an actual platform landing are seen.
+      for (let n = 0; n < 240 && !(met && visited.size >= 2); n++) {
         const events = step(s, [NEUTRAL, cpuInput(s, settings)], settings);
         if (s.fighters[1].ground) visited.add(s.fighters[1].ground);
-        met = events.some(e => e.kind === 'hit' && e.source === 1);
+        met ||= events.some(e => e.kind === 'hit' && e.source === 1);
       }
       assert.ok(visited.size >= 2 && met, arena.name + ' / ' + roof.name);
     }

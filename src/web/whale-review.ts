@@ -14,7 +14,7 @@ document.title='大肥鱼 · 完整接入试玩';
 document.body.innerHTML=`<main><h1>大肥鱼 · 完整接入试玩</h1><p>此页使用正式战斗逻辑、角色包和渲染器。点击场景查看实际命中；自由操作请进入训练场。</p><nav id="cases"></nav><canvas id="arena" width="1280" height="720" tabindex="0" aria-label="大肥鱼实际对战场景"></canvas><div class="bar"><button id="pause">暂停</button><button id="restart">重播场景</button><button id="step">前进一帧</button><button id="mirror">方向：右</button><label>速度 <select id="speed" aria-label="演示速度"><option value="1">正常</option><option value=".5">0.5×</option><option value=".25">0.25×</option></select></label><button id="debug">判定框：关</button><a href="/?practice=harbor&p1=whale&p2=banana">自由训练 · 大肥鱼</a><a href="/">标题与本地双人</a></div><label>场景进度 <input id="seek" aria-label="实战场景进度" type="range" min="0" max="320" value="0" style="flex:1"></label><p id="stats" role="status"></p><p id="notes"></p><p class="hint">P1：A/D移动，W向上组合，S即时戴盆防御，K跳跃，L冲刺，J普攻，U技能1，I技能2，O大招。O消耗三格，训练设置可以充气。数值为首轮接入版。</p></main>`;
 const style=document.createElement('style');style.textContent=`*{box-sizing:border-box}body{margin:0;background:#091321;color:#d8eafa;font:14px/1.6 'Microsoft YaHei',sans-serif}main{max-width:1250px;padding:18px 20px;margin:auto}h1{font-size:24px;margin:0}p{color:#a9bfd2;margin:7px 0 12px}nav,.bar{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}button,a,select{font:inherit;border:1px solid #375772;border-radius:6px;padding:6px 10px;background:#172e45;color:#dfedfa;text-decoration:none;cursor:pointer}button[aria-pressed=true]{border-color:#8edfff;background:#245774}canvas{display:block;width:100%;height:auto;border:1px solid #34506b;border-radius:8px}#arena[data-water-study]{image-rendering:pixelated}label{display:flex;align-items:center;gap:6px}.hint{font-size:12px;color:#9bb4c9}#stats{color:#b4e5ff;min-height:24px}`;document.head.append(style);
 const $=<T extends HTMLElement>(s:string)=>document.querySelector<T>(s)!;
-const canvas=$<HTMLCanvasElement>('#arena'),renderer=new Renderer(canvas,arenas[2]);
+const canvas=$<HTMLCanvasElement>('#arena'),renderer=new Renderer(canvas,arenas.find(arena => arena.id === 'harbor')!);
 const voiceShelf=document.createElement('details');voiceShelf.innerHTML='<summary>V23 大肥鱼配音 · 欧 / 鲸 / 鲸、鲸鲸与偷吃（展开试听）</summary><p>三段普攻逐段发声；大招演出使用更响的鲸鲸，偷吃只截取连续两声较响的喃喃，合计约0.46秒。独立播放器为原素材试听，实战采用阶梯混音。</p><div style="display:flex;flex-wrap:wrap;gap:18px"></div>';
 $('main').append(voiceShelf);
 for(const [id,label]of [['tail-voice-1','普攻一 · 欧'],['tail-voice-2','普攻二 · 鲸'],['tail-voice-3','普攻三 · 鲸'],['ultimate-voice','大招演出 · 鲸鲸'],['eat-voice','偷吃 · 两声喃喃']]){
@@ -50,7 +50,7 @@ let history:any[]=[];
 let config:MatchConfig,state:ReturnType<typeof createMatch>;
 const audio=new FightAudio();
 function reset(){audio.configure(mirror?[undefined,whale.audio]:[whale.audio,undefined],__FIGHTER_AUDIO__);
- config={rules,arena:arenas[2],fighters:mirror?[roster[2].fighter,whale.fighter]:[whale.fighter,roster[2].fighter],training:false};
+ config={rules,arena:arenas.find(arena => arena.id === 'harbor')!,fighters:mirror?[roster[2].fighter,whale.fighter]:[whale.fighter,roster[2].fighter],training:false};
  state=createMatch(config);state.phase='fight';state.phaseTicks=0;
  const caster=state.fighters[mirror?1:0],target=state.fighters[mirror?0:1],d=mirror?-1:1;
  const distance=scene==='ult'||scene==='ult-dodge'?650:(scene==='spin'||scene==='spin-chain')?600:scene==='spin-up'?380:scene==='rice-up'?150:scene==='step-rice'?600:scene==='greed'?900:scene==='rice'||scene==='rice-ult'||scene==='air-rice'?150:scene==='jump'?650:105;

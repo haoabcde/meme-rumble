@@ -1166,6 +1166,13 @@ function collectContacts(state: MatchState, config: MatchConfig, events: CombatE
           Math.hypot(Math.max(hurt.x, Math.min(f.x, hurt.x + hurt.w)) - f.x,
             Math.max(hurt.y, Math.min(f.y - 65, hurt.y + hurt.h)) - (f.y - 65)) <= action.hitbox.w / 2));
         if (!hurtbox) continue;
+        // An ordinary close-range normal from a platform rewards intercepting
+        // someone jumping up from below. Keep authored zero recoil, hitboxes,
+        // skill/projectile behaviour and guard/counter handling intact.
+        const intercept = action.slot === 'A' && !action.direction && !action.projectile && !action.summon &&
+          !action.radial && !action.standAttack && f.ground && f.ground !== 'floor' && !defender.ground &&
+          defender.y > f.y && defender.vy < 0 && !defender.guarding && !counterAction;
+        const push = window.push ?? action.push;
         return [{
           source, target, attack, group: window.group, earnsTears: action.slot === 'A',
           action: {
@@ -1174,7 +1181,7 @@ function collectContacts(state: MatchState, config: MatchConfig, events: CombatE
             hitstun: window.hitstun ?? action.hitstun,
             blockstun: window.blockstun ?? action.blockstun,
             guardCost: window.guardCost ?? action.guardCost,
-            push: window.push ?? action.push,
+            push: intercept ? Math.round(push * 1.15 * 1000) / 1000 : push,
             lift: (action.liftRequiresPrevHit && !attack.prevLanded) ? 0 : (window.lift ?? action.lift),
             stop: window.stop ?? action.stop,
             knockdown: window.knockdown ?? action.knockdown

@@ -1,8 +1,10 @@
-import dormArt from '../../assets/arenas/dorm-rooftop-illustrated.webp';
-import courtArt from '../../assets/arenas/court-illustrated.webp';
+import dormArt from '../../assets/arenas/dorm-rooftop-v2.webp';
 import harborArt from '../../assets/arenas/harbor-illustrated.webp';
-import stationArt from '../../assets/arenas/station-illustrated.webp';
+import stationArt from '../../assets/arenas/station-wide-v2.webp';
 import broadcastArt from '../../assets/arenas/broadcast-long-master.webp';
+import villageArt from '../../assets/arenas/village-selected.webp';
+import mistArt from '../../assets/arenas/mist-street-reference.webp';
+import layeredArt from '../../assets/arenas/layered-street-high.webp';
 import type { ArenaDefinition } from '../core/types.js';
 import { paintTheatre } from './theatre-layout.js';
 
@@ -23,29 +25,30 @@ function illustration(source: string, bands: readonly ArtBand[], shaft?: Shaft):
 // read from the collision surfaces, including both ends of every ledge.
 const scenes = new Map<string, Illustration>([
   ['dorm-roof', illustration(dormArt, [
-    { row: 271, rise: 704 },
-    { row: 440, rise: 362, lips: [['tank', 1215, 1442, 440]] },
-    { row: 507, rise: 244, lips: [['bridge', 360, 1719, 507]] },
+    { row: 50, rise: 1021 },
+    { row: 440, rise: 362, lips: [['tank', 1215, 1780, 440]] },
+    { row: 507, rise: 244, lips: [['bridge', 360, 1780, 507]] },
     { row: 573, rise: 122, lips: [['west', 128, 918, 573], ['east', 1153, 1996, 573]] },
     { row: 645, rise: 0 }
   ])],
-  // The painted stands are already registered to the arena on a 16:9 master.
-  ['night-court', illustration(courtArt, [])],
+  ['spring-village', illustration(villageArt, [])],
+  ['mist-street', illustration(mistArt, [])],
+  ['layered-street', illustration(layeredArt, [])],
   ['harbor', illustration(harborArt, [
-    { row: 184, rise: 730 },
-    { row: 294, rise: 456 },
+    // Keep the playable part of the sky at roughly the same vertical scale
+    // as the decks. Extra height is confined to the distant top of the sky.
+    { row: 50, rise: 1021 },
     { row: 399, rise: 386, lips: [['west-gallery', 248, 726, 399], ['east-gallery', 1373, 1831, 399]] },
     { row: 473, rise: 256, lips: [['gangway', 381, 1698, 473]] },
-    { row: 540, rise: 128, lips: [['loading', 155, 896, 540], ['east-loading', 1189, 1936, 540]] },
+    { row: 540, rise: 128, lips: [['loading', 155, 992, 540], ['east-loading', 1088, 1936, 540]] },
     { row: 611, rise: 0 }
   ])],
   ['star-station', illustration(stationArt, [
-    { row: 193, rise: 770 },
-    { row: 292, rise: 600 },
-    { row: 341, rise: 510, lips: [['coil-left', 447, 882, 341], ['coil-right', 1197, 1631, 341]] },
-    { row: 406, rise: 382, lips: [['upper-left', 289, 800, 406], ['upper-right', 1278, 1792, 406]] },
-    { row: 475, rise: 254, lips: [['relay-left', 449, 979, 475], ['relay-right', 1100, 1631, 475]] },
-    { row: 547, rise: 126, lips: [['dock-left', 376, 979, 547], ['dock-right', 1100, 1707, 547]] },
+    { row: 50, rise: 1118 },
+    { row: 345, rise: 510, lips: [['coil-left', 32, 882, 345], ['coil-right', 1198, 2050, 345]] },
+    { row: 405, rise: 382, lips: [['upper-left', 116, 805, 405], ['upper-right', 1274, 1967, 405]] },
+    { row: 475, rise: 254, lips: [['relay-left', 426, 980, 475], ['relay-right', 1100, 1651, 475]] },
+    { row: 545, rise: 126, lips: [['dock-left', 56, 980, 545], ['dock-right', 1100, 2028, 545]] },
     { row: 620, rise: 0 }
   ], { id: 'service-lift', left: 986, right: 1093, inset: 18 })],
   ['broadcast-ring', illustration(broadcastArt, [])]
@@ -113,7 +116,7 @@ function lockVerticalLines(rows: Pin[][]): Pin[][] {
   }));
 }
 
-function paintTriangle(ctx: CanvasRenderingContext2D, image: HTMLImageElement, p: Pin, q: Pin, r: Pin) {
+function paintTriangle(ctx: CanvasRenderingContext2D, image: CanvasImageSource, p: Pin, q: Pin, r: Pin) {
   const [sx, sy] = p.source, [dx, dy] = p.world;
   const ux = q.source[0] - sx, uy = q.source[1] - sy;
   const vx = r.source[0] - sx, vy = r.source[1] - sy;
@@ -145,6 +148,27 @@ function paintTriangle(ctx: CanvasRenderingContext2D, image: HTMLImageElement, p
   ctx.restore();
 }
 
+// The original cargo roofs end much farther from the centre than the playable
+// surfaces. Pinning those edges directly compressed almost 300 source pixels
+// of water into 200 world pixels, producing a conspicuous vertical smear.
+// Extend only the corrugated container artwork; the water, bridge and floor
+// remain untouched and can then be registered at an almost uniform x scale.
+function harborArtwork(image: HTMLImageElement): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(image, 0, 0);
+  const top = 540, height = 71;
+  // Widen one continuous panel strip on each side rather than repeating small
+  // tiles: each end still meets its untouched neighbor and its original cap.
+  ctx.drawImage(image, 780, top, 104, height, 780, top, 200, height);
+  ctx.drawImage(image, 884, top, 12, height, 980, top, 12, height);
+  ctx.drawImage(image, 1189, top, 12, height, 1088, top, 12, height);
+  ctx.drawImage(image, 1201, top, 99, height, 1100, top, 200, height);
+  return canvas;
+}
+
 function registerScene(arena: ArenaDefinition, { image, bands, shaft }: Illustration) {
   const canvas = document.createElement('canvas');
   // Keep the registered stage at world resolution: the previous 75% cache
@@ -152,6 +176,7 @@ function registerScene(arena: ArenaDefinition, { image, bands, shaft }: Illustra
   canvas.width = arena.width;
   canvas.height = arena.height;
   const ctx = canvas.getContext('2d', { alpha: false })!;
+  const source = arena.id === 'harbor' ? harborArtwork(image) : image;
   ctx.scale(canvas.width / arena.width, canvas.height / arena.height);
   const rows = lockVerticalLines([
     { row: 0, rise: arena.floor },
@@ -166,8 +191,8 @@ function registerScene(arena: ArenaDefinition, { image, bands, shaft }: Illustra
       const left = columns[x - 1], right = columns[x];
       const tl = atX(top, left), tr = atX(top, right);
       const bl = atX(bottom, left), br = atX(bottom, right);
-      paintTriangle(ctx, image, tl, tr, bl);
-      paintTriangle(ctx, image, br, bl, tr);
+      paintTriangle(ctx, source, tl, tr, bl);
+      paintTriangle(ctx, source, br, bl, tr);
     }
   }
   return canvas;
@@ -176,6 +201,22 @@ function registerScene(arena: ArenaDefinition, { image, bands, shaft }: Illustra
 export function drawIllustratedArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {
   const art = scenes.get(arena.id);
   if (!art?.image.naturalWidth) return false;
+  const wholeScene = arena.id === 'spring-village' ? { scaleY: 1.6, floorRow: 552 }
+    : arena.id === 'mist-street' ? { scaleY: 1.3, floorRow: 604 }
+    : arena.id === 'layered-street' ? { scaleY: 1.3, floorRow: 631 } : undefined;
+  if (wholeScene) {
+    // The collision geometry is authored from the image in a single coordinate
+    // space. Do not bend individual houses or introduce mesh seams here.
+    const height = art.image.naturalHeight * wholeScene.scaleY;
+    const top = arena.floor - wholeScene.floorRow * wholeScene.scaleY;
+    if (top > 0) ctx.drawImage(art.image, 0, 0, art.image.naturalWidth, 1, 0, 0, arena.width, top);
+    ctx.drawImage(art.image, 0, top, arena.width, height);
+    if (top + height < arena.height) {
+      ctx.drawImage(art.image, 0, art.image.naturalHeight - 1, art.image.naturalWidth, 1,
+        0, top + height, arena.width, arena.height - top - height);
+    }
+    return true;
+  }
   if (arena.id === 'broadcast-ring') {
     paintTheatre(ctx, art.image, arena);
     return true;

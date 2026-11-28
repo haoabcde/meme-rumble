@@ -7,7 +7,7 @@ import { NEUTRAL, type ActionDefinition, type ArenaDefinition, type InputFrame, 
 import { motionArt, sprites } from './art.js';
 import { Renderer } from './renderer.js';
 
-const court = arenas.find(({ id }) => id === 'night-court')!;
+const court = arenas.find(({ id }) => id === 'harbor')!;
 const arena: ArenaDefinition = {
   ...court, platforms: [], routes: [[], []], spawn: [court.width / 2 - 48, court.width / 2 + 48]
 };

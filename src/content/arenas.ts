@@ -1,4 +1,6 @@
 import { harbor } from './harbor.js';
+import { springVillage } from './spring-village.js';
+import { mistStreet, layeredStreet } from './bvn-inspired-arenas.js';
 import type { ArenaDefinition, Platform } from '../core/types.js';
 
 type Surface = [id: string, name: string, tier: Platform['tier'], left: number, right: number,
@@ -18,16 +20,17 @@ function stage(description: Description, surfaces: Surface[]): ArenaDefinition {
 
 const dorm = stage({
   id: 'dorm-roof', name: '宿舍楼顶', theme: 'dorm', width: 4160, terrain: '双侧登楼 · 跨院连廊',
-  description: '两翼屋面各自连通，都能跳上跨院连廊。从两翼可逐层下穿，东段还可登上水塔。',
+  description: '两翼屋面通往跨院连廊，东上方的水塔屋面可持续追击，并能逐层下穿。',
   routes: [['west', 'bridge', 'tank'], ['east', 'bridge', 'tank']]
 }, [
   ['west', '西翼花房屋面', 1, 350, 1975, 122, 'sunroom'],
-  ['bridge', '跨院连廊', 2, 740, 3420, 244, 'skywalk'],
+  ['bridge', '跨院连廊', 2, 740, 3560, 244, 'skywalk'],
   ['east', '东翼机房屋面', 1, 2185, 3995, 122, 'penthouse'],
-  ['tank', '天台水塔', 3, 2440, 2890, 362, 'water-tank']
+  ['tank', '水塔检修屋面', 3, 2440, 3560, 362, 'water-tank']
 ]);
 
-const court = stage({
+// Kept only for historical regression tests, not selectable.
+export const archivedCourt = stage({
   id: 'night-court', name: '雨夜商街', theme: 'court', width: 4480, spawn: [1940, 2540],
   terrain: '长台交锋 · 短台换边',
   description: '先上主战台。沿台面向两侧走可登高，中央双短台可互跳。站在高台外侧下穿可直接回到侧台。',
@@ -47,15 +50,15 @@ const station = stage({
   description: '两塔各有一条固定登顶路线。中央升降机从地面附近直达塔冠，左右电缆桥之间也能用普通跳跨过。',
   routes: [['dock-left', 'relay-left', 'upper-left', 'coil-left'], ['dock-right', 'relay-right', 'upper-right', 'coil-right']]
 }, [
-  ['dock-left', '左塔变压器', 1, 820, 2038, 126, 'transformer'],
-  ['relay-left', '左电缆桥', 2, 960, 2065, 254, 'conduit'],
-  ['upper-left', '左塔控制室', 3, 625, 1660, 382, 'control-room'],
-  ['coil-left', '西塔线圈冠', 4, 965, 1848, 510, 'inductor'],
+  ['dock-left', '左塔变压器', 1, 120, 2038, 126, 'transformer'],
+  ['relay-left', '左电缆桥', 2, 890, 2038, 254, 'conduit'],
+  ['upper-left', '左塔控制室', 3, 240, 1660, 382, 'control-room'],
+  ['coil-left', '西塔线圈冠', 4, 100, 1848, 510, 'inductor'],
   ['service-lift', '中央升降机', 1, 2056, 2296, 62, 'elevator', { axis: 'y', distance: -458, period: 480, dwell: 52, phase: 0 }],
-  ['relay-right', '右电缆桥', 2, 2290, 3400, 254, 'conduit'],
-  ['dock-right', '右塔变压器', 1, 2314, 3540, 126, 'transformer'],
-  ['upper-right', '右塔控制室', 3, 2680, 3725, 382, 'control-room'],
-  ['coil-right', '东塔线圈冠', 4, 2500, 3385, 510, 'inductor']
+  ['relay-right', '右电缆桥', 2, 2290, 3460, 254, 'conduit'],
+  ['dock-right', '右塔变压器', 1, 2290, 4232, 126, 'transformer'],
+  ['upper-right', '右塔控制室', 3, 2680, 4112, 382, 'control-room'],
+  ['coil-right', '东塔线圈冠', 4, 2500, 4252, 510, 'inductor']
 ]);
 
 const broadcast = stage({
@@ -65,4 +68,4 @@ const broadcast = stage({
   routes: [[], []]
 }, []);
 
-export const arenas: ArenaDefinition[] = [dorm, court, harbor, station, broadcast];
+export const arenas: ArenaDefinition[] = [dorm, harbor, station, mistStreet, layeredStreet, springVillage, broadcast];

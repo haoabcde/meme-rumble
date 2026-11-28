@@ -43,6 +43,7 @@ import { drawTurretEffect, isTurretEffect, turretEffectLife } from './gaga-turre
 import { drawGagaWalk, GagaWalk } from './gaga-walk.js';
 import { drawImpactInk } from './impact-ink.js';
 import { drawKnockdownDust, drawKnockdownPose, knockdownPose } from './knockdown-art.js';
+import { drawKnockbackStreak } from './knockback-feedback.js';
 import { drawWhaleActor, drawWhaleEntities, drawWhaleIntro } from './whale-art.js';
 
 export const seatColors = ['#61d8ff', '#ff849e'];
@@ -1430,6 +1431,7 @@ export class Renderer {
     const frame = state.arenaFrame;
     for (const seat of [0, 1] as const) {
       const fighter = state.fighters[seat];
+      drawKnockbackStreak(ctx, fighter, config.fighters[seat].bodyWidth, reducedMotion, config.arena);
       if (hasApprovedPresentation(config.fighters[seat].id) || reducedMotion || fighter.ground || (!fighter.launched && fighter.recovery?.phase !== 'fall')) {
         this.airTraces[seat].length = 0;
         continue;

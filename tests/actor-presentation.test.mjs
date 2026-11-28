@@ -15,14 +15,14 @@ test('planted-foot target remains fixed in world space while the root advances, 
  }
 });
 test('whale cadence is slightly slower and still advances by actual travel',()=>{
- const config={rules,arena:arenas[2],fighters:[whale.fighter,testFighter]},s=createMatch(config);s.phase='fight';
+ const config={rules,arena:arenas.find(arena => arena.id === 'harbor'),fighters:[whale.fighter,testFighter]},s=createMatch(config);s.phase='fight';
  const f=s.fighters[0];updateActorPresentation(s,config);const x=f.x;
  f.x+=9.25;f.moving=true;s.arenaFrame++;updateActorPresentation(s,config);
  assert.equal(f.motionVisual.stamp.phase,1);assert.equal(f.x,x+9.25);
  assert.ok(66/74>.88&&66/74<.92);
 });
 test('presentation history records actual displacement, braking, turns and chained attack frame',()=>{
- const config={rules,arena:arenas[2],fighters:[frog.fighter,testFighter]},state=createMatch(config);state.phase='fight';
+ const config={rules,arena:arenas.find(arena => arena.id === 'harbor'),fighters:[frog.fighter,testFighter]},state=createMatch(config);state.phase='fight';
  const f=state.fighters[0];updateActorPresentation(state,config);const original=structuredClone(f);
  f.x+=7.875;f.moving=true;state.arenaFrame++;updateActorPresentation(state,config);
  assert.equal(f.motionVisual.stamp.phase,.5);assert.equal(f.motionVisual.from.mode,'idle');
@@ -34,7 +34,7 @@ test('presentation history records actual displacement, braking, turns and chain
  assert.equal(f.motionVisual.stamp.facing,-1);assert.equal(f.motionVisual.turnTick,state.arenaFrame);
 });
 test('frog cadence is slightly slower without changing travelled distance',()=>{
- const config={rules,arena:arenas[2],fighters:[frog.fighter,testFighter]},s=createMatch(config);s.phase='fight';
+ const config={rules,arena:arenas.find(arena => arena.id === 'harbor'),fighters:[frog.fighter,testFighter]},s=createMatch(config);s.phase='fight';
  const f=s.fighters[0];updateActorPresentation(s,config);const x=f.x;
  f.x+=15.75;f.moving=true;s.arenaFrame++;updateActorPresentation(s,config);
  assert.equal(f.motionVisual.stamp.phase,1);assert.equal(f.x,x+15.75);
@@ -42,7 +42,7 @@ test('frog cadence is slightly slower without changing travelled distance',()=>{
 });
 test('movement presentation freezes with hitstop and restores identically from a snapshot',()=>{
  for(const entry of [frog,whale]){
-  const config={rules,training:true,arena:arenas[2],fighters:[entry.fighter,testFighter]},s=createMatch(config);s.phase='fight';s.phaseTicks=0;
+  const config={rules,training:true,arena:arenas.find(arena => arena.id === 'harbor'),fighters:[entry.fighter,testFighter]},s=createMatch(config);s.phase='fight';s.phaseTicks=0;
   const input={x:1,y:0,pressed:[]};step(s,[input,NEUTRAL],config);s.freeze=4;const v=structuredClone(s.fighters[0].motionVisual);
   for(let i=0;i<4;i++)step(s,[input,NEUTRAL],config);assert.deepEqual(s.fighters[0].motionVisual,v);
   const copy=structuredClone(s);

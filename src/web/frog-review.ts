@@ -98,9 +98,9 @@ let scene:string='combo',mirror=false,paused=false,speed=1,clock=0,tick=0,hits=0
 const requestedScene=new URLSearchParams(location.search).get('scene');if(scenes.some(s=>s[0]===requestedScene))scene=requestedScene!;
 let config:MatchConfig,state:ReturnType<typeof createMatch>;
 const audio=new FightAudio();
-const renderer=new Renderer($<HTMLCanvasElement>('#arena'),arenas[2]);
+const renderer=new Renderer($<HTMLCanvasElement>('#arena'),arenas.find(arena => arena.id === 'harbor')!);
 function save(){history[state.frame]=structuredClone({state,tick,hits,damage,seen:[...seen]});}
-function reset(){audio.stopAll();audio.configure(mirror?[scene==='hit-react'?frog.audio:undefined,frog.audio]:[frog.audio,scene==='hit-react'?frog.audio:undefined],__FIGHTER_AUDIO__);config={rules,arena:arenas[2],fighters:mirror?[roster[2].fighter,frog.fighter]:[frog.fighter,roster[2].fighter]};if(scene==='counter-rice')config.fighters[mirror?0:1]=whale.fighter;if(scene==='hit-react')config.fighters[mirror?0:1]=frog.fighter;state=createMatch(config);state.phase='fight';state.phaseTicks=0;
+function reset(){audio.stopAll();audio.configure(mirror?[scene==='hit-react'?frog.audio:undefined,frog.audio]:[frog.audio,scene==='hit-react'?frog.audio:undefined],__FIGHTER_AUDIO__);config={rules,arena:arenas.find(arena => arena.id === 'harbor')!,fighters:mirror?[roster[2].fighter,frog.fighter]:[frog.fighter,roster[2].fighter]};if(scene==='counter-rice')config.fighters[mirror?0:1]=whale.fighter;if(scene==='hit-react')config.fighters[mirror?0:1]=frog.fighter;state=createMatch(config);state.phase='fight';state.phaseTicks=0;
  const c=state.fighters[mirror?1:0],t=state.fighters[mirror?0:1],dir=mirror?-1:1;
  c.x=mirror?2500:1850;t.x=scene.includes('global')?(mirror?400:3650):c.x+dir*(scene.includes('move')||scene.includes('dodge')||scene==='follow-light'||scene==='ascend-end'?950:scene.includes('laugh')?190:scene.includes('ascend')?190:95);c.facing=dir;t.facing=dir===1?-1:1;c.energy=scene.includes('counter')||scene.includes('burrow')||scene==='crouch'?0:300;
  if(scene==='counter-rice')t.x=c.x+dir*320;
