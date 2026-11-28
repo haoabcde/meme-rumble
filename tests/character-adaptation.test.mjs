@@ -1518,6 +1518,7 @@ test('Gaga throws downward in either facing direction, hits once and then impact
       const state = begin(settings);
       const [attacker, defender] = state.fighters;
       [attacker.x, defender.x] = facing === 1 ? [650, 900] : [900, 650];
+      attacker.facing = facing;
       defender.facing = -facing;
       const target = guarding ? input([], 0, 1) : NEUTRAL;
       step(state, [input(['jump']), target], settings);

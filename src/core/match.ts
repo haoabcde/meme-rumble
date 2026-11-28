@@ -404,8 +404,7 @@ function startUltimates(state: MatchState, config: MatchConfig, events: CombatEv
   }
   for (const { seat, fighter, command, action, cost } of selected) {
     const target = state.fighters[other(seat)];
-    if (!fighter.ground) faceOpponentWhenFree(fighter, target);
-    else if (!fighter.attack && command.x) fighter.facing = command.x;
+    if (fighter.ground && !fighter.attack && command.x) fighter.facing = command.x;
     startAction(fighter, action, seat, events, cost);
     startFrog(action, fighter, state, config, seat);
     fighter.buffer = fighter.buffer.filter(item => item.sampledAt !== command.sampledAt);
@@ -469,12 +468,6 @@ function updateGuardWindow(fighter: FighterState, input: InputFrame, windowFrame
 
 function sideToward(fighter: FighterState, opponent: FighterState): Side {
   return fighter.x === opponent.x ? fighter.facing : fighter.x < opponent.x ? 1 : -1;
-}
-
-function faceOpponentWhenFree(fighter: FighterState, opponent: FighterState) {
-  if (fighter.hitstun || fighter.launched || fighter.blockstun || fighter.guardBreak || fighter.recovery ||
-      fighter.attack || fighter.dash || fighter.guarding) return;
-  fighter.facing = sideToward(fighter, opponent);
 }
 
 function updateControl(
@@ -569,7 +562,6 @@ function updateControl(
     }
   }
 
-  if (!f.ground) faceOpponentWhenFree(f, opponent);
   if (locked) {
     f.guarding = f.blockstun > 0 && f.guardBreak === 0 && f.hitstun === 0;
     return;
@@ -656,6 +648,7 @@ function updateControl(
   const dropping = Boolean(jump?.down && f.ground && f.ground !== 'floor');
   if (f.ground && jump && (!f.attack || (!dropping && cancels?.includes('jump')))) {
     f.buffer = f.buffer.filter(item => item.sampledAt !== jump.sampledAt || item.key === 'dash');
+    if (!dropping && jump.x) f.facing = jump.x;
     f.attack = null;
     delete f.reaction;
     f.ignorePlatform = dropping ? f.ground : null;
@@ -1781,7 +1774,6 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   if (state.fighters.every(fighter => fighter.combo === 0 && fighter.blockstun === 0)) {
     state.comboFreeze = 0;
   }
-  const airborne = seats.map(seat => !state.fighters[seat].ground);
   const walking = seats.map(seat => {
     const fighter = state.fighters[seat];
     fighter.dashActive = fighter.dash > 0;
@@ -1807,10 +1799,6 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   }
   for (const fighter of state.fighters) settleFrogWarp(fighter, state);
   for (const fighter of state.fighters) releaseUnsupportedGround(fighter, config.arena, state.arenaFrame);
-  for (const seat of seats) {
-    const fighter = state.fighters[seat];
-    if (airborne[seat] || !fighter.ground) faceOpponentWhenFree(fighter, state.fighters[other(seat)]);
-  }
   for (const seat of seats) {
     const f = state.fighters[seat];
     const act = attackFor(config, state, seat);

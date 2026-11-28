@@ -583,7 +583,7 @@ test('all fighters can skip an intermediate platform with a second jump on both 
   }
 });
 
-test('an airborne side switch updates facing before the next directional action is sampled', () => {
+test('crossing over in the air keeps facing and relative skill inputs stable', () => {
   const airAttack = baseline.actions.find(action => action.id === 'common-air');
   const directional = { ...airAttack, id: 'air-forward', slot: 'B', direction: 'forward' };
   for (const seat of [0, 1]) {
@@ -598,9 +598,71 @@ test('an airborne side switch updates facing before the next directional action 
     fighter.y = opponent.y - 130;
     step(state, inputForSeat(seat, input([], approach)), settings);
     assert.ok((fighter.x - opponent.x) * approach > 0);
-    assert.equal(fighter.facing, -approach);
-    step(state, inputForSeat(seat, input(['B'], -approach)), settings);
+    assert.equal(fighter.facing, approach);
+    const command = { ...input(['B'], -approach), sampled: [{ x: approach, y: 0 }] };
+    step(state, inputForSeat(seat, command), settings);
     assert.equal(fighter.attack?.id, directional.id);
+    assert.equal(fighter.facing, approach);
+  }
+});
+
+test('takeoff uses the sampled turn while double jump and air attacks keep that facing', () => {
+  const settings = trainingOn(arenas.at(-1));
+  for (const seat of [0, 1]) {
+    const state = begin(settings);
+    const fighter = state.fighters[seat];
+    const direction = -fighter.facing;
+    const pair = command => inputForSeat(seat, command);
+    const takeoff = { ...input(['jump']), sampled: [{ x: direction, y: 0 }] };
+    assert.equal(step(state, pair(takeoff), settings)[0]?.kind, 'jump');
+    assert.equal(fighter.facing, direction);
+
+    const before = fighter.x;
+    assert.equal(step(state, pair(input(['jump'], -direction)), settings)[0]?.kind, 'air-jump');
+    assert.equal(fighter.jumpCount, 2);
+    assert.equal(fighter.x, before - direction * baseline.airSpeed);
+    assert.equal(fighter.facing, direction);
+    const attack = step(state, pair(input(['A'], -direction)), settings).find(event => event.kind === 'swing');
+    assert.equal(attack?.actionId, 'common-air');
+    assert.equal(attack.facing, direction);
+    const airMove = baseline.actions.find(action => action.id === 'common-air');
+    const recovery = airMove.startup + airMove.active + airMove.recovery;
+    for (let frame = 0; frame <= recovery; frame++) {
+      step(state, pair(input([], -direction)), settings);
+      assert.equal(fighter.facing, direction);
+    }
+    assert.equal(fighter.attack, null);
+    assert.equal(fighter.ground, null);
+  }
+});
+
+test('air dash after a double jump uses its own sampled direction and retains it', () => {
+  const settings = trainingOn(arenas.at(-1));
+  for (const seat of [0, 1]) {
+    const state = begin(settings);
+    const fighter = state.fighters[seat];
+    const direction = -fighter.facing;
+    const pair = command => inputForSeat(seat, command);
+    step(state, pair(input(['jump'])), settings);
+    const commands = { ...input(['jump', 'dash'], -direction), sampled: [
+      { x: -direction, y: 0 }, { x: direction, y: 0 }
+    ] };
+    assert.equal(step(state, pair(commands), settings)[0]?.kind, 'air-jump');
+    assert.equal(fighter.jumpCount, 2);
+    assert.equal(fighter.facing, -direction);
+
+    const start = fighter.x;
+    const events = step(state, pair(input([], -direction)), settings);
+    assert.equal(events[0]?.kind, 'dash');
+    assert.equal(events[0].direction, direction);
+    assert.equal(fighter.x, start + direction * baseline.dash);
+    stepFor(state, 5, pair(input([], -direction)), settings);
+    assert.equal(fighter.x, start + direction * baseline.dash * 6);
+    assert.equal(fighter.facing, direction);
+    assert.equal(fighter.airDashUsed, true);
+    assert.deepEqual(step(state, pair(input(['dash'], -direction)), settings), []);
+    const attack = step(state, pair(input(['A'])), settings).find(event => event.kind === 'swing');
+    assert.equal(attack?.facing, direction);
   }
 });
 
