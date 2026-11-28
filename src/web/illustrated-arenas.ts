@@ -2,8 +2,9 @@ import dormArt from '../../assets/arenas/dorm-rooftop-illustrated.webp';
 import courtArt from '../../assets/arenas/court-illustrated.webp';
 import harborArt from '../../assets/arenas/harbor-illustrated.webp';
 import stationArt from '../../assets/arenas/station-illustrated.webp';
-import broadcastArt from '../../assets/arenas/broadcast-illustrated.webp';
+import broadcastArt from '../../assets/arenas/broadcast-long-master.webp';
 import type { ArenaDefinition } from '../core/types.js';
+import { paintTheatre } from './theatre-layout.js';
 
 type Point = readonly [number, number];
 type Pin = { source: Point; world: Point };
@@ -47,7 +48,6 @@ const scenes = new Map<string, Illustration>([
     { row: 547, rise: 126, lips: [['dock-left', 376, 979, 547], ['dock-right', 1100, 1707, 547]] },
     { row: 620, rise: 0 }
   ], { id: 'service-lift', left: 986, right: 1093, inset: 18 })],
-  // The theatre master keeps the stage lip at the arena's existing floor line.
   ['broadcast-ring', illustration(broadcastArt, [])]
 ]);
 
@@ -171,24 +171,11 @@ function registerScene(arena: ArenaDefinition, { image, bands, shaft }: Illustra
   return canvas;
 }
 
-export function drawIllustratedArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition,
-  view?: { left: number; width: number }) {
+export function drawIllustratedArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {
   const art = scenes.get(arena.id);
   if (!art?.image.naturalWidth) return false;
-  if (arena.id === 'broadcast-ring' && view) {
-    // Distant spectators and architecture follow the camera slowly. Scaling the
-    // theatre to the entire combat world would turn its audience into giants.
-    const width = view.width * 1.25;
-    const scale = width / art.image.naturalWidth;
-    const height = art.image.naturalHeight * scale;
-    const center = view.left + view.width / 2;
-    const drift = (center - arena.width / 2) * .1;
-    const left = Math.max(view.left + view.width - width,
-      Math.min(view.left, center - width / 2 - drift));
-    const top = arena.floor - height * (2084 / 2520);
-    ctx.fillStyle = '#211b23';
-    ctx.fillRect(0, 0, arena.width, arena.height);
-    ctx.drawImage(art.image, left, top, width, height);
+  if (arena.id === 'broadcast-ring') {
+    paintTheatre(ctx, art.image, arena);
     return true;
   }
   if (!art.bands.length) {

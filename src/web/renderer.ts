@@ -511,7 +511,7 @@ export function previewArena(canvas: HTMLCanvasElement, arena: ArenaDefinition, 
   }
   const draw = () => {
     if (canvas.dataset.variant !== variant) return;
-    if (arena.theme === 'court' && drawIllustrationPreview(ctx, arena)) return;
+    if ((arena.theme === 'court' || arena.theme === 'broadcast') && drawIllustrationPreview(ctx, arena)) return;
     const top = ink ? Math.max(0, arena.floor - 1255) : 0;
     const bottom = ink ? Math.min(arena.height, arena.floor + 250) : arena.height;
     const scaleY = canvas.height / (bottom - top);
@@ -859,9 +859,7 @@ export class Renderer {
       ctx.drawImage(this.background, 0, this.sceneryTop);
       ringLayers.mechanism(ctx, config.arena, reducedMotion ? 0 : arenaFrame);
     } else if (layered) {
-      const illustrated = drawIllustratedArena(ctx, config.arena, {
-        left: x - dx / zoom, width: width / zoom
-      });
+      const illustrated = drawIllustratedArena(ctx, config.arena);
       if (!illustrated) {
         const center = x + width / (2 * zoom);
         drawInkBackdrop(ctx, config.arena, center);
