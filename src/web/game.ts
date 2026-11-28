@@ -538,7 +538,8 @@ function makeMoveRow(seat: Seat, prompt: MovePrompt, title: string, detail?: str
   const key = document.createElement('kbd');
   const value = document.createElement('dd');
   key.textContent = commandHint(seat, prompt, comboKeys, hold);
-  keyCell.hidden = mode === 'online' && seat !== onlineSeat;
+  keyCell.hidden = (mode === 'online' && seat !== onlineSeat) || (mode !== 'online' && mode !== 'local' && seat === 1);
+  row.toggleAttribute('data-no-key', keyCell.hidden);
   keyCell.append(key);
   value.append(title);
   if (detail) {
@@ -678,7 +679,8 @@ function renderMoveGuide() {
     } else {
       tabs.replaceChildren();
     }
-    const chain = panel.querySelector('.move-chain')!;
+    const chain = panel.querySelector<HTMLElement>('.move-chain')!;
+    chain.hidden = mode !== 'online' && mode !== 'local' && seat === 1;
     const attack = commandHint(seat, commonMovePrompts[0]);
     const lift = commandHint(seat, commonMovePrompts[1]);
     const jump = keyHint(preferences, mode === 'online' ? 0 : seat, ['jump']);
@@ -692,7 +694,7 @@ function renderMoveGuide() {
     const starterHint = fighter.id === 'banana'
       ? (form === 'alt'
         ? 'JO 主线：' + commandHint(seat, { slot: 'A', label: '' }) + ' 五连欧拉 → ' + commandHint(seat, { slot: 'B', label: '' }) + ' 自动追踪 → ' + commandHint(seat, { slot: 'C', label: '' }) + ' 炸弹硬币/再按起爆'
-        : '上手主线：' + commandHint(seat, { slot: 'C', label: '' }, [], true) + ' 补泪 → ' + commandHint(seat, { slot: 'B', label: '' }, [], true) + ' 喷射（满 3 格按 ' + commandHint(seat, { slot: 'ULT', label: '' }) + ' 觉醒）')
+        : '上手主线：' + commandHint(seat, { slot: 'C', label: '' }, [], true) + ' 补泪 → ' + commandHint(seat, { slot: 'B', label: '' }, [], true) + ' 喷射（满 3 格按 ' + commandHint(seat, { slot: 'ULT', direction: 'down', label: '' }) + ' 觉醒）')
       : fighter.id === 'gaga'
       ? '上手主线：' + commandHint(seat, { slot: 'C', label: '' }) + ' 放炮台 → 用 ' + commandHint(seat, { slot: 'B', label: '' }) + ' 剑波牵制'
       : fighter.id === 'frog'
@@ -719,7 +721,7 @@ function buildUltimateCues() {
       node.className = 'ultimate-cue';
       label.className = 'cue-label';
       key.textContent = commandHint(seat, prompt);
-      key.hidden = mode === 'online' && seat !== onlineSeat;
+      key.hidden = (mode === 'online' && seat !== onlineSeat) || (mode !== 'online' && mode !== 'local' && seat === 1);
       node.append(inkSymbol('ready', 'ready-ink'), key, label);
       return { prompt, node, label };
     });
@@ -788,9 +790,10 @@ function footer() {
         ? '　　P2 ' + keyHint(preferences, 1, ['left', 'right', 'up', 'down'], ' ') + ' 移动 · ' +
           keyHint(preferences, 1, ['A']) + ' 确认' + (relaySelected() ? ' · ' + keyHint(preferences, 1, ['B']) + ' 切换首发/后援' : '') : '')
     : screen === 'maps' && mode === 'online' && onlineSeat !== 0 ? '等待房主选择地图和规则'
-    : screen === 'maps' ? upDown + ' 换图 · ' + confirmKey + ' 进场 · ' + backKey + ' 返回'
+    : screen === 'maps' ? keyHint(preferences, 0, ['left', 'right', 'up', 'down'], ' ') + ' 换图 · ' + confirmKey + ' 进场 · ' + backKey + ' 返回'
     : screen === 'menu' ? upDown + ' 选模式 · ' + confirmKey + ' 确认'
     : screen === 'title' ? confirmKey + ' 进入游戏'
+    : screen === 'result' && mode === 'online' ? confirmKey + ' 返回房间 · ' + backKey + ' / Esc 返回房间'
     : screen === 'result' || screen === 'pause' ? upDown + ' 选择 · ' + confirmKey + ' 确认 · Esc 返回'
     : 'Esc 返回';
   text(element('footer-detail'), hints);
@@ -979,7 +982,7 @@ function renderRoster() {
       : '正在为 ' + seatName(activeSeat) + ' 选角');
   const jab = commandHint(activeSeat, commonMovePrompts[0]);
   const lift = commandHint(activeSeat, commonMovePrompts[1]);
-  text(element('roster-basics'), jab + ' 普攻 · ' + lift + ' 地面挑空');
+  text(element('roster-basics'), mode !== 'online' && mode !== 'local' && activeSeat === 1 ? '' : jab + ' 普攻 · ' + lift + ' 地面挑空');
   renderPreparationNav();
 }
 
@@ -1176,6 +1179,7 @@ function refreshCombatants() {
 function enterMatch() {
   show('match');
   element('pause').firstChild!.textContent = mode === 'online' ? '离开房间 ' : '暂停 ';
+  canvas.setAttribute('aria-label', mode === 'online' ? '格斗画面，Esc 离开房间' : '格斗画面，Esc 暂停');
   buildUltimateCues();
   renderHUD();
   draw(0);
@@ -1448,9 +1452,12 @@ function openGuide(moves: boolean) {
   text(element('guide-title'), moves ? '招式表' : '操作说明');
   element('guide-controls').hidden = moves;
   element('guide-moves').hidden = !moves;
+  element('guide-system-keys').innerHTML = mode === 'online'
+    ? '按 <kbd>Esc</kbd> 可选择离开房间；联机对战无法暂停。按 <kbd>Tab</kbd> 查看快捷招式。'
+    : '按 <kbd>Esc</kbd> 暂停，在暂停菜单打开招式表。按 <kbd>Tab</kbd> 查看快捷招式。开启开发者模式后，按 <kbd>H</kbd> 查看判定框，自由训练中按 <kbd>R</kbd> 重置。';
   const guideOne = element('guide-one').parentElement!;
   const guideTwo = element('guide-two').parentElement!;
-  guideTwo.hidden = mode === 'online';
+  guideTwo.hidden = mode !== 'local';
   text(guideOne.querySelector('h3')!, mode === 'online' ? 'P' + (onlineSeat + 1) + ' 你的按键' : 'P1 玩家一');
   if (moves) {
     for (const seat of seats) {
@@ -1553,13 +1560,15 @@ function navigationKey(event: KeyboardEvent) {
     const current = focusedMap >= 0 ? focusedMap : arenaIndex;
     chooseArena((current + direction + arenas.length) % arenas.length);
     mapButtons[arenaIndex].focus();
-  } else if ((control === 'A' || event.code === 'Enter') && screen === 'maps' && focusedMap >= 0) {
+  } else if ((control === 'A' || (event.code === 'Enter' && !binding)) && screen === 'maps' && focusedMap >= 0) {
     if (focusedMap !== arenaIndex) chooseArena(focusedMap);
     startMatch();
   } else if (control === 'A' && focused instanceof HTMLButtonElement && screens[screen].contains(focused)) {
     focused.click();
   } else if (control === 'jump' && screen === 'pause') {
     enterMatch();
+  } else if (control === 'jump' && screen === 'result' && mode === 'online') {
+    onlineRoom.returnToLobby();
   } else if (control === 'jump' && previousScreen[screen]) {
     go(previousScreen[screen]!);
   } else return false;
@@ -1592,17 +1601,23 @@ function stickFor(seat: Seat): Stick {
 window.addEventListener('keydown', event => {
   if (event.code === 'Tab' && screen === 'match' && !event.repeat && !guide.open && !settings.dialog.open) { event.preventDefault(); toggleQuickMoves(); return; }
   if (guide.open || settings.dialog.open || onlineRoom.open || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement ||
+      (event.target instanceof HTMLElement && event.target.isContentEditable)) {
+    if (event.code === 'Escape') { event.preventDefault(); event.target.blur(); }
+    return;
+  }
   if (event.code === 'Escape' && !event.repeat) {
     event.preventDefault();
     if (screen === 'match') pauseMatch();
     else if (screen === 'pause') enterMatch();
+    else if (screen === 'result' && mode === 'online') onlineRoom.returnToLobby();
     else if (previousScreen[screen]) go(previousScreen[screen]!);
     return;
   }
   if (!event.repeat && ((screen === 'roster' && rosterKey(event)) || navigationKey(event))) return;
   if (screen !== 'match' || document.activeElement !== canvas) return;
   if (event.code === 'KeyH' && !event.repeat && preferences.developerMode) toggleDebug();
-  if (event.code === 'KeyR' && mode === 'training' && !event.repeat) startMatch(true);
+  if (event.code === 'KeyR' && mode === 'training' && preferences.developerMode && !event.repeat) startMatch(true);
   const binding = matchBinding(event.code);
   if (!binding) return;
   event.preventDefault();
@@ -1617,7 +1632,7 @@ window.addEventListener('keydown', event => {
       !acceptsSkillInput(config.fighters[actor], control)) {
     if (config.fighters[actor].actions.some(action => action.comboKeys?.includes(control))) return;
     const skill = control === 'ULT' ? '大招' : control === 'B' ? '进攻技' : '特色技';
-    notify(seatName(seat) + ' 的' + skill + '待接入');
+    notify(seatName(actor) + ' 当前无法使用' + skill);
     return;
   }
   if (control === 'A' || control === 'B' || control === 'C' || control === 'ULT' || control === 'jump' || control === 'dash') {

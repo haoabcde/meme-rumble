@@ -980,6 +980,7 @@ img { display: block; }
 
 .move-list > div { display: grid; grid-template-columns: minmax(3.6em, auto) minmax(0, 1fr); gap: .15em .55em; justify-content: start; }
 .pick-moves > div { grid-template-columns: 6em minmax(0, 1fr); font-size: clamp(10px, 1.1cqw, 15px); }
+.move-list > div[data-no-key] { grid-template-columns: minmax(0, 1fr); }
 .pick-moves :is(dt, dd) { min-width: 0; color: var(--p5-white); font-size: inherit; line-height: 1.28; }
 .move-list dt kbd {
   max-width: 100%;
