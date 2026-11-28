@@ -5,6 +5,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { arenas } from '../dist/content/arenas.js';
 import { rules } from '../dist/content/demo.js';
 import { roster } from '../dist/content/roster.js';
+import { createRelayMatch, stepRelayMatch } from '../dist/core/relay.js';
 import { createMatch, step } from '../dist/core/match.js';
 import { maxPendingPresses, NEUTRAL } from '../dist/core/types.js';
 
@@ -45,16 +46,61 @@ function endRoom(room, notice) {
   }
 }
 
-function start(room) {
-  const selections = room.players.map(peer => peer.fighter);
-  const arena = stages.get(room.arena);
-  const selected = selections.map(id => fighters.get(id));
-  const config = { arena, fighters: selected, rules, randomSeed: randomBytes(4).readUInt32LE() || 1 };
-  const state = createMatch(config);
-  if (selections.some(id => id === 'gaga' || id === 'banana')) state.phaseTicks = 192;
-  room.match = { config, state };
+function publishLobby(room) {
+  const lineups = room.players.map(peer => peer.lineup);
+  const ready = room.players.map(peer => peer.ready);
   for (const [seat, peer] of room.players.entries()) {
-    send(peer.socket, { type: 'start', seat, selections, arena: arena.id, state });
+    send(peer.socket, { type: 'lobby', seat, lineups, ready, arena: room.arena,
+      format: room.format, roundSeconds: room.roundSeconds, winsToFinish: room.winsToFinish, revision: peer.revision });
+  }
+}
+
+function updateLobby(peer, message, now) {
+  const room = peer.room;
+  if (room.match || room.players.length !== 2) return;
+  const host = peer === room.players[0];
+  const ready = room.players.every(player => player.ready);
+  if (message.type === 'select' && Array.isArray(message.lineup) && message.lineup.length === 2 &&
+      fighters.has(message.lineup[0]) && (message.lineup[1] === null || fighters.has(message.lineup[1])) &&
+      message.lineup[0] !== message.lineup[1] && typeof message.ready === 'boolean' &&
+      Number.isSafeInteger(message.revision) && message.revision > peer.revision) {
+    peer.lineup = message.lineup;
+    peer.ready = message.ready && (room.format === 'standard' || peer.lineup[1] !== null);
+    peer.revision = message.revision;
+  } else if (host && !ready && message.type === 'format' && ['standard', 'relay'].includes(message.format)) {
+    if (room.format === message.format) return;
+    room.format = message.format;
+    for (const player of room.players) player.ready = false;
+  } else if (host && ready) {
+    if (message.type === 'arena' && stages.has(message.arena)) room.arena = message.arena;
+    else if (message.type === 'rules' && [30, 45, 60, 90].includes(message.roundSeconds) &&
+      [1, 2, 3].includes(message.winsToFinish)) {
+      room.roundSeconds = message.roundSeconds;
+      room.winsToFinish = message.winsToFinish;
+    } else if (message.type === 'start') return start(room);
+    else return;
+  } else return;
+  room.updatedAt = now;
+  publishLobby(room);
+}
+
+function start(room) {
+  const lineups = room.players.map(peer => peer.lineup);
+  const selections = lineups.map(lineup => lineup[0]);
+  const teams = room.format === 'relay' ? lineups : undefined;
+  const arena = stages.get(room.arena);
+  const config = {
+    arena, fighters: selections.map(id => fighters.get(id)),
+    rules: { ...rules, roundSeconds: room.roundSeconds, winsToFinish: room.winsToFinish },
+    randomSeed: randomBytes(4).readUInt32LE() || 1
+  };
+  const relay = teams && createRelayMatch(config, teams.map(team => team.map(id => fighters.get(id))));
+  const state = relay?.state ?? createMatch(config);
+  if (!relay && selections.some(id => id === 'gaga' || id === 'banana')) state.phaseTicks = 192;
+  room.match = { config, state, relay };
+  for (const [seat, peer] of room.players.entries()) {
+    send(peer.socket, { type: 'start', seat, selections, teams, arena: arena.id,
+      roundSeconds: room.roundSeconds, winsToFinish: room.winsToFinish, state });
   }
 }
 
@@ -73,7 +119,7 @@ http.on('upgrade', (request, socket, head) => {
 
 sockets.on('connection', socket => {
   if (sockets.clients.size > 80) return socket.close(1013, 'Service busy');
-  const peer = { socket, fighter: null, input: NEUTRAL, room: null, alive: true };
+  const peer = { socket, lineup: [], ready: false, revision: 0, input: NEUTRAL, room: null, alive: true };
   let windowStart = Date.now(), received = 0;
   const joinDeadline = setTimeout(() => { if (!peer.room) socket.close(); }, 12_000);
   socket.on('pong', () => { peer.alive = true; });
@@ -102,17 +148,17 @@ sockets.on('connection', socket => {
       peer.inputAt = now;
       return;
     }
-    if (peer.room || (message.type !== 'create' && message.type !== 'join')) return;
+    if (peer.room) return updateLobby(peer, message, now);
+    if (message.type !== 'create' && message.type !== 'join') return;
     const error = notice => send(socket, { type: 'error', notice });
     if (message.build !== build) return error('联机版本不一致，请更新网页后重试');
-    if (!fighters.has(message.fighter)) return error('请选择角色');
-    peer.fighter = message.fighter;
     if (message.type === 'create') {
       if (rooms.size >= 32) return error('房间已满，请稍后重试');
-      if (!stages.has(message.arena)) return error('请选择地图');
       let code;
       do { code = randomBytes(4).toString('hex').toUpperCase(); } while (rooms.has(code));
-      const room = { code, arena: message.arena, players: [peer], created: now };
+      peer.lineup = [roster[0].fighter.id, null];
+      const room = { code, arena: arenas[0].id, players: [peer], updatedAt: now,
+        format: 'standard', roundSeconds: rules.roundSeconds, winsToFinish: rules.winsToFinish };
       rooms.set(code, room);
       peer.room = room;
       send(socket, { type: 'waiting', code });
@@ -121,8 +167,10 @@ sockets.on('connection', socket => {
     const room = rooms.get(message.code);
     if (!room || room.players.length !== 1) return error('房间不存在或已开始');
     peer.room = room;
+    peer.lineup = [roster.at(-1).fighter.id, null];
     room.players.push(peer);
-    start(room);
+    room.updatedAt = now;
+    publishLobby(room);
   });
   const heartbeat = setInterval(() => {
     if (!peer.alive) return socket.terminate();
@@ -138,22 +186,26 @@ function tickRooms() {
   const now = Date.now();
   for (const room of rooms.values()) {
     if (!room.match) {
-      if (now - room.created > 5 * 60_000) endRoom(room, '等候超时，请重新创建房间');
+      if (now - room.updatedAt > 5 * 60_000) endRoom(room, '等候超时，请重新创建房间');
       continue;
     }
-    const { config, state } = room.match;
+    const { config, state, relay } = room.match;
     const input = room.players.map(peer => now - (peer.inputAt ?? 0) <= 300 ? peer.input : NEUTRAL);
     const phase = state.phase;
-    const events = step(state, input, config);
+    const events = relay ? stepRelayMatch(relay, input) : step(state, input, config);
+    const swapped = Boolean(relay && relay.state !== state);
     for (const peer of room.players) {
-      peer.input = { ...peer.input, pressed: [], sampled: [] };
+      peer.input = swapped ? NEUTRAL : { ...peer.input, pressed: [], sampled: [] };
     }
-    if (phase !== 'ready' && state.phase === 'ready' && config.fighters.some(fighter => fighter.id === 'gaga' || fighter.id === 'banana')) {
+    if (!relay && phase !== 'ready' && state.phase === 'ready' &&
+        config.fighters.some(fighter => fighter.id === 'gaga' || fighter.id === 'banana')) {
       state.phaseTicks = 192;
     }
-    const packet = { type: 'frame', state, events };
+    const relayView = relay && { indices: relay.indices, eliminated: relay.eliminated, generation: relay.generation,
+      history: relay.history, phase: relay.phase, winner: relay.winner };
+    const packet = { type: 'frame', state: relay?.state ?? state, events: swapped ? [] : events, relay: relayView };
     for (const peer of room.players) send(peer.socket, packet);
-    if (state.phase === 'match-over') {
+    if (relay ? relay.phase === 'finished' : state.phase === 'match-over') {
       rooms.delete(room.code);
       for (const peer of room.players) peer.socket.close();
     }

@@ -1,14 +1,29 @@
-import { arenas } from '../content/arenas.js';
-import { roster } from '../content/roster.js';
+import type { RelaySession } from '../core/relay.js';
 import type { CombatEvent, Duo, InputFrame, MatchState } from '../core/types.js';
 
 declare const __ONLINE_BUILD__: string;
 declare const __ONLINE_URL__: string;
 
-export interface OnlineStart {
+export type OnlineFormat = 'standard' | 'relay';
+export type OnlineLineup = [string, string | null];
+type OnlineRules = { roundSeconds: number; winsToFinish: number };
+type RelayView = Pick<RelaySession, 'indices' | 'eliminated' | 'generation' | 'history' | 'phase' | 'winner'>;
+
+export interface OnlineLobby extends OnlineRules {
+  type: 'lobby';
+  seat: 0 | 1;
+  lineups: Duo<OnlineLineup>;
+  format: OnlineFormat;
+  ready: Duo<boolean>;
+  arena: string;
+  revision: number;
+}
+
+export interface OnlineStart extends OnlineRules {
   type: 'start';
   seat: 0 | 1;
   selections: Duo<string>;
+  teams?: Duo<Duo<string>>;
   arena: string;
   state: MatchState;
 }
@@ -17,9 +32,10 @@ interface OnlineFrame {
   type: 'frame';
   state: MatchState;
   events: CombatEvent[];
+  relay?: RelayView;
 }
 
-type ServerMessage = OnlineStart | OnlineFrame | { type: 'waiting'; code: string } |
+type ServerMessage = OnlineLobby | OnlineStart | OnlineFrame | { type: 'waiting'; code: string } |
   { type: 'error' | 'closed'; notice: string };
 
 function serviceUrl() {
@@ -36,18 +52,16 @@ export class OnlineRoom {
   private create = document.querySelector<HTMLButtonElement>('#online-create')!;
   private join = document.querySelector<HTMLButtonElement>('#online-join')!;
   private code = document.querySelector<HTMLInputElement>('#online-code')!;
-  private fighter = document.querySelector<HTMLSelectElement>('#online-fighter')!;
-  private arena = document.querySelector<HTMLSelectElement>('#online-arena')!;
+  private selectionRevision = 0;
   private active = false;
   private finished = false;
 
   constructor(
+    private readonly onLobby: (packet: OnlineLobby) => void,
     private readonly onStart: (packet: OnlineStart) => void,
     private readonly onFrame: (packet: OnlineFrame) => void,
     private readonly onLeave: (notice: string) => void
   ) {
-    for (const { fighter } of roster) this.fighter.add(new Option(fighter.name, fighter.id));
-    for (const arena of arenas) this.arena.add(new Option(arena.name, arena.id));
     this.create.addEventListener('click', () => this.connect('create'));
     this.join.addEventListener('click', () => this.connect('join'));
     document.querySelector('#online-close')!.addEventListener('click', () => this.dialog.close());
@@ -76,19 +90,44 @@ export class OnlineRoom {
     }
   }
 
+  select(lineup: OnlineLineup, ready: boolean) {
+    this.sendLobby({ type: 'select', lineup, ready, revision: ++this.selectionRevision });
+  }
+
+  chooseArena(arena: string) {
+    this.sendLobby({ type: 'arena', arena });
+  }
+
+  setFormat(format: OnlineFormat) {
+    this.sendLobby({ type: 'format', format });
+  }
+
+  setRules(roundSeconds: number, winsToFinish: number) {
+    this.sendLobby({ type: 'rules', roundSeconds, winsToFinish });
+  }
+
+  start() {
+    this.sendLobby({ type: 'start' });
+  }
+
+  private sendLobby(message: object) {
+    if (this.active && this.socket?.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(message));
+    }
+  }
+
   disconnect() {
     const socket = this.socket;
     this.socket = undefined;
     this.active = false;
     this.finished = false;
+    this.selectionRevision = 0;
     socket?.close();
   }
 
   private setBusy(busy: boolean) {
     this.create.disabled = busy;
     this.join.disabled = busy;
-    this.fighter.disabled = busy;
-    this.arena.disabled = busy;
   }
 
   private connect(type: 'create' | 'join') {
@@ -115,7 +154,7 @@ export class OnlineRoom {
     socket.addEventListener('open', () => {
       window.clearTimeout(timeout);
       if (this.socket !== socket) return;
-      socket.send(JSON.stringify({ type, code, fighter: this.fighter.value, arena: this.arena.value, build: __ONLINE_BUILD__ }));
+      socket.send(JSON.stringify({ type, code, build: __ONLINE_BUILD__ }));
     });
     socket.addEventListener('message', event => {
       if (this.socket !== socket || typeof event.data !== 'string') return;
@@ -125,12 +164,17 @@ export class OnlineRoom {
         this.code.value = packet.code;
         this.code.select();
         this.status.textContent = '把房间码发给好友，等对方加入。';
+      } else if (packet.type === 'lobby') {
+        if (packet.revision < this.selectionRevision) return;
+        this.active = true;
+        this.dialog.close();
+        this.onLobby(packet);
       } else if (packet.type === 'start') {
         this.active = true;
         this.dialog.close();
         this.onStart(packet);
       } else if (packet.type === 'frame' && this.active) {
-        this.finished = packet.state.phase === 'match-over';
+        this.finished = packet.relay ? packet.relay.phase === 'finished' : packet.state.phase === 'match-over';
         this.onFrame(packet);
       } else if (packet.type === 'error' || packet.type === 'closed') {
         const active = this.active;

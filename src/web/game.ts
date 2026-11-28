@@ -10,7 +10,7 @@ import { arcadeArt, comicArt, arenaArt, fighterArt } from './art.js';
 import { fighterPresentation, fitPresentationArt } from './fighter-presentation.js';
 import { closeDialogSmooth, inkSymbol, setRansomText } from './ui-art.js';
 import { FightAudio, type SampleVoice } from './audio.js';
-import { OnlineRoom, type OnlineStart } from './online-room.js';
+import { OnlineRoom, type OnlineStart, type OnlineLobby } from './online-room.js';
 import { cpuInput } from './cpu.js';
 import { tierAt } from '../core/terrain.js';
 import { entranceFor, openingFrame, openingTicks, previewArena, recoveryLabels, Renderer, seatColors } from './renderer.js';
@@ -151,7 +151,7 @@ const tearCounts = namesSuffix.map(id => element('tears-count-' + id));
 const combos = namesSuffix.map(id => element('combo-' + id));
 const portraits = namesSuffix.map(id => element<HTMLImageElement>('portrait-' + id));
 const panels = namesSuffix.map(id => element('fighter-panel-' + id));
-const seatButtons = namesSuffix.map(id => element('seat-' + id));
+const seatButtons = namesSuffix.map(id => element<HTMLButtonElement>('seat-' + id));
 const seatButtonLabels = seatButtons.map(button => button.querySelector('span')!);
 const lockButtons = namesSuffix.map(id => element<HTMLButtonElement>('lock-' + id));
 const lockButtonLabels = lockButtons.map(button => button.querySelector('span')!);
@@ -186,6 +186,8 @@ let lifeDisplay: Duo<{ hp: number; trail: number; holdUntil: number; frame: numb
 const trainingInputs: string[] = [];
 let trainingDownHeld = false;
 let mode: Mode = 'local';
+let onlineFormat: BattleFormat = 'standard';
+let localMapRules: { roundSeconds: string; winsToFinish: string } | undefined;
 let onlineSeat: Seat = 0;
 let lastOnlineInputAt = -Infinity;
 let format: BattleFormat = 'standard';
@@ -250,19 +252,75 @@ setRansomText(element('maps-heading'), '选择地图', 2);
 setRansomText(element('pause-title-text'), '已暂停', 1);
 const menuFeature = element<HTMLImageElement>('menu-feature');
 const modeArt = { local: fighterArt.whale, cpu: fighterArt.gaga, training: fighterArt.frog, online: fighterArt.banana };
-const onlineRoom = new OnlineRoom(enterOnlineMatch, ({ state: next, events }) => {
+const onlineRoom = new OnlineRoom(syncOnlineLobby, enterOnlineMatch, ({ state: next, events, relay: view }) => {
   if (mode !== 'online' || screen !== 'match') return;
   const previous = state.phase;
+  const swapped = relay && view && view.generation !== relay.generation;
   state = next;
+  if (relay && view) {
+    Object.assign(relay, view, { state });
+    if (swapped) {
+      config = { ...relay.config, fighters: [relay.teams[0][view.indices[0]], relay.teams[1][view.indices[1]]] };
+      relay.config = config;
+      clearInputs();
+      refreshCombatants();
+      footer();
+    }
+  }
   if (previous === 'ready' && state.phase === 'fight') fightCueUntil = state.frame + 30;
-  if (previous === 'fight' && state.phase === 'round-over' && state.result) {
+  if (!relay && previous === 'fight' && state.phase === 'round-over' && state.result) {
     roundHistory.push({ ...state.result, round: state.round });
   }
   renderCombatNotices(events);
   renderer.add(events, state, config.fighters);
   audio.update(config, state, events);
-  if (state.phase === 'match-over') endMatch();
+  if (relay ? relay.phase === 'finished' : state.phase === 'match-over') endMatch();
 }, leaveOnlineMatch);
+
+function syncOnlineLobby(packet: OnlineLobby) {
+  const arena = arenas.findIndex(candidate => candidate.id === packet.arena);
+  const lineups = packet.lineups.map(([lead, reserve]) => [
+    roster.findIndex(entry => entry.fighter.id === lead),
+    reserve === null ? null : roster.findIndex(entry => entry.fighter.id === reserve)
+  ] as const);
+  if (arena < 0 || lineups.some(([lead, reserve]) => lead < 0 || reserve === -1)) {
+    leaveOnlineMatch('联机配置与当前网页不一致。');
+    return;
+  }
+  const joined = mode !== 'online';
+  if (joined) localMapRules = { roundSeconds: roundLimit.value, winsToFinish: roundWins.value };
+  if (joined || onlineFormat !== packet.format) activeSlots.fill(0);
+  mode = 'online';
+  onlineSeat = packet.seat;
+  onlineFormat = packet.format;
+  activeSeat = onlineSeat;
+  stage.dataset.mode = mode;
+  for (const seat of seats) {
+    const [lead, reserve] = lineups[seat];
+    selected[seat] = lead;
+    relayPicks[seat] = [lead, reserve];
+    confirmed[seat] = packet.ready[seat];
+  }
+  roundLimit.value = String(packet.roundSeconds);
+  roundWins.value = String(packet.winsToFinish);
+  const next = confirmed.every(Boolean) ? 'maps' : 'roster';
+  if (screen !== next) {
+    arenaIndex = arena;
+    show(next);
+    if (next === 'roster') seatButtons[onlineSeat].focus();
+    else if (onlineSeat === 0) mapButtons[arenaIndex].focus();
+  } else if (next === 'roster') {
+    stage.dataset.format = onlineFormat;
+    text(screens.roster.querySelector<HTMLElement>('[data-mode-name]')!, modeTitle());
+    renderRoster();
+    footer();
+  } else if (arena !== arenaIndex) selectArena(arena);
+}
+
+function sendOnlineSelection(seat: Seat) {
+  const [lead, reserve] = relaySelected() ? relayPicks[seat] : [selected[seat], null];
+  onlineRoom.select([roster[lead].fighter.id, reserve === null ? null : roster[reserve].fighter.id], confirmed[seat]);
+}
 
 function enterOnlineMatch(packet: OnlineStart) {
   const arena = arenas.find(candidate => candidate.id === packet.arena);
@@ -275,7 +333,20 @@ function enterOnlineMatch(packet: OnlineStart) {
   mode = 'online';
   onlineSeat = packet.seat;
   relay = null;
-  config = { rules, arena, fighters: [one.fighter, two.fighter] };
+  config = {
+    rules: { ...rules, roundSeconds: packet.roundSeconds, winsToFinish: packet.winsToFinish },
+    arena, fighters: [one.fighter, two.fighter]
+  };
+  if (packet.teams) {
+    const [a, b] = packet.teams.map(team => team.map(id => roster.find(entry => entry.fighter.id === id)?.fighter));
+    if (!a[0] || !a[1] || !b[0] || !b[1] || a[0].id === a[1].id || b[0].id === b[1].id) {
+      leaveOnlineMatch('联机阵容与当前网页不一致。');
+      return;
+    }
+    relay = createRelayMatch(config, [[a[0], a[1]], [b[0], b[1]]]);
+    config = relay.config;
+    relay.state = packet.state;
+  }
   state = packet.state;
   roundHistory = [];
   stage.dataset.mode = 'online';
@@ -292,8 +363,14 @@ function enterOnlineMatch(packet: OnlineStart) {
 
 function leaveOnlineMatch(notice = '') {
   onlineRoom.disconnect();
+  if (localMapRules) {
+    roundLimit.value = localMapRules.roundSeconds;
+    roundWins.value = localMapRules.winsToFinish;
+    localMapRules = undefined;
+  }
   mode = 'local';
   stage.dataset.mode = mode;
+  relay = null;
   go('menu');
   if (notice) notify(notice);
 }
@@ -372,7 +449,7 @@ const mapButtons = arenas.map((arena, index) => {
   button.setAttribute('aria-describedby', badges.id + ' ' + tactic.id);
   body.append(name, badges, tactic);
   button.append(thumbnail, body, inkSymbol('selection', 'selection-ink'));
-  button.addEventListener('click', () => selectArena(index));
+  button.addEventListener('click', () => chooseArena(index));
   arenaChoices.append(button);
   return button;
 });
@@ -390,7 +467,7 @@ function setBattleFormat(next: BattleFormat) {
 }
 
 function relaySelected() {
-  return mode !== 'training' && mode !== 'online' && format === 'relay';
+  return mode === 'online' ? onlineFormat === 'relay' : mode !== 'training' && format === 'relay';
 }
 
 function modeTitle() {
@@ -681,11 +758,12 @@ function footer() {
     return;
   }
   const hints = screen === 'roster'
-    ? 'P1 ' + keyHint(preferences, 0, ['left', 'right', 'up', 'down'], ' ') + ' 移动 · ' +
+    ? (mode === 'online' ? '你是 P' + (onlineSeat + 1) + ' · ' : 'P1 ') + keyHint(preferences, 0, ['left', 'right', 'up', 'down'], ' ') + ' 移动 · ' +
       keyHint(preferences, 0, ['A']) + ' 确认' + (relaySelected() ? ' · ' + keyHint(preferences, 0, ['B']) + ' 切换首发/后援' : '') +
       (mode === 'local'
         ? '　　P2 ' + keyHint(preferences, 1, ['left', 'right', 'up', 'down'], ' ') + ' 移动 · ' +
           keyHint(preferences, 1, ['A']) + ' 确认' + (relaySelected() ? ' · ' + keyHint(preferences, 1, ['B']) + ' 切换首发/后援' : '') : '')
+    : screen === 'maps' && mode === 'online' && onlineSeat !== 0 ? '等待房主选择地图和规则'
     : screen === 'maps' ? upDown + ' 换图 · ' + confirmKey + ' 进场 · ' + backKey + ' 返回'
     : screen === 'menu' ? upDown + ' 选模式 · ' + confirmKey + ' 确认'
     : screen === 'title' ? confirmKey + ' 进入游戏'
@@ -717,7 +795,7 @@ function clearInputs(keepDirections = false) {
 }
 
 function renderPreparationNav() {
-  nav.hidden = screen !== 'menu' && screen !== 'roster' && screen !== 'maps';
+  nav.hidden = mode === 'online' || (screen !== 'menu' && screen !== 'roster' && screen !== 'maps');
   for (const tab of stageTabs) {
     const target = tab.dataset.stageTab;
     tab.disabled = (target === 'roster' && screen === 'menu') ||
@@ -763,7 +841,8 @@ function show(next: Screen) {
     element('map-rules').hidden = mode === 'training';
     element('training-rule').hidden = mode !== 'training';
     element('round-wins-rule').hidden = relaySelected();
-    roundWins.disabled = relaySelected();
+    roundLimit.disabled = mode === 'online' && onlineSeat !== 0;
+    roundWins.disabled = roundLimit.disabled || relaySelected();
     element('relay-rules').hidden = !relaySelected();
     text(element('round-limit-label'), relaySelected() ? '单场时限' : '时限');
     roundLimit.setAttribute('aria-label', relaySelected() ? '车轮战单场时限' : '单回合时限');
@@ -783,9 +862,11 @@ function show(next: Screen) {
 
 function go(next: Screen) {
   if (mode === 'online' && next !== 'match' && next !== 'result') {
-    onlineRoom.disconnect();
-    mode = 'local';
-    stage.dataset.mode = mode;
+    if (next === 'roster' && screen === 'maps') {
+      confirmed[onlineSeat] = false;
+      sendOnlineSelection(onlineSeat);
+    } else if (next === 'menu' || next === 'title') leaveOnlineMatch();
+    return;
   }
   if (next === 'roster' && screen !== 'maps' && screen !== 'roster') {
     confirmed.fill(false);
@@ -816,12 +897,19 @@ function acceptsSkillInput(fighter: FighterDefinition, slot: 'B' | 'C' | 'ULT') 
 
 function renderRoster() {
   const choosingRelay = relaySelected();
+  const online = mode === 'online';
+  const formatSelect = element<HTMLSelectElement>('roster-format');
+  element('roster-format-control').hidden = mode === 'training';
+  formatSelect.disabled = online && onlineSeat !== 0;
+  formatSelect.value = choosingRelay ? 'relay' : 'standard';
   text(element('roster-rule'), choosingRelay ? '每队选 2 名不同角色（首发 + 后援）' : '双方可选同一角色');
   for (const seat of seats) {
     const index = pickedFighter(seat);
     const entry = index === null ? undefined : roster[index];
     const who = seatName(seat);
-    text(seatButtonLabels[seat], who + (seat === 1 && mode !== 'local' ? '角色' : ' 选角'));
+    const remote = online && seat !== onlineSeat;
+    text(seatButtonLabels[seat], online ? who + (remote ? ' 对手' : ' 你') : who + (seat === 1 && mode !== 'local' ? '角色' : ' 选角'));
+    seatButtons[seat].disabled = remote;
     seatButtons[seat].setAttribute('aria-pressed', String(seat === activeSeat));
     const art = panels[seat].querySelector<HTMLImageElement>('.pick-art')!;
     art.style.visibility = entry ? '' : 'hidden';
@@ -837,13 +925,14 @@ function renderRoster() {
       const pick = relayPicks[seat][slot];
       const button = lineupButtons[seat][slot];
       text(button.querySelector('strong')!, pick === null ? '待选' : roster[pick].fighter.name);
+      button.disabled = remote;
       button.setAttribute('aria-pressed', String(activeSeat === seat && activeSlots[seat] === slot));
     }
     const incomplete = choosingRelay && relayPicks[seat][1] === null;
-    lineupButtons[seat][2].disabled = incomplete;
+    lineupButtons[seat][2].disabled = incomplete || remote;
     lineupButtons[seat][2].setAttribute('aria-label', '调换 ' + who + ' 出场顺序');
     lockButtons[seat].setAttribute('aria-pressed', String(confirmed[seat]));
-    lockButtons[seat].disabled = incomplete;
+    lockButtons[seat].disabled = incomplete || remote;
     text(lockButtonLabels[seat], confirmed[seat] ? who + ' 已确认' : '确认 ' + who);
   }
   for (const [index, { button, badgeLabels }] of tiles.entries()) {
@@ -859,8 +948,9 @@ function renderRoster() {
     }
   }
   const ready = confirmed.every(Boolean);
+  pickArena.hidden = online;
   pickArena.disabled = !ready;
-  text(element('roster-help'), ready ? '双方已确认，按 ' + keyHint(preferences, 0, ['A']) + ' 选图'
+  text(element('roster-help'), online && confirmed[onlineSeat] ? '等待对手确认' : ready ? '双方已确认，按 ' + keyHint(preferences, 0, ['A']) + ' 选图'
     : choosingRelay ? '正在选择 ' + seatName(activeSeat) + ' 的' + relayPositions[activeSlots[activeSeat]]
       : '正在为 ' + seatName(activeSeat) + ' 选角');
   const jab = commandHint(activeSeat, commonMovePrompts[0]);
@@ -870,6 +960,7 @@ function renderRoster() {
 }
 
 function selectFighter(seat: Seat, index: number) {
+  if (mode === 'online' && seat !== onlineSeat) return;
   let changed = false;
   activeSeat = seat;
   if (relaySelected()) {
@@ -886,6 +977,7 @@ function selectFighter(seat: Seat, index: number) {
   }
   renderRoster();
   if (changed) {
+    if (mode === 'online') sendOnlineSelection(seat);
     const art = panels[seat].querySelector<HTMLImageElement>('.pick-art')!;
     animateUI(art, [
       { translate: (seat === 0 ? '-4.5cqw' : '4.5cqw') + ' 1.2cqw', scale: '.84', opacity: .35 },
@@ -901,6 +993,7 @@ function selectFighter(seat: Seat, index: number) {
 }
 
 function confirmSeat(seat: Seat) {
+  if (mode === 'online' && seat !== onlineSeat) return;
   if (relaySelected() && relayPicks[seat][1] === null) {
     editRelaySlot(seat, 1);
     lineupButtons[seat][1].focus();
@@ -908,12 +1001,21 @@ function confirmSeat(seat: Seat) {
   }
   const partner = seat === 0 ? 1 : 0;
   confirmed[seat] = !confirmed[seat];
-  activeSeat = confirmed[seat] && !confirmed[partner] ? partner : seat;
+  activeSeat = mode !== 'online' && confirmed[seat] && !confirmed[partner] ? partner : seat;
+  if (mode === 'online') sendOnlineSelection(seat);
   renderRoster();
   if (confirmed[seat]) {
     animateUI(lockButtons[seat], [{ scale: '.96' }, { scale: '1.075', offset: .52 }, { scale: '1' }], 170);
   }
-  if (confirmed.every(Boolean)) pickArena.focus();
+  if (mode !== 'online' && confirmed.every(Boolean)) pickArena.focus();
+}
+
+function chooseArena(index: number) {
+  if (mode === 'online') {
+    if (onlineSeat !== 0) return;
+    onlineRoom.chooseArena(arenas[index].id);
+  }
+  selectArena(index);
 }
 
 function selectArena(index: number) {
@@ -921,14 +1023,19 @@ function selectArena(index: number) {
   arenaIndex = index;
   const arena = arenas[index];
   stage.dataset.arena = arena.id;
-  for (const [id, button] of mapButtons.entries()) button.setAttribute('aria-pressed', String(index === id));
+  const waitingForHost = mode === 'online' && onlineSeat !== 0;
+  for (const [id, button] of mapButtons.entries()) {
+    button.disabled = waitingForHost;
+    button.setAttribute('aria-pressed', String(index === id));
+  }
+  element<HTMLButtonElement>('start').disabled = waitingForHost;
   text(element('map-name'), arena.name);
   const screens = ((arena.right - arena.left) / canvas.width).toFixed(1);
   const tiers = new Set(arena.platforms.map(platform => platform.tier)).size;
   const hasRoutes = arena.routes.some(route => route.length > 0);
   text(element('map-count'), screens + ' 屏宽 · ' + (arena.platforms.length
     ? tiers + ' 层 · ' + arena.platforms.length + ' 处平台' : '单层地面'));
-  text(element('start-label'), mode === 'training' ? '进入训练' : '开始对战');
+  text(element('start-label'), waitingForHost ? '等待房主开战' : mode === 'training' ? '进入训练' : '开始对战');
   text(element('map-description'), arena.description);
   const routeLine = element('map-route');
   for (const [side, suffix] of namesSuffix.entries()) {
@@ -1035,6 +1142,10 @@ function enterMatch() {
 }
 
 function startMatch(immediate = false) {
+  if (mode === 'online') {
+    if (screen === 'maps' && onlineSeat === 0 && confirmed.every(Boolean)) onlineRoom.start();
+    return;
+  }
   if (relaySelected() && !confirmed.every(Boolean)) return;
   audio.enableFromGesture();
   configureMatch(immediate);
@@ -1225,10 +1336,34 @@ for (const seat of seats) {
     if (reserve === null) return;
     relayPicks[seat] = [reserve, lead];
     confirmed[seat] = false;
+    if (mode === 'online') sendOnlineSelection(seat);
     editRelaySlot(seat, 0);
   });
 }
 
+element<HTMLSelectElement>('roster-format').addEventListener('change', event => {
+  const next = (event.target as HTMLSelectElement).value as BattleFormat;
+  if (mode === 'online') {
+    if (onlineSeat === 0) onlineRoom.setFormat(next);
+    return;
+  }
+  if (next === format) return;
+  for (const seat of seats) {
+    if (next === 'relay') {
+      const reserve = relayPicks[seat][1];
+      relayPicks[seat] = [selected[seat], reserve === selected[seat] ? null : reserve];
+    } else selected[seat] = relayPicks[seat][0];
+  }
+  activeSlots.fill(0);
+  confirmed.fill(false);
+  setBattleFormat(next);
+  show('roster');
+});
+for (const field of [roundLimit, roundWins]) {
+  field.addEventListener('change', () => {
+    if (mode === 'online' && onlineSeat === 0) onlineRoom.setRules(Number(roundLimit.value), Number(roundWins.value));
+  });
+}
 pickArena.addEventListener('click', () => go('maps'));
 routeToggle.addEventListener('click', () => { routeVisible = !routeVisible; selectArena(arenaIndex); });
 element('start').addEventListener('click', () => startMatch());
@@ -1319,6 +1454,7 @@ document.addEventListener('fullscreenchange', refreshDisplayButton);
 refreshDisplayButton();
 
 function rosterKey(event: KeyboardEvent) {
+  if (event.target instanceof HTMLSelectElement) return false;
   const binding = bindings.get(event.code);
   if (!binding || (binding.seat === 1 && mode !== 'local')) return false;
   const seat = mode === 'local' ? binding.seat : activeSeat;
@@ -1360,12 +1496,12 @@ function navigationKey(event: KeyboardEvent) {
       Array.from(screens[screen].querySelectorAll<HTMLButtonElement>('button:not([disabled]):not([hidden])'));
     const current = choices.indexOf(focused as HTMLButtonElement);
     choices[(current + direction + choices.length) % choices.length].focus();
-  } else if (direction && screen === 'maps') {
+  } else if (direction && screen === 'maps' && (mode !== 'online' || onlineSeat === 0)) {
     const current = focusedMap >= 0 ? focusedMap : arenaIndex;
-    selectArena((current + direction + arenas.length) % arenas.length);
+    chooseArena((current + direction + arenas.length) % arenas.length);
     mapButtons[arenaIndex].focus();
   } else if ((control === 'A' || event.code === 'Enter') && screen === 'maps' && focusedMap >= 0) {
-    if (focusedMap !== arenaIndex) selectArena(focusedMap);
+    if (focusedMap !== arenaIndex) chooseArena(focusedMap);
     startMatch();
   } else if (control === 'A' && focused instanceof HTMLButtonElement && screens[screen].contains(focused)) {
     focused.click();

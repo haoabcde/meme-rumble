@@ -263,6 +263,7 @@
         </div>
         <footer class="screen-footer">
           <button class="subtle" data-go="menu" type="button">返回模式</button>
+          <label id="roster-format-control" class="roster-format" hidden>赛制 <select id="roster-format"><option value="standard">单角色对战</option><option value="relay">双角色车轮战</option></select></label>
           <button class="primary" id="pick-arena" type="button" disabled>选择地图 <span aria-hidden="true" class="button-launch"><svg viewBox="0 0 28 20"><use href="#ink-launch"/></svg></span></button>
         </footer>
       </section>
@@ -483,8 +484,6 @@
     </footer>
     <dialog id="online-room" aria-labelledby="online-title">
       <h2 id="online-title">好友联机 · 1V1</h2>
-      <label>你的角色 <select id="online-fighter"></select></label>
-      <label>房主地图 <select id="online-arena"></select></label>
       <button id="online-create" class="primary" type="button">创建房间</button>
       <label>房间码 <input id="online-code" maxlength="8" autocomplete="off" spellcheck="false"></label>
       <button id="online-join" class="subtle" type="button">加入房间</button>
