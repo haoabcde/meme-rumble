@@ -279,15 +279,13 @@
           <div class="map-preview">
             <div class="map-viewport">
               <canvas id="map-canvas" width="1280" height="720" aria-label="地图预览"></canvas>
-              <button id="route-preview" class="subtle route-preview" aria-pressed="true" type="button">登台路线</button>
+              <button id="route-preview" class="subtle route-preview" aria-pressed="false" type="button" aria-controls="map-canvas">路线图</button>
             </div>
             <div class="map-caption">
               <div class="map-caption-top"><h3 id="map-name"></h3><span id="map-count"></span></div>
               <p id="map-description"></p>
-              <div id="map-route" class="map-route">
-                <p><b class="route-west">西侧</b> <span id="map-route-one"></span></p>
-                <p><b class="route-east">东侧</b> <span id="map-route-two"></span></p>
-              </div>
+              <p id="map-route" class="map-route" hidden><b class="route-west">左侧登高</b><b class="route-east">右侧登高</b><b class="route-drop">下穿</b></p>
+              <p id="map-flat-route" class="map-route" hidden><b class="route-west">P1</b><b class="route-east">P2</b><span>开局位置 · 两侧可追击到地图边缘</span></p>
             </div>
           </div>
           <div id="arena-choices" class="map-grid" role="group" aria-label="地图名单"></div>

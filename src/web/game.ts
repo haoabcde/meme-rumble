@@ -49,13 +49,6 @@ const fighterRoles: Record<string, string> = {
   banana: '蓄泪喷射 · 距离压制',
   gaga: '长杆进攻 · 炮台牵制'
 };
-const arenaTactics: Record<string, string> = {
-  'broadcast-ring': '地面对攻 · 横向追击',
-  harbor: '借吊盘追击',
-  'dorm-roof': '跨院争夺高位',
-  'night-court': '穿越中圈 · 高位换边',
-  'star-station': '双塔包抄 · 追击升降'
-};
 type MovePrompt = { slot: Slot; direction?: Direction; label: string };
 const commonMovePrompts: MovePrompt[] = [
   { slot: 'A', label: '普攻' },
@@ -194,7 +187,7 @@ let format: BattleFormat = 'standard';
 let screen: Screen = 'title';
 let activeSeat: Seat = 0;
 let arenaIndex = Math.max(0, arenas.findIndex(arena => arena.id === 'broadcast-ring'));
-let routeVisible = true;
+let routeVisible = false;
 let debug = false;
 let bestTier = 0;
 let lastTime = 0;
@@ -430,24 +423,13 @@ const mapButtons = arenas.map((arena, index) => {
   previewArena(thumbnail, arena);
   const body = document.createElement('span');
   const name = document.createElement('b');
-  const badges = document.createElement('span');
   const tactic = document.createElement('small');
-  const axes = new Set(arena.platforms.flatMap(platform => platform.travel ? [platform.travel.axis ?? 'x'] : []));
-  const mover = axes.size > 1 ? '移动平台' : axes.has('x') ? '横移平台' : axes.has('y') ? '升降平台' : '';
   name.textContent = arena.name;
-  badges.className = 'map-badges';
-  badges.id = 'map-tags-' + arena.id;
-  const tags = [arena.platforms.length ? '多层' : '单层', mover].filter(Boolean);
-  badges.append(...tags.map(tag => {
-    const badge = document.createElement('span');
-    badge.textContent = tag;
-    return badge;
-  }));
   tactic.className = 'map-tactic';
   tactic.id = 'map-tactic-' + arena.id;
-  tactic.textContent = arenaTactics[arena.id] ?? arena.terrain;
-  button.setAttribute('aria-describedby', badges.id + ' ' + tactic.id);
-  body.append(name, badges, tactic);
+  tactic.textContent = arena.terrain;
+  button.setAttribute('aria-describedby', tactic.id);
+  body.append(name, tactic);
   button.append(thumbnail, body, inkSymbol('selection', 'selection-ink'));
   button.addEventListener('click', () => chooseArena(index));
   arenaChoices.append(button);
@@ -1032,20 +1014,14 @@ function selectArena(index: number) {
   text(element('map-name'), arena.name);
   const screens = ((arena.right - arena.left) / canvas.width).toFixed(1);
   const tiers = new Set(arena.platforms.map(platform => platform.tier)).size;
-  const hasRoutes = arena.routes.some(route => route.length > 0);
   text(element('map-count'), screens + ' 屏宽 · ' + (arena.platforms.length
-    ? tiers + ' 层 · ' + arena.platforms.length + ' 处平台' : '单层地面'));
+    ? tiers + ' 层平台' : '单层地面'));
   text(element('start-label'), waitingForHost ? '等待房主开战' : mode === 'training' ? '进入训练' : '开始对战');
   text(element('map-description'), arena.description);
-  const routeLine = element('map-route');
-  for (const [side, suffix] of namesSuffix.entries()) {
-    const routeNames = arena.routes[side].map(id => arena.platforms.find(platform => platform.id === id)!.name);
-    text(element('map-route-' + suffix), routeNames.join(' → '));
-  }
-  routeLine.hidden = !hasRoutes || !routeVisible;
-  routeToggle.hidden = !hasRoutes;
+  element('map-route').hidden = !routeVisible || !arena.platforms.length;
+  element('map-flat-route').hidden = !routeVisible || !!arena.platforms.length;
   routeToggle.setAttribute('aria-pressed', String(routeVisible));
-  previewArena(mapCanvas, arena, hasRoutes && routeVisible);
+  previewArena(mapCanvas, arena, routeVisible);
   if (offset) {
     const direction = Math.sign(offset);
     animateUI(mapCanvas, [
@@ -1890,7 +1866,7 @@ function draw(elapsed: number) {
 }
 
 function frame(now: number) {
-  if (screen === 'maps' && arenas[arenaIndex].theme === 'ring' && !reducedMotion.matches &&
+  if (screen === 'maps' && !routeVisible && arenas[arenaIndex].theme === 'ring' && !reducedMotion.matches &&
     !document.hidden && now - lastRingPreview >= 85) {
     previewArena(mapCanvas, arenas[arenaIndex], false, Math.floor(now * .06));
     lastRingPreview = now;

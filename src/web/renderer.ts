@@ -401,7 +401,8 @@ export function paintArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition
   drawArenaSurfaces(ctx, arena, arena.platforms.map(p => platformAt(p, 0)), 0, .9);
 }
 
-function paintRoute(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, side: 0 | 1) {
+function paintRoute(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, side: 0 | 1,
+  project: (x: number, y: number) => Point) {
   const route = arena.routes[side].map(id => arena.platforms.find(platform => platform.id === id)!);
   let support = { left: arena.left, right: arena.right, y: arena.floor };
   let from: Point = [arena.spawn[side], arena.floor];
@@ -411,33 +412,48 @@ function paintRoute(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, side:
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.beginPath();
-  ctx.arc(...from, 27, 0, Math.PI * 2);
+  ctx.arc(...project(...from), 6, 0, Math.PI * 2);
   ctx.fillStyle = color;
   ctx.fill();
   ctx.strokeStyle = outline;
-  ctx.lineWidth = 10;
+  ctx.lineWidth = 2;
   ctx.stroke();
   for (const [index, platform] of route.entries()) {
     const left = Math.max(support.left, platform.left);
     const right = Math.min(support.right, platform.right);
     const margin = Math.min(22, (right - left) / 2);
     const x = Math.min(right - margin, Math.max(left + margin, from[0]));
+    const exit = (left + right) / 2;
     const takeoff = index === 0 ? from[0] : x;
+    // A descent uses the overlap with the next platform below.
+    const [dropX, dropFrom] = project(exit, platform.y);
+    const [, dropTo] = project(exit, support.y);
     ctx.beginPath();
-    ctx.moveTo(...from);
-    ctx.lineTo(takeoff, support.y);
-    ctx.quadraticCurveTo((takeoff + x) / 2 + (side === 0 ? -72 : 72), platform.y - 56, x, platform.y);
-    ctx.lineWidth = 29;
+    ctx.moveTo(dropX, dropFrom + 9);
+    ctx.lineTo(dropX, dropTo - 10);
+    ctx.lineTo(dropX - 5, dropTo - 17);
+    ctx.moveTo(dropX, dropTo - 10);
+    ctx.lineTo(dropX + 5, dropTo - 17);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#ffb28c';
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(...project(...from));
+    ctx.lineTo(...project(takeoff, support.y));
+    const [landX, landY] = project(x, platform.y);
+    const [controlX, controlY] = project((takeoff + x) / 2, (support.y + platform.y) / 2);
+    ctx.quadraticCurveTo(controlX + (side === 0 ? -21 : 21), controlY - 25, landX, landY);
+    ctx.lineWidth = 7;
     ctx.strokeStyle = outline;
     ctx.stroke();
-    ctx.lineWidth = 16;
+    ctx.lineWidth = 4;
     ctx.strokeStyle = color;
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(x, platform.y, 21, 0, Math.PI * 2);
+    ctx.arc(landX, landY, 5, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = outline;
-    ctx.lineWidth = 8;
+    ctx.lineWidth = 2;
     ctx.stroke();
     support = platform;
     from = [x, platform.y];
@@ -445,11 +461,55 @@ function paintRoute(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, side:
   ctx.restore();
 }
 
+function paintTerrainPlan(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, arena: ArenaDefinition) {
+  const w = canvas.width, h = canvas.height;
+  const decks = arena.platforms.filter(platform => !platform.travel);
+  ctx.fillStyle = '#151924';
+  ctx.fillRect(0, 0, w, h);
+  const rise = Math.max(310, ...arena.platforms.map(platform =>
+    arena.floor - platform.y - (platform.travel?.axis === 'y' ? Math.min(0, platform.travel.distance) : 0)));
+  const scaleX = w * .9 / (arena.right - arena.left);
+  const scaleY = h * .56 / rise;
+  const originX = w * .05 - arena.left * scaleX, originY = h * .81 - arena.floor * scaleY;
+  ctx.setTransform(scaleX, 0, 0, scaleY, originX, originY);
+  ctx.fillStyle = '#778399';
+  ctx.fillRect(arena.left, arena.floor, arena.right - arena.left, 10 / scaleY);
+  for (const y of new Set(decks.map(platform => platform.y))) {
+    ctx.fillStyle = '#272c3d';
+    ctx.fillRect(arena.left, y, arena.right - arena.left, 1 / scaleY);
+  }
+  for (const platform of decks) {
+    ctx.fillStyle = ['#75ded4', '#f3ce74', '#d4abef', '#d4abef'][platform.tier - 1];
+    ctx.fillRect(platform.left, platform.y, platform.right - platform.left, 7 / scaleY);
+  }
+  for (const p of arena.platforms) {
+    if (!p.travel) continue;
+    const stop = platformAt(p, p.travel.period / 2 - p.travel.phase);
+    const center = (p.left + p.right) / 2;
+    ctx.save();
+    ctx.strokeStyle = '#d4abef';
+    ctx.lineWidth = 8;
+    ctx.setLineDash([33, 29]);
+    ctx.beginPath();
+    ctx.moveTo(center, p.y);
+    ctx.lineTo((stop.left + stop.right) / 2, stop.y);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.resetTransform();
+  const project = (x: number, y: number): Point => [originX + x * scaleX, originY + y * scaleY];
+  for (const side of [0, 1] as const) paintRoute(ctx, arena, side, project);
+}
+
 export function previewArena(canvas: HTMLCanvasElement, arena: ArenaDefinition, route = false, frame = 0) {
   const ctx = canvas.getContext('2d')!;
   const variant = arena.id + (route ? '-route' : '');
   const ink = usesInkArena(arena);
   canvas.dataset.variant = variant;
+  if (route) {
+    paintTerrainPlan(ctx, canvas, arena);
+    return;
+  }
   const draw = () => {
     if (canvas.dataset.variant !== variant) return;
     const top = ink ? Math.max(0, arena.floor - 1255) : 0;
@@ -457,11 +517,6 @@ export function previewArena(canvas: HTMLCanvasElement, arena: ArenaDefinition, 
     const scaleY = canvas.height / (bottom - top);
     ctx.setTransform(canvas.width / arena.width, 0, 0, scaleY, 0, -top * scaleY);
     paintArena(ctx, arena, frame);
-    if (route) {
-      ctx.fillStyle = '#10152b69';
-      ctx.fillRect(0, 0, arena.width, arena.height);
-      for (const side of [0, 1] as const) paintRoute(ctx, arena, side);
-    }
     ctx.resetTransform();
   };
   draw();
@@ -765,7 +820,8 @@ export class Renderer {
     });
     const frozen = state.phase === 'fight' && (state.freeze > 0 || cinematicOwner(state) !== undefined);
     const playCamera = frameCamera(config.arena, { width, height },
-      [{ x: a.x, y: a.y, height: heights[0] }, { x: b.x, y: b.y, height: heights[1] }],
+      [{ x: a.x, y: a.y, height: heights[0], ground: a.ground },
+        { x: b.x, y: b.y, height: heights[1], ground: b.ground }],
       this.camera, frozen ? 0 : elapsed, focus, opening, summon, jetTips);
     const ts = state.timeStop;
     const introFrame = state.phase === 'ready' && !config.training && !reducedMotion

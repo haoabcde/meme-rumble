@@ -16,6 +16,7 @@ const move = {
 };
 const window = (from, to, group, boxes = [hitbox], impact = {}) => ({ from, to, group, boxes, ...impact });
 const input = (pressed = [], fields = {}) => ({ ...NEUTRAL, pressed, ...fields });
+const flatArena = arenas.find(arena => arena.id === 'broadcast-ring');
 const projectile = {
   id: 'bolt', spawnFrame: 1, lifetime: 20,
   offset: { x: 25, y: -60 }, velocity: { x: 40, y: 0 },
@@ -33,7 +34,7 @@ function fighter(id, signatureMoves = []) {
 function opening(attacker, seat = 0, defender = fighter('dummy')) {
   const fighters = [defender, defender];
   fighters[seat] = attacker;
-  const config = { rules, arena: arenas[0], training: true, fighters };
+  const config = { rules, arena: flatArena, training: true, fighters };
   let state = createMatch(config);
   state.phase = 'fight';
   state.fighters[0].x = 1800;

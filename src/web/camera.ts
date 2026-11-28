@@ -24,7 +24,8 @@ export function dijiangBurialTip(
 }
 
 type Size = Pick<ArenaDefinition, 'width' | 'height'>;
-type Subject = { x: number; y: number; height: number };
+type Playfield = Size & Partial<Pick<ArenaDefinition, 'floor' | 'platforms'>>;
+type Subject = { x: number; y: number; height: number; ground?: string | null };
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -81,7 +82,7 @@ export function frameEntrance(
 }
 
 export function frameCamera(
-  arena: Size, viewport: Size, subjects: Duo<Subject>,
+  arena: Playfield, viewport: Size, subjects: Duo<Subject>,
   previous: CameraView | null, elapsed: number, focus: boolean, opening = 0, anchor?: Pick<Subject, 'x' | 'y'>,
   effectEdges: ReadonlyArray<Pick<Subject, 'x' | 'y'>> = []
 ): CameraView {
@@ -112,7 +113,32 @@ export function frameCamera(
   const minX = clamp(right - visibleWidth, 0, maxX);
   const minY = clamp(feet - (height - bottom) / zoom, 0, maxY);
   const targetX = (a.x + b.x - visibleWidth) / 2;
-  const targetY = (a.y + b.y) / 2 - height * (.79 - .04 * blend) / zoom;
+  const fightY = (a.y + b.y) / 2 - height * (.79 - .04 * blend) / zoom;
+  let targetY = fightY;
+  // Keep nearby routes in view. Use the lower fighter as a stable reference
+  // through small hops and give taller, distant structures less weight.
+  const routeBase = Math.max(a.y, b.y);
+  for (const platform of arena.platforms ?? []) {
+    const rise = routeBase - platform.y;
+    if (platform.travel || rise <= 0) continue;
+    const gap = Math.max(platform.left - Math.max(a.x, b.x), Math.min(a.x, b.x) - platform.right, 0);
+    const weight = clamp((380 - gap) / 180, 0, 1) * clamp((510 - rise) / 130, 0, 1);
+    const routeY = routeBase - Math.min(414, rise + 74) - hud / zoom;
+    targetY = Math.min(targetY, fightY + (routeY - fightY) * weight);
+  }
+  // A fighter standing at a descending route should be able to see where it lands.
+  for (const subject of subjects) {
+    if (!subject.ground || subject.ground === 'floor') continue;
+    let landing = arena.floor ?? Infinity;
+    for (const platform of arena.platforms ?? []) {
+      if (!platform.travel && platform.y > subject.y && subject.x >= platform.left && subject.x <= platform.right) {
+        landing = Math.min(landing, platform.y);
+      }
+    }
+    if (landing - subject.y <= 154) {
+      targetY = Math.max(targetY, landing - (height - bottom) / zoom);
+    }
+  }
   const lastX = previous ? previous.x + (width / previous.zoom - visibleWidth) / 2 : targetX;
   const lastY = previous ? previous.y + (height / previous.zoom - visibleHeight) / 2 : targetY;
 
@@ -120,7 +146,7 @@ export function frameCamera(
   const followY = clamp(lastY, targetY - 44 / zoom, targetY + 44 / zoom);
   return {
     x: clamp(opening ? targetX : lastX + (followX - lastX) * ease, minX, clamp(left, minX, maxX)),
-    y: clamp(opening ? targetY : lastY + (followY - lastY) * ease, minY, clamp(head - hud / zoom, minY, maxY)),
+    y: clamp(opening || !previous ? targetY : lastY + (followY - lastY) * ease, minY, clamp(head - hud / zoom, minY, maxY)),
     zoom
   };
 }

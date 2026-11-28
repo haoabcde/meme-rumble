@@ -1,5 +1,6 @@
 import frogScenes from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/scenes.png';
 import bananaActions from '../../assets/fighters/unified-handdrawn-v1/motion/banana/registered/banana-arcade-actions.webp';
+import dormCampusArt from '../../assets/arenas/dorm-campus-dusk.webp';
 import { platformAt } from '../core/terrain.js';
 import type { ArenaDefinition, MatchConfig, MatchState, Platform } from '../core/types.js';
 import { sprites } from './art.js';
@@ -26,6 +27,11 @@ const palettes: Record<Theme, Colors> = {
   ring: { sky: '#1b1135', haze: '#642653', shadow: '#170f29', structure: '#362148', face: '#613161',
     rim: '#f17594', signal: '#6bddd1', paper: '#f9d8ae', mat: '#4e2e60' }
 };
+
+const dormCampus = new Image();
+dormCampus.src = dormCampusArt;
+const backdropDepth = 1130;
+const backdropBleed = 170;
 
 function poly(ctx: CanvasRenderingContext2D, fill: string | CanvasGradient, points: Point[]) {
   ctx.fillStyle = fill;
@@ -212,29 +218,26 @@ function broadcast(ctx: CanvasRenderingContext2D, { width: w, floor }: ArenaDefi
 }
 
 function dorm(ctx: CanvasRenderingContext2D, { width: w, floor }: ArenaDefinition, c: Colors) {
-  disc(ctx, '#f5bc917e', w * .54, floor - 602, 164);
-  city(ctx, w, floor - 156, '#965e6b', 214, 30);
-  city(ctx, w, floor - 38, '#654956', 269, 80);
-  for (let x = 254; x < w; x += 750) {
-    const y = floor - 396 - (x % 3) * 38;
-    poly(ctx, '#705360', [[x - 87, floor], [x - 87, y + 17], [x + 38, y - 14], [x + 437, y - 14], [x + 514, y + 31], [x + 514, floor]]);
-    bar(ctx, '#9b6d66', x - 67, y + 30, 499, 28);
-    for (let i = 0; i < 6; i++) {
-      const wx = x - 37 + i * 73;
-      bar(ctx, '#4e4052', wx, y + 100, 49, 67);
-      if (i % 3 !== 1) bar(ctx, '#e8b48866', wx + 6, y + 106, 35, 40);
-      bar(ctx, '#573a47', wx - 4, y + 158, 57, 7);
-    }
+  if (dormCampus.naturalWidth) {
+    const sceneWidth = w + backdropBleed * 2;
+    const sourceHeight = dormCampus.naturalWidth * backdropDepth / sceneWidth;
+    const top = (dormCampus.naturalHeight - sourceHeight) * .50;
+    ctx.drawImage(dormCampus, 0, top, dormCampus.naturalWidth, sourceHeight,
+      -backdropBleed, floor - backdropDepth, sceneWidth, backdropDepth);
+  } else {
+    disc(ctx, '#f5bc917e', w * .54, floor - 602, 164);
+    city(ctx, w, floor - 156, '#965e6b', 214, 30);
+    city(ctx, w, floor - 38, '#654956', 269, 80);
   }
   lattice(ctx, '#493849', 0, floor - 114, w, 62, 94);
   bar(ctx, '#b98c786d', 0, floor - 116, w, 6);
-  for (let x = 171; x < w; x += 357) {
-    const height = 74 + Math.floor(x / 357) % 4 * 23;
-    for (let j = 0; j < 4; j++) {
-      const y = floor - 121 - j * height * .2;
-      poly(ctx, j % 2 ? '#718275' : '#506c66', [[x + 18, y + 22], [x - 34 + j * 6, y - 6],
-        [x - 19 + j * 5, y - 25], [x + 16, y - 15], [x + 28 + j * 6, y - 39], [x + 53, y - 18]]);
-    }
+  for (let x = 330; x < w; x += 850) {
+    const y = floor - 66;
+    bar(ctx, '#454450', x - 53, y, 106, 24);
+    disc(ctx, '#4a645f', x - 36, y - 18, 23);
+    disc(ctx, '#57746a', x, y - 27, 34);
+    disc(ctx, '#4a645f', x + 39, y - 14, 23);
+    disc(ctx, '#719183', x - 7, y - 43, 18);
   }
 }
 
@@ -319,6 +322,9 @@ function harbor(ctx: CanvasRenderingContext2D, { width: w, floor }: ArenaDefinit
 
 const backgrounds = { broadcast, dorm, court, station, harbor, ring: broadcast };
 const backdrops = new Map<ArenaDefinition, HTMLCanvasElement>();
+let dormBackdropLoad: Promise<void> | undefined = dormCampus.decode().then(() => {
+  for (const arena of backdrops.keys()) if (arena.theme === 'dorm') backdrops.delete(arena);
+}, () => {}).then(() => { dormBackdropLoad = undefined; });
 let broadcastBackdropLoad: Promise<void> | undefined = Promise.allSettled(
   Object.values(broadcastGuests).map(({ image }) => image.decode())
 ).then(() => {
@@ -330,17 +336,18 @@ let broadcastBackdropLoad: Promise<void> | undefined = Promise.allSettled(
 
 export function redrawWhenBackdropReady(arena: ArenaDefinition, redraw: () => void) {
   if (arena.theme === 'broadcast') void broadcastBackdropLoad?.then(redraw);
+  if (arena.theme === 'dorm') void dormBackdropLoad?.then(redraw);
 }
 
 export function drawInkBackdrop(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, viewCenter: number) {
   let image = backdrops.get(arena);
-  const top = arena.floor - 1130;
-  const overflow = 170;
+  const top = arena.floor - backdropDepth;
+  const overflow = backdropBleed;
   const c = palettes[arena.theme];
   if (!image) {
     image = document.createElement('canvas');
     image.width = arena.width + overflow * 2;
-    image.height = 1135;
+    image.height = backdropDepth + 5;
     const art = image.getContext('2d')!;
     art.translate(overflow, -top);
     const sky = art.createLinearGradient(0, top, 0, arena.floor);
@@ -351,9 +358,9 @@ export function drawInkBackdrop(ctx: CanvasRenderingContext2D, arena: ArenaDefin
     art.fillRect(-overflow, top, image.width, image.height);
     backgrounds[arena.theme](art, arena, c);
     const veil = art.createLinearGradient(0, top, 0, arena.floor);
-    veil.addColorStop(0, '#0d122232');
-    veil.addColorStop(.47, '#10132273');
-    veil.addColorStop(1, '#10132288');
+    veil.addColorStop(0, arena.theme === 'dorm' ? '#24263d16' : '#0d122232');
+    veil.addColorStop(.47, arena.theme === 'dorm' ? '#28263e33' : '#10132273');
+    veil.addColorStop(1, arena.theme === 'dorm' ? '#27223855' : '#10132288');
     art.fillStyle = veil;
     art.fillRect(-overflow, top, image.width, image.height);
     if (backdrops.size === 2) backdrops.delete(backdrops.keys().next().value!);
@@ -375,6 +382,45 @@ function platformArt(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, p: P
   const moving = p.travel !== undefined;
   const fill = moving ? c.rim : c.face;
   const depth = moving ? 29 : h;
+  if (p.prop === 'skywalk') {
+    // The corridor bears on the roofs it connects. The courtyard underneath stays open.
+    for (const support of arena.platforms.filter(surface => surface.tier === 1)) {
+      const left = Math.max(x, support.left);
+      const end = Math.min(right, support.right);
+      if (end <= left) continue;
+      const pier = (left + end) / 2;
+      poly(ctx, c.structure, [[pier - 25, y + depth - 5], [pier + 25, y + depth - 5],
+        [pier + 18, support.y], [pier - 18, support.y]]);
+      bar(ctx, c.rim + '66', pier - 17, y + depth, 7, support.y - y - depth);
+      bar(ctx, c.shadow, pier - 30, support.y - 10, 60, 10);
+    }
+  } else if (arena.theme === 'harbor' && p.prop === 'bridge') {
+    // Recessed mooring legs give the deck a footing without marking another walkable lip.
+    for (const pier of [x + 148, right - 148]) {
+      bar(ctx, c.structure, pier - 15, y + depth, 30, arena.floor - y - depth);
+      bar(ctx, c.shadow, pier - 23, y + 126, 46, 18);
+    }
+  } else if (p.prop === 'water-tank') {
+    const stand = arena.platforms.find(surface => surface.tier === p.tier - 1 &&
+      surface.left <= x && surface.right >= right);
+    const base = stand?.y ?? arena.floor;
+    for (const pier of [x + 61, right - 61]) {
+      bar(ctx, c.shadow, pier - 13, y + 59, 26, base - y - 59);
+      bar(ctx, c.rim + '99', pier - 6, y + 65, 4, base - y - 65);
+    }
+    ctx.fillStyle = c.shadow;
+    ctx.beginPath();
+    ctx.roundRect(x + 25, y + 3, w - 50, 86, [7, 7, 33, 33]);
+    ctx.fill();
+    ctx.fillStyle = '#827467';
+    ctx.beginPath();
+    ctx.roundRect(x + 31, y + 10, w - 62, 72, [6, 6, 26, 26]);
+    ctx.fill();
+    bar(ctx, '#c8a58a', x + 58, y + 19, w - 116, 8);
+    bar(ctx, c.structure, x + 32, y + 43, w - 64, 10);
+    bar(ctx, c.rim + 'b5', x + w * .5 - 24, y + 42, 48, 13);
+    return;
+  }
   poly(ctx, c.shadow, [[x, y], [right, y], [right, y + depth - 12],
     [right - 18, y + depth], [x + 18, y + depth], [x, y + depth - 12]]);
   poly(ctx, fill, [[x + 7, y + 10], [right - 7, y + 10], [right - 7, y + depth - 15],
@@ -403,10 +449,9 @@ function platformArt(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, p: P
       poly(ctx, c.signal + '80', [[sx + 4, y + 21], [sx + sw - 8, y + 21], [sx + sw - 17, y + h - 27], [sx + 3, y + h - 27]]);
       if (cell % 2 === 0) hatch(ctx, c.paper + '42', sx + 8, y + 25, sw - 10, h - 56, 23);
     }
-  } else if (p.prop === 'inductor' || p.prop === 'water-tank') {
-    const switchColor = p.prop === 'inductor' ? c.signal : c.paper;
+  } else if (p.prop === 'inductor') {
     for (let row = 0; row < 4; row++) {
-      poly(ctx, row % 2 ? c.structure : switchColor + 'c3', [[x + 14 + row * 6, y + 14 + row * 17],
+      poly(ctx, row % 2 ? c.structure : c.signal + 'c3', [[x + 14 + row * 6, y + 14 + row * 17],
         [right - 14 - row * 6, y + 14 + row * 17], [right - 29 - row * 6, y + 25 + row * 17], [x + 30 + row * 6, y + 25 + row * 17]]);
     }
   } else if (p.prop === 'bleachers' || p.prop === 'bench-seat') {
@@ -491,13 +536,13 @@ function paintFloor(ctx: CanvasRenderingContext2D, { floor, theme, width, height
   ctx.fillRect(0, floor, width, height - floor);
   bar(ctx, c.shadow, 0, floor + 43, width, 14);
   if (theme === 'dorm') {
-    for (let row = 0; row < 3; row++) {
-      const y = floor + 12 + row * 44;
-      for (let sx = -80 + row % 2 * 50; sx < width; sx += 113) {
-        const shift = row * 12;
-        poly(ctx, row % 2 ? '#c37a6359' : '#ca86636b', [[sx, y], [sx + 103, y], [sx + 107 + shift, y + 35], [sx - 11 + shift, y + 35]]);
-        line(ctx, '#dca17b55', 2, [[sx + 11, y + 34], [sx + 91 + shift, y + 34]]);
-      }
+    bar(ctx, '#817986', 0, floor + 7, width, 41);
+    bar(ctx, '#aaa0aa', 0, floor + 46, width, 4);
+    bar(ctx, '#423e50', 0, floor + 50, width, 14);
+    bar(ctx, '#635867', 0, floor + 64, width, 55);
+    bar(ctx, '#514757', 0, floor + 119, width, 7);
+    for (let seam = 325; seam < width; seam += 675) {
+      line(ctx, '#5c5869', 3, [[seam, floor + 10], [seam + 16, floor + 44]]);
     }
   } else if (theme === 'harbor') {
     for (const y of [floor + 20, floor + 90]) {

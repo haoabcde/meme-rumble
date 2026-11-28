@@ -16,18 +16,16 @@ function stage(description: Description, surfaces: Surface[]): ArenaDefinition {
 }
 
 const dorm = stage({
-  id: 'dorm-roof', name: '宿舍楼顶', theme: 'dorm', width: 4160, terrain: '温室起跳 · 跨院抢水塔',
-  description: '西侧花房和东侧种植台分别通往连廊。跨过中庭后，可借东楼的机房屋顶登上水塔。',
-  routes: [['west', 'bridge', 'bridge-east', 'terrace', 'tank'], ['east', 'bridge-east', 'terrace', 'tank']]
+  id: 'dorm-roof', name: '宿舍楼顶', theme: 'dorm', width: 4160, terrain: '双侧登楼 · 跨院连廊',
+  description: '花房和机房接上同一条连廊，沿连廊可以追过整个中庭。两端都可下穿回地面，东段还可登上水塔。',
+  routes: [['west', 'bridge', 'tank'], ['east', 'bridge', 'tank']]
 }, [
-  ['planter', '西侧树荫花坛', 1, 385, 970, 96, 'planter'],
-  ['west', '西侧花房顶', 1, 1170, 1770, 126, 'sunroom'],
-  ['bridge', '西楼连廊', 2, 1386, 1982, 252, 'skywalk'],
-  ['bridge-east', '东楼连廊', 2, 2180, 2790, 254, 'skywalk'],
-  ['east', '东侧种植台', 1, 2390, 3070, 126, 'planter'],
-  ['terrace', '机房屋顶', 3, 2240, 2600, 382, 'penthouse'],
-  ['tank', '天台水塔', 4, 2350, 2735, 510, 'water-tank'],
-  ['greenhouse', '东翼温室顶', 1, 3270, 3995, 108, 'sunroom']
+  ['planter', '西侧树荫花坛', 1, 350, 1080, 116, 'planter'],
+  ['west', '西侧花房顶', 1, 1130, 1840, 122, 'sunroom'],
+  ['bridge', '跨院连廊', 2, 740, 3420, 244, 'skywalk'],
+  ['east', '东侧机房顶', 1, 2310, 3070, 122, 'penthouse'],
+  ['tank', '天台水塔', 3, 2440, 2890, 362, 'water-tank'],
+  ['greenhouse', '东翼温室顶', 1, 3190, 3995, 116, 'sunroom']
 ]);
 
 const court = stage({
@@ -35,11 +33,11 @@ const court = stage({
   description: '中圈留给地面对打。两翼看台都能跳上计分牌，场边长椅提供额外的低位落脚点。',
   routes: [['west-stand', 'score-deck'], ['east-stand', 'score-deck']]
 }, [
-  ['west-bench', '主队场边长椅', 1, 1050, 1450, 96, 'bench-seat'],
-  ['west-stand', '主队看台', 1, 1500, 1985, 126, 'bleachers'],
-  ['score-deck', '中央计分牌', 2, 1850, 2630, 254, 'scoreboard'],
-  ['east-stand', '客队看台', 1, 2495, 2980, 126, 'bleachers'],
-  ['east-bench', '客队场边长椅', 1, 3030, 3430, 96, 'bench-seat']
+  ['west-bench', '主队场边长椅', 1, 500, 1240, 96, 'bench-seat'],
+  ['west-stand', '主队看台', 1, 1150, 1985, 126, 'bleachers'],
+  ['score-deck', '中央计分牌', 2, 1740, 2740, 254, 'scoreboard'],
+  ['east-stand', '客队看台', 1, 2495, 3330, 126, 'bleachers'],
+  ['east-bench', '客队场边长椅', 1, 3240, 3980, 96, 'bench-seat']
 ]);
 
 const station = stage({
@@ -47,28 +45,22 @@ const station = stage({
   description: '两塔各有一条固定登顶路线。中央升降机从地面附近直达塔冠，左右电缆桥之间也能用普通跳跨过。',
   routes: [['dock-left', 'relay-left', 'upper-left', 'coil-left'], ['dock-right', 'relay-right', 'upper-right', 'coil-right']]
 }, [
-  ['dock-left', '左塔变压器', 1, 1425, 1865, 126, 'transformer'],
-  ['relay-left', '左电缆桥', 2, 1485, 2065, 254, 'conduit'],
-  ['upper-left', '左塔控制室', 3, 1180, 1660, 382, 'control-room'],
-  ['coil-left', '西塔线圈冠', 4, 1455, 1848, 510, 'inductor'],
+  ['dock-left', '左塔变压器', 1, 820, 1865, 126, 'transformer'],
+  ['relay-left', '左电缆桥', 2, 960, 2065, 254, 'conduit'],
+  ['upper-left', '左塔控制室', 3, 625, 1660, 382, 'control-room'],
+  ['coil-left', '西塔线圈冠', 4, 965, 1848, 510, 'inductor'],
   ['service-lift', '中央升降机', 1, 2056, 2296, 62, 'elevator', { axis: 'y', distance: -458, period: 480, dwell: 52, phase: 0 }],
-  ['relay-right', '右电缆桥', 2, 2290, 2890, 254, 'conduit'],
-  ['dock-right', '右塔变压器', 1, 2487, 2972, 126, 'transformer'],
-  ['upper-right', '右塔控制室', 3, 2680, 3160, 382, 'control-room'],
-  ['coil-right', '东塔线圈冠', 4, 2500, 2820, 510, 'inductor']
+  ['relay-right', '右电缆桥', 2, 2290, 3400, 254, 'conduit'],
+  ['dock-right', '右塔变压器', 1, 2487, 3540, 126, 'transformer'],
+  ['upper-right', '右塔控制室', 3, 2680, 3725, 382, 'control-room'],
+  ['coil-right', '东塔线圈冠', 4, 2500, 3385, 510, 'inductor']
 ]);
-
-const ring = stage({
-  id: 'neon-ring', name: '霓虹决斗场', theme: 'ring', width: 1152, terrain: '单层擂台 · 鸭鸭直播',
-  description: '青蓝与玫红两侧看台为选手助威。鸭子解说员在大屏上播报，两位选手在中央擂台正面对决。',
-  routes: [[], []]
-}, []);
 
 const broadcast = stage({
   id: 'broadcast-ring', name: '直播擂台', theme: 'broadcast', width: 4480,
-  terrain: '单层地面 · 横向追击',
+  terrain: '开阔擂台 · 长距离追击',
   description: '擂台地面贯通两侧，双方可以沿场边拉开距离，在中央灯光下交锋。',
   routes: [[], []]
 }, []);
 
-export const arenas: ArenaDefinition[] = [dorm, court, harbor, station, ring, broadcast];
+export const arenas: ArenaDefinition[] = [dorm, court, harbor, station, broadcast];
