@@ -859,7 +859,9 @@ export class Renderer {
       ctx.drawImage(this.background, 0, this.sceneryTop);
       ringLayers.mechanism(ctx, config.arena, reducedMotion ? 0 : arenaFrame);
     } else if (layered) {
-      const illustrated = drawIllustratedArena(ctx, config.arena);
+      const illustrated = drawIllustratedArena(ctx, config.arena, {
+        left: x - dx / zoom, width: width / zoom
+      });
       if (!illustrated) {
         const center = x + width / (2 * zoom);
         drawInkBackdrop(ctx, config.arena, center);

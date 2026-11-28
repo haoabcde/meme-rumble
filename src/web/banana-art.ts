@@ -1309,6 +1309,13 @@ function drawJoAwakenedBody(ctx: CanvasRenderingContext2D, f: FighterState, acti
   return true;
 }
 
+export async function prepareBananaArt() {
+  await Promise.all([atlas, combatAtlas, entranceAtlas].map(image => {
+    image.fetchPriority = 'high';
+    return image.decode();
+  }));
+}
+
 export function drawBanana(ctx: CanvasRenderingContext2D, f: FighterState,
   action: ActionDefinition | undefined, tick: number, reducedMotion = false, stageCue?: BananaStageCue,
   standLinger?: StandLinger) {

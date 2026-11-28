@@ -6,7 +6,10 @@ import { createRelayMatch, stepRelayMatch, type RelayRoster, type RelaySession }
 import { frogPowered, FROG_RULES } from '../core/frog-kit.js';
 import { cinematicOwner } from '../core/whale-kit.js';
 import { ENERGY_PER_STOCK, MAX_ENERGY, MAX_TEARS, NEUTRAL, TEAR_UNITS_PER_POINT, isAttack, maxPendingPresses, type ActionKey, type Axis, type CombatEvent, type Direction, type Duo, type FighterAction, type FighterDefinition, type InputFrame, type MatchConfig, type RoundResult, type Slot, type Stick, type UltimateUnavailable } from '../core/types.js';
-import { arcadeArt, comicArt, arenaArt, fighterArt } from './art.js';
+import { arcadeArt, comicArt, arenaArt, fighterArt, prepareFighterArt } from './art.js';
+import { frogArtReady } from './frog-art.js';
+import { prepareBananaArt } from './banana-art.js';
+import { prepareArenaArt } from './illustrated-arenas.js';
 import { fighterPresentation, fitPresentationArt } from './fighter-presentation.js';
 import { closeDialogSmooth, inkSymbol, setRansomText } from './ui-art.js';
 import { FightAudio, type SampleVoice } from './audio.js';
@@ -149,6 +152,7 @@ const seatButtons = namesSuffix.map(id => element<HTMLButtonElement>('seat-' + i
 const seatButtonLabels = seatButtons.map(button => button.querySelector('span')!);
 const lockButtons = namesSuffix.map(id => element<HTMLButtonElement>('lock-' + id));
 const lockButtonLabels = lockButtons.map(button => button.querySelector('span')!);
+const preparingSeats = new Set<Seat>();
 const lineups = namesSuffix.map(id => element('lineup-' + id));
 const lineupButtons = lineups.map(lineup => lineup.querySelectorAll<HTMLButtonElement>('button'));
 const formatButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('#battle-format [data-format]'));
@@ -918,8 +922,8 @@ function renderRoster() {
     lineupButtons[seat][2].disabled = incomplete || remote;
     lineupButtons[seat][2].setAttribute('aria-label', '调换 ' + who + ' 出场顺序');
     lockButtons[seat].setAttribute('aria-pressed', String(confirmed[seat]));
-    lockButtons[seat].disabled = incomplete || remote;
-    text(lockButtonLabels[seat], confirmed[seat] ? who + ' 已确认' : '确认 ' + who);
+    lockButtons[seat].disabled = incomplete || remote || preparingSeats.has(seat);
+    text(lockButtonLabels[seat], preparingSeats.has(seat) ? '载入中…' : confirmed[seat] ? who + ' 已确认' : '确认 ' + who);
   }
   for (const [index, { button, badgeLabels }] of tiles.entries()) {
     const positions = seats.map(seat => choosingRelay ? relayPicks[seat].indexOf(index) : selected[seat] === index ? 0 : -1);
@@ -978,12 +982,34 @@ function selectFighter(seat: Seat, index: number) {
   }
 }
 
-function confirmSeat(seat: Seat) {
+async function confirmSeat(seat: Seat) {
   if (mode === 'online' && seat !== onlineSeat) return;
+  if (preparingSeats.has(seat)) return;
   if (relaySelected() && relayPicks[seat][1] === null) {
     editRelaySlot(seat, 1);
     lineupButtons[seat][1].focus();
     return;
+  }
+  if (!confirmed[seat]) {
+    const picks = () => relaySelected() ? [...relayPicks[seat]] : [selected[seat]];
+    const selection = picks();
+    // Both clients must be able to draw a later opponent selection as well.
+    const ids = mode === 'online' ? roster.map(entry => entry.fighter.id)
+      : selection.map(index => roster[index!].fighter.id);
+    preparingSeats.add(seat);
+    renderRoster();
+    try {
+      await Promise.all([prepareFighterArt(ids), prepareArenaArt(),
+        ...(ids.includes('frog') ? [frogArtReady] : []),
+        ...(ids.includes('banana') ? [prepareBananaArt()] : [])]);
+      if (screen !== 'roster' || selection.join(',') !== picks().join(',')) return;
+    } catch {
+      notify('素材载入失败，请重试');
+      return;
+    } finally {
+      preparingSeats.delete(seat);
+      if (screen === 'roster') renderRoster();
+    }
   }
   const partner = seat === 0 ? 1 : 0;
   confirmed[seat] = !confirmed[seat];

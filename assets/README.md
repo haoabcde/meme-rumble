@@ -12,7 +12,7 @@
 - [雨夜商街](arenas/court-illustrated.webp)以 3360×1890 的一体画稿入库。月夜商铺与湿石街面等比合成，四层建筑的七道台沿按试玩坐标登记。暖色主连廊贯通两翼，中央短台和两侧廊台的落脚线与碰撞面重合。
 - [余晖货港](arenas/harbor-illustrated.webp)的渡船和货柜共用平整装卸面，中层栈桥横跨水道。
 - [星电站](arenas/station-illustrated.webp)的底层站房延伸到升降井两边，双方出生点都在低台下方。
-- [直播擂台](arenas/broadcast-illustrated.webp)的台面贯通两侧，应援设施位于背景。
+- [直播擂台](arenas/broadcast-illustrated.webp)改为手绘夜场剧院：红幕、拱窗与暖色吊灯，小企鹅、猫咪、兔子和团子观众坐在栏杆后；舞台平整贯通两侧。内置 ImageGen 编辑生成，提示强调保留 16:9 构图、地面落脚线与空旷战斗区域，观众不进入台面，不添加屏幕或文字。实战按原图比例绘制远景视差，避免随整张地图放大观众；战斗空间与原有落脚高度保留，不再分段拉伸背景。
 
 [五张场景路线图](../docs/arena-routes.png) · [台沿登记](../src/web/illustrated-arenas.ts)
 

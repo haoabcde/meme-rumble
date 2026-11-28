@@ -47,13 +47,18 @@ const scenes = new Map<string, Illustration>([
     { row: 547, rise: 126, lips: [['dock-left', 376, 979, 547], ['dock-right', 1100, 1707, 547]] },
     { row: 620, rise: 0 }
   ], { id: 'service-lift', left: 986, right: 1093, inset: 18 })],
-  ['broadcast-ring', illustration(broadcastArt, [
-    { row: 350, rise: 560 },
-    { row: 633, rise: 0 }
-  ])]
+  // The theatre master keeps the stage lip at the arena's existing floor line.
+  ['broadcast-ring', illustration(broadcastArt, [])]
 ]);
 
 const sceneCache = new Map<ArenaDefinition, HTMLCanvasElement>();
+
+export async function prepareArenaArt() {
+  await Promise.all([...scenes.values()].map(({ image }) => {
+    image.fetchPriority = 'high';
+    return image.decode();
+  }));
+}
 const mix = (a: number, b: number, t: number) => a + (b - a) * t;
 
 function makeRow(arena: ArenaDefinition, width: number, band: ArtBand, shaft?: Shaft): Pin[] {
@@ -166,11 +171,30 @@ function registerScene(arena: ArenaDefinition, { image, bands, shaft }: Illustra
   return canvas;
 }
 
-export function drawIllustratedArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {
+export function drawIllustratedArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition,
+  view?: { left: number; width: number }) {
   const art = scenes.get(arena.id);
   if (!art?.image.naturalWidth) return false;
+  if (arena.id === 'broadcast-ring' && view) {
+    // Distant spectators and architecture follow the camera slowly. Scaling the
+    // theatre to the entire combat world would turn its audience into giants.
+    const width = view.width * 1.25;
+    const scale = width / art.image.naturalWidth;
+    const height = art.image.naturalHeight * scale;
+    const center = view.left + view.width / 2;
+    const drift = (center - arena.width / 2) * .1;
+    const left = Math.max(view.left + view.width - width,
+      Math.min(view.left, center - width / 2 - drift));
+    const top = arena.floor - height * (2084 / 2520);
+    ctx.fillStyle = '#211b23';
+    ctx.fillRect(0, 0, arena.width, arena.height);
+    ctx.drawImage(art.image, left, top, width, height);
+    return true;
+  }
   if (!art.bands.length) {
-    ctx.drawImage(art.image, 0, 0, arena.width, arena.height);
+    const scale = Math.max(arena.width / art.image.naturalWidth, arena.height / art.image.naturalHeight);
+    const width = art.image.naturalWidth * scale, height = art.image.naturalHeight * scale;
+    ctx.drawImage(art.image, (arena.width - width) / 2, (arena.height - height) / 2, width, height);
     return true;
   }
   let scene = sceneCache.get(arena);

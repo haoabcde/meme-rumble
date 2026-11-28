@@ -207,6 +207,14 @@ xiraniteAtlas.src = gagaXiranite;
 const diveAtlas = new Image();
 diveAtlas.src = gagaDive;
 
+export async function prepareFighterArt(ids: readonly string[]) {
+  const images = ids.flatMap(id => [sprites[id], motionArt[id], ...(id === 'gaga' ? [baseAtlas] : [])]);
+  await Promise.all(images.map(image => {
+    image.fetchPriority = 'high';
+    return image.decode();
+  }));
+}
+
 const swordWaveFrames = [
   { x: 29, y: 43, w: 213, h: 253, cx: 190, cy: 169 },
   { x: 266, y: 43, w: 234, h: 254, cx: 451, cy: 169 },
