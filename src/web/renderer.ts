@@ -1305,22 +1305,22 @@ export class Renderer {
     ctx.filter = 'none';
     this.drawEffects(arenaFrame, state.frame, Boolean(config.training), reducedMotion);
     ctx.resetTransform();
-    if (debug) for (const seat of [0, 1] as const) {
+    if (debug || config.fighters[0].id === config.fighters[1].id) for (const seat of [0, 1] as const) {
       const f = state.fighters[seat];
       const def = config.fighters[seat];
       if (!f.hp) continue;
       const center = (standing(seat) - x) * zoom + dx;
       const poseHeight = f.recovery?.phase === 'down' ? heights[seat] * .60 : heights[seat];
       const markerY = (f.y - poseHeight - y) * zoom + dy - 25;
-      const label = 'P' + (seat + 1) + (f.recovery ? ' ' + recoveryLabels[f.recovery.phase] : '');
-      const labelWidth = f.recovery ? 70 : 34;
+      const label = 'P' + (seat + 1) + (debug && f.recovery ? ' ' + recoveryLabels[f.recovery.phase] : '');
+      const labelWidth = debug && f.recovery ? 70 : 34;
       ctx.fillStyle = '#111333e8';
       ctx.fillRect(center - labelWidth / 2, markerY, labelWidth, 21);
       ctx.textAlign = 'center';
       ctx.font = '900 15px system-ui';
       ctx.fillStyle = seatColors[seat];
       ctx.fillText(label, center, markerY + 15);
-      if (!f.ground && !f.launched && !f.recovery) {
+      if (debug && !f.ground && !f.launched && !f.recovery) {
         if (def.airJump) {
           const dot = center + 26;
           polygon(ctx, f.jumpCount === 2 ? '#535c83' : seatColors[seat],

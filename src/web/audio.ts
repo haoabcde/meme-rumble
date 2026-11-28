@@ -80,7 +80,7 @@ type Playback = {
   interruptibleAttack?: Attack;
 };
 type ContactSample = { buffer: AudioBuffer; volume: number };
-type TrackedAction = { attack: Attack; action: FighterAction };
+type TrackedAction = { attack: Attack; action: FighterAction; frame: number };
 
 const seats = [0, 1] as const;
 
@@ -635,8 +635,10 @@ export class FightAudio {
       const { attack, cue } = actionAudio;
       if (cue.channel === 'voice' && silentVoices.includes(source)) continue;
       const interruptible = cue.stopOnInterrupt !== false;
-      if (interruptible && state.fighters[source].attack !== attack) continue;
-      if (this.playClip(source, cue, interruptible ? attack : undefined) && cue.clip === 'ultimate-bgm') {
+      const current = state.fighters[source].attack;
+      if (interruptible && (!current || current.id !== attack.id || current.frame < cue.frame)) continue;
+      const tracked = this.actions[source]?.attack;
+      if (this.playClip(source, cue, interruptible ? tracked : undefined) && cue.clip === 'ultimate-bgm') {
         musicStarts.add(source + ':' + attack.id);
       }
     }
@@ -677,18 +679,22 @@ export class FightAudio {
   private updateAction(config: MatchConfig, state: MatchState, seat: Seat) {
     const attack = state.fighters[seat].attack;
     const previous = this.actions[seat];
-    if (previous?.attack === attack) return;
+    if (previous && attack && (previous.attack === attack ||
+      (previous.attack.id === attack.id && attack.frame >= previous.frame))) {
+      previous.frame = attack.frame;
+      return;
+    }
     if (previous) {
       const { startup, active, recovery } = previous.action;
       // Core updates the same attack object through its last frame, even when removing it.
-      if (previous.attack.frame < startup + active + recovery) {
+      if (Math.max(previous.frame, previous.attack.frame) < startup + active + recovery - 1) {
         for (const playback of this.playing) {
           if (playback.interruptibleAttack === previous.attack) this.stop(playback);
         }
       }
     }
     const action = attack ? actionFor(config, state, seat) : undefined;
-    this.actions[seat] = attack && action ? { attack, action } : undefined;
+    this.actions[seat] = attack && action ? { attack, action, frame: attack.frame } : undefined;
   }
 
   private canPlay() {

@@ -266,6 +266,27 @@ test('a trade plays only opt-out cues on the frame that interrupts the action', 
   }
 });
 
+test('serialized online snapshots preserve action sounds and stop them on a real interruption', async t => {
+  const { audio, context } = audioFixture(t, [bank, undefined], sources);
+  await finishPreload(context);
+  const timed = { ...move, audioTimeline: [{ frame: 0, clip: 'opening' }, { frame: 1, clip: 'active' }] };
+  const config = { rules, arena: arenas[0], training: true, fighters: [{ ...testFighter, actions: [timed] }, testFighter] };
+  const state = createMatch(config);
+  state.phase = 'fight';
+  const update = events => {
+    const packet = JSON.parse(JSON.stringify({ state, events }));
+    audio.update(config, packet.state, packet.events);
+  };
+  update(step(state, [attack, NEUTRAL], config));
+  assert.deepEqual(markers(context), [1]);
+  update(step(state, [NEUTRAL, NEUTRAL], config));
+  assert.deepEqual(markers(context), [1, 2]);
+  assert.ok(!context.clips[0].stopped);
+  state.fighters[0].attack = null;
+  update([]);
+  assert.ok(context.clips.every(clip => clip.stopped));
+});
+
 test('a hit and an early cancel stop owned clips while opt-out clips survive to the next round', async t => {
   const { audio, context } = audioFixture(t, [bank, undefined], sources);
   await finishPreload(context);

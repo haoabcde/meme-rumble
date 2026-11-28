@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { bindingMap, loadPreferences } from '../dist/web/settings.js';
 
-test('new players get the BVN keyboard layout with developer mode off', t => {
+test('new players get the requested keyboard layout with developer mode off', t => {
   const previous = globalThis.localStorage;
   globalThis.localStorage = { getItem: () => null };
   t.after(() => { if (previous) globalThis.localStorage = previous; else delete globalThis.localStorage; });
@@ -10,8 +10,8 @@ test('new players get the BVN keyboard layout with developer mode off', t => {
   const keys = bindingMap(preferences);
   assert.equal(preferences.developerMode, false);
   for (const [code, seat, control] of [
-    ['KeyJ', 0, 'A'], ['KeyK', 0, 'jump'], ['KeyL', 0, 'dash'], ['KeyU', 0, 'B'], ['KeyI', 0, 'ULT'], ['KeyO', 0, 'C'],
-    ['Numpad1', 1, 'A'], ['Numpad2', 1, 'jump'], ['Numpad3', 1, 'dash'], ['Numpad4', 1, 'B'], ['Numpad5', 1, 'ULT'], ['Numpad6', 1, 'C']
+    ['KeyJ', 0, 'A'], ['KeyK', 0, 'jump'], ['KeyL', 0, 'dash'], ['KeyU', 0, 'B'], ['KeyI', 0, 'C'], ['KeyO', 0, 'ULT'],
+    ['Numpad1', 1, 'A'], ['Numpad2', 1, 'jump'], ['Numpad3', 1, 'dash'], ['Numpad4', 1, 'B'], ['Numpad5', 1, 'C'], ['Numpad6', 1, 'ULT']
   ]) assert.deepEqual(keys.get(code), { seat, control });
 });
 

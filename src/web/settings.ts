@@ -6,6 +6,7 @@ export type Seat = 0 | 1;
 type Bindings = Record<Control, string>;
 
 export interface Preferences {
+  bindingVersion: number;
   volume: number;
   sfxVolume: number;
   voiceVolume: number;
@@ -18,9 +19,9 @@ export interface Preferences {
 
 const storageKey = 'meme-rumble-settings-v1';
 const defaults: Duo<Bindings> = [
-  { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', jump: 'KeyK', dash: 'KeyL', A: 'KeyJ', B: 'KeyU', C: 'KeyO', ULT: 'KeyI' },
+  { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', jump: 'KeyK', dash: 'KeyL', A: 'KeyJ', B: 'KeyU', C: 'KeyI', ULT: 'KeyO' },
   { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown',
-    jump: 'Numpad2', dash: 'Numpad3', A: 'Numpad1', B: 'Numpad4', C: 'Numpad6', ULT: 'Numpad5' }
+    jump: 'Numpad2', dash: 'Numpad3', A: 'Numpad1', B: 'Numpad4', C: 'Numpad5', ULT: 'Numpad6' }
 ];
 const seats = [0, 1] as const;
 const legacyControls: Control[] = ['left', 'right', 'up', 'down', 'jump', 'dash', 'A', 'B', 'C'];
@@ -53,7 +54,7 @@ function bindable(code: unknown): code is string {
 }
 
 export function loadPreferences(): Preferences {
-  const fresh: Preferences = { volume: 70, sfxVolume: 100, voiceVolume: 100, bgmVolume: 100, developerMode: false, shake: true, camera: 'wide', bindings: resetBindings() };
+  const fresh: Preferences = { bindingVersion: 2, volume: 70, sfxVolume: 100, voiceVolume: 100, bgmVolume: 100, developerMode: false, shake: true, camera: 'wide', bindings: resetBindings() };
   try {
     const value = JSON.parse(localStorage.getItem(storageKey) ?? 'null') as Partial<Preferences> | null;
     if (!value) return fresh;
@@ -90,6 +91,13 @@ export function loadPreferences(): Preferences {
           fresh.bindings[seat].ULT = fallback;
         }
         used.add(fresh.bindings[seat].ULT);
+      }
+      // Migrate the immediately preceding default pair; preserve custom pairs.
+      const obsolete = [['KeyO', 'KeyI'], ['Numpad6', 'Numpad5']] as const;
+      for (const seat of seats) {
+        if (value.bindingVersion !== 2 && fresh.bindings[seat].C === obsolete[seat][0] && fresh.bindings[seat].ULT === obsolete[seat][1]) {
+          [fresh.bindings[seat].C, fresh.bindings[seat].ULT] = [fresh.bindings[seat].ULT, fresh.bindings[seat].C];
+        }
       }
     }
   } catch {
@@ -272,7 +280,12 @@ export function installSettings(preferences: Preferences, changed: () => void) {
       const action = controls.find(action =>
         (player !== seat || action !== control) && preferences.bindings[player][action] === event.code);
       if (action) {
-        status.textContent = keyLabel(event.code) + ' 已分配给 P' + (player + 1) + '「' + namedControls[action] + '」。';
+        const previous = preferences.bindings[seat][control];
+        preferences.bindings[player][action] = previous;
+        preferences.bindings[seat][control] = event.code;
+        awaiting = undefined;
+        status.textContent = '已交换 P' + (seat + 1) + '「' + namedControls[control] + '」与 P' + (player + 1) + '「' + namedControls[action] + '」。';
+        commit();
         return;
       }
     }
