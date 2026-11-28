@@ -25,7 +25,7 @@ import { drawBananaImpact } from './banana-hit-art.js';
 import { drawBananaJoCutIn, drawBananaWaveCutIn, drawJoShatterBurst } from './banana-wave-art.js';
 import { frameCamera, frameDijiangLength, frameDijiangImpact, frameEntrance, frameTimeStopCamera, type CameraView } from './camera.js';
 import { shotFading, shotOpacity, type FeatureShot } from './cinematics.js';
-import { comicBeat, comicPalettes, drawComicFrame, drawComicImpactPanel } from './comic-stage.js';
+import { comicBeat, drawComicFrame, drawComicImpactPanel } from './comic-stage.js';
 import { dijiangImpactLife, drawDijiang, drawDijiangGround, drawDijiangImpact, drawDijiangPressure,
   drawSummonCutIn } from './dijiang.js';
 import { drawFrogActor, drawFrogEffects, drawFrogIntro } from './frog-art.js';
@@ -317,29 +317,16 @@ function drawArenaSurfaces(ctx: CanvasRenderingContext2D, arena: ArenaDefinition
   }
 
   for (const [index, p] of decks.entries()) {
+    // Fixed roof lines are painted into the scenery at the collision height.
+    if (!p.travel) continue;
     const width = p.right - p.left;
-    const cap = comicPalettes[arena.theme].paper;
-    const surface = p.travel ? movingEdge : edge;
     ctx.fillStyle = '#101322';
     ctx.fillRect(p.left, p.y, width, 12);
-    ctx.fillStyle = surface;
+    ctx.fillStyle = movingEdge;
     ctx.fillRect(p.left, p.y, width, 3);
     for (const [x, inward] of [[p.left, 1], [p.right, -1]]) {
-      polygon(ctx, p.travel ? '#ec695a' : cap,
+      polygon(ctx, '#ec695a',
         [[x, p.y], [x + inward * 26, p.y], [x + inward * 15, p.y + 10], [x, p.y + 10]]);
-    }
-    if (!p.travel) {
-      // Down chevrons start below the marked landing plane.
-      ctx.strokeStyle = surface;
-      ctx.lineWidth = 3;
-      for (const x of [p.left + 42, p.right - 42]) {
-        ctx.beginPath();
-        ctx.moveTo(x - 6, p.y + 9);
-        ctx.lineTo(x, p.y + 15);
-        ctx.lineTo(x + 6, p.y + 9);
-        ctx.stroke();
-      }
-      continue;
     }
 
     for (let x = p.left + 35; x + 14 < p.right - 29; x += 20) {

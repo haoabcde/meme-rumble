@@ -371,148 +371,295 @@ export function drawInkBackdrop(ctx: CanvasRenderingContext2D, arena: ArenaDefin
   ctx.drawImage(image, -overflow + drift, top);
 }
 
-const truss: ReadonlySet<Platform['prop']> = new Set(['skywalk', 'laundry', 'camera-deck', 'conduit', 'catwalk', 'bridge', 'gallery', 'pallet', 'elevator']);
+function pilaster(ctx: CanvasRenderingContext2D, c: Colors, x: number, top: number, base: number, width: number) {
+  if (base <= top + 8) return;
+  bar(ctx, c.shadow, x - width / 2, top, width, base - top);
+  bar(ctx, c.structure, x - width / 2 + 4, top + 3, width - 11, base - top - 3);
+  bar(ctx, c.rim + '56', x - width / 2 + 5, top + 4, 4, base - top - 7);
+  bar(ctx, c.shadow, x - width / 2 - 7, base - 9, width + 14, 9);
+}
 
-function platformArt(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, p: Platform) {
-  const c = palettes[arena.theme];
-  const { left: x, y, right } = p;
-  const w = right - x;
-  const h = truss.has(p.prop) ? 36 : p.prop === 'scoreboard' ? 101 : Math.min(103, arena.floor - y - 4);
-  const open = truss.has(p.prop);
-  const moving = p.travel !== undefined;
-  const fill = moving ? c.rim : c.face;
-  const depth = moving ? 29 : h;
-  if (p.prop === 'skywalk') {
-    // The corridor bears on the roofs it connects. The courtyard underneath stays open.
-    for (const support of arena.platforms.filter(surface => surface.tier === 1)) {
-      const left = Math.max(x, support.left);
-      const end = Math.min(right, support.right);
-      if (end <= left) continue;
-      const pier = (left + end) / 2;
-      poly(ctx, c.structure, [[pier - 25, y + depth - 5], [pier + 25, y + depth - 5],
-        [pier + 18, support.y], [pier - 18, support.y]]);
-      bar(ctx, c.rim + '66', pier - 17, y + depth, 7, support.y - y - depth);
-      bar(ctx, c.shadow, pier - 30, support.y - 10, 60, 10);
-    }
-  } else if (arena.theme === 'harbor' && p.prop === 'bridge') {
-    // Recessed mooring legs give the deck a footing without marking another walkable lip.
-    for (const pier of [x + 148, right - 148]) {
-      bar(ctx, c.structure, pier - 15, y + depth, 30, arena.floor - y - depth);
-      bar(ctx, c.shadow, pier - 23, y + 126, 46, 18);
-    }
-  } else if (p.prop === 'water-tank') {
-    const stand = arena.platforms.find(surface => surface.tier === p.tier - 1 &&
-      surface.left <= x && surface.right >= right);
-    const base = stand?.y ?? arena.floor;
-    for (const pier of [x + 61, right - 61]) {
-      bar(ctx, c.shadow, pier - 13, y + 59, 26, base - y - 59);
-      bar(ctx, c.rim + '99', pier - 6, y + 65, 4, base - y - 65);
-    }
-    ctx.fillStyle = c.shadow;
-    ctx.beginPath();
-    ctx.roundRect(x + 25, y + 3, w - 50, 86, [7, 7, 33, 33]);
-    ctx.fill();
-    ctx.fillStyle = '#827467';
-    ctx.beginPath();
-    ctx.roundRect(x + 31, y + 10, w - 62, 72, [6, 6, 26, 26]);
-    ctx.fill();
-    bar(ctx, '#c8a58a', x + 58, y + 19, w - 116, 8);
-    bar(ctx, c.structure, x + 32, y + 43, w - 64, 10);
-    bar(ctx, c.rim + 'b5', x + w * .5 - 24, y + 42, 48, 13);
-    return;
+function eave(ctx: CanvasRenderingContext2D, p: Platform, cap: string, shade: string, depth = 16) {
+  const { left, right, y } = p;
+  poly(ctx, shade, [[left, y], [right, y], [right - 8, y + depth],
+    [left + 8, y + depth]]);
+  bar(ctx, cap, left, y, right - left, 4);
+  bar(ctx, cap + '64', left + 7, y + 6, right - left - 14, 3);
+}
+
+function windows(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number,
+  frame: string, glass: string, warm: string) {
+  const count = Math.max(1, Math.round(width / 114));
+  const bay = width / count;
+  for (let i = 0; i < count; i++) {
+    const left = x + i * bay;
+    bar(ctx, frame, left, y, bay - 14, height);
+    bar(ctx, i % 4 === 1 ? warm : glass, left + 4, y + 4, bay - 23, height - 8);
+    line(ctx, '#ffecd233', 3, [[left + 13, y + height - 12], [left + 37, y + 10]]);
+    bar(ctx, frame, left + (bay - 14) / 2, y + 2, 4, height - 4);
   }
-  poly(ctx, c.shadow, [[x, y], [right, y], [right, y + depth - 12],
-    [right - 18, y + depth], [x + 18, y + depth], [x, y + depth - 12]]);
-  poly(ctx, fill, [[x + 7, y + 10], [right - 7, y + 10], [right - 7, y + depth - 15],
-    [right - 21, y + depth - 5], [x + 21, y + depth - 5], [x + 7, y + depth - 15]]);
-  if (moving) return;
-  if (p.prop === 'laundry') {
-    lattice(ctx, c.rim + '86', x + 7, y - 41, w - 14, 31, 72);
-    for (let sx = x + 23; sx < right - 54; sx += 84) {
-      const tilt = sx % 3 * 5;
-      poly(ctx, sx % 2 ? '#ac8b9bad' : '#a7b9a7bf', [[sx, y - 26], [sx + 57, y - 25],
-        [sx + 51 + tilt, y + 6], [sx + 12, y + 13]]);
-    }
+}
+
+function dormArchitecture(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {
+  const c = palettes.dorm;
+  const bridge = arena.platforms.find(p => p.prop === 'skywalk')!;
+  const tank = arena.platforms.find(p => p.prop === 'water-tank')!;
+  const buildings = arena.platforms.filter(p => p.tier === 1);
+  const floor = arena.floor;
+
+  // The beams and arch springings belong to the same roof line as the walkable corridor.
+  const span = bridge.right - bridge.left;
+  const bayCount = 9;
+  const bay = span / bayCount;
+  for (let i = 0; i <= bayCount; i++) {
+    const pier = bridge.left + i * bay;
+    const footing = buildings.find(p => pier > p.left + 22 && pier < p.right - 22)?.y ?? floor;
+    pilaster(ctx, c, pier, bridge.y + 10, footing, 37);
   }
-  if (open) {
-    bar(ctx, c.shadow, x + 13, y + 11, w - 26, h - 16);
-    lattice(ctx, moving ? c.rim : c.signal + 'b5', x + 14, y + 11, w - 28, h - 17, 46);
-    if (!moving && p.prop !== 'laundry') lattice(ctx, c.rim + '7f', x + 7, y - 41, w - 14, 31, 64);
-  } else if (p.prop === 'scoreboard') {
-    bar(ctx, '#141f35', x + 15, y + 11, w - 30, h - 24);
-    for (const cut of [.37, .63]) bar(ctx, c.rim + '49', x + w * cut, y + 26, 4, h - 47);
-  } else if (p.prop === 'shelter' || p.prop === 'sunroom' || p.prop === 'office' || p.prop === 'press-box' || p.prop === 'control-room') {
-    for (let cell = 0; cell < 4; cell++) {
-      const sx = x + 26 + cell * (w - 52) / 4;
-      const sw = (w - 64) / 4;
-      bar(ctx, c.shadow, sx, y + 16, sw, h - 37);
-      poly(ctx, c.signal + '80', [[sx + 4, y + 21], [sx + sw - 8, y + 21], [sx + sw - 17, y + h - 27], [sx + 3, y + h - 27]]);
-      if (cell % 2 === 0) hatch(ctx, c.paper + '42', sx + 8, y + 25, sw - 10, h - 56, 23);
-    }
-  } else if (p.prop === 'inductor') {
-    for (let row = 0; row < 4; row++) {
-      poly(ctx, row % 2 ? c.structure : c.signal + 'c3', [[x + 14 + row * 6, y + 14 + row * 17],
-        [right - 14 - row * 6, y + 14 + row * 17], [right - 29 - row * 6, y + 25 + row * 17], [x + 30 + row * 6, y + 25 + row * 17]]);
-    }
-  } else if (p.prop === 'bleachers' || p.prop === 'bench-seat') {
-    for (let row = 0; row < 3; row++) {
-      bar(ctx, c.structure, x + 16, y + 15 + 24 * row, w - 32, 16);
-      for (let sx = x + 23; sx + 25 < right - 17; sx += 42) bar(ctx, c.rim + 'b5', sx, y + 15 + 24 * row, 25, 5);
-    }
-  } else if (p.prop === 'penthouse') {
-    for (let row = 0; row < 4; row++) {
-      for (let sx = x + 14 + row % 2 * 30; sx + 26 < right - 8; sx += 63) {
-        bar(ctx, row % 2 ? '#d28c718e' : '#633d465f', sx, y + 15 + row * 20, 55, 14);
+  for (let i = 0; i < bayCount; i++) {
+    const left = bridge.left + i * bay;
+    const y = bridge.y;
+    ctx.fillStyle = '#78546b';
+    ctx.beginPath();
+    ctx.moveTo(left, y + 13);
+    ctx.lineTo(left + bay, y + 13);
+    ctx.lineTo(left + bay, y + 88);
+    ctx.bezierCurveTo(left + bay * .77, y + 32, left + bay * .23, y + 32, left, y + 88);
+    ctx.closePath();
+    ctx.fill();
+    bar(ctx, '#ac7780', left + 19, y + 24, bay - 38, 10);
+  }
+  for (const p of buildings) {
+    const { left, right, y } = p;
+    const w = right - left;
+    bar(ctx, '#533b51', left + 9, y + 9, w - 18, floor - y - 9);
+    bar(ctx, '#9c6670', left + 14, y + 18, w - 28, floor - y - 18);
+    if (p.prop === 'sunroom') {
+      windows(ctx, left + 29, y + 25, w - 44, floor - y - 37, '#3c465b', '#557577', '#ae8f6d');
+    } else if (p.prop === 'penthouse') {
+      windows(ctx, left + 34, y + 35, w - 50, 49, '#574259', '#715a73', '#be8769');
+      bar(ctx, '#745265', left + 22, floor - 20, w - 44, 6);
+    } else {
+      for (let x = left + 40; x < right - 35; x += 88) {
+        disc(ctx, '#546d69', x, y + 40, 31, 17);
+        disc(ctx, '#718779', x - 7, y + 34, 19, 13);
       }
+      bar(ctx, '#a37b72', left + 18, y + 50, w - 36, 17);
+      bar(ctx, '#75556a', left + 18, y + 85, w - 36, 5);
     }
-    bar(ctx, c.shadow, x + w * .64, y + 25, w * .22, h - 35);
-    hatch(ctx, c.rim + '88', x + w * .65, y + 29, w * .2, h - 45, 11);
-  } else if (p.prop === 'transformer') {
-    for (let sx = x + 27; sx + 24 < right - 20; sx += 39) {
-      bar(ctx, c.shadow, sx, y + 18, 23, h - 35);
-      for (let vent = 0; vent < 4; vent++) bar(ctx, c.signal + '91', sx + 4, y + 24 + vent * 13, 14, 4);
+    bar(ctx, '#514258', left - 4, floor - 8, w + 8, 8);
+    eave(ctx, p, '#ebcaa1', '#755060', 20);
+  }
+  eave(ctx, bridge, '#ebc69f', '#704c63', 22);
+
+  const { left, right, y } = tank;
+  for (const leg of [left + 61, right - 61]) pilaster(ctx, c, leg, y + 54, bridge.y, 35);
+  const tankWidth = right - left;
+  ctx.fillStyle = '#354553';
+  ctx.beginPath();
+  ctx.roundRect(left + 15, y + 5, tankWidth - 30, 82, 28);
+  ctx.fill();
+  ctx.fillStyle = '#507476';
+  ctx.beginPath();
+  ctx.roundRect(left + 21, y + 10, tankWidth - 42, 62, 22);
+  ctx.fill();
+  bar(ctx, '#88a098', left + 73, y + 26, tankWidth - 146, 8);
+  for (const seam of [left + 78, right - 79]) {
+    bar(ctx, '#334b58', seam, y + 16, 10, 66);
+    bar(ctx, '#799491', seam + 2, y + 22, 3, 51);
+  }
+  line(ctx, '#543f56', 14, [[right - 52, y + 64], [right - 28, y + 64], [right - 28, bridge.y]]);
+  eave(ctx, tank, '#ead2a9', '#445b66');
+}
+
+function courtArchitecture(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {
+  const c = palettes.court;
+  const score = arena.platforms.find(p => p.prop === 'scoreboard')!;
+  for (const x of [score.left + 124, score.right - 124]) {
+    pilaster(ctx, c, x, score.y + 35, arena.floor, 58);
+    line(ctx, c.structure, 17, [[x, score.y + 177], [x < arena.width / 2 ? x + 95 : x - 95, score.y + 95]]);
+  }
+  for (const p of arena.platforms.filter(p => p !== score)) {
+    const { left, right, y } = p;
+    const bleachers = p.prop === 'bleachers';
+    const body = bleachers ? 75 : 46;
+    const rise = arena.floor - y;
+    for (let x = left + 58; x < right - 24; x += bleachers ? 128 : 210) {
+      pilaster(ctx, c, x, y + body - 8, arena.floor, bleachers ? 50 : 24);
     }
-  } else if (p.prop === 'planter') {
-    bar(ctx, '#596a59', x + 10, y + 12, w - 20, 26);
-    for (let sx = x + 32; sx < right - 20; sx += 59) {
-      poly(ctx, c.signal + 'a9', [[sx - 13, y + 40], [sx - 16, y + 17], [sx + 4, y + 21], [sx + 12, y + 13], [sx + 24, y + 37]]);
+    poly(ctx, bleachers ? '#344c67' : '#536172',
+      [[left + 8, y], [right - 8, y], [right - 22, y + body], [left + 22, y + body]]);
+    if (bleachers) {
+      for (let row = 0; row < 3; row++) {
+        const rowY = y + 19 + row * 18;
+        bar(ctx, '#17283e', left + 20 + row * 9, rowY + 8, right - left - 40 - row * 18, 7);
+        for (let x = left + 27 + row * 9; x < right - 51 - row * 9; x += 48) {
+          bar(ctx, row % 2 ? '#6b8fa5' : '#4d7d9a', x, rowY, 36, 9);
+        }
+      }
+      for (const x of [left + 91, right - 92]) line(ctx, '#22344c', 11, [[x, y + 26], [x, y + rise]]);
+    } else {
+      bar(ctx, '#818789', left + 18, y + 16, right - left - 36, 9);
     }
-  } else {
-    for (let sx = x + 20; sx < right - 16; sx += 28) bar(ctx, c.rim + '75', sx, y + 13, 4, h - 27);
-    if (p.prop === 'ferry' || p.prop === 'trailer') {
-      poly(ctx, c.paper + 'c7', [[x + 8, y + h - 32], [right - 11, y + h - 32], [right - 30, y + h - 15], [x + 27, y + h - 15]]);
+    eave(ctx, p, '#b3c4cb', bleachers ? '#335574' : '#697984', 14);
+  }
+
+  const { left, right, y } = score;
+  poly(ctx, '#465975', [[left, y], [right, y], [right - 15, y + 90],
+    [right - 38, y + 109], [left + 38, y + 109], [left + 15, y + 90]]);
+  bar(ctx, '#101e34', left + 24, y + 16, right - left - 48, 77);
+  for (const x of [left + (right - left) * .365, left + (right - left) * .635]) {
+    bar(ctx, '#506779', x, y + 26, 4, 53);
+  }
+  eave(ctx, score, '#cad5dc', '#536883', 14);
+}
+
+function harborArchitecture(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {
+  const c = palettes.harbor;
+  const galleries = arena.platforms.filter(p => p.prop === 'gallery');
+  const crane = arena.platforms.find(p => p.travel)!;
+  const railY = crane.y - 104;
+  const start = galleries[0].left + 170;
+  const end = galleries[1].right - 170;
+  for (const tower of galleries) {
+    const column = tower.left === galleries[0].left ? tower.right - 154 : tower.left + 154;
+    for (const x of [column - 69, column + 69]) pilaster(ctx, c, x, railY - 9, arena.floor, 35);
+    lattice(ctx, '#755560', column - 69, railY + 29, 138, arena.floor - railY - 35, 46);
+    const outside = tower.left === galleries[0].left ? tower.left + 121 : tower.right - 121;
+    pilaster(ctx, c, outside, tower.y + 26, arena.floor, 47);
+    line(ctx, '#6c5363', 18, [[outside, tower.y + 118], [outside + Math.sign(column - outside) * 76, tower.y + 32]]);
+  }
+  bar(ctx, '#423348', start, railY - 17, end - start, 55);
+  lattice(ctx, '#9c6a62', start + 13, railY - 9, end - start - 26, 36, 134);
+  bar(ctx, '#c29a7a', start, railY - 17, end - start, 4);
+
+  for (const p of arena.platforms.filter(p => !p.travel).sort((a, b) => a.y - b.y)) {
+    const { left, right, y } = p;
+    const width = right - left;
+    if (p.prop === 'ferry') {
+      poly(ctx, '#574650', [[left + 32, y + 16], [right - 24, y + 16],
+        [right - 24, arena.floor - 25], [left + 109, arena.floor - 25]]);
+      windows(ctx, left + 63, y + 37, width - 115, 36, '#594450', '#687889', '#ab886d');
+      poly(ctx, '#325465', [[left - 13, arena.floor - 26], [right + 22, arena.floor - 26],
+        [right - 40, arena.floor - 4], [left + 77, arena.floor - 4]]);
+      eave(ctx, p, '#d2bca4', '#846468', 23);
+    } else if (p.prop === 'container' || p.prop === 'trailer') {
+      const panel = p.prop === 'container' ? '#8c6158' : '#57727a';
+      bar(ctx, '#493d50', left + 8, y + 8, width - 16, arena.floor - y - 8);
+      bar(ctx, panel, left + 14, y + 20, width - 28, arena.floor - y - 28);
+      for (let rib = left + 37; rib < right - 26; rib += 39) {
+        bar(ctx, '#39384a66', rib, y + 24, 6, arena.floor - y - 41);
+      }
+      eave(ctx, p, '#c9ad8e', '#654955', 18);
+    } else if (p.prop === 'bridge') {
+      for (const x of [left + 86, right - 86]) pilaster(ctx, c, x, y + 41, arena.floor - 24, 24);
+      poly(ctx, '#325869', [[left, y + 5], [right, y + 5],
+        [right - 28, y + 55], [left + 28, y + 55]]);
+      for (let x = left + 75; x < right - 37; x += 125) {
+        disc(ctx, '#212e43', x, y + 37, 16);
+        disc(ctx, '#687b76', x, y + 37, 8);
+      }
+      eave(ctx, p, '#abc6bb', '#517983', 18);
+    } else {
+      const upper = p.prop === 'gallery';
+      if (!upper) {
+        for (const x of [left + 83, right - 112]) pilaster(ctx, c, x, y + 8, arena.floor, 39);
+      }
+      bar(ctx, '#3e4154', left + 10, y + 10, width - 20, upper ? 37 : 48);
+      lattice(ctx, '#917375', left + 17, y + 17, width - 34, upper ? 25 : 34, 105);
+      eave(ctx, p, '#ddba91', '#674e5e', 17);
     }
   }
 }
 
-function track(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, p: Platform) {
-  if (!p.travel) return;
-  const c = palettes[arena.theme];
-  const start: Point = [(p.left + p.right) / 2, p.y + 17];
-  const end: Point = [...start];
-  end[p.travel.axis === 'y' ? 1 : 0] += p.travel.distance;
-  ctx.save();
-  line(ctx, '#101322b8', 13, [start, end]);
-  ctx.setLineDash([17, 15]);
-  line(ctx, c.paper + 'a3', 4, [start, end]);
-  ctx.restore();
-  for (const [x, y] of [start, end]) {
-    disc(ctx, '#101322', x, y, 12);
-    disc(ctx, '#f8cf68', x, y, 8);
-    disc(ctx, '#101322', x, y, 4);
+function stationArchitecture(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {
+  const c = palettes.station;
+  for (const route of arena.routes) {
+    const [dock, conduit, room, coil] = route.map(id => arena.platforms.find(p => p.id === id)!);
+    const x = (Math.max(dock.left, conduit.left, room.left, coil.left) +
+      Math.min(dock.right, conduit.right, room.right, coil.right)) / 2;
+    const base = arena.floor;
+    poly(ctx, '#33334d', [[x - 83, coil.y + 24], [x + 83, coil.y + 24],
+      [x + 153, base], [x - 153, base]]);
+    for (const off of [-55, 55]) {
+      line(ctx, '#53687e', 13, [[x + off, coil.y + 47], [x + off, base - 12]]);
+      line(ctx, '#71949b81', 3, [[x + off - 3, coil.y + 50], [x + off - 3, base - 15]]);
+    }
+
+    const crown = coil.right - coil.left;
+    poly(ctx, '#39485f', [[coil.left + 10, coil.y], [coil.right - 10, coil.y], [coil.right - 67, coil.y + 58],
+      [x + 84, room.y], [x - 84, room.y], [coil.left + 67, coil.y + 58]]);
+    bar(ctx, '#558983', coil.left + 26, coil.y + 22, crown - 52, 10);
+    bar(ctx, '#76aba0', coil.left + 44, coil.y + 40, crown - 88, 8);
+    eave(ctx, coil, '#bacbd8', '#4d6379', 17);
+
+    for (const column of [room.left + 96, room.right - 72]) {
+      const footing = column >= conduit.left && column <= conduit.right ? conduit.y : base;
+      pilaster(ctx, c, column, room.y + 47, footing, 41);
+    }
+    bar(ctx, '#4a4a68', room.left + 11, room.y + 8, room.right - room.left - 22, 87);
+    windows(ctx, room.left + 37, room.y + 26, room.right - room.left - 60, 43, '#32374e', '#57818e', '#ae907a');
+    eave(ctx, room, '#b5c2d5', '#4b5371');
+
+    for (const column of [conduit.left + 67, conduit.right - 82]) {
+      const footing = column >= dock.left && column <= dock.right ? dock.y : base;
+      pilaster(ctx, c, column, conduit.y + 24, footing, 35);
+    }
+    bar(ctx, '#394759', conduit.left + 8, conduit.y + 10, conduit.right - conduit.left - 16, 35);
+    line(ctx, '#507688', 12, [[conduit.left + 21, conduit.y + 15], [conduit.left + 61, conduit.y + 56],
+      [conduit.right - 62, conduit.y + 56], [conduit.right - 21, conduit.y + 15]]);
+    eave(ctx, conduit, '#afd0d5', '#486779');
+
+    bar(ctx, '#454b66', dock.left + 10, dock.y + 11, dock.right - dock.left - 20, base - dock.y - 11);
+    for (let vent = dock.left + 45; vent + 28 < dock.right - 32; vent += 48) {
+      bar(ctx, '#2e4056', vent, dock.y + 28, 24, 67);
+      bar(ctx, '#719b9f', vent + 5, dock.y + 32, 5, 56);
+    }
+    eave(ctx, dock, '#a5c8cd', '#526c7c');
   }
+
+  const lift = arena.platforms.find(p => p.travel)!;
+  const top = lift.y + lift.travel!.distance - 80;
+  for (const x of [lift.left + 18, lift.right - 18]) {
+    pilaster(ctx, c, x, top, arena.floor, 24);
+    bar(ctx, '#777389', x - 4, top, 7, arena.floor - top - 10);
+  }
+  bar(ctx, '#4f536a', lift.left - 2, top - 13, lift.right - lift.left + 4, 27);
+  disc(ctx, '#c2a374', (lift.left + lift.right) / 2, top, 13);
 }
+
+const architecture = { dorm: dormArchitecture, court: courtArchitecture, harbor: harborArchitecture, station: stationArchitecture };
 
 export function drawInkScenery(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {
-  for (const p of arena.platforms) if (p.travel) track(ctx, arena, p);
-  for (const p of arena.platforms.filter(p => !p.travel).sort((a, b) => a.y - b.y)) platformArt(ctx, arena, p);
+  if (!arena.platforms.length || arena.theme === 'broadcast' || arena.theme === 'ring') return;
+  // Paint the fixed surfaces together with the buildings that carry them.
+  architecture[arena.theme](ctx, arena);
+}
+
+function drawTravelingDeck(ctx: CanvasRenderingContext2D, start: Platform, frame: number) {
+  const p = platformAt(start, frame);
+  const { left, right, y } = p;
+  const vertical = start.travel?.axis === 'y';
+  const pulley = (left + right) / 2;
+  if (vertical) {
+    line(ctx, '#70768c', 5, [[pulley, start.y + start.travel!.distance - 80], [pulley, y + 8]]);
+  } else {
+    const rail = start.y - 104;
+    bar(ctx, '#493747', pulley - 37, rail + 20, 74, 24);
+    for (const offset of [-26, 26]) {
+      disc(ctx, '#e4ae78', pulley + offset, rail + 32, 8);
+      line(ctx, '#5d414d', 5, [[pulley + offset, rail + 38], [pulley + offset * 4, y + 6]]);
+    }
+  }
+  poly(ctx, vertical ? '#404961' : '#6d4b52',
+    [[left, y], [right, y], [right - 16, y + 33], [left + 16, y + 33]]);
 }
 
 export function drawInkMechanism(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, frame: number,
   state?: MatchState, config?: MatchConfig) {
   const c = palettes[arena.theme];
   for (const start of arena.platforms) {
-    if (start.travel) platformArt(ctx, arena, platformAt(start, frame));
+    if (start.travel) drawTravelingDeck(ctx, start, frame);
     if (start.prop !== 'scoreboard') continue;
     const w = start.right - start.left;
     const remaining = state && config && !config.training ? String(Math.ceil(state.remaining / config.rules.ticksPerSecond)).padStart(2, '0') : '– –';
