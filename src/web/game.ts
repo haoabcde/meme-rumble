@@ -74,7 +74,7 @@ const thirdUltimate: MovePrompt = { slot: 'ULT', direction: 'down', label: '进�
 const ultimatePrompts = [...commonMovePrompts.filter(prompt => prompt.slot === 'ULT'), thirdUltimate];
 const unavailableLabels: Record<UltimateUnavailable, string> = {
   mana: '蓝量不足',
-  unbound: '此大招未接入',
+  unbound: '此按键组合没有招式',
   ground: '落地后使用',
   air: '空中使用',
   recovery: '冷却或收招中',
@@ -524,11 +524,12 @@ function renderMoveGuide() {
   for (const seat of seats) {
     const fighter = config.fighters[seat];
     const panel = element('move-guide-panel-' + namesSuffix[seat]);
+    panel.hidden = mode === 'online' && seat !== onlineSeat;
     text(panel.querySelector('h3')!, seatName(seat) + ' · ' + fighter.name);
     const chain = panel.querySelector('.move-chain')!;
     const attack = commandHint(seat, commonMovePrompts[0]);
     const lift = commandHint(seat, commonMovePrompts[1]);
-    const jump = keyHint(preferences, seat, ['jump']);
+    const jump = keyHint(preferences, mode === 'online' ? 0 : seat, ['jump']);
     const launcher = directMoves(fighter, commonMovePrompts[1])[0];
     const hasChase = launcher && isAttack(launcher) && launcher.cancelOnHit?.includes('jump');
     const startsCombo = fighter.actions.some(action => action.slot === 'A' && !action.direction && isAttack(action) &&
@@ -548,6 +549,7 @@ function buildUltimateCues() {
       node.className = 'ultimate-cue';
       label.className = 'cue-label';
       key.textContent = commandHint(seat, prompt);
+      key.hidden = mode === 'online' && seat !== onlineSeat;
       node.append(inkSymbol('ready', 'ready-ink'), key, label);
       return { prompt, node, label };
     });
@@ -1178,6 +1180,10 @@ function openGuide(moves: boolean) {
   text(element('guide-title'), moves ? '招式表' : '操作说明');
   element('guide-controls').hidden = moves;
   element('guide-moves').hidden = !moves;
+  const guideOne = element('guide-one').parentElement!;
+  const guideTwo = element('guide-two').parentElement!;
+  guideTwo.hidden = mode === 'online';
+  text(guideOne.querySelector('h3')!, mode === 'online' ? 'P' + (onlineSeat + 1) + ' 你的按键' : 'P1 玩家一');
   if (moves) renderMoveGuide();
   guide.showModal();
   guide.scrollTop = 0;
@@ -1398,7 +1404,7 @@ function trainingState(seat: Seat) {
 
 let lastHintState = '';
 function refreshDynamicMoves() {
-  const signature = config.fighters.map((f, i) => f.id + ':' + Boolean(state.fighters[i].ground) + ':' + Boolean(state.fighters[i].joAwakened) + ':' + frogPowered(state.fighters[i], state) + ':' + Boolean(state.fighters[i === 0 ? 1 : 0].bombMark?.source === i || state.projectiles.some(p => p.source === i && p.actionId === 'banana-kq-bomb'))).join('|');
+  const signature = mode + ':' + onlineSeat + '|' + config.fighters.map((f, i) => f.id + ':' + Boolean(state.fighters[i].ground) + ':' + Boolean(state.fighters[i].joAwakened) + ':' + frogPowered(state.fighters[i], state) + ':' + Boolean(state.fighters[i === 0 ? 1 : 0].bombMark?.source === i || state.projectiles.some(p => p.source === i && p.actionId === 'banana-kq-bomb'))).join('|');
   if (signature === lastHintState) return;
   lastHintState = signature;
   footer();
@@ -1589,7 +1595,7 @@ function tick(player: InputFrame) {
       config.fighters[state.result.winner].id === 'banana') state.phaseTicks = 192;
   const notices: string[] = [];
   for (const event of events) {
-    if (event.source === 0 || mode === 'local') {
+    if (mode === 'local' || event.source === (mode === 'online' ? onlineSeat : 0)) {
       const who = seatName(event.source);
       if (event.kind === 'ultimate-no-energy') {
         notices.push(who + (event.amount ? ' 需要 ' + event.amount / ENERGY_PER_STOCK + ' 格气' : ' 杀气不足'));
