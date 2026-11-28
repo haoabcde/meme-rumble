@@ -42,11 +42,12 @@ await mkdir(sitePath, { recursive: true });
 const fighterImageNames = Object.keys(validatedImages);
 const fighterAudioPaths = Object.keys(validatedAudio);
 
-const [, , gagaSounds, bananaSounds] = await Promise.all([
+const [, , gagaSounds, bananaSounds, bgmSounds] = await Promise.all([
   Promise.all(fighterImageNames.map(name => copyAsset(new URL('assets/fighters/' + name, root), 'assets/fighters/' + name))),
   Promise.all(fighterAudioPaths.map(src => copyAsset(new URL(src, root), src))),
   publishSoundBank('assets/audio/gaga/', ['.wav']),
-  publishSoundBank('assets/audio/banana/', ['.mp3', '.wav'])
+  publishSoundBank('assets/audio/banana/', ['.mp3', '.wav']),
+  publishSoundBank('assets/audio/bgm/', ['.mp3', '.wav'])
 ]);
 
 const fighterImages = Object.fromEntries(fighterImageNames.map(name => [name, toUrlPath('assets/fighters/' + name)]));
@@ -76,6 +77,7 @@ const result = await build({
     __FIGHTER_AUDIO__: JSON.stringify(fighterAudio),
     __GAGA_SOUNDS__: JSON.stringify(gagaSounds),
     __BANANA_SOUNDS__: JSON.stringify(bananaSounds),
+    __BGM_SOUNDS__: JSON.stringify(bgmSounds),
     __ONLINE_BUILD__: JSON.stringify(onlineBuild),
     __ONLINE_URL__: JSON.stringify(onlineUrl)
   }
@@ -110,7 +112,8 @@ await Promise.all([
   ...fighterImageNames.map(name => measureAsset('assets/fighters/' + name)),
   ...fighterAudioPaths.map(src => measureAsset(src)),
   ...Object.values(gagaSounds).map(p => measureAsset(decodeURIComponent(p.slice(2)))),
-  ...Object.values(bananaSounds).map(p => measureAsset(decodeURIComponent(p.slice(2))))
+  ...Object.values(bananaSounds).map(p => measureAsset(decodeURIComponent(p.slice(2)))),
+  ...Object.values(bgmSounds).map(p => measureAsset(decodeURIComponent(p.slice(2))))
 ]);
 
 console.log(

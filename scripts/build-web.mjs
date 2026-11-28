@@ -18,12 +18,13 @@ async function loadSoundBank(subpath, extensions) {
   ])));
 }
 
-const [fighterImages, fighterAudio, demoAudio, gagaSounds, bananaSounds] = await Promise.all([
+const [fighterImages, fighterAudio, demoAudio, gagaSounds, bananaSounds, bgmSounds] = await Promise.all([
   embedFighterImages(roster, fileURLToPath(new URL('assets/fighters/', root))),
   embedFighterAudio(roster, fileURLToPath(root)),
   embedFighterAudio(demoRoster, fileURLToPath(root)),
   loadSoundBank('assets/audio/gaga/', ['.wav']),
-  loadSoundBank('assets/audio/banana/', ['.mp3', '.wav'])
+  loadSoundBank('assets/audio/banana/', ['.mp3', '.wav']),
+  loadSoundBank('assets/audio/bgm/', ['.mp3', '.wav'])
 ]);
 const pixelfxLicense = await readFile(new URL('assets/fx/pixelfx/LICENSE', root), 'utf8');
 async function bundleEntry(entry, audio = fighterAudio) {
@@ -39,6 +40,7 @@ async function bundleEntry(entry, audio = fighterAudio) {
       __FIGHTER_AUDIO__: JSON.stringify(audio),
       __GAGA_SOUNDS__: JSON.stringify(gagaSounds),
       __BANANA_SOUNDS__: JSON.stringify(bananaSounds),
+      __BGM_SOUNDS__: JSON.stringify(bgmSounds),
       __ONLINE_BUILD__: JSON.stringify(onlineBuild),
       __ONLINE_URL__: JSON.stringify(onlineUrl)
     },

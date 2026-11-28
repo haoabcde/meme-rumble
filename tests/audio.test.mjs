@@ -493,3 +493,51 @@ test('opening a scene or starting a round never automatically plays scene-entry 
  audio.update(config,state,[]);state.frame++;audio.update(config,state,[]);state.phase='fight';audio.update(config,state,[]);
  state.round++;state.phase='ready';audio.update(config,state,[]);assert.equal(context.clips.length,0);
 });
+
+test('background music loops when active, ducks for ultimate music, and survives round changes', async t => {
+  const previousBgm = globalThis.__BGM_SOUNDS__;
+  globalThis.__BGM_SOUNDS__ = { main: sourceData(9), menu: sourceData(10) };
+  t.after(() => {
+    if (previousBgm === undefined) delete globalThis.__BGM_SOUNDS__;
+    else globalThis.__BGM_SOUNDS__ = previousBgm;
+  });
+  const musicBank = { 'ultimate-bgm': { src: 'open.wav' } };
+  const { audio, context } = audioFixture(t, [musicBank, undefined], sources);
+  audio.bgmVolume = 0.5;
+  audio.setBgmTrack('menu');
+  audio.setBgmActive(true);
+  await finishPreload(context);
+  await Promise.resolve();
+  const menuBgm = context.clips.find(clip => clip.buffer?.marker === 10);
+  assert.ok(menuBgm);
+  assert.equal(menuBgm.loop, true);
+  assert.equal(menuBgm.stopped, false);
+
+  audio.setBgmTrack('main');
+  assert.equal(menuBgm.stopped, true);
+  const bgm = context.clips.find(clip => clip.buffer?.marker === 9);
+  assert.ok(bgm);
+  assert.equal(bgm.loop, true);
+  assert.equal(bgm.stopped, false);
+
+  const config = { rules, arena: arenas[0], fighters: [{ ...testFighter, id: 'frog' }, testFighter] };
+  const state = createMatch(config);
+  state.phase = 'fight';
+  const f = state.fighters[0];
+  f.attack = { id: 'frog-ascend', frame: 0, connected: false, landed: false };
+  const ramps = [];
+  const gainNode = bgm.output.gain;
+  gainNode.linearRampToValueAtTime = value => ramps.push(value);
+  audio.update(config, state, [{ kind: 'action-audio', source: 0, x: 0, y: 0, actionAudio: { attack: f.attack, cue: { frame: 0, clip: 'ultimate-bgm', channel: 'sfx', stopOnInterrupt: false } } }]);
+  assert.equal(ramps.at(-1), 0);
+
+  state.round++;
+  f.attack = null;
+  delete f.ascendUntil;
+  audio.update(config, state, []);
+  assert.ok(ramps.at(-1) > 0);
+  assert.equal(bgm.stopped, false);
+
+  audio.stopAll();
+  assert.equal(bgm.stopped, true);
+});

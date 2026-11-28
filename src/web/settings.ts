@@ -9,6 +9,7 @@ export interface Preferences {
   volume: number;
   sfxVolume: number;
   voiceVolume: number;
+  bgmVolume: number;
   shake: boolean;
   camera: 'wide' | 'focus';
   bindings: Duo<Bindings>;
@@ -52,11 +53,11 @@ function bindable(code: unknown): code is string {
 }
 
 export function loadPreferences(): Preferences {
-  const fresh: Preferences = { volume: 70, sfxVolume: 100, voiceVolume: 100, shake: true, camera: 'wide', bindings: resetBindings() };
+  const fresh: Preferences = { volume: 70, sfxVolume: 100, voiceVolume: 100, bgmVolume: 100, shake: true, camera: 'wide', bindings: resetBindings() };
   try {
     const value = JSON.parse(localStorage.getItem(storageKey) ?? 'null') as Partial<Preferences> | null;
     if (!value) return fresh;
-    for (const key of ['volume', 'sfxVolume', 'voiceVolume'] as const) {
+    for (const key of ['volume', 'sfxVolume', 'voiceVolume', 'bgmVolume'] as const) {
       const volume = value[key];
       if (typeof volume === 'number' && Number.isFinite(volume)) {
         fresh[key] = Math.max(0, Math.min(100, Math.round(volume)));
@@ -190,6 +191,8 @@ export function installSettings(preferences: Preferences, changed: () => void) {
   const sfxLabel = element<HTMLOutputElement>('sfx-volume-value');
   const voiceVolume = element<HTMLInputElement>('voice-volume');
   const voiceLabel = element<HTMLOutputElement>('voice-volume-value');
+  const bgmVolume = element<HTMLInputElement>('bgm-volume');
+  const bgmLabel = element<HTMLOutputElement>('bgm-volume-value');
   const camera = element<HTMLSelectElement>('camera');
   const shake = element<HTMLInputElement>('shake');
   const status = element('binding-message');
@@ -203,6 +206,8 @@ export function installSettings(preferences: Preferences, changed: () => void) {
     sfxLabel.value = preferences.sfxVolume + '%';
     voiceVolume.value = String(preferences.voiceVolume);
     voiceLabel.value = preferences.voiceVolume + '%';
+    bgmVolume.value = String(preferences.bgmVolume);
+    bgmLabel.value = preferences.bgmVolume + '%';
     camera.value = preferences.camera;
     shake.checked = preferences.shake;
     for (const { seat, control, node } of buttons) {
@@ -245,6 +250,7 @@ export function installSettings(preferences: Preferences, changed: () => void) {
   volume.addEventListener('input', () => { preferences.volume = Number(volume.value); commit(); });
   sfxVolume.addEventListener('input', () => { preferences.sfxVolume = Number(sfxVolume.value); commit(); });
   voiceVolume.addEventListener('input', () => { preferences.voiceVolume = Number(voiceVolume.value); commit(); });
+  bgmVolume.addEventListener('input', () => { preferences.bgmVolume = Number(bgmVolume.value); commit(); });
   camera.addEventListener('change', () => { preferences.camera = camera.value === 'focus' ? 'focus' : 'wide'; commit(); });
   shake.addEventListener('change', () => { preferences.shake = shake.checked; commit(); });
   element('reset-bindings').addEventListener('click', () => {

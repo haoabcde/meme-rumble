@@ -67,6 +67,7 @@ export interface SampleVoice {
 }
 declare const __GAGA_SOUNDS__: Partial<Record<GagaSample, string>>;
 declare const __BANANA_SOUNDS__: Partial<Record<BananaSample, string>>;
+declare const __BGM_SOUNDS__: Partial<Record<'main' | 'menu', string>>;
 
 type HitSound = NonNullable<HitFeedback['sound']> | 'medium';
 type Seat = CombatEvent['source'];
@@ -275,9 +276,16 @@ export class FightAudio {
   private output: GainNode | null = null;
   private sfx: GainNode | null = null;
   private voice: GainNode | null = null;
+  private bgm: GainNode | null = null;
   private noise: AudioBuffer | null = null;
   private samples = new Map<GagaSample, AudioBuffer>();
   private bananaSamples = new Map<BananaSample, AudioBuffer>();
+  private bgmSamples = new Map<'main' | 'menu', AudioBuffer>();
+  private bgmGains: Record<'main' | 'menu', number> = { main: .24, menu: .24 };
+  private bgmActive = false;
+  private bgmTrack: 'main' | 'menu' = 'main';
+  private bgmPlayback: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
+  private bgmDucked = false;
   private oraVoices = new Map<number, { source: AudioBufferSourceNode; gain: GainNode }>();
   private activeRushUntil = new Map<number, number>();
   private banks: Duo<FighterAudioBank | undefined> = [undefined, undefined];
@@ -294,12 +302,14 @@ export class FightAudio {
   private soundVolume = .7;
   private effectVolume = 1;
   private dialogueVolume = 1;
+  private musicVolume = 1;
   private entityAges = new Map<number, number>();
 
   get enabled() { return this.soundEnabled; }
   set enabled(value: boolean) {
     this.soundEnabled = value;
     this.updateVolume();
+    this.syncBgm();
   }
 
   get volume() { return this.soundVolume; }
@@ -320,14 +330,21 @@ export class FightAudio {
     this.updateVolume();
   }
 
+  get bgmVolume() { return this.musicVolume; }
+  set bgmVolume(value: number) {
+    this.musicVolume = level(value);
+    this.updateVolume();
+  }
+
   private updateVolume() {
     if (this.output) this.output.gain.value = this.enabled ? this.volume : 0;
     if (this.sfx) this.sfx.gain.value = this.sfxVolume;
     if (this.voice) this.voice.gain.value = this.voiceVolume;
+    if (this.bgm) this.bgm.gain.value = this.bgmVolume;
   }
 
   configure(banks: Duo<FighterAudioBank | undefined>, sources: EmbeddedAudio) {
-    this.stopAll();
+    this.stopAll(false);
     this.banks = banks;
     if (this.sources !== sources) {
       this.sources = sources;
@@ -339,7 +356,7 @@ export class FightAudio {
     this.preload();
   }
 
-  stopAll() {
+  stopAll(stopBgm = true) {
     for (const playback of this.playing) this.stop(playback);
     const now = this.context?.currentTime ?? 0;
     for (const seat of [...this.oraVoices.keys()]) this.stopOraVoice(seat, now, .03);
@@ -347,6 +364,27 @@ export class FightAudio {
     this.actions = [undefined, undefined];
     this.round = undefined;
     this.entityAges.clear();
+    if (stopBgm) {
+      this.bgmActive = false;
+      this.stopBgmPlayback();
+    } else {
+      this.syncBgmDuck(false);
+    }
+  }
+
+  setBgmActive(active: boolean) {
+    if (this.bgmActive === active && (!active || this.bgmPlayback)) return;
+    this.bgmActive = active;
+    this.syncBgm();
+  }
+
+  /** 切换曲目(主界面 menu / 对局 main), 曲目没变时不做任何事 */
+  setBgmTrack(track: 'main' | 'menu') {
+    if (this.bgmTrack === track) return;
+    this.bgmTrack = track;
+    if (!this.bgmPlayback) return;
+    this.stopBgmPlayback();
+    this.syncBgm();
   }
 
   setPaused(value: boolean) {
@@ -371,7 +409,7 @@ export class FightAudio {
   private preload() {
     const context = this.context;
     if (!context) return;
-    if (!this.samples.size && !this.bananaSamples.size) this.loadSamples(context);
+    if (!this.samples.size && !this.bananaSamples.size && !this.bgmSamples.size) this.loadSamples(context);
     for (const bank of this.banks) {
       for (const { src } of Object.values(bank ?? {})) {
         if (this.buffers.has(src)) continue;
@@ -420,8 +458,10 @@ export class FightAudio {
     this.output = this.context.createGain();
     this.sfx = this.context.createGain();
     this.voice = this.context.createGain();
+    this.bgm = this.context.createGain();
     this.sfx.connect(this.output);
     this.voice.connect(this.output);
+    this.bgm.connect(this.output);
     const compressor = this.context.createDynamicsCompressor();
     compressor.threshold.value = -6;
     compressor.knee.value = 6;
@@ -440,36 +480,118 @@ export class FightAudio {
     this.activated = true;
     this.preload();
     this.applyPlaybackState();
+    this.syncBgm();
   }
 
-  private decodeBank<T extends string>(ctx: AudioContext, bank: Partial<Record<T, string>> | undefined, target: Map<T, AudioBuffer>) {
+  private decodeBank<T extends string>(ctx: AudioContext, bank: Partial<Record<T, string>> | undefined,
+    target: Map<T, AudioBuffer>, onLoaded?: (name: T, buffer: AudioBuffer) => void) {
     if (!bank) return;
     for (const name of Object.keys(bank) as T[]) {
       const encoded = bank[name];
       if (!encoded) continue;
-      if (encoded.includes('/') || encoded.startsWith('http') || encoded.startsWith('data:')) {
+      if (!encoded.startsWith('data:') && (encoded.includes('/') || encoded.startsWith('http'))) {
         void fetch(encoded)
           .then(response => {
             if (!response.ok) throw new Error('HTTP ' + response.status);
             return response.arrayBuffer();
           })
           .then(bytes => ctx.decodeAudioData(bytes))
-          .then(buffer => target.set(name, buffer))
+          .then(buffer => {
+            target.set(name, buffer);
+            onLoaded?.(name, buffer);
+          })
           .catch(() => {});
         continue;
       }
-      const bytes = Uint8Array.from(atob(encoded), value => value.charCodeAt(0));
-      void ctx.decodeAudioData(bytes.buffer).then(buffer => target.set(name, buffer)).catch(() => {});
+      const payload = encoded.startsWith('data:')
+        ? (/^data:audio\/[^;,]+;base64,(.+)$/.exec(encoded)?.[1] ?? '')
+        : encoded;
+      if (!payload) continue;
+      const bytes = Uint8Array.from(atob(payload), value => value.charCodeAt(0));
+      void ctx.decodeAudioData(bytes.buffer)
+        .then(buffer => {
+          target.set(name, buffer);
+          onLoaded?.(name, buffer);
+        })
+        .catch(() => {});
     }
   }
 
   private loadSamples(ctx: AudioContext) {
     if (typeof __GAGA_SOUNDS__ !== 'undefined') this.decodeBank(ctx, __GAGA_SOUNDS__, this.samples);
     if (typeof __BANANA_SOUNDS__ !== 'undefined') this.decodeBank(ctx, __BANANA_SOUNDS__, this.bananaSamples);
+    if (typeof __BGM_SOUNDS__ !== 'undefined') {
+      this.decodeBank(ctx, __BGM_SOUNDS__, this.bgmSamples, (name, buffer) => {
+        if ((name === 'main' || name === 'menu') && typeof buffer.getChannelData === 'function' && buffer.numberOfChannels > 0) {
+          const stats = sampleLevel(Array.from({ length: buffer.numberOfChannels }, (_, i) => buffer.getChannelData(i)));
+          this.bgmGains[name] = Math.min(.32, calibratedGain(stats, -24));
+        }
+        this.syncBgm();
+      });
+    }
+  }
+
+  private stopBgmPlayback() {
+    const active = this.bgmPlayback;
+    if (!active) return;
+    this.bgmPlayback = null;
+    this.bgmDucked = false;
+    active.source.onended = null;
+    try { active.source.stop(); } catch { /* Already stopped. */ }
+    active.source.disconnect();
+    active.gain.disconnect();
+  }
+
+  private hasSpecialMusic() {
+    for (const playback of this.playing) {
+      if (playback.musicSeat !== undefined) return true;
+    }
+    return false;
+  }
+
+  private currentBgmGain() {
+    return this.bgmGains[this.bgmTrack];
+  }
+
+  private syncBgmDuck(ducked: boolean) {
+    if (this.bgmDucked === ducked || !this.context || !this.bgmPlayback) return;
+    this.bgmDucked = ducked;
+    const now = this.context.currentTime;
+    const gain = this.bgmPlayback.gain.gain;
+    gain.cancelScheduledValues?.(now);
+    gain.setValueAtTime(gain.value, now);
+    gain.linearRampToValueAtTime(ducked ? 0 : this.currentBgmGain(), now + (ducked ? .2 : .45));
+  }
+
+  private syncBgm() {
+    const ctx = this.context;
+    const bus = this.bgm;
+    const buffer = this.bgmSamples.get(this.bgmTrack);
+    if (!this.bgmActive || !this.activated || !this.enabled || !ctx || !bus || !buffer) {
+      this.stopBgmPlayback();
+      return;
+    }
+    const ducked = this.hasSpecialMusic();
+    if (this.bgmPlayback) {
+      this.syncBgmDuck(ducked);
+      return;
+    }
+    const now = ctx.currentTime;
+    const source = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    source.buffer = buffer;
+    source.loop = true;
+    this.bgmDucked = ducked;
+    gain.gain.setValueAtTime(ducked ? 0 : this.currentBgmGain(), now);
+    source.connect(gain).connect(bus);
+    const playback = { source, gain };
+    this.bgmPlayback = playback;
+    source.onended = () => { if (this.bgmPlayback === playback) this.stopBgmPlayback(); };
+    source.start(now);
   }
 
   update(config: MatchConfig, state: MatchState, events: readonly CombatEvent[]) {
-    if (this.round !== undefined && this.round !== state.round) this.stopAll();
+    if (this.round !== undefined && this.round !== state.round) this.stopAll(false);
     this.round = state.round;
     for (const seat of seats) this.updateAction(config, state, seat);
     const silentVoices = seats.filter(seat => config.fighters[seat]?.id === 'frog' &&
@@ -493,6 +615,7 @@ export class FightAudio {
     }
     this.updateEntities(state);
     this.play(events, config.fighters, musicStarts);
+    this.syncBgmDuck(this.hasSpecialMusic() || Boolean(state.timeStop));
   }
 
   private playNamed(seat: Seat, clip: string) {

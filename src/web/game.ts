@@ -226,6 +226,7 @@ const settings = installSettings(preferences, () => {
   audio.volume = new URLSearchParams(location.search).has('silent') ? 0 : preferences.volume / 100;
   audio.sfxVolume = preferences.sfxVolume / 100;
   audio.voiceVolume = preferences.voiceVolume / 100;
+  audio.bgmVolume = preferences.bgmVolume / 100;
   audio.enableFromGesture();
   renderGuide(preferences);
   if (screen === 'roster') renderRoster();
@@ -235,6 +236,7 @@ const settings = installSettings(preferences, () => {
 audio.volume = new URLSearchParams(location.search).has('silent') ? 0 : preferences.volume / 100;
 audio.sfxVolume = preferences.sfxVolume / 100;
 audio.voiceVolume = preferences.voiceVolume / 100;
+audio.bgmVolume = preferences.bgmVolume / 100;
 renderGuide(preferences);
 
 stage.style.setProperty('--arcade-art', 'url("' + arcadeArt + '")');
@@ -727,8 +729,16 @@ function renderPreparationNav() {
 
 function show(next: Screen) {
   const changed = next !== screen;
-  if (next === 'match' || next === 'pause') audio.setPaused(next === 'pause');
-  else audio.stopAll();
+  if (next === 'match' || next === 'pause') {
+    audio.setPaused(next === 'pause');
+    audio.setBgmTrack('main');
+    audio.setBgmActive(true);
+  } else {
+    audio.setPaused(false);
+    audio.stopAll(next === 'title');
+    audio.setBgmTrack('menu');
+    audio.setBgmActive(true);
+  }
   clearInputs();
   window.clearTimeout(toastTimer);
   element('ui-notice').hidden = true;
