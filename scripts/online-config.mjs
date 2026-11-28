@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readdir, readFile } from 'node:fs/promises';
 
-const onlineHashInputs = ['src/core/', 'src/content/', 'src/web/online-room.ts', 'scripts/serve-online.mjs'];
+const onlineHashInputs = ['src/core/', 'src/content/', 'src/web/online-room.ts', 'scripts/serve-online.mjs', 'scripts/online-input.mjs'];
 
 /** Computes the protocol compatibility hash and optional WebSocket endpoint baked into web builds. */
 export async function loadOnlineConfig(root) {

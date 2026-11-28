@@ -77,7 +77,7 @@ const unavailableLabels: Record<UltimateUnavailable, string> = {
   unbound: '此大招未接入',
   ground: '落地后使用',
   air: '空中使用',
-  recovery: '等当前状态结束',
+  recovery: '冷却或收招中',
   energy: '杀气不足',
   tears: '眼泪不足',
   cinematic: '演出期间无法使用',
@@ -93,7 +93,7 @@ const moveUses: Record<string, string> = {
   'banana-close-burst': '近身解围',
   'open-source': '水潭控场',
   'frog-ascend': '限时强化',
-  'banana-tilting-tear-sea': '一格巨浪',
+  'banana-tilting-tear-sea': '推墙控场',
   'banana-jo-awaken': '限时觉醒',
   'banana-the-world': 'JO终结时停',
   'gaga-dijiang': '召唤俯冲'
@@ -174,7 +174,7 @@ const selected: Duo<number> = [0, 3];
 const relayPicks: Duo<[number, number | null]> = [[0, null], [3, null]];
 const activeSlots: Duo<Seat> = [0, 0];
 const confirmed: Duo<boolean> = [false, false];
-const pending: Duo<Map<ActionKey, Stick>> = [new Map(), new Map()];
+const pending: Duo<Array<{ key: ActionKey; stick: Stick }>> = [[], []];
 const held = new Set<string>();
 const ultimateCues: Duo<Array<{ prompt: MovePrompt; node: HTMLElement; label: HTMLElement }>> = [[], []];
 const audio = new FightAudio();
@@ -632,7 +632,7 @@ function notify(message: string) {
 
 function clearInputs() {
   held.clear();
-  for (const commands of pending) commands.clear();
+  for (const commands of pending) commands.length = 0;
   clearBufferedInputs(state);
   trainingDownHeld = false;
 }
@@ -1319,7 +1319,7 @@ window.addEventListener('keydown', event => {
     return;
   }
   if (control === 'A' || control === 'B' || control === 'C' || control === 'ULT' || control === 'jump' || control === 'dash') {
-    pending[seat].set(control, stickFor(seat));
+    if (pending[seat].length < 24) pending[seat].push({ key: control, stick: stickFor(seat) });
   }
 });
 window.addEventListener('keyup', event => held.delete(event.code));
@@ -1345,8 +1345,9 @@ function readInput(seat: Seat): InputFrame {
       heldActions.push(binding.control as ActionKey);
     }
   }
-  const input = { ...stickFor(seat), held: heldActions, pressed: [...commands.keys()], sampled: Object.fromEntries(commands) };
-  commands.clear();
+  const input = { ...stickFor(seat), held: heldActions, pressed: commands.map(command => command.key),
+    sampled: commands.map(command => command.stick) };
+  commands.length = 0;
   return input;
 }
 

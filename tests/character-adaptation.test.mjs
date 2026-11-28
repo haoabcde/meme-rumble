@@ -49,12 +49,12 @@ const tears = fighter => fighter.tearUnits / TEAR_UNITS_PER_POINT;
 const setTears = (fighter, points) => { fighter.tearUnits = points * TEAR_UNITS_PER_POINT; };
 const hold = (key, pressed = [], x = 0, y = 0) => ({ ...input(pressed, x, y), held: [key] });
 
-test('Banana equips pressure, uppercut, recharge, JO awakening, Killer Queen I, air dive J, JO up/down/U skills, wave/burst/The World ULT, and 5-hit JO combo', () => {
+test('Banana equips pressure, uppercut, recharge, JO awakening, Killer Queen I, air dive J, JO up/down/U skills, wave/burst skills and The World ULT, and 5-hit JO combo', () => {
   assert.equal(new Set(bananaActions.map(move => move.id)).size, bananaActions.length);
   assert.equal(bananaComboNames.length, 4);
   assert.deepEqual(bananaActions.filter(move => move.slot === 'B').map(move => move.tearCost), [16, 16, 10, 0, 35, 0, 25]);
   assert.deepEqual(bananaActions.filter(move => move.slot === 'C').map(move => move.id),
-    [bananaActionIds.recharge, bananaActionIds.kqBomb, bananaActionIds.kqDetonate]);
+    [bananaActionIds.recharge, bananaActionIds.kqBomb, bananaActionIds.kqDetonate, bananaActionIds.wave]);
   assert.equal(bananaMove(bananaActionIds.joAirDive).slot, 'A');
   assert.equal(bananaMove(bananaActionIds.joLift).slot, 'A');
   assert.equal(bananaMove(bananaActionIds.joSlide).slot, 'A');
@@ -63,7 +63,8 @@ test('Banana equips pressure, uppercut, recharge, JO awakening, Killer Queen I, 
   assert.equal(bananaMove(bananaActionIds.joAwaken).slot, 'ULT');
   assert.equal(bananaMove(bananaActionIds.joAwaken).energyCost, MAX_ENERGY);
   assert.equal(bananaMove(bananaAdditionalActionIds.burst).slot, 'B');
-  assert.equal(bananaMove(bananaActionIds.wave).energyCost, ENERGY_PER_STOCK);
+  assert.equal(bananaMove(bananaActionIds.wave).tearCost, 30);
+  assert.equal(bananaMove(bananaActionIds.wave).slot, 'C');
   assert.equal(bananaMove(bananaActionIds.theWorld).energyCost, 2 * ENERGY_PER_STOCK);
 });
 
@@ -735,23 +736,14 @@ test('The initial wave windup can be interrupted before the cut-in', () => {
   assert.equal(state.projectiles.length, 0);
 });
 
-test('Banana can go directly from crying into W+O wave and gets a ground requirement in the air', () => {
+test('Banana can go from crying directly into W+I wave', () => {
   const state = begin(bananaConfig), [f] = state.fighters;
-  f.energy = ENERGY_PER_STOCK;
   step(state, [hold('C', ['C']), NEUTRAL], bananaConfig);
-  assert.equal(f.attack.id, bananaActionIds.recharge);
   bananaStep(state, 2, [hold('C'), NEUTRAL]);
-  const events = step(state, [input(['ULT'], 0, -1), NEUTRAL], bananaConfig);
-  assert.equal(events[0]?.kind, 'wave-windup');
+  step(state, [input(['C'], 0, -1), NEUTRAL], bananaConfig);
+  assert.equal(f.attack.id, bananaActionIds.wave);
   assert.equal(f.energy, 0);
-
-  const air = begin(bananaConfig), [airFighter] = air.fighters;
-  airFighter.energy = MAX_ENERGY;
-  step(air, [input(['jump']), NEUTRAL], bananaConfig);
-  const refused = step(air, [input(['ULT']), NEUTRAL], bananaConfig);
-  assert.equal(refused.find(event => event.kind === 'wave-unavailable')?.requirement, 'ground');
-  assert.equal(air.cutIn, undefined);
-  assert.equal(airFighter.energy, MAX_ENERGY);
+  assert.equal(state.cutIn, undefined);
 });
 
 test('A foe can interrupt crying and holding I through the hit does not restart it', () => {

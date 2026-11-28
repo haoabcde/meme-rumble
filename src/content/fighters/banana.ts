@@ -264,16 +264,17 @@ const signatureMoves: SignatureMove[] = [
   }
 ];
 
-const wave: Omit<ActionDefinition, 'slot' | 'energyCost'> = {
-  id: bananaActionIds.wave, name: '泪海滔天', direction: 'up', posture: 'ground',
-  cutIn: { at: 8, duration: 24 },
+const wave: SignatureMove = {
+  id: bananaActionIds.wave, name: '泪海滔天', slot: 'C', direction: 'up', posture: 'ground', tearCost: 30,
   startup: 16, active: 1, recovery: 24,
   hitbox: { x: 0, y: 0, w: 0, h: 0 }, hitTimeline: [],
-  projectile: { kind: 'wave', x: 105, y: -98, vx: 31, vy: 0, gravity: 0,
+  projectile: { kind: 'wave', x: 105, y: -98, vx: 22, vy: 0, gravity: 0,
     reach: 0, radius: 98, halfWidth: 104, life: 40 },
-  damage: 190, hitstun: 34, blockstun: 18, guardCost: 42, push: 27, lift: 15, knockdown: true,
+  damage: 140, hitstun: 34, blockstun: 18, guardCost: 42, push: 27, lift: 15, knockdown: true,
   stop: 6, advance: 0, pose: 'rise', swingOnActive: true, impact: 'heavy'
 };
+
+signatureMoves.push(wave);
 
 const joAwaken: Omit<ActionDefinition, 'slot' | 'energyCost'> = {
   id: bananaActionIds.joAwaken, name: bananaWaveTitle, posture: 'ground',
@@ -303,7 +304,6 @@ export const banana = defineFighter({
   ultimate: {
     cost: MAX_ENERGY, move: joAwaken, gain: { onHit: 12, onHurt: 18 },
     variants: [
-      { cost: ENERGY_PER_STOCK, move: wave },
       { cost: 2 * ENERGY_PER_STOCK, move: theWorld }
     ]
   }

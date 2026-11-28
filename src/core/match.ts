@@ -254,7 +254,8 @@ function queueInputs(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
       const { x, y } = (Array.isArray(sampled) ? sampled[index] :
         (sampled as Partial<Record<Command['key'], Stick>> | undefined)?.[key]) ?? input;
       if (action?.channel && fighter.attack!.frame < action.startup + action.active &&
-          (key === action.slot || key === 'dash')) continue;
+          (key === action.slot || key === 'dash') &&
+          !(action.channel === 'cry' && key === 'C' && y === -1)) continue;
       const directions: Direction[] = [];
       if (y) directions.push(y === -1 ? 'up' : 'down');
       else if (x) directions.push(x === fighter.facing ? 'forward' : 'back');
@@ -774,7 +775,7 @@ function updateControl(
   const postureMoves = definition.actions.filter(action =>
     action.slot !== 'ULT' && !(isAttack(action) && (action.summon || action.cutIn || action.timeStop)) && postureMatches(action, f));
   const candidates = postureMoves.filter(action =>
-    (f.attack ? cancels?.includes(action.id) || cancels?.includes(action.slot) ||
+    (f.attack ? (isAttack(previousAction) && previousAction.channel === 'cry' && action.id === 'banana-tilting-tear-sea') || cancels?.includes(action.id) || cancels?.includes(action.slot) ||
       (canChain && action.linkOnly && action.slot === previousAction?.slot && previousAction.cancelOnHit?.includes(action.id))
       : !action.linkOnly)
   );
@@ -799,6 +800,11 @@ function updateControl(
         state.projectiles.some(p => p.source === seat && p.actionId === action.id)) {
       f.buffer = f.buffer.filter(item => item !== command);
       continue;
+    }
+    if (action.id === 'banana-tilting-tear-sea' && (f.bananaWaveCooldownUntil ?? 0) > state.arenaFrame) {
+      events.push({ kind: 'skill-unavailable', source: seat, x: f.x, y: f.y, actionId: action.id, requirement: 'recovery' });
+      f.buffer = f.buffer.filter(item => item.sampledAt !== command.sampledAt);
+      return;
     }
     const turretKind = isAttack(action) ? action.projectile?.turret : undefined;
     if (turretKind && (f.turretCooldownUntil?.[turretKind] ?? 0) > state.arenaFrame) {
@@ -830,6 +836,7 @@ function updateControl(
     }
     if (isAttack(action) && action.whaleManaCost) f.whaleMana = (f.whaleMana ?? 0) - action.whaleManaCost;
     if (selectedId === 'whale-eat' && f.whaleMana !== undefined) f.whaleMana = Math.min(MAX_WHALE_MANA, f.whaleMana + 25);
+    if (selectedId === 'banana-tilting-tear-sea') f.bananaWaveCooldownUntil = state.arenaFrame + 120;
     if (turretKind) (f.turretCooldownUntil ??= {})[turretKind] = state.arenaFrame + turretCooldownTicks;
     if (isAttack(selectedAction) && selectedAction.plantPylon) f.pylonCooldownUntil = state.arenaFrame + pylonCooldownTicks;
     if (definition.id === 'frog' && isAttack(action)) startFrog(action, f, state, config, seat);

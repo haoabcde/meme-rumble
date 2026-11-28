@@ -22,6 +22,12 @@ export function cpuInput(state: MatchState, config: MatchConfig): InputFrame {
   const pressure = bananaMoves.find(action => action.id === bananaActionIds.pressure)?.hitbox;
   const uppercut = bananaMoves.find(action => action.id === bananaActionIds.uppercut)?.hitbox;
   const sprayReach = pressure ? pressure.x + pressure.w : 0;
+  const canUseWave = cpu.ground && tears >= 30 && distance >= 300 && distance < 850 &&
+    Math.abs(higher) < 70 && direction === cpu.facing &&
+    (cpu.bananaWaveCooldownUntil ?? 0) <= state.arenaFrame && beat % 24 === 6;
+  if (canUseWave && (!cpu.attack || cpu.attack.id === bananaActionIds.recharge)) {
+    return { x: 0, y: -1, pressed: ['C'] };
+  }
   if (cpu.attack?.id === bananaActionIds.pressure && distance < sprayReach + 22 && direction === cpu.facing && Math.abs(higher) < 80) {
     return { x: distance > 135 ? direction : 0, y: 0, pressed: [], held: ['B'] };
   }

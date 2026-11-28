@@ -88,6 +88,27 @@ function shockRing(g:CanvasRenderingContext2D,x:number,y:number,r:number,t:numbe
   g.globalAlpha=fade*alpha;g.strokeStyle=color;g.lineWidth=width;g.beginPath();g.arc(0,0,Math.max(3,r*p+offset),from,from+Math.PI);g.stroke();
  }g.restore();
 }
+// The wide shout is a rectangular contact area, centered on its spawned entity.
+function globalShock(g:CanvasRenderingContext2D,x:number,y:number,age:number,powered:boolean,layer:'back'|'front'){
+ const w=FROG_RULES.globalRadius*2,h=FROG_RULES.globalHeight;
+ const alpha=clamp((8-age)/3);
+ g.save();g.translate(x-w/2,y-h/2);g.beginPath();g.rect(0,0,w,h);g.clip();
+ if(layer==='back'){
+  const glow=g.createLinearGradient(0,0,0,h);
+  glow.addColorStop(0,'rgba(255,213,119,.18)');glow.addColorStop(.5,'rgba(255,239,189,.32)');glow.addColorStop(1,'rgba(255,213,119,.18)');
+  g.globalAlpha=alpha;g.fillStyle=glow;g.fillRect(0,0,w,h);
+  for(let i=0;i<7;i++){
+   const px=((i*235+age*37)%(w+160))-80;
+   g.strokeStyle=powered?'rgba(255,235,166,.55)':'rgba(255,229,174,.38)';g.lineWidth=5;
+   g.beginPath();g.moveTo(px,0);g.quadraticCurveTo(px+70,h/2,px,h);g.stroke();
+  }
+ }else{
+  g.globalAlpha=alpha;g.strokeStyle=powered?'#fff5cc':'#ffe7ad';g.lineWidth=4;
+  g.strokeRect(2,2,w-4,h-4);
+  g.strokeStyle='rgba(255,196,83,.65)';g.lineWidth=2;g.strokeRect(7,7,w-14,h-14);
+ }
+ g.restore();
+}
 function dissolvingAngel(g:CanvasRenderingContext2D,age:number,tick:number){
  const im=angels[0];if(!im||age<0||age>=FROG_RULES.fadeTicks)return;
  const p=age/FROG_RULES.fadeTicks,h=164-34*p,w=h*im.width/im.height,y=(-18+Math.sin(tick*.1)*3)*(1-p);
@@ -228,18 +249,24 @@ export function drawFrogIntro(g:CanvasRenderingContext2D,config:MatchConfig,stat
 
 /** Persist the library's natural decay across attack cancels and hit reactions. */
 function drawCastEffects(g:CanvasRenderingContext2D,f:FighterState,state:MatchState,config:MatchConfig,layer:'back'|'front'){
+ for(const entity of state.entities??[]){
+  if(entity.definition.behavior==='frog-global'&&state.fighters[entity.owner]===f){
+   const cast=[...(f.frogCasts??[])].reverse().find(c=>c.id==='frog-laugh-global');
+   globalShock(g,entity.x,entity.y,entity.age,Boolean(cast?.powered),layer);
+  }
+ }
  for(const c of f.frogCasts??[]){
   const age=state.arenaFrame-c.tick;
   if(c.id==='frog-laugh'||c.id==='frog-laugh-global'){
    const global=c.id==='frog-laugh-global',envelope=clamp(age/12)*clamp((65-age)/25);
-   const radius=global?config.arena.right-config.arena.left+config.arena.height:FROG_RULES.laughRadius*(c.powered?FROG_RULES.poweredLaughRange:1);
-   if(c.powered&&layer==='back')goldMotif(g,1,c.x,c.y-65,Math.min(global?960:radius*2,200+age*19),.58*envelope,age*.022);
-   for(const at of global?[32]:[16,26,36]){
-    const point=global?c:c.anchors?.find(a=>a.frame===at)??c;
+   const radius=FROG_RULES.laughRadius*(c.powered?FROG_RULES.poweredLaughRange:1);
+   if(!global&&c.powered&&layer==='back')goldMotif(g,1,c.x,c.y-65,Math.min(radius*2,200+age*19),.58*envelope,age*.022);
+   for(const at of global?[]:[16,26,36]){
+    const point=c.anchors?.find(a=>a.frame===at)??c;
     shockRing(g,point.x,point.y-65,radius,age-at,c.powered,layer);
    }
    const point=global?c:c.anchors?.find(a=>a.frame===c.startup)??c;
-   if(c.powered)drawPixelFx(g,'feather',point.x,point.y-90,(age-c.startup)/60,2.3,layer,true,.75);
+   if(c.powered&&!global)drawPixelFx(g,'feather',point.x,point.y-90,(age-c.startup)/60,2.3,layer,true,.75);
    continue;
   }
   const stage=['common-jab','common-sweep','frog-left-kick','frog-ha','common-finish'].indexOf(c.id);

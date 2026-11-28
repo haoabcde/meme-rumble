@@ -243,12 +243,13 @@ test('production O and W+O consult the current stock and S+O never spends an unb
           const frozen = structuredClone(state);
           const availability = ultimateAvailability(state, config, seat, direction);
           assert.deepEqual(state, frozen);
-          assert.equal(availability.cost, cost);
+          const expectedCost = entry.fighter.id === 'banana' && direction === 'up' ? 0 : cost;
+          assert.equal(availability.cost, expectedCost);
           const command = vertical('ULT', y);
           const events = step(state, seat === 0 ? [command, NEUTRAL] : [NEUTRAL, command], config);
-          assert.equal(fighter.energy, cost && energy >= cost ? energy - cost : energy);
-          if (!cost) assert.equal(events.find(event => event.source === seat)?.ultimateReason, 'unbound');
-          else if (energy < cost) assert.equal(availability.reason, 'energy');
+          assert.equal(fighter.energy, expectedCost && energy >= expectedCost ? energy - expectedCost : energy);
+          if (!expectedCost) assert.equal(events.find(event => event.source === seat)?.ultimateReason, 'unbound');
+          else if (energy < expectedCost) assert.equal(availability.reason, 'energy');
           else {
             assert.equal(availability.reason, undefined);
             assert.equal(fighter.attack.id, availability.action.id);
@@ -283,17 +284,6 @@ test('exclusive entrances clash at equal cost and the higher stock wins symmetri
       assert.deepEqual(mirror.state.fighters.map(fighter => fighter.attack), [null, null]);
     }
   }
-  for (const seat of [0, 1]) {
-    const { state, config } = match(seat === 0 ? [whale, banana] : [banana, whale], 900);
-    state.fighters.forEach(fighter => { fighter.energy = MAX_ENERGY; });
-    const actions = [vertical('ULT', -1), vertical('ULT', -1)];
-    actions[seat] = press('ULT');
-    const events = step(state, actions, config);
-    assert.equal(events.find(event => event.kind === 'ultimate').source, seat);
-    assert.equal(events.find(event => event.ultimateReason === 'contested').source, 1 - seat);
-    assert.equal(state.fighters[seat].energy, 0);
-    assert.equal(state.fighters[1 - seat].energy, MAX_ENERGY);
-  }
   const { state, config } = match([frog, gaga], 600);
   state.fighters.forEach(fighter => { fighter.energy = ENERGY_PER_STOCK; });
   const events = step(state, [vertical('ULT', -1), vertical('ULT', -1)], config);
@@ -302,7 +292,7 @@ test('exclusive entrances clash at equal cost and the higher stock wins symmetri
 });
 
 test('each one-stock ultimate threatens close range, can be blocked and keeps its cost on a miss', () => {
-  for (const entry of production) {
+  for (const entry of production.filter(item => item.fighter.id !== 'banana')) {
     for (const [distance, defense, outcome] of [[84, NEUTRAL, 'hit'], [84, guard, 'block'], [650, NEUTRAL, undefined]]) {
       const { state, config } = match([entry, dummy], distance);
       const caster = state.fighters[0];

@@ -344,6 +344,7 @@ export interface FighterState {
   /** Empowered dodge presentation follows the real dash endpoint, including walls and platforms. */
   frogDodge?: {tick:number;fromX:number;fromY:number;toX:number;toY:number;arrivedAt?:number};
   frogFollowup?: boolean;
+  bananaWaveCooldownUntil?: number;
   frogCrouchCooldownUntil?: number;
   frogGlobalCooldownUntil?: number;
 

@@ -16,6 +16,15 @@ export const LEGACY_BANANA_SKILLS = Object.freeze({
     pressureHitbox: { x: 18, y: -109, w: 440, h: 48 }, pressureTearCost: 20,
     sheerHeartEnergyGain: 12, sheerHeartBlastRadius: 145, sheerHeartLife: 150
   },
+  wave1StockUlt: {
+    id: 'banana-tilting-tear-sea', name: '泪海滔天', direction: 'up', posture: 'ground',
+    cutIn: { at: 8, duration: 24 }, startup: 16, active: 1, recovery: 24,
+    hitbox: { x: 0, y: 0, w: 0, h: 0 }, hitTimeline: [],
+    projectile: { kind: 'wave', x: 105, y: -98, vx: 31, vy: 0, gravity: 0,
+      reach: 0, radius: 98, halfWidth: 104, life: 40 },
+    damage: 190, hitstun: 34, blockstun: 18, guardCost: 42, push: 27, lift: 15, knockdown: true,
+    stop: 6, advance: 0, pose: 'rise', swingOnActive: true, impact: 'heavy', energyCost: ENERGY_PER_STOCK
+  } satisfies Omit<ActionDefinition, 'slot'>,
   cryEnergyPerTick: 2,
   joAwakenTrigger: 'C (I key) at 300 energy -> permanent joAwakened',
   joJabHitbox: { x: 20, y: -112, w: 276, h: 80 },

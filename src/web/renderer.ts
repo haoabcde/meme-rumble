@@ -806,18 +806,6 @@ export class Renderer {
     } else {
       ctx.drawImage(this.background, 0, 0, config.arena.width, config.arena.height);
     }
-    const waveLive = state.projectiles.some(p => p.actionId === bananaActionIds.wave) ||
-      state.fighters.some((fighter, seat) => {
-        const move = actionFor(config, state, seat as 0 | 1);
-        return isAttack(move) && move.id === bananaActionIds.wave && Boolean(fighter.attack);
-      });
-    if (waveLive) {
-      ctx.save();
-      ctx.resetTransform();
-      ctx.fillStyle = reducedMotion ? '#0a1f3f44' : '#081b3a6e';
-      ctx.fillRect(0, 0, width, height);
-      ctx.restore();
-    }
     let panel: { x: number; y: number; beat: NonNullable<ReturnType<typeof comicBeat>> } | undefined;
     for (const { event, tier, viewStart } of this.effects) {
       if (!tier) continue;

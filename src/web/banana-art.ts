@@ -1330,8 +1330,8 @@ export function drawBanana(ctx: CanvasRenderingContext2D, f: FighterState,
     return;
   }
   const frame = f.attack?.frame ?? 0;
-  if (action?.id === ids.wave && action.cutIn &&
-    drawBananaWaveMotion(ctx, frame, action.startup, action.cutIn.at, reducedMotion)) return;
+  if (action?.id === ids.wave &&
+    drawBananaWaveMotion(ctx, frame, action.startup, action.cutIn?.at ?? 8, reducedMotion)) return;
   const recovery = action ? frame - action.startup - action.active : 0;
   const active = Boolean(action && frame >= action.startup && recovery < 0);
   const combatCell = combatCellFor(f, action, frame, recovery);

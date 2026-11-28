@@ -48,7 +48,7 @@ test('legacy skill archive preserves every pre-rework skill and rule constant', 
   assert.equal(LEGACY_GAGA_SKILLS.xiraniteGuard.active, 20);
 });
 
-test('Banana rework separates skills and ultimates: S+U burst, W+O wave, O timed JO (840f), JO O 2-bar The World', () => {
+test('Banana rework separates skills and ultimates: S+U burst, W+I wave, O timed JO (840f), JO O 2-bar The World', () => {
   const { state, config } = makeMatch([banana.fighter, testFighter], 100);
   const [cat, dummy] = state.fighters;
 
@@ -60,13 +60,14 @@ test('Banana rework separates skills and ultimates: S+U burst, W+O wave, O timed
   assert.equal(cat.energy, 0);
   advance(state, config, 35);
 
-  // W+O costs 1 stock for 泪海滔天.
+  // W+O is unbound; W+I casts the wave for tears without spending energy.
+  assert.equal(ultimateAvailability(state, config, 0, 'up').reason, 'unbound');
+  cat.tearUnits = 100 * TEAR_UNITS_PER_POINT;
   cat.energy = ENERGY_PER_STOCK;
-  const wo = ultimateAvailability(state, config, 0, 'up');
-  assert.equal(wo.action.id, bananaActionIds.wave);
-  assert.equal(wo.cost, ENERGY_PER_STOCK);
-  step(state, [press('ULT', -1), NEUTRAL], config);
-  assert.equal(cat.energy, 0);
+  step(state, [press('C', -1), NEUTRAL], config);
+  assert.equal(cat.attack.id, bananaActionIds.wave);
+  assert.equal(cat.tearUnits / TEAR_UNITS_PER_POINT, 70);
+  assert.equal(cat.energy, ENERGY_PER_STOCK);
   advance(state, config, 90);
   dummy.recovery = null;
   dummy.hitstun = 0;
@@ -107,6 +108,59 @@ test('Banana rework separates skills and ultimates: S+U burst, W+O wave, O timed
   advance(state, config, BANANA_JO_DURATION);
   assert.equal(cat.joAwakened, false);
   assert.equal(cat.joUntil, undefined);
+});
+
+test('Banana wave costs tears, has a shared 120-frame cooldown, and works in JO without a cut-in', () => {
+  const wave = banana.fighter.actions.find(action => action.id === bananaActionIds.wave);
+  assert.equal(wave.damage, 140);
+  assert.equal(wave.projectile.vx, 22);
+  assert.equal(wave.tearCost, 30);
+  assert.equal(wave.cutIn, undefined);
+  assert.equal(LEGACY_BANANA_SKILLS.wave1StockUlt.damage, 190);
+  for (const jo of [false, true]) {
+    const { state, config } = makeMatch([banana.fighter, testFighter], 900);
+    const cat = state.fighters[0];
+    cat.joAwakened = jo;
+    if (jo) cat.joUntil = state.arenaFrame + 1000;
+    cat.tearUnits = 100 * TEAR_UNITS_PER_POINT;
+    const frame = state.arenaFrame;
+    step(state, [press('C', -1), NEUTRAL], config);
+    assert.equal(cat.attack.id, bananaActionIds.wave);
+    assert.equal(cat.bananaWaveCooldownUntil, state.arenaFrame + 120);
+    assert.equal(cat.energy, 0);
+    advance(state, config, 45);
+    assert.ok(state.arenaFrame >= frame + 45);
+    assert.equal(state.cutIn, undefined);
+    const events = step(state, [press('C', -1), NEUTRAL], config);
+    assert.ok(events.some(event => event.kind === 'skill-unavailable' && event.actionId === bananaActionIds.wave));
+    assert.equal(cat.tearUnits / TEAR_UNITS_PER_POINT, 70);
+    while (state.arenaFrame < cat.bananaWaveCooldownUntil) advance(state, config, 1);
+    step(state, [press('C', -1), NEUTRAL], config);
+    assert.equal(cat.attack.id, bananaActionIds.wave);
+    assert.equal(cat.tearUnits / TEAR_UNITS_PER_POINT, 40);
+  }
+  const { state, config } = makeMatch([banana.fighter, testFighter], 900);
+  state.fighters[0].tearUnits = 29 * TEAR_UNITS_PER_POINT;
+  assert.ok(step(state, [press('C', -1), NEUTRAL], config).some(event => event.kind === 'tears-short'));
+  assert.equal(state.fighters[0].bananaWaveCooldownUntil, undefined);
+});
+
+test('cry can transition to W+I without buffering repeated neutral I', () => {
+  const { state, config } = makeMatch([banana.fighter, testFighter], 900);
+  const cat = state.fighters[0];
+  cat.tearUnits = 50 * TEAR_UNITS_PER_POINT;
+  step(state, [hold('C', ['C']), NEUTRAL], config);
+  const initial = cat.tearUnits;
+  advance(state, config, 5, [hold('C'), NEUTRAL]);
+  assert.ok(cat.tearUnits > initial);
+  step(state, [hold('C', ['C']), NEUTRAL], config);
+  assert.equal(cat.attack.id, bananaActionIds.recharge);
+  assert.equal(cat.buffer.length, 0);
+  step(state, [hold('C', ['C'], -1), NEUTRAL], config);
+  assert.equal(cat.attack.id, bananaActionIds.wave);
+  while (cat.attack) advance(state, config, 1);
+  step(state, [hold('C', ['C']), NEUTRAL], config);
+  assert.equal(cat.attack.id, bananaActionIds.recharge);
 });
 
 test('Banana KQ bomb detonate respects 900 range and can be blocked frontally', () => {
