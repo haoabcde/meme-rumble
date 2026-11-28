@@ -85,7 +85,8 @@ test('angel basics extend horizontal reach another 1.2x, keeping damage and skil
  for(const raw of frog.fighter.actions.filter(a=>a.slot==='A')){t.caster.attack={id:raw.id,frame:0,connected:false,landed:false};const a=actionFor(t.config,t.state,0);assert.equal(a.damage,raw.damage*1.5);assert.ok(Math.abs(a.hitbox.w-raw.hitbox.w*1.8)<1e-9);assert.equal(a.hitbox.h,raw.hitbox.h*1.5);}
  t.caster.attack={id:'frog-laugh-global',frame:0,connected:false,landed:false};assert.equal(actionFor(t.config,t.state,0).entities[0].damage,35);
  const near=setup(0,330);near.caster.ascendUntil=900;near.caster.energy=100;near.press('B');const hits=near.run(85).filter(e=>e.kind==='hit');assert.deepEqual(hits.map(e=>e.amount),[39.2,39.2,61.6]);assert.equal(near.target.hp,860);
- assert.equal(near.caster.energy,160);
+ // During ascension, confirmed hits do not refill the meter.
+ assert.equal(near.caster.energy,100);
 });
 test('extra empowered jab reach actually connects beyond the former range on both facings',()=>{
  for(const seat of [0,1])for(const powered of [false,true]){
@@ -312,4 +313,30 @@ test('frog ultimate starts its BGM at frame zero with no old transformation soun
  assert.deepEqual(opening.map(e=>[e.actionAudio.cue.clip,e.actionAudio.cue.channel]),[['ultimate-bgm','sfx']]);
  assert.equal(t.run(60).filter(e=>e.kind==='action-audio').length,0);assert.equal(t.state.arenaFrame,world);
  assert.equal(frog.audio.ascension,undefined);
+});
+
+
+test('holding C during a normal or laugh enters crouch on the exact recovery-end tick on either seat',()=>{
+ for(const source of [0,1])for(const powered of [false,true])for(const key of ['A','B']){
+  const t=setup(source,1200);if(powered)t.caster.ascendUntil=2000;
+  t.press(key);t.run(2);const id=t.caster.attack.id;
+  const action=frog.fighter.actions.find(a=>a.id===id),end=action.startup+action.active+action.recovery;
+  let pressed=true;
+  while(t.caster.attack?.id===id){
+   const before=t.caster.attack.frame,command=hold(pressed?['C']:[]);pressed=false;
+   t.tick(...(source===0?[command,NEUTRAL]:[NEUTRAL,command]));
+   assert.equal(t.caster.attack?.id,before+1>=end?'frog-crouch':id);
+  }
+  assert.equal(t.caster.attack.frame,0);assert.equal(t.caster.energy,0);
+  t.run(25,...(source===0?[hold(),NEUTRAL]:[NEUTRAL,hold()]));
+  assert.equal(t.caster.attack.id,'frog-crouch');
+  t.tick();assert.equal(t.caster.attack,null);
+ }
+});
+test('releasing C before recovery ends cannot leave a stale crouch intent',()=>{
+ for(const source of [0,1]){
+  const t=setup(source,1200);t.press('B');t.run(2);
+  t.tick(...(source===0?[hold(['C']),NEUTRAL]:[NEUTRAL,hold(['C'])]));
+  t.run(100);assert.equal(t.caster.attack,null);assert.equal(t.caster.frogWarps,undefined);
+ }
 });

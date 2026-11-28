@@ -1,8 +1,8 @@
-import normalGuardSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/normal-guard.png';
-import basicSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/basics.png';
-import sceneSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/scenes.png';
+import normalGuardSource from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_普通防御.webp';
+import basicSource from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_跳跃受击.webp';
+import sceneSource from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_出场胜负.webp';
 import {frogMotionSample} from './frog-motion.mjs';
-import locomotionV25 from '../../assets/角色/基础动作/奶蛙/V25/步态与起落_十六帧.png';
+import locomotionV25 from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_步态起落.webp';
 import {registerLocomotion,setActorMotion,setFrogHurtPoses,drawActorMotion} from './actor-motion.mjs';
 import holyComboSource from '../../assets/角色/特效/奶蛙/强化普攻_V22/白金焰羽_八部件.png';
 import dragonRiseSource from '../../assets/角色/特效/奶蛙/强化普攻_V24/金白流光_龙抬头六帧.png';
@@ -16,33 +16,33 @@ import {drawWarp,setWarpArt} from './frog-warp.mjs';
 import {drawTeleport,drawDodgeTeleport,setTeleportArt} from './frog-teleport.mjs';
 import {drawHeldStars,setStarArt} from './frog-stars.mjs';
 import {drawRuneGuard,setGuardArt} from './frog-guard.mjs';
-import crouchSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/crouch.png';
-import thinkingSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/thinking.png';
+import crouchSource from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_下蹲.webp';
+import thinkingSource from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_思考.webp';
 import spiralSource from '../../assets/角色/特效/奶蛙/传送_V2/金色旋涡_常态与符文.png';
 import discSource from '../../assets/角色/特效/奶蛙/传送_V2/钻出法阵_常态与符文.png';
 import teleportSource from '../../assets/角色/技能/奶蛙/二技能/金色瞬移_V4/符文法阵与金色拖尾_双部件.png';
 import starSource from '../../assets/角色/技能/奶蛙/二技能/星图传送_V3/金色星点连线_像素母版.png';
 import guardSource from '../../assets/角色/防御/奶蛙/神圣符文_V1/立体符文牌与几何印记_八枚.png';
-import moveSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/moves.png';
+import moveSource from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_拳脚捧腹.webp';
 import goldSource from '../../assets/角色/特效/奶蛙/金色符文_V1/星芒_法环_螺旋_星轨.png';
-import travelSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/travel.png';
-import angelSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/angels.png';
-import introSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/intro.png';
+import travelSource from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_移动悬浮.webp';
+import angelSource from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_天使形态.webp';
+import introSource from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_大招演出.webp';
 let normalGuard:HTMLCanvasElement;
 let basics:HTMLCanvasElement[]=[],scenes:HTMLCanvasElement[]=[];
 let holyComboArt:HTMLCanvasElement[]=[];
 let dragonRiseArt:HTMLCanvasElement[]=[];
 let moves:HTMLCanvasElement[]=[],angels:HTMLCanvasElement[]=[],travel:HTMLCanvasElement[]=[],gold:HTMLCanvasElement[]=[],crouch:HTMLCanvasElement,thinking:HTMLCanvasElement,intro:HTMLImageElement;
+const cutBody=(im:HTMLImageElement,columns:number,rows:number,cleanCells:number[]=[])=>cutGrid(im,columns,rows,{pixelate:false,cleanCells});
 const load=(src:string)=>{const im=new Image();im.src=src;return im.decode().then(()=>im)};
-const cutBody=(im:HTMLImageElement,columns:number,rows:number,cleanCells: number[] = []):HTMLCanvasElement[]=>cutGrid(im,columns,rows,{pixelate:false,cleanCells});
 void Promise.all([load(moveSource),load(angelSource),load(introSource),load(travelSource),load(goldSource),load(crouchSource)]).then(([m,a,i,t,v,c])=>{moves=cutBody(m,4,2,[6]);angels=cutBody(a,2,2);travel=cutBody(t,4,2);gold=cutGrid(v,2,2);crouch=cutBody(c,1,1)[0];intro=i;});
 void load(normalGuardSource).then(im=>normalGuard=cutBody(im,1,1)[0]);
 void load(basicSource).then(im=>{basics=cutBody(im,4,4);setFrogHurtPoses([basics[8],basics[9]]);});
-void load(sceneSource).then(im=>scenes=cutBody(im,4,2));
-void load(thinkingSource).then(im=>thinking=cutBody(im,1,1)[0]);
 void load(locomotionV25).then(im=>registerLocomotion(im,'frog'));
 void load(holyComboSource).then(im=>holyComboArt=cutGrid(im,4,2));
 void load(dragonRiseSource).then(im=>dragonRiseArt=registeredDragonFrames(im));
+void load(sceneSource).then(im=>scenes=cutBody(im,4,2));
+void load(thinkingSource).then(im=>thinking=cutBody(im,1,1)[0]);
 void load(starSource).then(im=>setStarArt(im));
 void Promise.all([load(spiralSource),load(discSource)]).then(([s,d])=>setWarpArt(cutGrid(s,2,1),cutGrid(d,2,1)));
 void load(guardSource).then(im=>setGuardArt(cutGrid(im,4,2)));
@@ -93,10 +93,9 @@ function shockRing(g:CanvasRenderingContext2D,x:number,y:number,r:number,t:numbe
 }
 function dissolvingAngel(g:CanvasRenderingContext2D,age:number,tick:number){
  const im=angels[0];if(!im||age<0||age>=FROG_RULES.fadeTicks)return;
- const p=age/FROG_RULES.fadeTicks,h=164-34*p,w=h*im.width/im.height,y=(-18+Math.sin(tick*.1)*3)*(1-p);
- // Keep the original fragment density when source resolution changes.
- const size=Math.max(1,Math.round(im.height/30));
- g.save();g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';g.globalAlpha*=1-clamp((p-.35)/.65)*.7;
+ const p=age/FROG_RULES.fadeTicks,h=164-34*p,w=h*im.width/im.height,y=(-18+Math.sin(tick*.1)*3)*(1-p),size=6;
+ g.save();g.imageSmoothingEnabled=false;g.globalAlpha*=1-clamp((p-.35)/.65)*.7;
+ // The actual sacred sprite breaks into pixel clusters, which leave feathers as they disappear.
  for(let sy=0;sy<im.height;sy+=size)for(let sx=0;sx<im.width;sx+=size){
   const col=sx/size,row=sy/size,hash=((col*73856093)^(row*19349663))>>>0;
   const cut=.15+.55*(1-Math.abs(sx/im.width-.5)*2)+(hash%1000)/1000*.2+sy/im.height*.05;
@@ -224,7 +223,7 @@ export function drawFrogIntro(g:CanvasRenderingContext2D,config:MatchConfig,stat
   const phase=f.attack.frame;if(phase>=60)continue;
   const alpha=clamp((phase+1)/6)*clamp((60-phase)/8),zoom=1.02+phase/60*.025;
   g.save();g.scale(g.canvas.width/1280,g.canvas.height/720);g.globalAlpha*=alpha;g.fillStyle='#432613';g.fillRect(0,0,1280,720);
-  g.save();g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';g.translate(640,360);g.scale(zoom,zoom);g.drawImage(intro,-640,-426,1280,853);g.restore();
+  g.save();g.translate(640,360);g.scale(zoom,zoom);g.drawImage(intro,-640,-426,1280,853);g.restore();
   drawPixelFx(g,'rays',640,720,phase/60*3,4,'front',true,.33);
   g.restore();
  }
@@ -268,6 +267,7 @@ export function frogGoldFrame(index:number){return gold[index];}
 // Review uses the same trimmed sprites and height as the live actor renderer.
 export function frogBodyComparison(){return [moves[0],normalGuard];}
 export function frogFoundationFrames(){return [...basics,...scenes];}
+
 export function frogReviewFrames(){
  return {moves, basics, scenes, travel, angels, stances:[normalGuard,crouch,thinking], intro:[intro]};
 }

@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "date": "2026-11-27",
+  "mode": "built-in image_gen",
+  "style": "卡通手绘为主，少量像素轮廓；保留已确认造型",
+  "riceSource": "54c0ca4 的米饭、地面米饭和脚底粘住绘制；未恢复该版本的旋风缩小和删鲸改动",
+  "poses": "保留定稿动作图集与锚点，人物绘制减轻额外像素采样",
+  "portraits": [
+    {
+      "id": "whale",
+      "image": "大肥鱼_常态立绘.png",
+      "webp": "assets/fighters/大肥鱼/常态_手绘轻像素_V1.webp",
+      "prompt": "whale_prompt.txt",
+      "sha256": "5930de97e0ee59c7b54e286d6214c3daf7ce424015d9cbf50504f64976c5ecce"
+    },
+    {
+      "id": "frog",
+      "image": "奶蛙_常态立绘.png",
+      "webp": "assets/fighters/奶蛙/常态_手绘轻像素_V1.webp",
+      "prompt": "frog_prompt.txt",
+      "sha256": "72d4afad48e05c0c361797794d5b3c25533c2b3fbb6a14f5de065ca914b245f2"
+    }
+  ]
+}

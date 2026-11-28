@@ -1,3 +1,4 @@
+import {drawApprovedEffect,hasApprovedPresentation} from './approved-effects.js';
 import { motionGrid } from '../content/fighter-kit.js';
 import { ringLayers } from './ring-art.js';
 import { bananaActionIds } from '../content/fighters/banana.js';
@@ -470,6 +471,7 @@ export function previewArena(canvas: HTMLCanvasElement, arena: ArenaDefinition, 
 }
 
 interface Effect {
+  approved?: boolean;
   event: CombatEvent;
   start: number;
   life: number;
@@ -594,6 +596,13 @@ export class Renderer {
       if (kind === 'ultimate' && (actionId === bananaActionIds.wave || actionId === gagaActionIds.dijiang)) continue;
       const actor = fighter?.id;
       const target = fighters?.[event.source === 0 ? 1 : 0]?.id;
+      const presentationOwner = kind === 'block' || kind === 'break' ? target : actor;
+      if (hasApprovedPresentation(presentationOwner)) {
+        const life = kind === 'hit' && event.heavy ? 16 : expiresAfter[kind];
+        if (life) this.effects.push({event, life, start:clock.arenaFrame, viewStart:clock.frame,
+          approved:true, shake:event.feedback?.shake});
+        continue;
+      }
       const jet = Boolean(actionId && isTearJet(actionId));
       const wave = actionId === bananaActionIds.wave;
       const poleSwing = poleSwingFor(event);
@@ -828,7 +837,7 @@ export class Renderer {
     ctx.resetTransform();
     drawComicFrame(ctx, config.arena.theme, reducedMotion ? 0 : Math.sign(dash) as -1 | 0 | 1);
     ctx.restore();
-    this.drawReactionTrails(state, reducedMotion);
+    this.drawReactionTrails(state, config, reducedMotion);
     if (summon?.phase === 'fall') {
       drawDijiangPressure(ctx, summon.x, summon.y, summon.frame / summonFallFrames, reducedMotion);
     } else if (impact && arenaFrame - impact.start < 24) {
@@ -969,12 +978,12 @@ export class Renderer {
       const flash = reducedMotion ? 0 : this.hitFlash(seat, state.frame);
       if (def.id === 'whale') {
         if (flash > 0) ctx.filter = `brightness(${1 + flash * .36})`;
-        const poseMove = action?.id === 'whale-shelter' ? { ...action, whale: undefined } : move;
-        drawWhaleActor(ctx, f, state, seat, poseMove, def.actions);
+        ctx.imageSmoothingEnabled = true;ctx.imageSmoothingQuality='high';
+        drawWhaleActor(ctx, f, state, seat, move, def.actions);
       } else if (def.id === 'frog') {
         if (flash > 0) ctx.filter = `brightness(${1 + flash * .36})`;
-        const poseMove = action?.id === 'common-launch' ? { ...action, id: 'common-finish' } : move;
-        drawFrogActor(ctx, f, state, poseMove, seat, def.actions);
+        ctx.imageSmoothingEnabled = true;ctx.imageSmoothingQuality='high';
+        drawFrogActor(ctx, f, state, move, seat, def.actions);
       } else {
         const spriteWidth = sprite?.naturalHeight ? height * sprite.naturalWidth / sprite.naturalHeight : 0;
         const drawFromSheet = !isGaga && !isBanana && Boolean(sheet?.naturalWidth) && pose !== undefined;
@@ -1316,7 +1325,9 @@ export class Renderer {
   private hitFlash(seat: 0 | 1, frame: number) {
     for (let i = this.effects.length - 1; i >= 0; i--) {
       const { event, tier, viewStart } = this.effects[i];
-      if (event.kind !== 'hit' || event.source === seat || !tier) continue;
+      if (event.kind !== 'hit' || event.source === seat) continue;
+      if (this.effects[i].approved) return Math.max(0,1-(frame-this.effects[i].viewStart)/6)*Math.min(1,event.feedback?.flash??0);
+      if (!tier) continue;
       if (event.trade || (event.hitstop !== undefined && event.hitstop <= 1)) return 0;
       const amount = Math.min(.74, event.feedback?.flash ?? impacts[tier].flash);
       return Math.max(0, 1 - (frame - viewStart) / 3) * amount;
@@ -1324,12 +1335,12 @@ export class Renderer {
     return 0;
   }
 
-  private drawReactionTrails(state: MatchState, reducedMotion: boolean) {
+  private drawReactionTrails(state: MatchState, config: MatchConfig, reducedMotion: boolean) {
     const ctx = this.ctx;
     const frame = state.arenaFrame;
     for (const seat of [0, 1] as const) {
       const fighter = state.fighters[seat];
-      if (reducedMotion || fighter.ground || (!fighter.launched && fighter.recovery?.phase !== 'fall')) {
+      if (hasApprovedPresentation(config.fighters[seat].id) || reducedMotion || fighter.ground || (!fighter.launched && fighter.recovery?.phase !== 'fall')) {
         this.airTraces[seat].length = 0;
         continue;
       }
@@ -1356,8 +1367,8 @@ export class Renderer {
       }
       ctx.restore();
     }
-    for (const { event, start } of this.effects) {
-      if (event.kind !== 'knockdown') continue;
+    for (const { event, start, approved } of this.effects) {
+      if (approved || event.kind !== 'knockdown') continue;
       const age = frame - start;
       ctx.save();
       ctx.translate(event.x, event.y);
@@ -1387,6 +1398,10 @@ export class Renderer {
     }
     for (const effect of this.effects) {
       const { event, start, life, cue, gagaParry, poleSwing, swordSwing, bananaImpact, knockdownDust, tier, viewStart, fighterImpact } = effect;
+      if (effect.approved) {
+        drawApprovedEffect(ctx, event, frame - start, life, latestHit[event.source] === effect);
+        continue;
+      }
       if ((event.kind === 'swing' && !poleSwing && !swordSwing) || (event.kind === 'knockdown' && !knockdownDust)) continue;
       const age = frame - start;
       const viewAge = viewFrame - viewStart;

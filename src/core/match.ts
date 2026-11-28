@@ -565,6 +565,17 @@ function updateControl(
     return;
   }
 
+  // A held crouch is a live intent, not a short press buffer. It becomes
+  // eligible on the exact tick recovery ends, without cancelling the attack.
+  if (definition.id === 'frog' && !f.attack && f.ground && !f.dash &&
+      input.y !== -1 && input.held?.includes('C')) {
+    const crouch = definition.actions.find(action => 'frog' in action && action.frog === 'crouch');
+    if (crouch && startAction(f, crouch, seat, events)) {
+      f.buffer = f.buffer.filter(command => command.key !== 'C');
+      return;
+    }
+  }
+
   const chain = isAttack(previousAction) ? previousAction.chain : undefined;
   const currentAttack = f.attack;
   if (f.ground && currentAttack && chain && (!chain.requiresHit || currentAttack.landed) &&

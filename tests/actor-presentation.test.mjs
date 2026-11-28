@@ -7,7 +7,7 @@ import {whale} from '../dist/content/fighters/whale.js';
 import {testFighter,rules} from '../dist/content/demo.js';
 import {arenas} from '../dist/content/arenas.js';
 import {NEUTRAL} from '../dist/core/types.js';
-import {walkFootX} from '../src/web/actor-motion.mjs';
+import {walkFootX,whaleAnimationCell} from '../src/web/actor-motion.mjs';
 test('planted-foot target remains fixed in world space while the root advances, in both directions',()=>{
  for(const stride of [126,74])for(const facing of [-1,1])for(const phase of [1.3,5.3])for(const travel of [-5,-2,2,5]){
   const before=700+facing*walkFootX(phase,stride),after=700+travel*facing+facing*walkFootX(phase+travel/stride*8,stride);
@@ -47,5 +47,17 @@ test('movement presentation freezes with hitstop and restores identically from a
   for(let i=0;i<4;i++)step(s,[input,NEUTRAL],config);assert.deepEqual(s.fighters[0].motionVisual,v);
   const copy=structuredClone(s);
   for(let i=0;i<130;i++){const c={x:i<25?1:0,y:0,pressed:i===40?['jump']:i===95?['A']:[]};assert.deepEqual(step(s,[c,NEUTRAL],config),step(copy,[c,NEUTRAL],config));assert.deepEqual(s,copy);}
+ }
+});
+
+
+test('whale tail animation samples whole registered cels and preserves authored contact frames',()=>{
+ for(const id of ['common-jab','common-sweep','common-finish']){
+  const action=whale.fighter.actions.find(a=>a.id===id);
+  assert.equal(whaleAnimationCell(action,action.startup),action.animation.find(k=>k.frame===action.startup).cell);
+  for(let i=0;i<action.animation.length;i++){
+   const key=action.animation[i],next=action.animation[i+1]?.frame??action.startup+action.active+action.recovery;
+   for(let f=key.frame;f<next;f++)assert.equal(whaleAnimationCell(action,f),key.cell);
+  }
  }
 });

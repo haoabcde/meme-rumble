@@ -346,6 +346,22 @@ test('Banana gains tears and energy together and an underfunded ultimate does no
   assert.equal(state.cutIn, undefined);
 });
 
+test('neutral I can replenish tears at full meter and an underfunded S+O does not start crying', () => {
+  const state = begin(bananaConfig);
+  const cat = state.fighters[0];
+  cat.energy = MAX_ENERGY - 1;
+  const refused = step(state, [input(['ULT'], 0, 1), NEUTRAL], bananaConfig);
+  assert.ok(refused.some(event => event.kind === 'ultimate-no-energy'));
+  assert.equal(cat.attack, null);
+  cat.energy = MAX_ENERGY;
+  const before = cat.tearUnits;
+  step(state, [hold('C', ['C']), NEUTRAL], bananaConfig);
+  bananaStep(state, 10, [hold('C'), NEUTRAL]);
+  assert.equal(cat.attack.id, bananaActionIds.recharge);
+  assert.ok(cat.tearUnits > before);
+  assert.equal(cat.energy, MAX_ENERGY);
+});
+
 test('Banana triggers JO awakening ONLY with S+O at 3 bars, NOT I, J, or neutral O, unlocks 5A JO combo and blocks repeat S+O', () => {
   const guardState = begin(bananaConfig);
   guardState.fighters[0].energy = MAX_ENERGY;
