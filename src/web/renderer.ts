@@ -14,6 +14,7 @@ import { DEFAULT_RISE_FRAMES, isAttack } from '../core/types.js';
 import type { ActionDefinition, ArenaDefinition, Box, CombatEvent, FighterAction, FighterState, ImpactTier, MatchConfig, MatchState, Platform, Summon } from '../core/types.js';
 import { cinematicOwner } from '../core/whale-kit.js';
 import { drawInkBackdrop, drawInkFloor, drawInkMechanism, drawInkScenery, redrawWhenBackdropReady } from './arena-ink.js';
+import { drawIllustratedArena, redrawWhenIllustrationReady } from './illustrated-arenas.js';
 import { backgrounds, ringPerformers, drawEngineeringCrate, drawGagaLaunchTrail,
   drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose,
   gagaReactionPose, gagaStatePose, motionArt, sprites, type PolePose } from './art.js';
@@ -276,8 +277,7 @@ function drawStageArt(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, ima
   }
 }
 
-function drawArenaSurfaces(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, decks: readonly Platform[],
-  frame: number, spawnOpacity: number) {
+function drawFloorMarks(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, spawnOpacity: number) {
   const { floor, left, right, spawn } = arena;
   const { edge, shade } = stageFinishes[arena.theme];
   ctx.fillStyle = shade;
@@ -315,27 +315,32 @@ function drawArenaSurfaces(ctx: CanvasRenderingContext2D, arena: ArenaDefinition
     }
     ctx.restore();
   }
+}
 
+function drawMovingDeckMarks(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, decks: readonly Platform[],
+  frame: number, illustrated = false) {
+  const { shade } = stageFinishes[arena.theme];
   for (const [index, p] of decks.entries()) {
     // Fixed roof lines are painted into the scenery at the collision height.
     if (!p.travel) continue;
-    const width = p.right - p.left;
-    ctx.fillStyle = '#101322';
-    ctx.fillRect(p.left, p.y, width, 12);
-    ctx.fillStyle = movingEdge;
-    ctx.fillRect(p.left, p.y, width, 3);
-    for (const [x, inward] of [[p.left, 1], [p.right, -1]]) {
-      polygon(ctx, '#ec695a',
-        [[x, p.y], [x + inward * 26, p.y], [x + inward * 15, p.y + 10], [x, p.y + 10]]);
-    }
-
-    for (let x = p.left + 35; x + 14 < p.right - 29; x += 20) {
-      polygon(ctx, movingEdge, [[x + 5, p.y + 4], [x + 14, p.y + 4], [x + 9, p.y + 13], [x, p.y + 13]]);
+    if (!illustrated) {
+      const width = p.right - p.left;
+      ctx.fillStyle = '#101322';
+      ctx.fillRect(p.left, p.y, width, 12);
+      ctx.fillStyle = movingEdge;
+      ctx.fillRect(p.left, p.y, width, 3);
+      for (const [x, inward] of [[p.left, 1], [p.right, -1]]) {
+        polygon(ctx, '#ec695a',
+          [[x, p.y], [x + inward * 26, p.y], [x + inward * 15, p.y + 10], [x, p.y + 10]]);
+      }
+      for (let x = p.left + 35; x + 14 < p.right - 29; x += 20) {
+        polygon(ctx, movingEdge, [[x + 5, p.y + 4], [x + 14, p.y + 4], [x + 9, p.y + 13], [x, p.y + 13]]);
+      }
     }
     const source = arena.platforms[index];
     const direction = Math.sign(platformOffset(source, frame + 1) - platformOffset(source, frame));
     ctx.save();
-    ctx.translate((p.left + p.right) / 2, p.y + 13);
+    ctx.translate((p.left + p.right) / 2, p.y + (illustrated ? 22 : 13));
     ctx.fillStyle = shade + 'e0';
     ctx.fillRect(-14, -9, 28, 19);
     ctx.strokeStyle = movingEdge;
@@ -365,6 +370,12 @@ function usesInkArena(arena: ArenaDefinition) {
 }
 
 export function paintArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, frame = 0) {
+  const decks = arena.platforms.map(p => platformAt(p, frame));
+  if (drawIllustratedArena(ctx, arena)) {
+    drawInkMechanism(ctx, arena, frame, true);
+    drawMovingDeckMarks(ctx, arena, decks, frame, true);
+    return;
+  }
   const { width, height } = arena;
   const image = backgrounds[arena.theme];
   ctx.fillStyle = '#211f4b';
@@ -376,7 +387,7 @@ export function paintArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition
   } else if (usesInkArena(arena)) {
     drawInkBackdrop(ctx, arena, width / 2);
     drawInkScenery(ctx, arena);
-    drawInkMechanism(ctx, arena, frame);
+    drawInkMechanism(ctx, arena, frame, false);
     drawInkFloor(ctx, arena);
   } else if (image?.naturalWidth) drawStageArt(ctx, arena, image);
 
@@ -385,7 +396,8 @@ export function paintArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition
   shade.addColorStop(1, '#0c0d3300');
   ctx.fillStyle = shade;
   ctx.fillRect(0, 0, width, 190);
-  drawArenaSurfaces(ctx, arena, arena.platforms.map(p => platformAt(p, 0)), 0, .9);
+  drawFloorMarks(ctx, arena, .9);
+  drawMovingDeckMarks(ctx, arena, decks, frame);
 }
 
 function paintRoute(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, side: 0 | 1,
@@ -508,8 +520,10 @@ export function previewArena(canvas: HTMLCanvasElement, arena: ArenaDefinition, 
   };
   draw();
   const image = arena.theme === 'ring' ? ringPerformers : backgrounds[arena.theme];
-  if (ink) redrawWhenBackdropReady(arena, draw);
-  else if (image && !image.complete) image.addEventListener('load', draw, { once: true });
+  if (ink) {
+    redrawWhenBackdropReady(arena, draw);
+    redrawWhenIllustrationReady(arena, draw);
+  } else if (image && !image.complete) image.addEventListener('load', draw, { once: true });
 }
 
 interface Effect {
@@ -844,13 +858,17 @@ export class Renderer {
       ctx.drawImage(this.background, 0, this.sceneryTop);
       ringLayers.mechanism(ctx, config.arena, reducedMotion ? 0 : arenaFrame);
     } else if (layered) {
-      const center = x + width / (2 * zoom);
-      drawInkBackdrop(ctx, config.arena, center);
-      ctx.drawImage(this.background, 0, this.sceneryTop);
-      drawInkMechanism(ctx, config.arena, arenaFrame, state, config);
-      drawInkFloor(ctx, config.arena);
-      const spawnOpacity = state.phase === 'ready' ? .9 : Math.max(0, .9 - arenaFrame / 85);
-      drawArenaSurfaces(ctx, config.arena, decks, arenaFrame, spawnOpacity);
+      const illustrated = drawIllustratedArena(ctx, config.arena);
+      if (!illustrated) {
+        const center = x + width / (2 * zoom);
+        drawInkBackdrop(ctx, config.arena, center);
+        ctx.drawImage(this.background, 0, this.sceneryTop);
+        drawInkFloor(ctx, config.arena);
+        const spawnOpacity = state.phase === 'ready' ? .9 : Math.max(0, .9 - arenaFrame / 85);
+        drawFloorMarks(ctx, config.arena, spawnOpacity);
+      }
+      drawInkMechanism(ctx, config.arena, arenaFrame, illustrated, state, config);
+      drawMovingDeckMarks(ctx, config.arena, decks, arenaFrame, illustrated);
     } else {
       ctx.drawImage(this.background, 0, 0, config.arena.width, config.arena.height);
     }

@@ -3,7 +3,7 @@ import bananaActions from '../../assets/fighters/unified-handdrawn-v1/motion/ban
 import dormCampusArt from '../../assets/arenas/dorm-campus-dusk.webp';
 import { platformAt } from '../core/terrain.js';
 import type { ArenaDefinition, MatchConfig, MatchState, Platform } from '../core/types.js';
-import { sprites } from './art.js';
+import { harborProps, sprites, stageKits } from './art.js';
 
 type Theme = ArenaDefinition['theme'];
 type Point = [number, number];
@@ -636,7 +636,7 @@ export function drawInkScenery(ctx: CanvasRenderingContext2D, arena: ArenaDefini
   architecture[arena.theme](ctx, arena);
 }
 
-function drawTravelingDeck(ctx: CanvasRenderingContext2D, start: Platform, frame: number) {
+function drawTravelingDeck(ctx: CanvasRenderingContext2D, start: Platform, frame: number, illustrated: boolean) {
   const p = platformAt(start, frame);
   const { left, right, y } = p;
   const vertical = start.travel?.axis === 'y';
@@ -648,7 +648,17 @@ function drawTravelingDeck(ctx: CanvasRenderingContext2D, start: Platform, frame
     bar(ctx, '#493747', pulley - 37, rail + 20, 74, 24);
     for (const offset of [-26, 26]) {
       disc(ctx, '#e4ae78', pulley + offset, rail + 32, 8);
-      line(ctx, '#5d414d', 5, [[pulley + offset, rail + 38], [pulley + offset * 4, y + 6]]);
+      const tie = illustrated ? (offset < 0 ? left + 33 : right - 33) : pulley + offset * 4;
+      line(ctx, '#5d414d', 5, [[pulley + offset, rail + 38], [tie, y + 6]]);
+    }
+  }
+  if (illustrated) {
+    const atlas = vertical ? stageKits.station : harborProps;
+    if (atlas.naturalWidth) {
+      // Use the already-painted deck body and attach its cables at the live position.
+      const [sx, sy, sw, sh] = vertical ? [43, 861, 709, 132] : [65, 899, 665, 100];
+      ctx.drawImage(atlas, sx, sy, sw, sh, left, y, right - left, vertical ? 45 : 49);
+      return;
     }
   }
   poly(ctx, vertical ? '#404961' : '#6d4b52',
@@ -656,19 +666,20 @@ function drawTravelingDeck(ctx: CanvasRenderingContext2D, start: Platform, frame
 }
 
 export function drawInkMechanism(ctx: CanvasRenderingContext2D, arena: ArenaDefinition, frame: number,
-  state?: MatchState, config?: MatchConfig) {
+  illustrated: boolean, state?: MatchState, config?: MatchConfig) {
   const c = palettes[arena.theme];
   for (const start of arena.platforms) {
-    if (start.travel) drawTravelingDeck(ctx, start, frame);
+    if (start.travel) drawTravelingDeck(ctx, start, frame, illustrated);
     if (start.prop !== 'scoreboard') continue;
     const w = start.right - start.left;
     const remaining = state && config && !config.training ? String(Math.ceil(state.remaining / config.rules.ticksPerSecond)).padStart(2, '0') : '– –';
+    const displayY = start.y + (illustrated ? 44 : 56);
     ctx.save();
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = '900 48px ui-monospace, monospace';
     for (const [i, value] of [String(state?.wins[0] ?? 0), remaining, String(state?.wins[1] ?? 0)].entries()) {
       ctx.fillStyle = [c.rim, c.paper, c.signal][i];
-      ctx.fillText(value, start.left + w * (.23 + i * .27), start.y + 56);
+      ctx.fillText(value, start.left + w * (.23 + i * .27), displayY);
     }
     ctx.restore();
   }
