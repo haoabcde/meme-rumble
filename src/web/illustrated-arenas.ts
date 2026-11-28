@@ -29,12 +29,11 @@ const scenes = new Map<string, Illustration>([
     { row: 645, rise: 0 }
   ])],
   ['night-court', illustration(courtArt, [
-    { row: 223, rise: 574 },
-    { row: 303, rise: 470 },
-    { row: 343, rise: 324, lips: [['score-deck', 917, 1170, 343]] },
-    { row: 455, rise: 216, lips: [['middle-deck', 837, 1237, 455]] },
-    { row: 521, rise: 108, lips: [['west-stand', 286, 1013, 521], ['east-stand', 1067, 1788, 521]] },
-    { row: 665, rise: 0 }
+    { row: 223, rise: 530 },
+    { row: 303, rise: 430 },
+    { row: 462, rise: 216, lips: [['middle-deck', 604, 1490, 462]] },
+    { row: 521, rise: 108, lips: [['west-stand', 281, 816, 521], ['east-stand', 1284, 1802, 521]] },
+    { row: 668, rise: 0 }
   ])],
   ['harbor', illustration(harborArt, [
     { row: 184, rise: 730 },

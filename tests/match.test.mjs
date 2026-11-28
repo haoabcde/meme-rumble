@@ -1075,7 +1075,7 @@ test('the rooftop camera frames the lower landing before a fighter drops off eit
 test('both outer wings of each multilayer map lead into its elevated routes', () => {
   const wings = [
     ['dorm-roof', [[890, 'west', 'bridge'], [3330, 'east', 'bridge']]],
-    ['night-court', [[830, 'west-stand', 'middle-deck', 'score-deck'], [3650, 'east-stand', 'middle-deck', 'score-deck']]],
+    ['night-court', [[830, 'west-stand', 'middle-deck'], [3650, 'east-stand', 'middle-deck']]],
     ['harbor', [[900, 'loading', 'gangway', 'west-gallery'], [3490, 'east-loading', 'gangway', 'east-gallery']]],
     ['star-station', [[1140, 'dock-left', 'relay-left', 'upper-left', 'coil-left'],
       [3210, 'dock-right', 'relay-right', 'upper-right', 'coil-right']]]
@@ -1231,12 +1231,12 @@ test('players can pursue and land a hit across the dorm corridor, then drop on e
   }
 });
 
-test('the court keeps ground-level center play under the scoreboard', () => {
+test('the court keeps the ground open under the crossing bridge', () => {
   const court = arenas.find(arena => arena.id === 'night-court');
   const settings = trainingOn(court);
-  assert.equal(court.platforms.length, 4);
-  assert.deepEqual(court.routes.map(route => route.length), [3, 3]);
-  assert.deepEqual([...new Set(court.platforms.map(p => p.tier))], [1, 2, 3]);
+  assert.equal(court.platforms.length, 3);
+  assert.deepEqual(court.routes.map(route => route.length), [2, 2]);
+  assert.deepEqual([...new Set(court.platforms.map(p => p.tier))], [1, 2]);
   const middle = court.width / 2;
   const low = court.routes.map(route => court.platforms.find(p => p.id === route[0]));
   assert.ok(low[0].right < middle && low[1].left > middle);
@@ -1251,17 +1251,15 @@ test('both sides of the court can jump straight up, switch wings or drop through
   const settings = trainingOn(arenas.find(arena => arena.id === 'night-court'));
   const { arena } = settings;
   for (const [seat, route] of arena.routes.entries()) {
-    const [stand, middle, scoreboard] = route.map(id => arena.platforms.find(p => p.id === id));
+    const [stand, middle] = route.map(id => arena.platforms.find(p => p.id === id));
     const state = begin(settings);
     const fighter = state.fighters[seat];
     const drop = input(['jump'], 0, 1);
     const jump = input(['jump']);
-    for (const surface of [stand, middle, scoreboard]) {
+    for (const surface of [stand, middle]) {
       landAfter(state, jump, settings, seat);
       assert.equal(fighter.ground, surface.id);
     }
-    landAfter(state, drop, settings, seat);
-    assert.equal(fighter.ground, middle.id);
     moveOn(state, settings, middle, arena.spawn[1 - seat], seat);
     landAfter(state, drop, settings, seat);
     assert.equal(fighter.ground, arena.routes[1 - seat][0]);
@@ -1270,6 +1268,49 @@ test('both sides of the court can jump straight up, switch wings or drop through
     moveOn(state, settings, middle, arena.width / 2, seat);
     landAfter(state, drop, settings, seat);
     assert.equal(fighter.ground, 'floor');
+  }
+});
+
+test('the court bridge gives both sides a crossing and room to land a hit near its far exit', () => {
+  const settings = trainingOn(arenas.find(arena => arena.id === 'night-court'));
+  const { arena } = settings;
+  const bridge = arena.platforms.find(platform => platform.id === 'middle-deck');
+  for (const seat of [0, 1]) {
+    const direction = seat === 0 ? 1 : -1;
+    const state = begin(settings);
+    const actor = state.fighters[seat];
+    const defender = state.fighters[1 - seat];
+    const entryId = arena.routes[seat][0];
+    const exitId = arena.routes[1 - seat][0];
+    for (const id of [entryId, bridge.id]) {
+      landAfter(state, input(['jump']), settings, seat);
+      assert.equal(actor.ground, id);
+    }
+    const exitX = arena.spawn[1 - seat] + 125 * direction;
+    Object.assign(defender, { x: exitX, y: bridge.y, ground: bridge.id });
+    moveOn(state, settings, bridge, exitX - 78 * direction, seat);
+    const events = step(state, inputForSeat(seat, input(['A'])), settings)
+      .concat(stepFor(state, 8, undefined, settings));
+    assert.ok(events.some(event => event.kind === 'hit' && event.source === seat));
+    assert.equal(actor.ground, bridge.id);
+    stepFor(state, 24, undefined, settings);
+    landAfter(state, input(['jump'], 0, 1), settings, seat);
+    assert.equal(actor.ground, exitId);
+  }
+});
+
+test('a single regular jump from the lip cannot skip the gap between the court stands', () => {
+  const settings = trainingOn(arenas.find(arena => arena.id === 'night-court'));
+  const { arena } = settings;
+  for (const seat of [0, 1]) {
+    const state = begin(settings);
+    const actor = state.fighters[seat];
+    const stand = arena.platforms.find(platform => platform.id === arena.routes[seat][0]);
+    const direction = seat === 0 ? 1 : -1;
+    landAfter(state, input(['jump']), settings, seat);
+    moveOn(state, settings, stand, direction > 0 ? stand.right - 10 : stand.left + 10, seat);
+    landAfter(state, input(['jump'], direction), settings, seat, direction);
+    assert.notEqual(actor.ground, arena.routes[1 - seat][0]);
   }
 });
 

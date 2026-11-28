@@ -9,7 +9,7 @@
 宿舍楼顶、夜训球场、余晖货港和星电站先确定登高、换边和下撤路线，再用 ImageGen 把可站立的台沿与房顶、看台和装卸台画在一起。台沿按游戏坐标登记，选图和对局共用同一份定位。升降机和吊盘仍按战斗时间移动。
 
 - [宿舍楼顶](arenas/dorm-rooftop-illustrated.webp)的两翼屋面平直，各自接入跨院连廊。
-- [夜训球场](arenas/court-illustrated.webp)的两道青色看台顶棚、暖色中台和紫色计分牌对应三层落脚线。
+- [夜训球场](arenas/court-illustrated.webp)用两道青色看台顶棚标出低层入口，暖色联络桥跨过中央断口。桥下的球场地面贯通。
 - [余晖货港](arenas/harbor-illustrated.webp)的渡船和货柜共用平整装卸面，中层栈桥横跨水道。
 - [星电站](arenas/station-illustrated.webp)的底层站房延伸到升降井两边，双方出生点都在低台下方。
 - [直播擂台](arenas/broadcast-illustrated.webp)的台面贯通两侧，应援设施位于背景。

@@ -474,12 +474,7 @@ function dormArchitecture(ctx: CanvasRenderingContext2D, arena: ArenaDefinition)
 
 function courtArchitecture(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {
   const c = palettes.court;
-  const score = arena.platforms.find(p => p.prop === 'scoreboard')!;
-  for (const x of [score.left + 124, score.right - 124]) {
-    pilaster(ctx, c, x, score.y + 35, arena.floor, 58);
-    line(ctx, c.structure, 17, [[x, score.y + 177], [x < arena.width / 2 ? x + 95 : x - 95, score.y + 95]]);
-  }
-  for (const p of arena.platforms.filter(p => p !== score)) {
+  for (const p of arena.platforms) {
     const { left, right, y } = p;
     const bleachers = p.prop === 'bleachers';
     const body = bleachers ? 75 : 46;
@@ -503,15 +498,6 @@ function courtArchitecture(ctx: CanvasRenderingContext2D, arena: ArenaDefinition
     }
     eave(ctx, p, '#b3c4cb', bleachers ? '#335574' : '#697984', 14);
   }
-
-  const { left, right, y } = score;
-  poly(ctx, '#465975', [[left, y], [right, y], [right - 15, y + 90],
-    [right - 38, y + 109], [left + 38, y + 109], [left + 15, y + 90]]);
-  bar(ctx, '#101e34', left + 24, y + 16, right - left - 48, 77);
-  for (const x of [left + (right - left) * .365, left + (right - left) * .635]) {
-    bar(ctx, '#506779', x, y + 26, 4, 53);
-  }
-  eave(ctx, score, '#cad5dc', '#536883', 14);
 }
 
 function harborArchitecture(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {

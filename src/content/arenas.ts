@@ -3,7 +3,8 @@ import type { ArenaDefinition, Platform } from '../core/types.js';
 
 type Surface = [id: string, name: string, tier: Platform['tier'], left: number, right: number,
   rise: number, prop: NonNullable<Platform['prop']>, travel?: Platform['travel']];
-type Description = Pick<ArenaDefinition, 'id' | 'name' | 'theme' | 'width' | 'terrain' | 'description' | 'routes'>;
+type Description = Pick<ArenaDefinition, 'id' | 'name' | 'theme' | 'width' | 'terrain' | 'description' | 'routes'> &
+  Partial<Pick<ArenaDefinition, 'spawn'>>;
 
 function stage(description: Description, surfaces: Surface[]): ArenaDefinition {
   const { width } = description;
@@ -12,7 +13,7 @@ function stage(description: Description, surfaces: Surface[]): ArenaDefinition {
   const platforms = surfaces.map(([id, name, tier, left, right, rise, prop, travel]) =>
     ({ id, name, tier, left, right, y: floor - rise, prop, ...(travel && { travel }) }));
   return { ...description, height, floor, left: 96, right: width - 96, artFrame: [],
-    spawn: [width / 2 - 173, width / 2 + 173], platforms };
+    spawn: description.spawn ?? [width / 2 - 173, width / 2 + 173], platforms };
 }
 
 const dorm = stage({
@@ -27,15 +28,14 @@ const dorm = stage({
 ]);
 
 const court = stage({
-  id: 'night-court', name: '夜训球场', theme: 'court', width: 4480,
-  terrain: '两翼起跳 · 中路短台',
-  description: '出生点原地起跳可逐层上台。中台两端可回到侧台，从正中下穿直落球场。',
-  routes: [['west-stand', 'middle-deck', 'score-deck'], ['east-stand', 'middle-deck', 'score-deck']]
+  id: 'night-court', name: '夜训球场', theme: 'court', width: 4480, spawn: [1940, 2540],
+  terrain: '看台断口 · 中场换边',
+  description: '开局原地可上看台。看台之间留出断口，上桥换边可在出口截击，从桥中央下穿则能回到球场。',
+  routes: [['west-stand', 'middle-deck'], ['east-stand', 'middle-deck']]
 }, [
-  ['west-stand', '左侧入口', 1, 620, 2135, 108, 'bleachers'],
-  ['east-stand', '右侧入口', 1, 2345, 3860, 108, 'bleachers'],
-  ['middle-deck', '中央交锋台', 2, 1900, 2580, 216, 'skywalk'],
-  ['score-deck', '中央高台', 3, 2020, 2460, 324, 'scoreboard']
+  ['west-stand', '主队看台', 1, 620, 1980, 108, 'bleachers'],
+  ['east-stand', '客队看台', 1, 2500, 3860, 108, 'bleachers'],
+  ['middle-deck', '中场联络桥', 2, 1660, 2820, 216, 'skywalk']
 ]);
 
 const station = stage({
