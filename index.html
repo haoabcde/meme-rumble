@@ -463,12 +463,12 @@
           <label for="shake">命中震动</label><input id="shake" type="checkbox" checked>
           <label for="developer-mode">开发者模式</label><input id="developer-mode" type="checkbox">
         </div>
-        <div class="settings-heading"><h3>键位</h3><button class="subtle" id="reset-bindings" type="button">恢复默认键位</button></div>
+        <div class="settings-heading"><h3>键位</h3><div><button class="subtle" id="cancel-bindings" type="button">放弃改键</button> <button class="subtle" id="reset-bindings" type="button">恢复默认键位</button></div></div>
+        <p id="binding-message" aria-live="polite">点击要修改的键位，再按新键。</p>
         <div class="guide-grid">
           <article><h3 class="p1">P1 玩家一</h3><dl id="bindings-one"></dl></article>
           <article><h3 class="p2">P2 玩家二</h3><dl id="bindings-two"></dl></article>
         </div>
-        <p id="binding-message" aria-live="polite">点击要修改的键位，再按新键。</p>
       </dialog>
     </div>
 

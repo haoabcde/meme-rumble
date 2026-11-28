@@ -2301,6 +2301,10 @@ dialog.guide::backdrop {
 .settings-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; border-bottom: 2px solid var(--p5-black); padding-bottom: 5px; }
 .settings-heading h3 { margin: 0; }
 .bind-key { min-width: 70px; min-height: 0; padding: 2px 8px; font-size: 12px; }
+.bind-key[data-conflict="true"] { background: #d72b36; color: white; outline: 2px solid #d72b36; }
+#binding-message { margin: 0 0 8px; font-size: 13px; font-weight: 700; }
+#binding-message[data-conflict="true"] { color: #b91c2b; }
+#settings-close:disabled { opacity: .4; cursor: not-allowed; }
 dl { display: grid; gap: 4.5px; margin: 0; }
 dl > div { display: flex; justify-content: space-between; align-items: center; gap: 7px; }
 dt { color: #403846; font-size: 13px; font-weight: 700; }

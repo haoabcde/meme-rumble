@@ -191,8 +191,26 @@ export function installSettings(preferences: Preferences, changed: () => void) {
   const shake = element<HTMLInputElement>('shake');
   const developerMode = element<HTMLInputElement>('developer-mode');
   const status = element('binding-message');
+  const save = element<HTMLButtonElement>('settings-close');
   const buttons: Array<{ seat: Seat; control: Control; node: HTMLButtonElement }> = [];
   let awaiting: (typeof buttons)[number] | undefined;
+  let draft: Duo<Bindings> = [{ ...preferences.bindings[0] }, { ...preferences.bindings[1] }];
+
+  function conflicts() {
+    const counts = new Map<string, number>();
+    for (const seat of seats) for (const control of controls) {
+      const key = draft[seat][control];
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return new Set([...counts].filter(([, count]) => count > 1).map(([key]) => key));
+  }
+
+  function showDraftStatus() {
+    const keys = [...conflicts()];
+    status.textContent = keys.length
+      ? '按键冲突：' + keys.map(keyLabel).join('、') + '。请修改标红的键位后保存。'
+      : '键位可以保存，点击右上角「完成」。';
+  }
 
   function render() {
     volume.value = String(preferences.volume);
@@ -206,11 +224,16 @@ export function installSettings(preferences: Preferences, changed: () => void) {
     camera.value = preferences.camera;
     shake.checked = preferences.shake;
     developerMode.checked = preferences.developerMode;
+    const repeated = conflicts();
+    save.disabled = repeated.size > 0;
+    status.dataset.conflict = String(repeated.size > 0);
     for (const { seat, control, node } of buttons) {
       const recording = node === awaiting?.node;
-      const key = keyLabel(preferences.bindings[seat][control]);
+      const conflict = repeated.has(draft[seat][control]);
+      const key = keyLabel(draft[seat][control]);
       node.textContent = recording ? '按新键…' : key;
-      node.setAttribute('aria-label', 'P' + (seat + 1) + ' ' + namedControls[control] + '，' + key);
+      node.dataset.conflict = String(conflict);
+      node.setAttribute('aria-label', 'P' + (seat + 1) + ' ' + namedControls[control] + '，' + key + (conflict ? '，按键冲突' : ''));
       node.setAttribute('aria-pressed', String(recording));
     }
   }
@@ -252,11 +275,22 @@ export function installSettings(preferences: Preferences, changed: () => void) {
   developerMode.addEventListener('change', () => { preferences.developerMode = developerMode.checked; commit(); });
   element('reset-bindings').addEventListener('click', () => {
     awaiting = undefined;
-    preferences.bindings = resetBindings();
-    status.textContent = '已恢复双人默认键位。';
-    commit();
+    draft = resetBindings();
+    showDraftStatus();
+    render();
   });
-  element('settings-close').addEventListener('click', () => { void closeDialogSmooth(dialog); });
+  element('cancel-bindings').addEventListener('click', () => {
+    awaiting = undefined;
+    draft = [{ ...preferences.bindings[0] }, { ...preferences.bindings[1] }];
+    status.textContent = '已放弃未保存的键位修改。';
+    render();
+  });
+  save.addEventListener('click', () => {
+    if (conflicts().size) { showDraftStatus(); render(); return; }
+    preferences.bindings = [{ ...draft[0] }, { ...draft[1] }];
+    commit();
+    void closeDialogSmooth(dialog);
+  });
   dialog.addEventListener('cancel', event => {
     event.preventDefault();
     void closeDialogSmooth(dialog);
@@ -267,7 +301,8 @@ export function installSettings(preferences: Preferences, changed: () => void) {
     event.preventDefault();
     if (event.code === 'Escape') {
       awaiting = undefined;
-      status.textContent = '已取消改键。';
+      if (conflicts().size) showDraftStatus();
+      else status.textContent = '已取消本次按键录入。';
       render();
       return;
     }
@@ -276,29 +311,17 @@ export function installSettings(preferences: Preferences, changed: () => void) {
       return;
     }
     const { seat, control } = awaiting;
-    for (const player of seats) {
-      const action = controls.find(action =>
-        (player !== seat || action !== control) && preferences.bindings[player][action] === event.code);
-      if (action) {
-        const previous = preferences.bindings[seat][control];
-        preferences.bindings[player][action] = previous;
-        preferences.bindings[seat][control] = event.code;
-        awaiting = undefined;
-        status.textContent = '已交换 P' + (seat + 1) + '「' + namedControls[control] + '」与 P' + (player + 1) + '「' + namedControls[action] + '」。';
-        commit();
-        return;
-      }
-    }
-    preferences.bindings[seat][control] = event.code;
+    draft[seat][control] = event.code;
     awaiting = undefined;
-    status.textContent = '已将「' + namedControls[control] + '」改为 ' + keyLabel(event.code) + '。';
-    commit();
+    showDraftStatus();
+    render();
   });
 
   return {
     dialog,
     open() {
       awaiting = undefined;
+      draft = [{ ...preferences.bindings[0] }, { ...preferences.bindings[1] }];
       status.textContent = '点击要修改的键位，再按新键。';
       render();
       dialog.showModal();
