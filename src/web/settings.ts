@@ -166,7 +166,7 @@ export function renderGuide(preferences: Preferences) {
     const c = keyLabel(preferences.bindings[0].C);
     const downUlt = keyLabel(preferences.bindings[0].down) + ' + ' + keyLabel(preferences.bindings[0].ULT);
     const title = document.createElement('strong');
-    title.textContent = '上手主线（P1 当前键位）：';
+    title.textContent = '上手主线（当前键位）：';
     routes.replaceChildren(
       title,
       '大肥鱼「', kbd(b), ' 投饭束缚 → ', kbd(c), ' 接旋风」 · ',

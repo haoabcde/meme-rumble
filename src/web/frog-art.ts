@@ -1,6 +1,6 @@
-import normalGuardSource from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_普通防御.webp';
-import basicSource from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_跳跃受击.webp';
-import sceneSource from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_出场胜负.webp';
+import normalGuardSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/normal-guard.png';
+import basicSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/basics.png';
+import sceneSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/scenes.png';
 import {frogMotionSample} from './frog-motion.mjs';
 import locomotionV25 from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_步态起落.webp';
 import {registerLocomotion,setActorMotion,setFrogHurtPoses,drawActorMotion} from './actor-motion.mjs';
@@ -16,18 +16,18 @@ import {drawWarp,setWarpArt} from './frog-warp.mjs';
 import {drawTeleport,drawDodgeTeleport,setTeleportArt} from './frog-teleport.mjs';
 import {drawHeldStars,setStarArt} from './frog-stars.mjs';
 import {drawRuneGuard,setGuardArt} from './frog-guard.mjs';
-import crouchSource from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_下蹲.webp';
-import thinkingSource from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_思考.webp';
+import crouchSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/crouch.png';
+import thinkingSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/thinking.png';
 import spiralSource from '../../assets/角色/特效/奶蛙/传送_V2/金色旋涡_常态与符文.png';
 import discSource from '../../assets/角色/特效/奶蛙/传送_V2/钻出法阵_常态与符文.png';
 import teleportSource from '../../assets/角色/技能/奶蛙/二技能/金色瞬移_V4/符文法阵与金色拖尾_双部件.png';
 import starSource from '../../assets/角色/技能/奶蛙/二技能/星图传送_V3/金色星点连线_像素母版.png';
 import guardSource from '../../assets/角色/防御/奶蛙/神圣符文_V1/立体符文牌与几何印记_八枚.png';
-import moveSource from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_拳脚捧腹.webp';
+import moveSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/moves.png';
 import goldSource from '../../assets/角色/特效/奶蛙/金色符文_V1/星芒_法环_螺旋_星轨.png';
-import travelSource from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_移动悬浮.webp';
-import angelSource from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_天使形态.webp';
-import introSource from '../../assets/角色/动作/手绘轻像素_V2/游戏图集/奶蛙_大招演出.webp';
+import travelSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/travel.png';
+import angelSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/angels.png';
+import introSource from '../../assets/fighters/unified-handdrawn-v1/motion/frog-reference-v2/intro.png';
 let normalGuard:HTMLCanvasElement;
 let basics:HTMLCanvasElement[]=[],scenes:HTMLCanvasElement[]=[];
 let holyComboArt:HTMLCanvasElement[]=[];
@@ -35,13 +35,17 @@ let dragonRiseArt:HTMLCanvasElement[]=[];
 let moves:HTMLCanvasElement[]=[],angels:HTMLCanvasElement[]=[],travel:HTMLCanvasElement[]=[],gold:HTMLCanvasElement[]=[],crouch:HTMLCanvasElement,thinking:HTMLCanvasElement,intro:HTMLImageElement;
 const cutBody=(im:HTMLImageElement,columns:number,rows:number,cleanCells:number[]=[])=>cutGrid(im,columns,rows,{pixelate:false,cleanCells});
 const load=(src:string)=>{const im=new Image();im.src=src;return im.decode().then(()=>im)};
-export const frogArtReady = Promise.all([load(moveSource),load(angelSource),load(introSource),load(travelSource),load(goldSource),load(crouchSource)]).then(([m,a,i,t,v,c])=>{moves=cutBody(m,4,2,[6]);angels=cutBody(a,2,2);travel=cutBody(t,4,2);gold=cutGrid(v,2,2);crouch=cutBody(c,1,1)[0];intro=i;});
+export const frogArtReady = Promise.all([
+ load(moveSource),load(angelSource),load(introSource),load(travelSource),load(goldSource),load(crouchSource),
+ load(normalGuardSource),load(basicSource),load(sceneSource),load(thinkingSource)
+]).then(([m,a,i,t,v,c,guard,basic,scene,thought])=>{
+ moves=cutBody(m,4,2);angels=cutBody(a,2,2);travel=cutBody(t,4,2);gold=cutGrid(v,2,2);
+ crouch=cutBody(c,1,1)[0];intro=i;normalGuard=cutBody(guard,1,1)[0];
+ basics=cutBody(basic,4,4);setFrogHurtPoses([basics[8],basics[9]]);
+ scenes=cutBody(scene,4,2);thinking=cutBody(thought,1,1)[0];
+});
 void frogArtReady.catch(() => {});
-void load(normalGuardSource).then(im=>normalGuard=cutBody(im,1,1)[0]);
-void load(basicSource).then(im=>{basics=cutBody(im,4,4);setFrogHurtPoses([basics[8],basics[9]]);});
 void load(locomotionV25).then(im=>registerLocomotion(im,'frog'));
-void load(sceneSource).then(im=>scenes=cutBody(im,4,2));
-void load(thinkingSource).then(im=>thinking=cutBody(im,1,1)[0]);
 void load(holyComboSource).then(im=>holyComboArt=cutGrid(im,4,2));
 void load(dragonRiseSource).then(im=>dragonRiseArt=registeredDragonFrames(im));
 void load(starSource).then(im=>setStarArt(im));
