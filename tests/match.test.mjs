@@ -814,6 +814,25 @@ test('the combo cap stays protective through a high fall until actual ground con
   assert.equal(defender.recovery, null);
 });
 
+test('the combo cap on the ground starts protected knockdown and allows both players to recover', () => {
+  const settings = { ...trainingOn(arenas[2]), rules: { ...rules, comboControlLimit: 5 } };
+  for (const seat of [0, 1]) {
+    const state = begin(settings);
+    const fighter = state.fighters[seat];
+    Object.assign(fighter, { hitstun: 50, combo: 3, controlled: 4 });
+    const events = step(state, [NEUTRAL, NEUTRAL], settings);
+    assert.ok(events.some(event => event.kind === 'knockdown' && event.source === seat));
+    assert.equal(fighter.recovery.phase, 'down');
+    const hp = fighter.hp;
+    const opponent = 1 - seat;
+    state.fighters[opponent].x = fighter.x + (seat === 0 ? 55 : -55);
+    for (let i = 0; i < 20; i++) step(state, opponent === 0 ? [input(['A']), NEUTRAL] : [NEUTRAL, input(['A'])], settings);
+    assert.equal(fighter.hp, hp);
+    for (let i = 0; i < 60 && fighter.recovery; i++) step(state, [NEUTRAL, NEUTRAL], settings);
+    assert.equal(fighter.recovery, null);
+  }
+});
+
 test('the computer approaches and confirms more than one hit using the shipped actions', () => {
   const settings = trainingOn(arenas[0]);
   const state = begin(settings);

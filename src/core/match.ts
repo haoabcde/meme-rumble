@@ -493,8 +493,11 @@ function updateControl(
 
   const locked = f.launched || f.hitstun > 0 || f.blockstun > 0 || f.guardBreak > 0;
   if (locked && f.combo > 0 && ++f.controlled >= config.rules.comboControlLimit) {
-    startKnockdown(f);
-    f.vy = Math.max(0, f.vy);
+    if (f.ground) landKnockdown(f, seat, config.rules, events);
+    else {
+      startKnockdown(f);
+      f.vy = Math.max(0, f.vy);
+    }
     return;
   }
   if (f.reaction) {
