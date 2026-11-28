@@ -65,7 +65,7 @@ function spawn(config: MatchConfig, seat: 0 | 1, round: number): FighterState {
     energy: 0, slow: 0,
     ...(definition.usesTears ? { tearUnits: 60 * TEAR_UNITS_PER_POINT } : {}),
     guard: config.rules.guardMax, guardWait: 0, guardBreak: 0, hitstun: 0, blockstun: 0,
-    push: 0, dash: 0, dashActive: false, airActionUsed: false, guarding: false, attack: null, buffer: [], combo: 0, controlled: 0,
+    push: 0, dash: 0, dashActive: false, airDashUsed: false, guarding: false, attack: null, buffer: [], combo: 0, controlled: 0,
     recovery: null, moving: false
   };
 }
@@ -642,7 +642,7 @@ function updateControl(
   const jump = bound ? undefined : f.buffer.find(command => command.key === 'jump');
   const dropping = Boolean(jump?.down && f.ground && f.ground !== 'floor');
   if (f.ground && jump && (!f.attack || (!dropping && cancels?.includes('jump')))) {
-    f.buffer = f.buffer.filter(item => item.sampledAt !== jump.sampledAt);
+    f.buffer = f.buffer.filter(item => item.sampledAt !== jump.sampledAt || item.key === 'dash');
     f.attack = null;
     delete f.reaction;
     f.ignorePlatform = dropping ? f.ground : null;
@@ -655,12 +655,11 @@ function updateControl(
     return;
   }
   const airborne = !f.ground;
-  if (jump && airborne && !jump.down && !f.dash && !f.airActionUsed && definition.airJump &&
+  if (jump && airborne && !jump.down && !f.dash && f.jumpCount !== 2 && definition.airJump &&
       (!f.attack || cancels?.includes('jump'))) {
-    f.buffer = f.buffer.filter(item => item.sampledAt !== jump.sampledAt);
+    f.buffer = f.buffer.filter(item => item.sampledAt !== jump.sampledAt || item.key === 'dash');
     f.attack = null;
     delete f.reaction;
-    f.airActionUsed = true;
     f.vy = -definition.airJump;
     f.jumpCount=2;f.secondApex=false;
     events.push({ kind: 'air-jump', source: seat, x: f.x, y: f.y });
@@ -668,7 +667,7 @@ function updateControl(
   }
   if (f.attack) return;
   const dash = !bound && f.buffer.find(command => command.key === 'dash');
-  if (dash && !f.dash && (!airborne || (definition.airDash && !f.airActionUsed))) {
+  if (dash && !f.dash && (!airborne || (definition.airDash && !f.airDashUsed))) {
     f.buffer = f.buffer.filter(item => item.sampledAt !== dash.sampledAt);
     const cost = config.rules.dashGuardCost?.[airborne ? 'air' : 'ground'] ?? 0;
     if (f.guard < cost) {
@@ -681,7 +680,7 @@ function updateControl(
       f.facing = dash.x || f.facing;
       f.dash = airborne ? 6 : 8;
       if(definition.id==='frog')startFrogDodge(f,state);
-      if (airborne) f.airActionUsed = true;
+      if (airborne) f.airDashUsed = true;
       f.guarding = false;
       events.push({ kind: 'dash', source: seat, x: f.x, y: f.y, direction: f.facing, ...(f.joAwakened && { heavy: true }) });
       return;
@@ -803,7 +802,7 @@ function motion(
   if (f.ground) return walking;
   const previousY = f.y;
   const fixedDive = Boolean(f.attack && action?.dive && f.attack.frame < action.startup + action.active);
-  if (!fixedDive && !(config.rules.airDashPauseGravity && f.dashActive && f.airActionUsed)) {
+  if (!fixedDive && !(config.rules.airDashPauseGravity && f.dashActive && f.airDashUsed)) {
     f.vy += 1;
     f.y += f.vy;
     if (f.jumpCount === 2 && Math.abs(f.vy) <= 1) f.secondApex = true;
@@ -828,7 +827,7 @@ function motion(
     f.y = platform?.y ?? arena.floor;
     f.vy = 0;
     f.ignorePlatform = null;
-    f.airActionUsed = false;
+    f.airDashUsed = false;
     f.jumpCount=0;f.secondApex=false;
     if (f.launched || f.recovery?.phase === 'fall') landKnockdown(f, seat, config.rules, events, true);
     if (f.reaction?.kind === 'air') f.reaction.landedAt = f.reaction.elapsed;

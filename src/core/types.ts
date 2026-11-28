@@ -373,7 +373,7 @@ export interface FighterState {
   dash: number;
   /** True through the final tick of dash movement, including hitstop snapshots. */
   dashActive?: boolean;
-  airActionUsed: boolean;
+  airDashUsed: boolean;
   guarding: boolean;
   /** Undefined when released, zero when held past the window, positive while armed. */
   guardCounterLeft?: number;

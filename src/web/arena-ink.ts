@@ -666,13 +666,13 @@ export function drawInkMechanism(ctx: CanvasRenderingContext2D, arena: ArenaDefi
     if (start.prop !== 'scoreboard') continue;
     const w = start.right - start.left;
     const remaining = state && config && !config.training ? String(Math.ceil(state.remaining / config.rules.ticksPerSecond)).padStart(2, '0') : '– –';
-    const displayY = start.y + (illustrated ? 44 : 56);
+    const displayY = start.y + (illustrated ? 32 : 56);
     ctx.save();
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = '900 48px ui-monospace, monospace';
+    ctx.font = (illustrated ? '900 34px' : '900 48px') + ' ui-monospace, monospace';
     for (const [i, value] of [String(state?.wins[0] ?? 0), remaining, String(state?.wins[1] ?? 0)].entries()) {
       ctx.fillStyle = [c.rim, c.paper, c.signal][i];
-      ctx.fillText(value, start.left + w * (.23 + i * .27), displayY);
+      ctx.fillText(value, start.left + w * (.26 + i * .24), displayY);
     }
     ctx.restore();
   }

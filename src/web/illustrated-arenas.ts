@@ -25,26 +25,23 @@ const scenes = new Map<string, Illustration>([
     { row: 271, rise: 704 },
     { row: 440, rise: 362, lips: [['tank', 1215, 1442, 440]] },
     { row: 507, rise: 244, lips: [['bridge', 360, 1719, 507]] },
-    { row: 572, rise: 122, lips: [
-      ['planter', 178, 537, 573], ['west', 565, 918, 572],
-      ['east', 1153, 1532, 572], ['greenhouse', 1595, 1996, 572]
-    ] },
-    { row: 646, rise: 0 }
+    { row: 573, rise: 122, lips: [['west', 128, 918, 573], ['east', 1153, 1996, 573]] },
+    { row: 645, rise: 0 }
   ])],
   ['night-court', illustration(courtArt, [
-    { row: 275, rise: 710 },
-    { row: 481, rise: 254, lips: [['score-deck', 809, 1272, 481]] },
-    { row: 523, rise: 126, lips: [['west-stand', 507, 861, 523], ['east-stand', 1217, 1554, 523]] },
-    { row: 598, rise: 96, lips: [['west-bench', 230, 536, 598], ['east-bench', 1545, 1849, 598]] },
-    { row: 655, rise: 0 }
+    { row: 223, rise: 574 },
+    { row: 303, rise: 470 },
+    { row: 343, rise: 324, lips: [['score-deck', 917, 1170, 343]] },
+    { row: 455, rise: 216, lips: [['middle-deck', 837, 1237, 455]] },
+    { row: 521, rise: 108, lips: [['west-stand', 286, 1013, 521], ['east-stand', 1067, 1788, 521]] },
+    { row: 665, rise: 0 }
   ])],
   ['harbor', illustration(harborArt, [
     { row: 184, rise: 730 },
     { row: 294, rise: 456 },
     { row: 399, rise: 386, lips: [['west-gallery', 248, 726, 399], ['east-gallery', 1373, 1831, 399]] },
     { row: 473, rise: 256, lips: [['gangway', 381, 1698, 473]] },
-    { row: 536, rise: 128, lips: [['loading', 506, 895, 536], ['east-loading', 1189, 1564, 536]] },
-    { row: 542, rise: 116, lips: [['boat-bow', 153, 565, 542], ['end-boat', 1514, 1940, 542]] },
+    { row: 540, rise: 128, lips: [['loading', 155, 896, 540], ['east-loading', 1189, 1936, 540]] },
     { row: 611, rise: 0 }
   ])],
   ['star-station', illustration(stationArt, [
@@ -53,7 +50,7 @@ const scenes = new Map<string, Illustration>([
     { row: 341, rise: 510, lips: [['coil-left', 447, 882, 341], ['coil-right', 1197, 1631, 341]] },
     { row: 406, rise: 382, lips: [['upper-left', 289, 800, 406], ['upper-right', 1278, 1792, 406]] },
     { row: 475, rise: 254, lips: [['relay-left', 449, 979, 475], ['relay-right', 1100, 1631, 475]] },
-    { row: 547, rise: 126, lips: [['dock-left', 376, 887, 547], ['dock-right', 1194, 1707, 547]] },
+    { row: 547, rise: 126, lips: [['dock-left', 376, 979, 547], ['dock-right', 1100, 1707, 547]] },
     { row: 620, rise: 0 }
   ], { id: 'service-lift', left: 986, right: 1093, inset: 18 })],
   ['broadcast-ring', illustration(broadcastArt, [

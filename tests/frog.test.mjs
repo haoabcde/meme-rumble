@@ -97,7 +97,7 @@ test('extra empowered jab reach actually connects beyond the former range on bot
 });
 
 test('buff does not change the hurtbox, platform movement or jump budget and cannot be refreshed',()=>{
- const t=setup();t.caster.ascendUntil=900;t.caster.energy=300;const box=structuredClone(t.config.fighters[0].hurtbox);t.press('jump');assert.equal(t.caster.ground,null);t.run(5);t.press('jump');assert.equal(t.caster.jumpCount,2);assert.equal(t.caster.airActionUsed,true);assert.deepEqual(t.config.fighters[0].hurtbox,box);
+ const t=setup();t.caster.ascendUntil=900;t.caster.energy=300;const box=structuredClone(t.config.fighters[0].hurtbox);t.press('jump');assert.equal(t.caster.ground,null);t.run(5);t.press('jump');assert.equal(t.caster.jumpCount,2);assert.equal(t.caster.airDashUsed,false);assert.deepEqual(t.config.fighters[0].hurtbox,box);
 });
 test('frog buff, casts and wave hits survive snapshot replay and clear at round reset',()=>{
  const t=setup(0,190);t.caster.ascendUntil=900;t.caster.energy=300;t.press('B');t.run(18);const clone=structuredClone(t.state);

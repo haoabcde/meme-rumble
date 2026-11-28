@@ -1319,10 +1319,18 @@ export class Renderer {
       ctx.font = '900 15px system-ui';
       ctx.fillStyle = seatColors[seat];
       ctx.fillText(label, center, markerY + 15);
-      if (!f.ground && !f.launched && !f.recovery && (def.airJump || def.airDash)) {
-        const dot = center + 26;
-        polygon(ctx, f.airActionUsed ? '#535c83' : seatColors[seat],
-          [[dot, markerY + 4], [dot + 6, markerY + 10], [dot, markerY + 16], [dot - 6, markerY + 10]]);
+      if (!f.ground && !f.launched && !f.recovery) {
+        if (def.airJump) {
+          const dot = center + 26;
+          polygon(ctx, f.jumpCount === 2 ? '#535c83' : seatColors[seat],
+            [[dot, markerY + 4], [dot + 5, markerY + 10], [dot, markerY + 16], [dot - 5, markerY + 10]]);
+        }
+        if (def.airDash) {
+          const dot = center + (def.airJump ? 41 : 26);
+          polygon(ctx, f.airDashUsed ? '#535c83' : seatColors[seat],
+            [[dot - 5, markerY + 5], [dot + 1, markerY + 5], [dot + 6, markerY + 10],
+              [dot + 1, markerY + 15], [dot - 5, markerY + 15], [dot, markerY + 10]]);
+        }
       }
     }
     if (config.arena.theme !== 'ring' && (debug || Math.abs(a.x - b.x) > width / zoom * .7)) {

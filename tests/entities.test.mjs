@@ -19,7 +19,8 @@ function fixture(entities, separation = 240, source = 0) {
     ...testFighter.actions[2], id: 'cast', startup: 1, active: 1, recovery: 1,
     advance: 0, hitTimeline: [], entities
   };
-  const config = { rules, arena: arenas[0], fighters: [testFighter, testFighter] };
+  const arena = arenas.find(arena => arena.id === 'broadcast-ring');
+  const config = { rules, arena, fighters: [testFighter, testFighter] };
   config.fighters[source] = { ...testFighter, actions: [move] };
   const state = createMatch(config);
   const tick = (first = NEUTRAL, second = NEUTRAL) => step(state, [first, second], config);

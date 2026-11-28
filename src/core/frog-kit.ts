@@ -44,7 +44,7 @@ export function warpFrog(state:MatchState,config:MatchConfig,seat:0|1,target:0|1
  f.ground=support?.id??(f.y>=arena.floor?'floor':null);f.vy=0;f.push=0;f.dash=0;f.dashActive=false;
  f.guarding=false;f.moving=false;f.ignorePlatform=null;f.buffer=[];delete f.guardCounterLeft;
  f.facing=f.x===enemy.x?enemy.facing===1?-1:1:f.x<enemy.x?1:-1;
- if(f.ground){f.airActionUsed=false;f.jumpCount=0;f.secondApex=false;}
+ if(f.ground){f.airDashUsed=false;f.jumpCount=0;f.secondApex=false;}
  (f.frogWarps??=[]).push({tick:state.arenaFrame,fromX,fromY,toX:f.x,toY:f.y,powered,kind});
  if(kind==='behind'){
   f.attack={id:'frog-evade',frame:0,connected:true,landed:false};

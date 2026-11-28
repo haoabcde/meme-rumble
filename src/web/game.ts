@@ -1622,7 +1622,11 @@ function trainingState(seat: Seat) {
   if (fighter.guarding && fighter.guardCounterLeft) return '防反窗口 · ' + fighter.guardCounterLeft + ' 帧';
   if (fighter.guarding) return '防御';
   if (fighter.ground) return '地面可操作';
-  return fighter.airActionUsed ? '空中机动已用' : '空中机动可用';
+  const definition = config.fighters[seat];
+  return [
+    definition.airJump && fighter.jumpCount !== 2 ? '二段跳可用' : '',
+    definition.airDash && !fighter.airDashUsed ? '空冲可用' : ''
+  ].filter(Boolean).join(' · ') || '空中机动已用';
 }
 
 function renderHUD() {

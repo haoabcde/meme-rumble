@@ -19,7 +19,7 @@
 
 `stats` 只需填写想调整的字段。生命用 `maxHp`，地面跑速和空中横移速度用 `run`、`airSpeed`，起跳与二段跳的初速度用 `jump`、`airJump`，冲刺速度与空冲开关用 `dash`、`airDash`。身体宽度与受击框分别填 `bodyWidth` 和 `hurtbox`。位移按每个逻辑帧的世界单位计算。[角色包及默认值](../src/content/fighter-kit.ts)
 
-公共对局中，地面冲刺消耗 20 点耐力，空中冲刺消耗 30 点。耐力与格挡共用，见血条下方的小条。空冲与二段跳共用一次离地后的空中移动机会，落地恢复。冲刺可以穿过对手，受击保护持续到最后一个冲刺位移帧，下一可推进的逻辑帧恢复受击。角色参数控制可用动作和速度，冲刺消耗、保护与穿身分别由公共规则的 `dashGuardCost`、`dashInvulnerable` 和 `dashPassThrough` 控制。[公共规则](../src/content/demo.ts) · [控制与移动](../src/core/match.ts)
+公共对局中，地面冲刺消耗 20 点耐力，空中冲刺消耗 30 点。耐力与格挡共用，见血条下方的小条。空冲与二段跳每次离地各可用一次，顺序自由，落地恢复。冲刺可以穿过对手，受击保护持续到最后一个冲刺位移帧，下一可推进的逻辑帧恢复受击。角色参数控制可用动作和速度，冲刺消耗、保护与穿身分别由公共规则的 `dashGuardCost`、`dashInvulnerable` 和 `dashPassThrough` 控制。[公共规则](../src/content/demo.ts) · [控制与移动](../src/core/match.ts)
 
 公共规则开启 `airDashPauseGravity`。空冲的 6 个位移帧保持当前高度并保留竖向速度，下一可推进的逻辑帧恢复重力。地面冲刺越过平台边缘时正常下落。[控制与移动](../src/core/match.ts)
 
