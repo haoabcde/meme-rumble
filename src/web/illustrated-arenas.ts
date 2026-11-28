@@ -28,13 +28,8 @@ const scenes = new Map<string, Illustration>([
     { row: 573, rise: 122, lips: [['west', 128, 918, 573], ['east', 1153, 1996, 573]] },
     { row: 645, rise: 0 }
   ])],
-  ['night-court', illustration(courtArt, [
-    { row: 223, rise: 530 },
-    { row: 303, rise: 430 },
-    { row: 462, rise: 216, lips: [['middle-deck', 604, 1490, 462]] },
-    { row: 521, rise: 108, lips: [['west-stand', 281, 816, 521], ['east-stand', 1284, 1802, 521]] },
-    { row: 668, rise: 0 }
-  ])],
+  // The painted stands are already registered to the arena on a 16:9 master.
+  ['night-court', illustration(courtArt, [])],
   ['harbor', illustration(harborArt, [
     { row: 184, rise: 730 },
     { row: 294, rise: 456 },
@@ -174,6 +169,10 @@ function registerScene(arena: ArenaDefinition, { image, bands, shaft }: Illustra
 export function drawIllustratedArena(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {
   const art = scenes.get(arena.id);
   if (!art?.image.naturalWidth) return false;
+  if (!art.bands.length) {
+    ctx.drawImage(art.image, 0, 0, arena.width, arena.height);
+    return true;
+  }
   let scene = sceneCache.get(arena);
   if (!scene) {
     // Demo arenas can reuse an id with a different set of platforms.

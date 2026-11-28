@@ -29,13 +29,17 @@ const dorm = stage({
 
 const court = stage({
   id: 'night-court', name: '夜训球场', theme: 'court', width: 4480, spawn: [1940, 2540],
-  terrain: '看台断口 · 中场换边',
-  description: '开局原地可上看台。看台之间留出断口，上桥换边可在出口截击，从桥中央下穿则能回到球场。',
-  routes: [['west-stand', 'middle-deck'], ['east-stand', 'middle-deck']]
+  terrain: '长台交锋 · 短台换边',
+  description: '先上主战台。沿台面向两侧走可登高，中央双短台可互跳。站在高台外侧下穿可直接回到侧台。',
+  routes: [['runway', 'west-stand', 'west-step', 'west-top'], ['runway', 'east-stand', 'east-step', 'east-top']]
 }, [
-  ['west-stand', '主队看台', 1, 620, 1980, 108, 'bleachers'],
-  ['east-stand', '客队看台', 1, 2500, 3860, 108, 'bleachers'],
-  ['middle-deck', '中场联络桥', 2, 1660, 2820, 216, 'skywalk']
+  ['runway', '贯通主战台', 1, 680, 3800, 126, 'skywalk'],
+  ['west-stand', '左侧落脚台', 2, 480, 1660, 252, 'bleachers'],
+  ['east-stand', '右侧落脚台', 2, 2820, 4000, 252, 'bleachers'],
+  ['west-step', '左侧换边短台', 3, 1480, 2140, 378, 'skywalk'],
+  ['east-step', '右侧换边短台', 3, 2340, 3000, 378, 'skywalk'],
+  ['west-top', '左侧高台', 4, 590, 1740, 504, 'bleachers'],
+  ['east-top', '右侧高台', 4, 2740, 3890, 504, 'bleachers']
 ]);
 
 const station = stage({
