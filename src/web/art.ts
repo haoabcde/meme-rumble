@@ -284,9 +284,9 @@ const gagaSwordPoses = {
 } as const;
 
 const gagaXiranitePoses = [
-  pose(26, 80, 228, 210, 100),
-  pose(359, 77, 324, 218, 455),
-  pose(683, 80, 329, 202, 749)
+  { ...pose(26, 80, 228, 210, 102), footY: 201 },
+  { ...pose(359, 77, 251, 218, 434), footY: 205 },
+  { ...pose(657, 80, 355, 203, 740), footY: 201 }
 ] as const;
 
 const gagaDivePoses = [
@@ -700,7 +700,7 @@ export function gagaActionPose(move: FighterAction, frame: number, grounded: boo
   if (action.id === gagaActionIds.xiraniteBurst && xiraniteAtlas.naturalWidth) {
     const recoveryFrame = frame - action.startup - action.active;
     if (recoveryFrame >= Math.ceil(action.recovery * .78)) return undefined;
-    const index = frame < action.startup + action.active + 5 ? 2 : 0;
+    const index = frame < action.startup + action.active + 8 ? 2 : 0;
     return { image: xiraniteAtlas, region: gagaXiranitePoses[index], scaleX: gagaBaseScale, scaleY: gagaBaseScale };
   }
   if (action.id === gagaActionIds.airDive && diveAtlas.naturalWidth) {

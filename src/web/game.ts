@@ -81,14 +81,17 @@ const directionLabels: Record<Direction, string> = { up: '向上', down: '向下
 const moveUses: Record<string, string> = {
   rice: '投饭封路',
   'frog-laugh': '近身声波',
-  'frog-crouch': '蹲守绕背',
-  'banana-high-pressure-tears': '远程喷泪',
+  'frog-crouch': '按住蹲守绕背',
+  'banana-high-pressure-tears': '远程喷泪（可按住）',
   'banana-cry-recharge': '按住回泪',
+  'banana-jo-awaken': '觉醒 JO 形态',
+  'banana-the-world': '时停绝杀',
   'open-source': '水潭控场',
   'frog-ascend': '限时强化',
   'banana-tilting-tear-sea': '远程压场',
   'gaga-dijiang': '召唤俯冲'
 };
+const moveGuideForms: Duo<'base' | 'alt'> = ['base', 'base'];
 const reasons = { ko: '击倒', time: '超时 · 生命比例领先', tie: '超时 · 生命比例相同', 'double-ko': '双 KO' };
 const previousScreen: Partial<Record<Screen, Screen>> = {
   menu: 'title', roster: 'menu', maps: 'roster', versus: 'maps', result: 'menu'
@@ -411,15 +414,20 @@ function editRelaySlot(seat: Seat, slot: Seat) {
   renderRoster();
 }
 
-function commandHint(seat: Seat, move: MovePrompt, comboKeys: Slot[] = []) {
+function commandHint(seat: Seat, move: MovePrompt, comboKeys: Slot[] = [], hold = false) {
   const keys: Control[] = [...comboKeys, move.slot];
   if (move.direction === 'up' || move.direction === 'down') keys.unshift(move.direction);
-  const prefix = move.direction === 'forward' ? '前+' : move.direction === 'back' ? '后+' : '';
+  const prefix = (hold ? '按住 ' : '') + (move.direction === 'forward' ? '前+' : move.direction === 'back' ? '后+' : '');
   return prefix + keyHint(preferences, mode === 'online' && seat === onlineSeat ? 0 : seat, keys, '+');
+}
+
+function actionNeedsHold(action: FighterAction) {
+  return (isAttack(action) && Boolean(action.channel)) || action.id === 'frog-crouch';
 }
 
 function directMoves(fighter: FighterDefinition, move: MovePrompt) {
   return fighter.actions.filter(action => !action.linkOnly && !action.comboKeys?.length &&
+    !(isAttack(action) && action.requiresJo) &&
     action.slot === move.slot && action.direction === move.direction);
 }
 
@@ -431,19 +439,19 @@ function costHint(action: FighterAction) {
   return energy;
 }
 
-function postureHint(action: FighterAction) {
+function postureHint(action: FighterAction, form: 'base' | 'alt' = 'base', fighterId?: string) {
   if (isAttack(action) && (action.frog === 'laugh' || action.frog === 'global') && action.posture === 'any') {
-    return '地面／强化可空中';
+    return form === 'alt' && fighterId === 'frog' ? '地空 · 范围翻倍' : '地面／强化可空中';
   }
   return action.posture === 'any' ? '地空' : action.posture === 'ground' ? '地面' : '空中';
 }
 
-function makeMoveRow(seat: Seat, prompt: MovePrompt, title: string, detail?: string, comboKeys?: Slot[]) {
+function makeMoveRow(seat: Seat, prompt: MovePrompt, title: string, detail?: string, comboKeys?: Slot[], hold = false) {
   const row = document.createElement('div');
   const keyCell = document.createElement('dt');
   const key = document.createElement('kbd');
   const value = document.createElement('dd');
-  key.textContent = commandHint(seat, prompt, comboKeys);
+  key.textContent = commandHint(seat, prompt, comboKeys, hold);
   keyCell.append(key);
   value.append(title);
   if (detail) {
@@ -457,7 +465,53 @@ function makeMoveRow(seat: Seat, prompt: MovePrompt, title: string, detail?: str
   return row;
 }
 
-function renderMoveList(list: HTMLElement, fighter: FighterDefinition, seat: Seat, detailed: boolean) {
+function bananaAltActions(fighter: FighterDefinition) {
+  const byId = new Map(fighter.actions.map(action => [action.id, action]));
+  const pick = (id: string) => byId.get(id);
+  const joCombo = ['banana-jo-jab', 'banana-jo-cross', 'banana-jo-pounce', 'banana-jo-uppercut', 'banana-jo-ora']
+    .map(pick).filter((move): move is FighterAction => Boolean(move));
+  return {
+    joCombo,
+    list: [
+      'banana-jo-lift',
+      'banana-jo-slide',
+      'banana-jo-air-dive',
+      'banana-jo-sheer-heart',
+      'banana-jo-anti-air',
+      'banana-kq-bomb',
+      'banana-kq-detonate',
+      'banana-the-world',
+      'banana-close-burst'
+    ].map(pick).filter((move): move is FighterAction => Boolean(move))
+  };
+}
+
+function renderMoveList(list: HTMLElement, fighter: FighterDefinition, seat: Seat, detailed: boolean, form: 'base' | 'alt' = 'base') {
+  if (detailed && form === 'alt' && fighter.id === 'banana') {
+    const { joCombo, list: joMoves } = bananaAltActions(fighter);
+    const rows: HTMLElement[] = [];
+    if (joCombo.length) {
+      rows.push(makeMoveRow(seat, commonMovePrompts[0], 'JO 地面连按（' + joCombo.length + ' 段）',
+        joCombo.map(move => move.name).join(' → ') + ' · 前 4 段命中可接特色技'));
+    }
+    for (const action of joMoves) {
+      const prompt: MovePrompt = {
+        slot: action.slot,
+        direction: action.direction,
+        label: action.name ?? action.id
+      };
+      const hold = actionNeedsHold(action);
+      const gain = isAttack(action) && action.energyGain ? '命中+' + action.energyGain + '气' : undefined;
+      const note = action.id === 'banana-kq-detonate' ? '场上有硬币/标记时再按触发 · 无视格挡'
+        : action.id === 'banana-jo-air-dive' ? '替换空中普攻 · 穿平台带敌下砸'
+        : action.id === 'banana-the-world' ? '代表大招 · 全图时停结算'
+        : undefined;
+      const detail = [note, gain, postureHint(action, form, fighter.id), costHint(action)].filter(Boolean).join(' · ');
+      rows.push(makeMoveRow(seat, prompt, (action.name ?? prompt.label), detail, action.comboKeys, hold));
+    }
+    list.replaceChildren(...rows);
+    return;
+  }
   const prompts = directMoves(fighter, thirdUltimate).length > 0
     ? [...commonMovePrompts, thirdUltimate] : commonMovePrompts;
   const visible = detailed ? prompts : prompts.filter(prompt => prompt.slot !== 'A');
@@ -467,24 +521,32 @@ function renderMoveList(list: HTMLElement, fighter: FighterDefinition, seat: Sea
     if (detailed) return moves.map(action => {
       const name = action.name ?? prompt.label;
       const use = moveUses[action.id];
-      const detail = [use, postureHint(action), costHint(action)].filter(Boolean).join(' · ');
-      return makeMoveRow(seat, prompt, name, detail);
+      const hold = actionNeedsHold(action);
+      const formNote = form === 'alt' && fighter.id === 'frog' && action.id === 'frog-crouch'
+        ? '强化 · 带星图与自动三连波'
+        : form === 'alt' && fighter.id === 'frog' && action.slot === 'A'
+        ? '强化 · 天使圣光连击（移速1.5× / 承伤0.7×）'
+        : undefined;
+      const detail = [formNote, use, postureHint(action, form, fighter.id), costHint(action)].filter(Boolean).join(' · ');
+      return makeMoveRow(seat, prompt, (hold ? '「按住」' : '') + name, detail, undefined, hold);
     });
     const action = moves[0];
     const usage = action.name ?? prompt.label;
+    const hold = actionNeedsHold(action);
     const name = prompt.slot === 'C' && moves.length > 1 && fighter.id === 'gaga' ? '部署炮台' : moveUses[action.id] ?? usage;
     const sharedCost = moves.every(move => costHint(move) === costHint(action));
     const detail = moves.length === 1 ? postureHint(action) + ' · ' + costHint(action)
       : sharedCost ? '地空 · ' + costHint(action)
       : moves.map(move => (move.posture === 'air' ? '空' : '地') + ' ' + costHint(move)).join('／');
-    return [makeMoveRow(seat, prompt, name, detail)];
+    return [makeMoveRow(seat, prompt, name, detail, undefined, hold)];
   });
   if (detailed) for (const action of fighter.actions) {
-    if (action.linkOnly || (!action.comboKeys?.length && (!action.direction ||
+    if (action.linkOnly || (isAttack(action) && action.requiresJo) || (!action.comboKeys?.length && (!action.direction ||
         prompts.some(prompt => prompt.slot === action.slot && prompt.direction === action.direction)))) continue;
-    const label = action.name ?? (action.direction ? directionLabels[action.direction] + '变招' : '变招');
+    const hold = actionNeedsHold(action);
+    const label = (hold ? '「按住」' : '') + (action.name ?? (action.direction ? directionLabels[action.direction] + '变招' : '变招'));
     rows.push(makeMoveRow(seat, { slot: action.slot, direction: action.direction, label }, label,
-      postureHint(action) + ' · ' + costHint(action), action.comboKeys));
+      postureHint(action, form, fighter.id) + ' · ' + costHint(action), action.comboKeys, hold));
   }
   list.replaceChildren(...rows);
 }
@@ -494,17 +556,57 @@ function renderMoveGuide() {
     const fighter = config.fighters[seat];
     const panel = element('move-guide-panel-' + namesSuffix[seat]);
     text(panel.querySelector('h3')!, seatName(seat) + ' · ' + fighter.name);
+    const tabs = panel.querySelector<HTMLElement>('.move-form-tabs')!;
+    const hasAlt = fighter.id === 'banana' || fighter.id === 'frog';
+    if (!hasAlt) moveGuideForms[seat] = 'base';
+    const form = hasAlt ? moveGuideForms[seat] : 'base';
+    tabs.hidden = !hasAlt;
+    if (hasAlt) {
+      const altLabel = fighter.id === 'banana' ? 'JO 形态' : '天使强化';
+      tabs.replaceChildren(...(['base', 'alt'] as const).map(targetForm => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'subtle';
+        button.textContent = targetForm === 'base' ? '常态' : altLabel;
+        button.setAttribute('aria-pressed', String(form === targetForm));
+        button.addEventListener('click', () => {
+          moveGuideForms[seat] = targetForm;
+          renderMoveGuide();
+        });
+        return button;
+      }));
+    } else {
+      tabs.replaceChildren();
+    }
     const chain = panel.querySelector('.move-chain')!;
     const attack = commandHint(seat, commonMovePrompts[0]);
     const lift = commandHint(seat, commonMovePrompts[1]);
     const jump = keyHint(preferences, seat, ['jump']);
-    const launcher = directMoves(fighter, commonMovePrompts[1])[0];
+    const launcher = form === 'alt' && fighter.id === 'banana'
+      ? fighter.actions.find(action => action.id === 'banana-jo-lift')
+      : directMoves(fighter, commonMovePrompts[1])[0];
     const hasChase = launcher && isAttack(launcher) && launcher.cancelOnHit?.includes('jump');
     const startsCombo = fighter.actions.some(action => action.slot === 'A' && !action.direction && isAttack(action) &&
-      launcher && action.cancelOnHit?.includes(launcher.id));
-    text(chain as HTMLElement, '命中连段 ' + attack + ' → ' + lift + ' → ' + jump + ' → 空中 ' + attack +
-      (hasChase && startsCombo ? '' : '（本角色的接续未完整接入）'));
-    renderMoveList(panel.querySelector('dl')!, fighter, seat, true);
+      (form === 'alt' && fighter.id === 'banana' ? action.id === 'banana-jo-jab' : true) &&
+      launcher && (action.cancelOnHit?.includes(launcher.id) || action.cancelOnHit?.includes('banana-tip-rise')));
+    const starterHint = fighter.id === 'banana'
+      ? (form === 'alt'
+        ? 'JO 主线：' + commandHint(seat, { slot: 'A', label: '' }) + ' 五连欧拉 → ' + commandHint(seat, { slot: 'B', label: '' }) + ' 自动追踪 → ' + commandHint(seat, { slot: 'C', label: '' }) + ' 炸弹硬币/再按起爆'
+        : '上手主线：' + commandHint(seat, { slot: 'C', label: '' }, [], true) + ' 补泪 → ' + commandHint(seat, { slot: 'B', label: '' }, [], true) + ' 喷射（满 3 格按 ' + commandHint(seat, thirdUltimate) + ' 觉醒）')
+      : fighter.id === 'gaga'
+      ? '上手主线：' + commandHint(seat, { slot: 'C', label: '' }) + ' 放炮台 → 用 ' + commandHint(seat, { slot: 'B', label: '' }) + ' 剑波牵制'
+      : fighter.id === 'frog'
+      ? '上手主线：' + commandHint(seat, { slot: 'C', label: '' }, [], true) + ' 等对手出手 → 绕背'
+      : '上手主线：' + commandHint(seat, { slot: 'B', label: '' }) + ' 投饭束缚 → ' + commandHint(seat, { slot: 'C', label: '' }) + ' 接旋风';
+    chain.replaceChildren();
+    chain.append(
+      '命中连段 ' + attack + ' → ' + lift + ' → ' + jump + ' → 空中 ' + attack +
+      (hasChase && startsCombo ? '' : '（本角色的接续未完整接入）')
+    );
+    const routeNote = document.createElement('small');
+    routeNote.textContent = starterHint;
+    chain.append(routeNote);
+    renderMoveList(panel.querySelector('dl')!, fighter, seat, true, form);
   }
 }
 
@@ -528,6 +630,7 @@ function buildUltimateCues() {
 function renderUltimateCues(seat: Seat) {
   for (const { prompt, node, label } of ultimateCues[seat]) {
     const direction = prompt.direction === 'up' || prompt.direction === 'down' ? prompt.direction : undefined;
+    const awakenedDown = direction === 'down' && config.fighters[seat].id === 'banana' && Boolean(state.fighters[seat].joAwakened);
     const { action, cost, reason } = ultimateAvailability(state, config, seat, direction);
     const available = screen === 'match' && action !== undefined && !reason;
     if (node.dataset.available !== String(available)) {
@@ -535,9 +638,9 @@ function renderUltimateCues(seat: Seat) {
       if (available) animateUI(node, [{ scale: '.91' }, { scale: '1.12', offset: .59 }, { scale: '1' }], 180);
       else motions.get(node)?.cancel();
     }
-    text(label, available ? '可用' : cost ? cost / ENERGY_PER_STOCK + ' 格' : prompt.label);
-    const status = available ? '可用' : reason ? unavailableLabels[reason] : '暂停中';
-    const title = (action?.name ?? prompt.label) + ' · ' + status;
+    text(label, available ? '可用' : awakenedDown ? '已觉醒' : cost ? cost / ENERGY_PER_STOCK + ' 格' : prompt.label);
+    const status = available ? '可用' : awakenedDown ? '本回合已觉醒' : reason ? unavailableLabels[reason] : '暂停中';
+    const title = (awakenedDown ? 'JO化觉醒' : action?.name ?? prompt.label) + ' · ' + status;
     if (node.title !== title) node.title = title;
   }
 }
@@ -1141,7 +1244,14 @@ function openGuide(moves: boolean) {
   text(element('guide-title'), moves ? '招式表' : '操作说明');
   element('guide-controls').hidden = moves;
   element('guide-moves').hidden = !moves;
-  if (moves) renderMoveGuide();
+  if (moves) {
+    for (const seat of seats) {
+      const fighter = config.fighters[seat];
+      moveGuideForms[seat] = (fighter.id === 'banana' && state.fighters[seat].joAwakened) ||
+        (fighter.id === 'frog' && frogPowered(state.fighters[seat], state)) ? 'alt' : 'base';
+    }
+    renderMoveGuide();
+  }
   guide.showModal();
   guide.scrollTop = 0;
 }
@@ -1420,8 +1530,10 @@ function renderHUD() {
       text(energyLabels[seat], String(stocks));
     }
     const powered = frogPowered(fighter, state);
-    formLabels[seat].hidden = !powered;
+    const jo = Boolean(fighter.joAwakened);
+    formLabels[seat].hidden = !powered && !jo;
     if (powered) text(formLabels[seat], '强化 ' + ((fighter.ascendUntil! - state.arenaFrame) / config.rules.ticksPerSecond).toFixed(1) + ' 秒');
+    else if (jo) text(formLabels[seat], 'JO 化');
     renderUltimateCues(seat);
     const recent = lastChains[seat];
     const hits = state.fighters[seat === 0 ? 1 : 0].combo ||

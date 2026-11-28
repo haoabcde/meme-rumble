@@ -141,33 +141,357 @@ export function drawCrystalShatter(ctx: CanvasRenderingContext2D, age: number, l
   ctx.restore();
 }
 
-export function drawXiraniteBurstEffect(ctx: CanvasRenderingContext2D, age: number, life: number,
-  facing = 1, reducedMotion = false) {
-  const t = age / Math.max(1, life);
+function drawXiraniteShard(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, angle: number) {
   ctx.save();
-  ctx.scale(facing, 1);
-  ctx.globalAlpha = Math.max(0, 1 - t ** 1.3);
-
-  // Ground liquid ripple.
-  ctx.strokeStyle = '#38f2c9';
-  ctx.lineWidth = 4.5 * (1 - t) + 1;
+  ctx.translate(x, y);
+  ctx.rotate(angle);
   ctx.beginPath();
-  ctx.ellipse(28 + t * 65, -4, 34 + t * 92, 10 + t * 14, 0, 0, Math.PI * 2);
+  ctx.moveTo(0, -radius * 1.45);
+  ctx.lineTo(radius * .82, -radius * .2);
+  ctx.lineTo(radius * .52, radius * 1.15);
+  ctx.lineTo(0, radius * 1.45);
+  ctx.lineTo(-radius * .52, radius * 1.15);
+  ctx.lineTo(-radius * .82, -radius * .2);
+  ctx.closePath();
+
+  const grad = ctx.createLinearGradient(-radius, -radius, radius, radius);
+  grad.addColorStop(0, '#ecfdf5');
+  grad.addColorStop(.45, '#38f2c9');
+  grad.addColorStop(1, '#047857');
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.strokeStyle = '#064e3b';
+  ctx.lineWidth = Math.max(1.4, radius * .15);
   ctx.stroke();
 
-  // Surging teal liquid needles shooting forward.
-  const count = reducedMotion ? 4 : 8;
-  for (let i = 0; i < count; i++) {
-    const spreadY = -92 + (i / (count - 1)) * 78;
-    const reach = 42 + t * (135 + (i % 3) * 24);
-    const tail = Math.max(12, reach - 54 * (1 - t * .4));
-    ctx.fillStyle = i % 2 ? '#5eead4' : '#10b981';
+  ctx.fillStyle = '#d1fae5';
+  ctx.beginPath();
+  ctx.moveTo(-radius * .22, -radius * .55);
+  ctx.lineTo(0, -radius * 1.05);
+  ctx.lineTo(radius * .16, -radius * .48);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+export function drawXiraniteStanceEffect(ctx: CanvasRenderingContext2D, frame: number, startup: number, active: number,
+  reducedMotion = false) {
+  const end = startup + active;
+  const isActive = frame >= startup && frame < end;
+  const fade = frame < startup
+    ? .45 + .55 * (frame / Math.max(1, startup))
+    : frame < end
+      ? 1
+      : Math.max(0, 1 - (frame - end) / 10);
+  if (fade <= 0) return;
+
+  const pulse = reducedMotion ? 0 : Math.sin(frame * .48);
+  ctx.save();
+  ctx.globalAlpha = fade;
+
+  // Ground Xiranite puddle and Endfield containment arc around her planted feet.
+  ctx.fillStyle = isActive ? 'rgba(6, 78, 59, 0.42)' : 'rgba(6, 78, 59, 0.28)';
+  ctx.beginPath();
+  ctx.ellipse(20, 0, isActive ? 74 + pulse * 3 : 50, isActive ? 15 : 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = '#38f2c9';
+  ctx.lineWidth = isActive ? 2.6 : 2;
+  ctx.beginPath();
+  ctx.ellipse(20, 0, isActive ? 74 + pulse * 3 : 50, isActive ? 15 : 10, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  if (isActive) {
+    // Segmented rotating telemetry arc at ground level.
+    ctx.strokeStyle = 'rgba(167, 243, 208, 0.8)';
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([14, 10]);
+    ctx.lineDashOffset = reducedMotion ? 0 : -frame * 2.2;
     ctx.beginPath();
-    ctx.moveTo(tail, spreadY - 5 * (1 - t));
-    ctx.lineTo(reach, spreadY);
-    ctx.lineTo(tail, spreadY + 5 * (1 - t));
-    ctx.closePath();
+    ctx.ellipse(20, 0, 82, 18, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Luminous frontal liquid dome aura framing the Xiranite barrier.
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(56, 242, 201, 0.34)';
+    ctx.lineWidth = 11 + pulse * 2;
+    ctx.beginPath();
+    ctx.ellipse(16, -60, 74, 82, 0, -1.32, 1.15);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(209, 250, 229, 0.85)';
+    ctx.lineWidth = 2.6;
+    const sweepStart = reducedMotion ? -.85 : -1.1 + ((frame - startup) % 10) * .11;
+    ctx.beginPath();
+    ctx.ellipse(16, -60, 75, 83, 0, sweepStart, sweepStart + .78);
+    ctx.stroke();
+    ctx.restore();
+
+    // Activation snap hex-ring on the first 4 active frames.
+    const snap = frame - startup;
+    if (snap < 4 && !reducedMotion) {
+      const st = snap / 4;
+      const hr = 48 + st * 48;
+      ctx.save();
+      ctx.translate(22, -62);
+      ctx.globalAlpha = (1 - st) * .9;
+      ctx.strokeStyle = '#ecfdf5';
+      ctx.lineWidth = 3 * (1 - st) + 1;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + .22;
+        const hx = Math.cos(a) * hr;
+        const hy = Math.sin(a) * hr;
+        if (i === 0) ctx.moveTo(hx, hy);
+        else ctx.lineTo(hx, hy);
+      }
+      ctx.closePath();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Orbiting liquid droplets and floating Xiranite motes.
+    const motes = reducedMotion ? 2 : 4;
+    for (let i = 0; i < motes; i++) {
+      const phase = ((frame * .14 + i * .78) % 1);
+      const mx = 48 + i * 11 + Math.sin(frame * .25 + i) * 6;
+      const my = -16 - phase * 92;
+      ctx.fillStyle = i % 2 ? '#a7f3d0' : '#38f2c9';
+      ctx.beginPath();
+      ctx.arc(mx, my, 3.2 * (1 - phase * .55), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+export function drawXiraniteParryFlash(ctx: CanvasRenderingContext2D, age: number, life: number,
+  facing = 1, reducedMotion = false) {
+  const t = Math.min(1, age / Math.max(1, life));
+  ctx.save();
+  ctx.scale(facing, 1);
+  ctx.globalAlpha = Math.max(0, 1 - t ** 1.45);
+
+  // Expanding radial flash core.
+  if (t < .45) {
+    const g = ctx.createRadialGradient(0, 0, 2, 0, 0, 56 + t * 90);
+    g.addColorStop(0, 'rgba(236, 253, 245, 0.92)');
+    g.addColorStop(.45, 'rgba(56, 242, 201, 0.52)');
+    g.addColorStop(1, 'rgba(16, 185, 129, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, 56 + t * 90, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  // Hexagonal Endfield deflect barrier lattice.
+  const hexR = 26 + t * 96;
+  ctx.save();
+  ctx.rotate(t * .22);
+  ctx.strokeStyle = '#064e3b';
+  ctx.lineWidth = 6 * (1 - t) + 2;
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const x = Math.cos(a) * hexR;
+    const y = Math.sin(a) * hexR;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.stroke();
+  ctx.strokeStyle = '#5eead4';
+  ctx.lineWidth = 3 * (1 - t) + 1;
+  ctx.stroke();
+  ctx.restore();
+
+  // Sharp forward liquid-deflect crescent arcs.
+  ctx.lineCap = 'round';
+  for (const [color, width] of [['#064e3b', 8], ['#38f2c9', 5], ['#ecfdf5', 2]] as const) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width * (1 - t * .5);
+    ctx.beginPath();
+    ctx.ellipse(-6, 0, 32 + t * 52, 46 + t * 66, 0, -Math.PI * .46, Math.PI * .46);
+    ctx.stroke();
+  }
+
+  if (age < 7) sparkle(ctx, (1 - t) * 44, '#38f2c9', '#ecfdf5');
+
+  if (!reducedMotion) {
+    const drops = 6;
+    for (let i = 0; i < drops; i++) {
+      const a = -1.2 + (i / (drops - 1)) * 2.4;
+      const dist = 28 + t * (82 + (i % 2) * 22);
+      ctx.fillStyle = i % 2 ? '#a7f3d0' : '#38f2c9';
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * dist, Math.sin(a) * dist, 4 * (1 - t * .6), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function drawCrystalSpike(ctx: CanvasRenderingContext2D, ox: number, oy: number, angle: number,
+  length: number, halfWidth: number, skew: number) {
+  ctx.save();
+  ctx.translate(ox, oy);
+  ctx.rotate(angle);
+
+  const shX1 = length * .22;
+  const shY1 = -halfWidth * (.84 + skew);
+  const shX2 = length * .26;
+  const shY2 = halfWidth * (.76 - skew * .5);
+
+  ctx.beginPath();
+  ctx.moveTo(0, -halfWidth);
+  ctx.lineTo(shX1, shY1);
+  ctx.lineTo(length, 0);
+  ctx.lineTo(shX2, shY2);
+  ctx.lineTo(0, halfWidth);
+  ctx.closePath();
+
+  const bodyGrad = ctx.createLinearGradient(0, 0, length, 0);
+  bodyGrad.addColorStop(0, '#047857');
+  bodyGrad.addColorStop(.45, '#10b981');
+  bodyGrad.addColorStop(1, '#5eead4');
+  ctx.fillStyle = bodyGrad;
+  ctx.fill();
+
+  // Bright upper crystalline facet catching the counter flash.
+  ctx.beginPath();
+  ctx.moveTo(0, -halfWidth);
+  ctx.lineTo(shX1, shY1);
+  ctx.lineTo(length, 0);
+  ctx.lineTo(0, 0);
+  ctx.closePath();
+  const topGrad = ctx.createLinearGradient(0, -halfWidth, length, 0);
+  topGrad.addColorStop(0, '#38f2c9');
+  topGrad.addColorStop(.55, '#a7f3d0');
+  topGrad.addColorStop(1, '#ecfdf5');
+  ctx.fillStyle = topGrad;
+  ctx.fill();
+
+  // Sharp dark crystal outline so every spike separates crisply.
+  ctx.beginPath();
+  ctx.moveTo(0, -halfWidth);
+  ctx.lineTo(shX1, shY1);
+  ctx.lineTo(length, 0);
+  ctx.lineTo(shX2, shY2);
+  ctx.lineTo(0, halfWidth);
+  ctx.closePath();
+  ctx.strokeStyle = '#052e2b';
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'miter';
+  ctx.stroke();
+
+  // Crisp luminous center ridge edge.
+  ctx.strokeStyle = '#ecfdf5';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(length * .06, 0);
+  ctx.lineTo(length - 2, 0);
+  ctx.stroke();
+  ctx.restore();
+}
+
+export function drawXiraniteBurstEffect(ctx: CanvasRenderingContext2D, age: number, life: number,
+  facing = 1, reducedMotion = false) {
+  const t = Math.min(1, age / Math.max(1, life));
+  // Explosive eruption curve: shoots out to full spike length within the first ~4 frames.
+  const erupt = 1 - (1 - Math.min(1, t / .18)) ** 3;
+  const settle = t < .22 ? erupt : 1 - ((t - .22) / .78) * .18;
+  const drift = 1 - (1 - t) ** 2.4;
+  ctx.save();
+  ctx.scale(facing, 1);
+
+  // Brief bright turquoise shatter flash at the shield burst point.
+  if (t < .35) {
+    const f = 1 - t / .35;
+    const bloom = ctx.createRadialGradient(34, -56, 2, 34, -56, 68 + (1 - f) * 55);
+    bloom.addColorStop(0, `rgba(236, 253, 245, ${(.88 * f).toFixed(2)})`);
+    bloom.addColorStop(.5, `rgba(56, 242, 201, ${(.48 * f).toFixed(2)})`);
+    bloom.addColorStop(1, 'rgba(16, 185, 129, 0)');
+    ctx.fillStyle = bloom;
+    ctx.beginPath();
+    ctx.arc(34, -56, 68 + (1 - f) * 55, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.globalAlpha = Math.max(0, 1 - t ** 1.6);
+
+  // Crisp fractured floor pool & Xiranite crackle along the counter range.
+  ctx.fillStyle = 'rgba(4, 120, 87, 0.36)';
+  ctx.beginPath();
+  ctx.ellipse(78 + drift * 34, -1, 56 + drift * 78, 11 + drift * 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#38f2c9';
+  ctx.lineWidth = 3 * (1 - t) + 1;
+  ctx.stroke();
+
+  // Sharp forward-erupting crystal shock spikes fanning radially out from the shield.
+  const radialSpikes = [
+    { ox: 26, oy: -72, angle: -1.08, len: 122, w: 8.5, skew: .14 },
+    { ox: 30, oy: -66, angle: -.74, len: 158, w: 11, skew: -.08 },
+    { ox: 32, oy: -60, angle: -.44, len: 186, w: 12.5, skew: .12 },
+    { ox: 34, oy: -54, angle: -.18, len: 198, w: 13.5, skew: -.10 },
+    { ox: 32, oy: -48, angle: .05, len: 174, w: 11.5, skew: .08 },
+    { ox: 30, oy: -42, angle: .24, len: 138, w: 9, skew: -.12 },
+    { ox: 28, oy: -68, angle: -.90, len: 92, w: 6, skew: .15 },
+    { ox: 36, oy: -50, angle: -.30, len: 118, w: 6.5, skew: -.14 },
+    { ox: 34, oy: -44, angle: .14, len: 102, w: 6, skew: .10 }
+  ] as const;
+
+  const radialCount = reducedMotion ? 5 : radialSpikes.length;
+  for (let i = 0; i < radialCount; i++) {
+    const s = radialSpikes[i];
+    drawCrystalSpike(ctx, s.ox, s.oy, s.angle, s.len * settle, s.w * (1 - t * .45), s.skew);
+  }
+
+  // Ground-anchored Xiranite crystal spikes jutting explosively upward & forward from the floor.
+  const groundSpikes = [
+    { ox: 42, angle: -1.24, len: 96, w: 10, skew: .12 },
+    { ox: 66, angle: -1.04, len: 132, w: 12.5, skew: -.10 },
+    { ox: 94, angle: -.86, len: 146, w: 13, skew: .08 },
+    { ox: 124, angle: -.68, len: 118, w: 10.5, skew: -.12 },
+    { ox: 152, angle: -.54, len: 88, w: 8.5, skew: .10 }
+  ] as const;
+
+  const groundCount = reducedMotion ? 3 : groundSpikes.length;
+  for (let i = 0; i < groundCount; i++) {
+    const g = groundSpikes[i];
+    drawCrystalSpike(ctx, g.ox, 2, g.angle, g.len * settle, g.w * (1 - t * .42), g.skew);
+  }
+
+  // Crisp single expanding shock ring around the burst point (after the spikes punch out).
+  if (t > .04) {
+    ctx.strokeStyle = 'rgba(167, 243, 208, 0.72)';
+    ctx.lineWidth = 3.2 * (1 - t) + .8;
+    ctx.beginPath();
+    ctx.ellipse(36 + drift * 42, -54, 24 + drift * 78, 38 + drift * 46, -.12, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Flying sharp crystal splinters shooting outward from the spike tips.
+  const shards = reducedMotion ? 4 : 8;
+  for (let i = 0; i < shards; i++) {
+    const angle = -.96 + (i / Math.max(1, shards - 1)) * 1.18;
+    const dist = 58 + drift * (118 + (i % 3) * 34);
+    const sx = 30 + Math.cos(angle) * dist;
+    const sy = -54 + Math.sin(angle) * dist + t * t * 28;
+    drawXiraniteShard(ctx, sx, sy, (8 - (i % 3) * 1.8) * (1 - t * .45), angle + Math.PI * .5);
+  }
+
+  if (!reducedMotion) {
+    for (let i = 0; i < 6; i++) {
+      const a = -.95 + (i / 5) * 1.15;
+      const dist = 62 + drift * (122 + (i % 2) * 28);
+      ctx.fillStyle = i % 2 ? '#ecfdf5' : '#38f2c9';
+      ctx.beginPath();
+      ctx.arc(32 + Math.cos(a) * dist, -54 + Math.sin(a) * dist + t * t * 38, 3.4 * (1 - t * .6), 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   ctx.restore();
 }

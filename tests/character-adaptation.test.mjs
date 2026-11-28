@@ -60,6 +60,7 @@ test('Banana equips pressure, uppercut, recharge, JO awakening, Killer Queen I, 
   assert.equal(bananaMove(bananaActionIds.joSheerHeart).slot, 'B');
   assert.equal(bananaMove(bananaActionIds.joAntiAir).slot, 'B');
   assert.equal(bananaMove(bananaActionIds.joAwaken).slot, 'ULT');
+  assert.equal(bananaMove(bananaActionIds.joAwaken).direction, 'down');
   assert.equal(bananaMove(bananaActionIds.joAwaken).energyCost, MAX_ENERGY);
 });
 
@@ -121,14 +122,14 @@ test('Banana 3A headbutt pounces forward over 200 units on whiff', () => {
   assert.equal(state.fighters[0].x - start, 14 + 22 + 222);
 });
 
-test('Banana holding I charges energy up to 3 bars (MAX_ENERGY) and resets between rounds', () => {
+test('Banana holding I charges energy slowly up to 3 bars (MAX_ENERGY) and resets between rounds', () => {
   const state = begin(bananaConfig);
   const [f] = state.fighters;
   assert.equal(f.energy, 0);
   step(state, [hold('C', ['C']), NEUTRAL], bananaConfig);
   bananaStep(state, 59, [hold('C'), NEUTRAL]);
-  assert.equal(f.energy, 120);
-  bananaStep(state, 100, [hold('C'), NEUTRAL]);
+  assert.equal(f.energy, 30);
+  bananaStep(state, 540, [hold('C'), NEUTRAL]);
   assert.equal(f.energy, MAX_ENERGY);
   bananaStep(state, 10);
   assert.equal(f.attack, null);
@@ -345,7 +346,7 @@ test('Banana gains tears and energy together and an underfunded ultimate does no
   assert.equal(state.cutIn, undefined);
 });
 
-test('Banana triggers JO awakening ONLY with I (slot C) at 3 bars, NOT J or O, and unlocks 5A JO combo', () => {
+test('Banana triggers JO awakening ONLY with S+O at 3 bars, NOT I, J, or neutral O, unlocks 5A JO combo and blocks repeat S+O', () => {
   const guardState = begin(bananaConfig);
   guardState.fighters[0].energy = MAX_ENERGY;
   closeDistance(guardState);
@@ -353,18 +354,25 @@ test('Banana triggers JO awakening ONLY with I (slot C) at 3 bars, NOT J or O, a
   assert.equal(guardState.fighters[0].attack?.id, bananaActionIds.jab);
   assert.equal(guardState.fighters[0].joAwakened, undefined);
 
+  const cryState = begin(bananaConfig);
+  cryState.fighters[0].energy = MAX_ENERGY;
+  step(cryState, [hold('C', ['C']), NEUTRAL], bananaConfig);
+  assert.equal(cryState.fighters[0].attack?.id, bananaActionIds.recharge);
+  assert.equal(cryState.fighters[0].energy, MAX_ENERGY);
+  assert.equal(cryState.fighters[0].joAwakened, undefined);
+
   const ultState = begin(bananaConfig);
   ultState.fighters[0].energy = MAX_ENERGY;
   step(ultState, [input(['ULT']), NEUTRAL], bananaConfig);
+  assert.equal(ultState.fighters[0].attack?.id, bananaActionIds.wave);
   assert.equal(ultState.fighters[0].joAwakened, undefined);
-  assert.equal(ultState.cutIn, undefined);
 
   for (const source of [0, 1]) {
     const state = begin(bananaConfig), f = state.fighters[source], target = state.fighters[1 - source];
     closeDistance(state);
     f.energy = MAX_ENERGY;
     const commands = [NEUTRAL, NEUTRAL];
-    commands[source] = input(['C']);
+    commands[source] = input(['ULT'], 0, 1);
     const awaken = bananaMove(bananaActionIds.joAwaken);
     assert.equal(step(state, commands, bananaConfig)[0]?.kind, 'wave-windup');
     assert.equal(f.energy, 0);
@@ -377,6 +385,14 @@ test('Banana triggers JO awakening ONLY with I (slot C) at 3 bars, NOT J or O, a
     assert.equal(shatterEvents.some(e => e.kind === 'jo-shatter' && e.source === source), true);
     assert.equal(state.cutIn, undefined);
     assert.equal(f.attack, null);
+
+    // Repeat S+O once already awakened is unbound and does not spend energy.
+    f.energy = MAX_ENERGY;
+    const repeatEvents = step(state, commands, bananaConfig);
+    assert.equal(repeatEvents.some(e => e.ultimateReason === 'unbound'), true);
+    assert.equal(f.energy, MAX_ENERGY);
+    assert.equal(f.attack, null);
+    f.energy = 0;
 
     // Now test the 5-hit JO combo: 1A -> 2A -> 3A (pounce behind) -> 4A (uppercut) -> 5A (Ora barrage + finisher).
     closeDistance(state);
@@ -578,6 +594,28 @@ test('JO Banana up+J rises into Star Platinum Shoryuken, down+J slides with Star
   assert.equal(dashEvents.some(e => e.kind === 'dash' && e.heavy === true), true);
 });
 
+test('JO Banana confirms J into W+J launcher, jump-cancels with K, and connects aerial J dive', () => {
+  const state = begin(bananaConfig);
+  const [f, target] = state.fighters;
+  f.joAwakened = true;
+  closeDistance(state);
+  const events = [];
+  const tick = (cmd = NEUTRAL) => { events.push(...step(state, [cmd, NEUTRAL], bananaConfig)); };
+  const wait = (pred, label) => {
+    for (let i = 0; i < 25 && !pred(); i++) tick();
+    assert.ok(pred(), label);
+  };
+  tick(input(['A']));
+  wait(() => events.some(e => e.kind === 'hit' && e.actionId === bananaActionIds.joJab), 'JO J connects');
+  tick(input(['A'], 0, -1));
+  wait(() => events.some(e => e.kind === 'hit' && e.actionId === bananaActionIds.joLift), 'JO W+J connects after J');
+  while (state.freeze > 0) tick();
+  tick(input(['jump']));
+  wait(() => events.some(e => e.kind === 'air-jump'), 'K jump-cancels landed JO launcher');
+  tick(input(['A'], f.facing, 0));
+  wait(() => events.some(e => e.kind === 'hit' && e.actionId === bananaActionIds.joAirDive), 'air J connects after jump');
+});
+
 test('JO Banana U patrols straight with no tracking out of range, accelerates on lock-on with kq-lock, blocks recast, and blasts after lock fuse', () => {
   const state = begin(bananaConfig);
   const [f, target] = state.fighters;
@@ -718,7 +756,7 @@ test('The initial wave windup can be interrupted before the cut-in', () => {
   const state = begin(bananaConfig), [f] = state.fighters;
   closeDistance(state);
   f.energy = MAX_ENERGY;
-  step(state, [input(['C']), NEUTRAL], bananaConfig);
+  step(state, [input(['ULT'], 0, 1), NEUTRAL], bananaConfig);
   step(state, [NEUTRAL, input(['A'])], bananaConfig);
   const events = bananaStep(state, 95);
   assert.equal(events.some(event => event.kind === 'hit' && event.source === 1), true);
@@ -727,7 +765,7 @@ test('The initial wave windup can be interrupted before the cut-in', () => {
   assert.equal(state.projectiles.length, 0);
 });
 
-test('Banana can go directly from crying into the wave and gets a ground requirement in the air', () => {
+test('Banana can go directly from crying into S+O awakening and gets a ground requirement in the air', () => {
   const state = begin(bananaConfig), [f] = state.fighters;
   f.energy = MAX_ENERGY - 1;
   step(state, [hold('C', ['C']), NEUTRAL], bananaConfig);
@@ -735,14 +773,14 @@ test('Banana can go directly from crying into the wave and gets a ground require
   bananaStep(state, 2, [hold('C'), NEUTRAL]);
   assert.equal(f.energy, MAX_ENERGY);
   bananaStep(state, 1);
-  const events = step(state, [input(['C']), NEUTRAL], bananaConfig);
+  const events = step(state, [input(['ULT'], 0, 1), NEUTRAL], bananaConfig);
   assert.equal(events[0]?.kind, 'wave-windup');
   assert.equal(f.energy, 0);
 
   const air = begin(bananaConfig), [airFighter] = air.fighters;
   airFighter.energy = MAX_ENERGY;
   step(air, [input(['jump']), NEUTRAL], bananaConfig);
-  const refused = step(air, [input(['C']), NEUTRAL], bananaConfig);
+  const refused = step(air, [input(['ULT'], 0, 1), NEUTRAL], bananaConfig);
   assert.equal(refused.find(event => event.kind === 'wave-unavailable')?.requirement, 'ground');
   assert.equal(air.cutIn, undefined);
   assert.equal(airFighter.energy, MAX_ENERGY);

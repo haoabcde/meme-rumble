@@ -31,7 +31,8 @@ import { drawFrogActor, drawFrogEffects, drawFrogIntro } from './frog-art.js';
 import { drawGagaContact, gagaContact } from './gaga-contact.js';
 import { drawCrystalLockOnBeam, drawCrystalPlant, drawCrystalShatter, drawCrystalSpire, drawDiveLandImpact,
   drawOriginiumCrystalMark, drawPowerPylonField, drawPylonExpireEffect, drawPylonPlantEffect, drawSparkProjectile,
-  drawSwordChargeGlint, drawSwordReleaseSlash, drawSwordWaveProjectile, drawTurretSpeedBoost, drawXiraniteBurstEffect } from './gaga-fx.js';
+  drawSwordChargeGlint, drawSwordReleaseSlash, drawSwordWaveProjectile, drawTurretSpeedBoost, drawXiraniteBurstEffect,
+  drawXiraniteParryFlash, drawXiraniteStanceEffect } from './gaga-fx.js';
 import { drawGagaImpact, gagaStrike } from './gaga-hit-art.js';
 import { gagaIntro } from './gaga-intro.js';
 import { drawPoleDust, drawPoleEarthBurst, drawPoleGroundMark, poleDustLife, poleImpactLife,
@@ -477,6 +478,7 @@ interface Effect {
   poleSwing?: PoleSwing;
   swordSwing?: boolean;
   cue?: ReturnType<typeof gagaContact>;
+  gagaParry?: boolean;
   gagaReceives?: boolean;
   bananaImpact?: boolean;
   gagaImpact?: boolean;
@@ -597,6 +599,7 @@ export class Renderer {
       const poleSwing = poleSwingFor(event);
       const swordSwing = kind === 'swing' && actionId === gagaActionIds.swordSlash;
       const cue = fighters && gagaContact(event, fighters);
+      const gagaParry = kind === 'parry' && actor === 'gaga';
       const gagaImpact = cue === 'guard' || (actor === 'gaga' && Boolean(gagaStrike(event)));
       const gagaReceives = kind === 'hit' && target === 'gaga';
       const wet = jet || wave || actionId === bananaActionIds.tear;
@@ -646,8 +649,11 @@ export class Renderer {
         life = 26;
         shake = 11;
       } else if (kind === 'xiranite-burst') {
-        life = 20;
-        shake = 9;
+        life = 24;
+        shake = 12;
+      } else if (gagaParry) {
+        life = 16;
+        shake = 8;
       } else if (kind === 'pylon-plant') {
         life = 18;
         shake = 7;
@@ -697,7 +703,7 @@ export class Renderer {
         ? (cue === 'guard' || actor === 'gaga' ? 'gaga' : 'banana') : undefined;
       if (life) this.effects.push({
         event, life, start: clock.arenaFrame, viewStart: clock.frame,
-        tier, poleSwing, swordSwing, cue, gagaReceives, bananaImpact, gagaImpact, knockdownDust, shake, fighterImpact
+        tier, poleSwing, swordSwing, cue, gagaParry, gagaReceives, bananaImpact, gagaImpact, knockdownDust, shake, fighterImpact
       });
     }
   }
@@ -1083,7 +1089,9 @@ export class Renderer {
             alpha, wide: Boolean(gagaPose?.pole) || action.impact === 'heavy' || swordTrail,
             ...(swordTrail ? { color: '#fbbf24' } : {}) });
         }
-        if ((f.guarding && !statePose) || (stance && move?.id !== gagaActionIds.xiraniteGuard)) {
+        if (isGaga && move?.id === gagaActionIds.xiraniteGuard && f.attack && f.hp && !f.recovery && !f.hitstun) {
+          drawXiraniteStanceEffect(ctx, phase, move.startup, move.active, reducedMotion);
+        } else if ((f.guarding && !statePose) || (stance && move?.id !== gagaActionIds.xiraniteGuard)) {
           ctx.strokeStyle = stance ? '#ffde85' : f.blockstun ? '#81e7ff' : '#afdfff93';
           ctx.lineWidth = f.blockstun ? 5 : 3;
           ctx.beginPath();
@@ -1378,7 +1386,7 @@ export class Renderer {
       }
     }
     for (const effect of this.effects) {
-      const { event, start, life, cue, poleSwing, swordSwing, bananaImpact, knockdownDust, tier, viewStart, fighterImpact } = effect;
+      const { event, start, life, cue, gagaParry, poleSwing, swordSwing, bananaImpact, knockdownDust, tier, viewStart, fighterImpact } = effect;
       if ((event.kind === 'swing' && !poleSwing && !swordSwing) || (event.kind === 'knockdown' && !knockdownDust)) continue;
       const age = frame - start;
       const viewAge = viewFrame - viewStart;
@@ -1408,8 +1416,10 @@ export class Renderer {
         drawCrystalShatter(ctx, age, life, reducedMotion);
       } else if (event.kind === 'crystal-spire') {
         drawCrystalSpire(ctx, age, life, reducedMotion);
+      } else if (gagaParry) {
+        drawXiraniteParryFlash(ctx, Math.min(life - 1, viewAge), life, event.direction ?? event.facing ?? 1, reducedMotion);
       } else if (event.kind === 'xiranite-burst') {
-        drawXiraniteBurstEffect(ctx, age, life, event.facing, reducedMotion);
+        drawXiraniteBurstEffect(ctx, Math.min(life - 1, viewAge), life, event.facing, reducedMotion);
       } else if (event.kind === 'pylon-plant') {
         drawPylonPlantEffect(ctx, age, life, event.radius);
       } else if (event.kind === 'pylon-expire') {

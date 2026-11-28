@@ -72,7 +72,7 @@ const normalMoves: NormalMove[] = [
     hitbox: { x: 8, y: -215, w: 136, h: 195 },
     damage: 92, hitstun: 34, blockstun: 13, guardCost: 16, push: 6, lift: 18,
     stop: 4, advance: 4, advanceFrom: 1, pose: 'rise', swingOnActive: true,
-    standAttack: 'uppercut', impact: 'heavy', cancelOnHit: ['A', 'C'],
+    standAttack: 'uppercut', impact: 'heavy', cancelOnHit: ['jump', 'A', 'C'],
     feedback: { color: '#fde047', shake: 11, flash: .65, sound: 'heavy' }
   },
   {
@@ -114,7 +114,7 @@ const normalMoves: NormalMove[] = [
     hitbox: { x: 20, y: -112, w: 276, h: 80 },
     damage: 42, hitstun: 22, blockstun: 9, guardCost: 8, push: 3, lift: 0,
     stop: 2, advance: 20, advanceFrom: 2, activeAdvance: 6, pose: 'strike', swingOnActive: true,
-    standAttack: 'jab', impact: 'medium', cancelOnHit: ['C'],
+    standAttack: 'jab', impact: 'medium', cancelOnHit: [bananaActionIds.lift, 'C'],
     feedback: { color: '#d946ef', shake: 6, sound: 'sharp' },
     chain: { actionId: bananaActionIds.joCross, open: 7, close: 17 }
   },
@@ -124,7 +124,7 @@ const normalMoves: NormalMove[] = [
     hitbox: { x: 18, y: -116, w: 296, h: 86 },
     damage: 48, hitstun: 26, blockstun: 10, guardCost: 10, push: 4, lift: 0,
     stop: 3, advance: 22, advanceFrom: 2, activeAdvance: 6, pose: 'sweep', swingOnActive: true,
-    standAttack: 'hook', impact: 'medium', cancelOnHit: ['C'],
+    standAttack: 'hook', impact: 'medium', cancelOnHit: [bananaActionIds.lift, 'C'],
     feedback: { color: '#fde047', shake: 8, sound: 'heavy' },
     chain: { actionId: bananaActionIds.joPounce, open: 9, close: 19 }
   },
@@ -268,7 +268,7 @@ const wave: Omit<ActionDefinition, 'slot' | 'energyCost'> = {
 };
 
 const joAwaken: Omit<ActionDefinition, 'slot' | 'energyCost'> = {
-  id: bananaActionIds.joAwaken, name: bananaWaveTitle, posture: 'ground',
+  id: bananaActionIds.joAwaken, name: bananaWaveTitle, direction: 'down', posture: 'ground',
   awakenJo: true, cutIn: { at: 6, duration: 68 },
   startup: 14, active: 2, recovery: 16,
   hitbox: { x: -160, y: -150, w: 320, h: 150 },

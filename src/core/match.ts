@@ -26,7 +26,7 @@ const buildWave = {
   push: 18, lift: 0, stop: 3, impact: 'medium'
 } as const;
 type Position = Pick<FighterState, 'x' | 'y'>;
-const cryEnergyPerTick = 2;
+const cryEnergyPerTick = .5;
 const cryUnitsPerTick = 20;
 const sprayUnitsPerTick = 10;
 const sprayHitInterval = 18;
@@ -322,59 +322,12 @@ const postureMatches = (action: FighterAction, fighter: FighterState) =>
 const exclusiveUltimate = (action: ActionDefinition) =>
   action.cinematicFreeze || action.cutIn || action.summon || action.timeStop;
 
-function tryStartJoAwaken(state: MatchState, config: MatchConfig, events: CombatEvent[]) {
-  if (state.phase !== 'fight' || state.freeze > 0) return { started: [] as (0 | 1)[], paused: false };
-  const started: (0 | 1)[] = [];
-  const priority = state.round % 2 === 1 ? seats : [1, 0] as const;
-  for (const seat of priority) {
-    const fighter = state.fighters[seat];
-    if (fighter.joAwakened) continue;
-    const action = config.fighters[seat].actions.filter(isAttack).find(move => move.awakenJo);
-    if (!action) continue;
-    const cost = action.energyCost ?? MAX_ENERGY;
-    const command = fighter.buffer.find(item =>
-      item.key === 'C' && !item.directions.includes('up') && !item.directions.includes('down'));
-    if (!command || fighter.energy < cost) continue;
-    fighter.buffer = fighter.buffer.filter(item => item !== command);
-    const canCancelCry = Boolean(action.cutIn && attackFor(config, state, seat)?.channel === 'cry');
-    const pendingCutIn = seats.some(source => {
-      const pending = attackFor(config, state, source)?.cutIn;
-      return pending && state.fighters[source].attack!.frame < pending.at;
-    });
-    if (state.summon || state.timeStop || state.cutIn || cinematicEntrance(state, config) || pendingCutIn) {
-      rejectUltimate(fighter, seat, events, 'cinematic', action, cost);
-      continue;
-    }
-    if (fighter.launched || fighter.hp <= 0 || !fighter.ground || (fighter.attack && !canCancelCry) ||
-        fighter.dash || fighter.push || fighter.hitstun || fighter.blockstun || fighter.guardBreak ||
-        fighter.recovery || fighter.pendingCounter || carriedBySummon(state, seat)) {
-      events.push({ kind: 'wave-unavailable', source: seat, x: fighter.x, y: fighter.y,
-        actionId: action.id, requirement: fighter.ground ? 'recovery' : 'ground' });
-      continue;
-    }
-    const target = state.fighters[other(seat)];
-    faceOpponentWhenFree(fighter, target);
-    startAction(fighter, action, seat, events, cost);
-    fighter.buffer = fighter.buffer.filter(item => item.sampledAt !== command.sampledAt);
-    fighter.moving = false;
-    delete fighter.walk;
-    clearBufferedInputs(state);
-    events.push({ kind: 'wave-windup', source: seat, actionId: action.id,
-      x: fighter.x, y: fighter.y, facing: fighter.facing });
-    events.push({ kind: 'ultimate', source: seat, x: fighter.x, y: fighter.y,
-      actionId: action.id, impactTier: 'ultimate' });
-    started.push(seat);
-    return { started, paused: true };
-  }
-  return { started, paused: false };
-}
-
 export function ultimateAvailability(state: MatchState, config: MatchConfig, seat: 0 | 1,
   direction?: UltimateDirection, keys: readonly Command['key'][] = []): UltimateAvailability {
   const fighter = state.fighters[seat];
   const definition = config.fighters[seat];
   const matching = definition.actions.filter(isAttack).filter(action => action.slot === 'ULT' &&
-    !action.awakenJo && (!action.requiresJo || fighter.joAwakened) &&
+    (!action.awakenJo || !fighter.joAwakened) && (!action.requiresJo || fighter.joAwakened) &&
     action.direction === direction && action.comboKeys?.every(key => keys.includes(key)) !== false);
   const action = (fighter.joAwakened ? matching.find(move => move.requiresJo && postureMatches(move, fighter)) : undefined) ??
     matching.find(move => postureMatches(move, fighter)) ?? matching[0];
@@ -690,17 +643,19 @@ function updateControl(
     f.dash = 0;
     return;
   }
-  if (f.attack) return;
-
   const airborne = !f.ground;
-  if (jump && airborne && !jump.down && !f.dash && !f.airActionUsed && definition.airJump) {
+  if (jump && airborne && !jump.down && !f.dash && !f.airActionUsed && definition.airJump &&
+      (!f.attack || cancels?.includes('jump'))) {
     f.buffer = f.buffer.filter(item => item.sampledAt !== jump.sampledAt);
+    f.attack = null;
+    delete f.reaction;
     f.airActionUsed = true;
     f.vy = -definition.airJump;
     f.jumpCount=2;f.secondApex=false;
     events.push({ kind: 'air-jump', source: seat, x: f.x, y: f.y });
     return;
   }
+  if (f.attack) return;
   const dash = !bound && f.buffer.find(command => command.key === 'dash');
   if (dash && !f.dash && (!airborne || (definition.airDash && !f.airActionUsed))) {
     f.buffer = f.buffer.filter(item => item.sampledAt !== dash.sampledAt);
@@ -1756,8 +1711,6 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     return events;
   }
 
-  const joAwaken = tryStartJoAwaken(state, config, events);
-  if (joAwaken.paused) return events;
   const ultimates = startUltimates(state, config, events);
   if (ultimates.paused) return events;
   const previous: Duo<Position> = state.fighters.map(fighter => ({ x: fighter.x, y: fighter.y })) as Duo<Position>;

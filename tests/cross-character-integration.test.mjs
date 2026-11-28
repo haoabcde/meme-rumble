@@ -117,7 +117,7 @@ test('Frog ascension and a pending Banana wave resume in order with resources an
   assert.ok(cat.energy > initialEnergy);
   const wave = banana.fighter.actions.find(move => move.id === bananaActionIds.joAwaken);
   cat.energy = naiva.energy = MAX_ENERGY;
-  assert.ok(step(state, [press('C'), NEUTRAL], config).some(event => event.kind === 'wave-windup'));
+  assert.ok(step(state, [vertical('ULT', 1), NEUTRAL], config).some(event => event.kind === 'wave-windup'));
   assert.ok(step(state, [NEUTRAL, press('ULT')], config).some(event => event.actionId === 'frog-ascend'));
   const pendingWave = structuredClone(cat.attack);
   const frogStart = state.arenaFrame;
@@ -219,10 +219,11 @@ test('all four roles can confirm either early J into launcher, jump cancel and a
   }
 });
 
-test('production O and W+O consult the current stock and S+O never spends an unbound stock', () => {
+test('production O, W+O, and Banana S+O consult stock while unbound S+O never spends energy', () => {
   for (const entry of production) {
+    const downCost = entry.fighter.id === 'banana' ? MAX_ENERGY : 0;
     for (const seat of [0, 1]) {
-      for (const [direction, y, cost] of [[undefined, 0, MAX_ENERGY], ['up', -1, ENERGY_PER_STOCK], ['down', 1, 0]]) {
+      for (const [direction, y, cost] of [[undefined, 0, MAX_ENERGY], ['up', -1, ENERGY_PER_STOCK], ['down', 1, downCost]]) {
         for (const energy of [0, 100, 200, 300]) {
           const fighters = seat === 0 ? [entry, dummy] : [dummy, entry];
           const { config, state } = match(fighters, 600);
@@ -246,6 +247,13 @@ test('production O and W+O consult the current stock and S+O never spends an unb
       }
     }
   }
+  const { config, state } = match([banana, dummy], 600);
+  state.fighters[0].joAwakened = true;
+  state.fighters[0].energy = MAX_ENERGY;
+  assert.equal(ultimateAvailability(state, config, 0, 'down').reason, 'unbound');
+  const events = step(state, [vertical('ULT', 1), NEUTRAL], config);
+  assert.equal(events.find(event => event.source === 0)?.ultimateReason, 'unbound');
+  assert.equal(state.fighters[0].energy, MAX_ENERGY);
 });
 
 test('a directional launcher cannot fall back to the neutral chain after a whiff', () => {

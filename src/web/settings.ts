@@ -131,7 +131,8 @@ export function renderGuide(preferences: Preferences) {
     { title: '进攻技（远程优先）', controls: ['B'] },
     { title: '特色技', controls: ['C'] },
     { title: '代表大招', controls: ['ULT'] },
-    { title: '战术大招（见招式表）', controls: ['up', 'ULT'], join: ' + ' }
+    { title: '战术大招（见招式表）', controls: ['up', 'ULT'], join: ' + ' },
+    { title: '进阶大招（如 JO 觉醒）', controls: ['down', 'ULT'], join: ' + ' }
   ] as const;
   for (const seat of seats) {
     const list = element(seat === 0 ? 'guide-one' : 'guide-two');
@@ -158,6 +159,26 @@ export function renderGuide(preferences: Preferences) {
       pair.append(label, keys);
       list.append(pair);
     }
+  }
+  const routes = document.getElementById('guide-routes');
+  if (routes) {
+    const kbd = (label: string) => {
+      const node = document.createElement('kbd');
+      node.textContent = label;
+      return node;
+    };
+    const b = keyLabel(preferences.bindings[0].B);
+    const c = keyLabel(preferences.bindings[0].C);
+    const downUlt = keyLabel(preferences.bindings[0].down) + ' + ' + keyLabel(preferences.bindings[0].ULT);
+    const title = document.createElement('strong');
+    title.textContent = '上手主线（P1 当前键位）：';
+    routes.replaceChildren(
+      title,
+      '大肥鱼「', kbd(b), ' 投饭束缚 → ', kbd(c), ' 接旋风」 · ',
+      '奶蛙「按住 ', kbd(c), ' 等对手出手 → 绕背」 · ',
+      '咕咕嘎嘎「', kbd(c), ' 放炮台 → 用 ', kbd(b), ' 剑波牵制」 · ',
+      '香蕉猫「按住 ', kbd(c), ' 补泪 → ', kbd(b), ' 喷射（满 3 格按 ', kbd(downUlt), ' 觉醒）」'
+    );
   }
 }
 

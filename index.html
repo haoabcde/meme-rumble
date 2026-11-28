@@ -442,12 +442,13 @@
           </div>
           <p>二段跳和空中冲刺每次离地可选一次。角色旁的亮菱形表示还有机会。站在平台上可用下方向＋跳跃逐层下穿。</p>
           <p>按 <kbd>Esc</kbd> 暂停，在暂停菜单打开招式表。自由训练中按 <kbd>H</kbd> 查看判定框和动作数据。</p>
+          <div id="guide-routes" class="guide-routes"></div>
         </div>
         <div id="guide-moves" hidden>
-          <p class="move-rules">进攻技优先收录远程攻击，特色技用于角色机制。代表大招使用大招键，战术大招用上方向合按。各招的气量和姿态见下表。</p>
+          <p class="move-rules">进攻技优先收录远程攻击，特色技用于角色机制；需要长按的招式已标出「按住」。代表大招使用大招键，战术大招用上方向合按，进阶大招用下方向合按；有第二形态的角色可切换查看派生表。</p>
           <div class="guide-grid">
-            <article id="move-guide-panel-one"><h3 class="p1"></h3><p class="move-chain"></p><dl class="move-list"></dl></article>
-            <article id="move-guide-panel-two"><h3 class="p2"></h3><p class="move-chain"></p><dl class="move-list"></dl></article>
+            <article id="move-guide-panel-one"><div class="move-panel-head"><h3 class="p1"></h3><div class="move-form-tabs" hidden></div></div><p class="move-chain"></p><dl class="move-list"></dl></article>
+            <article id="move-guide-panel-two"><div class="move-panel-head"><h3 class="p2"></h3><div class="move-form-tabs" hidden></div></div><p class="move-chain"></p><dl class="move-list"></dl></article>
           </div>
         </div>
       </dialog>
