@@ -14,7 +14,7 @@ import type { ActionDefinition, ArenaDefinition, Box, CombatEvent, FighterAction
 import { cinematicOwner } from '../core/whale-kit.js';
 import { drawInkBackdrop, drawInkFloor, drawInkMechanism, drawInkScenery, redrawWhenBackdropReady } from './arena-ink.js';
 import { backgrounds, ringPerformers, drawEngineeringCrate, drawGagaLaunchTrail,
-  drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose,
+  drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose, gagaIdlePose,
   gagaReactionPose, gagaStatePose, motionArt, sprites, type PolePose } from './art.js';
 import { drawBanana, drawBananaJoDashTrail, drawBananaTheWorldStrike, drawBananaWorldStand, type StandLinger } from './banana-art.js';
 import { bananaEffectLife, drawBananaEffect, drawBananaProjectile, drawBananaWave,
@@ -928,7 +928,9 @@ export class Renderer {
         ? { direction: 'forward' as const, distance: gagaIntro.travelled(introFrame) } : f.walk;
       const statePose = isGaga && !hurtPose && !gagaPose && f.hp && !f.hitstun && !f.guardBreak && !f.recovery
         ? gagaStatePose(f, canWalk ? gait?.distance : undefined) : undefined;
-      const drawnPose = (performing[seat] ? gagaIntro.pose(introFrame) : undefined) ?? hurtPose ?? gagaPose ?? statePose;
+      const idlePose = isGaga && f.ground && f.hp && !move && !gait && !f.dash && !f.guarding &&
+        !f.hitstun && !f.blockstun && !f.guardBreak && !f.recovery ? gagaIdlePose() : undefined;
+      const drawnPose = (performing[seat] ? gagaIntro.pose(introFrame) : undefined) ?? hurtPose ?? gagaPose ?? statePose ?? idlePose;
       const walkPose = canWalk && !drawnPose && gait ? walk.sample(gait, motionFrames) : undefined;
       const fallingPose = knockdownPose(def.id, f, getUp);
       const barrageEnd = ts ? ts.flickAt + Math.max(20, ts.releaseAt - ts.flickAt - 51) : 0;
