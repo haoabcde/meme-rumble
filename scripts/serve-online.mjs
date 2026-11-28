@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { WebSocket, WebSocketServer } from 'ws';
 import { arenas } from '../dist/content/arenas.js';
 import { rules } from '../dist/content/demo.js';
@@ -8,6 +9,7 @@ import { roster } from '../dist/content/roster.js';
 import { createRelayMatch, stepRelayMatch } from '../dist/core/relay.js';
 import { createMatch, step } from '../dist/core/match.js';
 import { maxPendingPresses, NEUTRAL } from '../dist/core/types.js';
+import { createSiteHandler, isAllowedOrigin } from './static-site.mjs';
 
 const build = (await readFile(new URL('../dist/online-version.txt', import.meta.url), 'utf8')).trim();
 const fighters = new Map(roster.map(entry => [entry.fighter.id, entry.fighter]));
@@ -104,15 +106,23 @@ function start(room) {
   }
 }
 
+const serveStatic = process.env.ONLINE_STATIC !== '0';
+const siteHandler = serveStatic
+  ? createSiteHandler(
+      fileURLToPath(new URL('../site', import.meta.url)),
+      fileURLToPath(new URL('../dist/index.html', import.meta.url))
+    )
+  : null;
+
 const http = createServer((request, response) => {
   if (request.url === '/healthz') return response.writeHead(200).end('ok');
+  if (siteHandler) return void siteHandler(request, response);
   response.writeHead(404).end();
 });
 const sockets = new WebSocketServer({ noServer: true, maxPayload: 2048 });
 http.on('upgrade', (request, socket, head) => {
   const origin = request.headers.origin ?? '';
-  const allowed = acceptedOrigins.has(origin) ||
-    (acceptedOrigins.size === 0 && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin));
+  const allowed = isAllowedOrigin(origin, request.headers.host, acceptedOrigins);
   if (request.url !== '/match' || !allowed) return socket.destroy();
   sockets.handleUpgrade(request, socket, head, ws => sockets.emit('connection', ws));
 });
@@ -221,4 +231,5 @@ const clock = setInterval(() => {
 }, 4);
 http.on('close', () => clearInterval(clock));
 const port = Number(process.env.ONLINE_PORT ?? 4184);
-http.listen(port, process.env.ONLINE_HOST ?? '127.0.0.1', () => console.log('Meme 乱斗联机服务 · ' + port));
+const host = process.env.ONLINE_HOST ?? (process.argv.includes('--public') ? '0.0.0.0' : '127.0.0.1');
+http.listen(port, host, () => console.log('Meme 乱斗联机服务 · http://' + host + ':' + port + '/'));

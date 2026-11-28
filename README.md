@@ -39,6 +39,8 @@
 
 本机验证用 `npm ci` 和 `npm run build` 构建，在两个终端分别运行 `npm start` 和 `npm run start:online`，然后用两个浏览器窗口打开 [本机游戏](http://127.0.0.1:4182/)。
 
+自建公网 Linux 服务器单端口联机时，运行 `npm ci && npm run build:site && npm run start:public`（默认监听 `0.0.0.0:4184`，可用 `ONLINE_PORT=80` 改端口），在同一端口同时托管 `site/` 静态网页与 `/match` 联机服务，安全组放行对应端口即可通过 `http://服务器公网IP:4184/` 直接联机。
+
 部署到 Qoder Sites 时，网页和联机服务使用同一份提交。
 
 1. 在支持长连接的 Node.js 主机运行 `npm run build` 和 `npm run start:online`。用 HTTPS 反向代理转发 `/match` 的 WebSocket 升级请求到该服务，默认端口为 `4184`。`ONLINE_HOST` 和 `ONLINE_PORT` 可覆盖监听地址与端口。

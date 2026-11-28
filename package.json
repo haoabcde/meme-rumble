@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node scripts/serve-web.mjs",
     "start:online": "node scripts/serve-online.mjs",
+    "start:public": "node scripts/serve-online.mjs --public",
     "build": "tsc && node scripts/build-web.mjs",
     "build:site": "tsc && node scripts/build-site.mjs",
     "preview:site": "node scripts/serve-site.mjs",

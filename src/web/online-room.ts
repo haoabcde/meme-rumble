@@ -38,11 +38,21 @@ interface OnlineFrame {
 type ServerMessage = OnlineLobby | OnlineStart | OnlineFrame | { type: 'waiting'; code: string } |
   { type: 'error' | 'closed'; notice: string };
 
-function serviceUrl() {
-  if (typeof __ONLINE_URL__ !== 'undefined' && __ONLINE_URL__) return __ONLINE_URL__;
-  if (location.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(location.hostname)) {
-    return 'ws://' + location.hostname + ':4184/match';
+export function onlineServiceUrl(
+  locationLike: Pick<Location, 'protocol' | 'hostname' | 'host' | 'port'> = location,
+  configured = typeof __ONLINE_URL__ !== 'undefined' ? __ONLINE_URL__ : ''
+) {
+  if (configured) return configured;
+  if (locationLike.protocol !== 'http:' && locationLike.protocol !== 'https:') return undefined;
+  const ws = locationLike.protocol === 'https:' ? 'wss://' : 'ws://';
+  if (locationLike.port === '4182' || locationLike.port === '4183') {
+    return ws + locationLike.hostname + ':4184/match';
   }
+  return ws + locationLike.host + '/match';
+}
+
+function serviceUrl() {
+  return onlineServiceUrl();
 }
 
 export class OnlineRoom {
