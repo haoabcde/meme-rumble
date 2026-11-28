@@ -75,7 +75,7 @@ function updateLobby(peer, message, now) {
     for (const player of room.players) player.ready = false;
   } else if (host && ready) {
     if (message.type === 'arena' && stages.has(message.arena)) room.arena = message.arena;
-    else if (message.type === 'rules' && [30, 45, 60, 90].includes(message.roundSeconds) &&
+    else if (message.type === 'rules' && [30, 45, 60, 90, 120, 180].includes(message.roundSeconds) &&
       [1, 2, 3].includes(message.winsToFinish)) {
       room.roundSeconds = message.roundSeconds;
       room.winsToFinish = message.winsToFinish;

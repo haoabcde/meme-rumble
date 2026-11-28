@@ -281,6 +281,7 @@ export class FightAudio {
   private samples = new Map<GagaSample, AudioBuffer>();
   private bananaSamples = new Map<BananaSample, AudioBuffer>();
   private bgmSamples = new Map<'main' | 'menu', AudioBuffer>();
+  private bgmLoading = new Set<'main' | 'menu'>();
   private samplesStarted = false;
   private bgmGains: Record<'main' | 'menu', number> = { main: .24, menu: .24 };
   private bgmActive = false;
@@ -368,6 +369,7 @@ export class FightAudio {
     if (stopBgm) {
       this.bgmActive = false;
       this.stopBgmPlayback();
+      this.bgmSamples.clear();
     } else {
       this.syncBgmDuck(false);
     }
@@ -376,6 +378,7 @@ export class FightAudio {
   setBgmActive(active: boolean) {
     if (this.bgmActive === active && (!active || this.bgmPlayback)) return;
     this.bgmActive = active;
+    if (!active) this.bgmSamples.clear();
     this.syncBgm();
   }
 
@@ -383,8 +386,8 @@ export class FightAudio {
   setBgmTrack(track: 'main' | 'menu') {
     if (this.bgmTrack === track) return;
     this.bgmTrack = track;
-    if (!this.bgmPlayback) return;
     this.stopBgmPlayback();
+    this.bgmSamples.clear();
     this.syncBgm();
   }
 
@@ -449,9 +452,11 @@ export class FightAudio {
   }
 
   private ensureContext() {
-    if (this.context || !globalThis.AudioContext) return;
+    const AudioContextClass = globalThis.AudioContext ??
+      (globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (this.context || !AudioContextClass) return;
     try {
-      this.context = new AudioContext();
+      this.context = new AudioContextClass();
     } catch (error) {
       this.report('Unable to open an audio device', error);
       return;
@@ -523,15 +528,33 @@ export class FightAudio {
     this.samplesStarted = true;
     if (typeof __GAGA_SOUNDS__ !== 'undefined') this.decodeBank(ctx, __GAGA_SOUNDS__, this.samples);
     if (typeof __BANANA_SOUNDS__ !== 'undefined') this.decodeBank(ctx, __BANANA_SOUNDS__, this.bananaSamples);
-    if (typeof __BGM_SOUNDS__ !== 'undefined') {
-      this.decodeBank(ctx, __BGM_SOUNDS__, this.bgmSamples, (name, buffer) => {
-        if ((name === 'main' || name === 'menu') && typeof buffer.getChannelData === 'function' && buffer.numberOfChannels > 0) {
-          const stats = sampleLevel(Array.from({ length: buffer.numberOfChannels }, (_, i) => buffer.getChannelData(i)));
-          this.bgmGains[name] = Math.min(.32, calibratedGain(stats, -24));
-        }
-        this.syncBgm();
+  }
+
+  private loadBgm(ctx: AudioContext, track: 'main' | 'menu') {
+    if (this.bgmLoading.has(track) || typeof __BGM_SOUNDS__ === 'undefined') return;
+    const src = __BGM_SOUNDS__[track];
+    if (!src) return;
+    this.bgmLoading.add(track);
+    const bytes = src.startsWith('data:')
+      ? Promise.resolve(Uint8Array.from(atob(src.split(',')[1]), value => value.charCodeAt(0)).buffer)
+      : fetch(src).then(response => {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response.arrayBuffer();
       });
-    }
+    void bytes.then(data => ctx.decodeAudioData(data)).then(buffer => {
+      this.bgmLoading.delete(track);
+      if (this.bgmTrack !== track || !this.bgmActive) return;
+      this.bgmSamples.clear();
+      this.bgmSamples.set(track, buffer);
+      if (typeof buffer.getChannelData === 'function' && buffer.numberOfChannels > 0) {
+        const stats = sampleLevel(Array.from({ length: buffer.numberOfChannels }, (_, i) => buffer.getChannelData(i)));
+        this.bgmGains[track] = Math.min(.32, calibratedGain(stats, -24));
+      }
+      this.syncBgm();
+    }).catch(error => {
+      this.bgmLoading.delete(track);
+      this.report('Unable to load background music', error);
+    });
   }
 
   private stopBgmPlayback() {
@@ -570,6 +593,7 @@ export class FightAudio {
     const ctx = this.context;
     const bus = this.bgm;
     const buffer = this.bgmSamples.get(this.bgmTrack);
+    if (this.bgmActive && this.activated && this.enabled && ctx && !buffer) this.loadBgm(ctx, this.bgmTrack);
     if (!this.bgmActive || !this.activated || !this.enabled || !ctx || !bus || !buffer) {
       this.stopBgmPlayback();
       return;

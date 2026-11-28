@@ -60,7 +60,11 @@ test('compressed and uncompressed clients receive identical playable snapshots',
     peer.send({ type: 'select', lineup: [index ? 'gaga' : 'whale', null], ready: true, revision: 1 });
   }
   await waitFor(() => host.messages.some(message => message.type === 'lobby' && message.ready.every(Boolean)));
+  host.send({ type: 'rules', roundSeconds: 180, winsToFinish: 2 });
+  await waitFor(() => guest.messages.some(message => message.type === 'lobby' && message.roundSeconds === 180));
   host.send({ type: 'start' });
+  const start = await waitFor(() => guest.messages.find(message => message.type === 'start'));
+  assert.equal(start.roundSeconds, 180);
   await waitFor(() => [...host.frames.values()].some(state => state.phase === 'fight'));
   const frame = await waitFor(() => [...host.frames.keys()].find(frame =>
     guest.frames.has(frame) && host.frames.get(frame).phase === 'fight'));

@@ -192,8 +192,11 @@ export function drawIllustratedArena(ctx: CanvasRenderingContext2D, arena: Arena
     const hasPlatform = (id: string) => arena.platforms.some(p => p.id === id);
     if ((art.shaft && !hasPlatform(art.shaft.id)) ||
       art.bands.some(band => band.lips?.some(([id]) => !hasPlatform(id)))) return false;
+    // Keep only the current stage. Release the previous backing store before
+    // allocating another full-size canvas, limiting peak graphics memory.
+    for (const old of sceneCache.values()) { old.width = 1; old.height = 1; }
+    sceneCache.clear();
     scene = registerScene(arena, art);
-    if (sceneCache.size === 2) sceneCache.delete(sceneCache.keys().next().value!);
     sceneCache.set(arena, scene);
   }
   ctx.drawImage(scene, 0, 0, arena.width, arena.height);

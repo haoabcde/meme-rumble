@@ -79,7 +79,7 @@ class FakeAudioContext {
   decodeAudioData(bytes) {
     return new Promise((resolve, reject) => {
       const marker = new Uint8Array(bytes)[0];
-      this.requests.push({ resolve: () => resolve({ marker }), reject });
+      this.requests.push({ marker, resolve: () => resolve({ marker }), reject });
     });
   }
 
@@ -506,19 +506,26 @@ test('background music loops when active, ducks for ultimate music, and survives
   audio.bgmVolume = 0.5;
   audio.setBgmTrack('menu');
   audio.setBgmActive(true);
+  await Promise.resolve();
+  assert.equal(context.requests.filter(request => request.marker === 9).length, 0);
   await finishPreload(context);
   await Promise.resolve();
   const menuBgm = context.clips.find(clip => clip.buffer?.marker === 10);
   assert.ok(menuBgm);
   assert.equal(menuBgm.loop, true);
   assert.equal(menuBgm.stopped, false);
+  assert.deepEqual([...audio.bgmSamples.keys()], ['menu']);
 
   audio.setBgmTrack('main');
   assert.equal(menuBgm.stopped, true);
+  await Promise.resolve();
+  await finishPreload(context);
+  await Promise.resolve();
   const bgm = context.clips.find(clip => clip.buffer?.marker === 9);
   assert.ok(bgm);
   assert.equal(bgm.loop, true);
   assert.equal(bgm.stopped, false);
+  assert.deepEqual([...audio.bgmSamples.keys()], ['main']);
 
   const config = { rules, arena: arenas[0], fighters: [{ ...testFighter, id: 'frog' }, testFighter] };
   const state = createMatch(config);
@@ -540,4 +547,5 @@ test('background music loops when active, ducks for ultimate music, and survives
 
   audio.stopAll();
   assert.equal(bgm.stopped, true);
+  assert.equal(audio.bgmSamples.size, 0);
 });
