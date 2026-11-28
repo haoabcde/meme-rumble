@@ -289,6 +289,7 @@ export interface Command {
 }
 
 export interface Attack {
+  blockedRecovery?: number;
   id: string;
   frame: number;
   cinematicFreezeUntil?: number;

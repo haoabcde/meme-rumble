@@ -737,7 +737,7 @@ function updateControl(
       events.push({ kind: 'whiff', source: seat, x: f.x, y: f.y });
       f.attack.connected = true;
     }
-    if (f.attack.frame >= previousAction.startup + previousAction.active + previousAction.recovery) {
+    if (f.attack.frame >= previousAction.startup + previousAction.active + previousAction.recovery + (f.attack.blockedRecovery ?? 0)) {
       f.attack = null;
       previousAction = undefined;
     }
@@ -1683,6 +1683,8 @@ function settle(state: MatchState, config: MatchConfig, contacts: Contact[], eve
     defender.attack = null;
     delete defender.frogFollowup;
     if (blocked) {
+      const caster = state.fighters[source];
+      if (action.id.startsWith('frog-laugh-wave-') && caster.attack?.id === 'frog-laugh') caster.attack.blockedRecovery = 12;
       if(action.guardHitsToBreak){
         const previous=defender.guardChain;
         const count=previous?.source===source&&previous.until>=state.arenaFrame?previous.count+1:1;

@@ -29,7 +29,7 @@ const normalMoves: NormalMove[] = [
     id: bananaActionIds.jab, name: '左爪挠挠', slot: 'A', posture: 'ground',
     startup: 4, active: 2, recovery: 11,
     hitbox: { x: 20, y: -95, w: 83, h: 57 },
-    damage: 30, hitstun: 20, blockstun: 8, guardCost: 6, push: 2, lift: 0,
+    damage: 34, hitstun: 20, blockstun: 8, guardCost: 6, push: 2, lift: 0,
     stop: 2, advance: 7, advanceFrom: 2, activeAdvance: 2, pose: 'strike', swingOnActive: true,
     impact: 'light', cancelOnHit: [bananaActionIds.lift, 'dash'], joReplacement: bananaActionIds.joJab,
     chain: { actionId: bananaActionIds.backhand, open: 8, close: 16 }
@@ -38,7 +38,7 @@ const normalMoves: NormalMove[] = [
     id: bananaActionIds.backhand, name: '右爪挠挠', slot: 'A', posture: 'ground', linkOnly: true,
     startup: 5, active: 2, recovery: 12,
     hitbox: { x: 18, y: -100, w: 90, h: 66 },
-    damage: 34, hitstun: 26, blockstun: 9, guardCost: 7, push: 3, lift: 0,
+    damage: 38, hitstun: 26, blockstun: 9, guardCost: 7, push: 3, lift: 0,
     stop: 2, advance: 8, advanceFrom: 2, activeAdvance: 2, pose: 'sweep', swingOnActive: true,
     impact: 'light', cancelOnHit: [bananaActionIds.lift, 'dash'],
     chain: { actionId: bananaActionIds.headbutt, open: 10, close: 18 }
@@ -194,12 +194,12 @@ const signatureMoves: SignatureMove[] = [
   },
   {
     id: bananaActionIds.joSheerHeart, name: '第二炸弹·枯萎穿心攻击', slot: 'B', posture: 'any', linkOnly: true,
-    tearCost: 0, energyGain: 28, cancelOnHit: ['C'],
+    tearCost: 0, energyGain: 12, cancelOnHit: ['C'],
     startup: 5, active: 2, recovery: 12,
     hitbox: { x: 0, y: 0, w: 0, h: 0 }, hitTimeline: [],
     projectile: {
       kind: 'sheer-heart', x: 52, y: -12, vx: 4.6, vy: 0, gravity: 1, reach: 0,
-      radius: 24, blastRadius: 165, life: 210
+      radius: 24, blastRadius: 145, life: 150
     },
     damage: 112, hitstun: 30, blockstun: 14, guardCost: 22, push: 16, lift: 14,
     stop: 6, advance: 0, pose: 'strike', swingOnActive: true, standAttack: 'sheer-heart', impact: 'heavy',

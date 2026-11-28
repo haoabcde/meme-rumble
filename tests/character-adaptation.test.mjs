@@ -75,7 +75,7 @@ test('Banana four-hit buffered combo is mirrored for either player and earns fou
     const events = [...step(state, frames, bananaConfig), ...bananaStep(state, 150)];
     assert.deepEqual(events.filter(e => e.kind === 'hit').map(e => e.actionId),
       [bananaActionIds.jab, bananaActionIds.backhand, bananaActionIds.headbutt, bananaActionIds.cry]);
-    assert.equal(state.fighters[1 - source].hp, 819);
+    assert.equal(state.fighters[1 - source].hp, 812);
     assert.equal(tears(state.fighters[source]), 92);
     assert.equal(tears(state.fighters[1 - source]), 80);
     assert.equal(state.fighters[source].attack, null);
@@ -634,7 +634,7 @@ test('JO Banana U patrols straight with no tracking out of range, accelerates on
   assert.equal(endEvents.some(e => e.kind === 'kq-detonate' && e.actionId === bananaActionIds.joSheerHeart), true);
   assert.equal(endEvents.some(e => e.kind === 'hit' && e.actionId === bananaActionIds.joSheerHeart), true);
   assert.equal(tears(f), 0);
-  assert.equal(f.energy, 28);
+  assert.equal(f.energy, 12);
   assert.equal(state.projectiles.length, 0);
 
   // Now U can be cast again once the previous Sheer Heart Attack has detonated and hitstop finishes.
@@ -930,7 +930,7 @@ test('Gaga can hit a distant target once during the long slide and stays inside 
   attacker.x = defender.x - 150;
   step(state, [input(['A'], 0, 1), NEUTRAL], gagaConfig);
   const hits = stepFor(state, 65, [NEUTRAL, NEUTRAL], gagaConfig).filter(event => event.kind === 'hit');
-  assert.deepEqual(hits.map(event => event.amount), [130]);
+  assert.deepEqual(hits.map(event => event.amount), [105]);
   assert.equal(defender.x, gagaConfig.arena.right);
   assert.ok(attacker.x < defender.x);
 });

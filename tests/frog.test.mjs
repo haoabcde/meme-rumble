@@ -33,14 +33,13 @@ test('laugh deals three independent circular hits then launches; out-of-radius e
  for(const source of [0,1]){const t=setup(source,190);t.press('B');const hits=t.run(90).filter(e=>e.kind==='hit'&&e.source===source);assert.deepEqual(hits.map(e=>e.amount),[28,28,44]);assert.equal(t.target.hp,900);assert.equal(t.caster.x,t.config.arena.spawn[source]);}
  const far=setup(0,330);far.press('B');assert.equal(far.run(80).some(e=>e.kind==='hit'),false);
 });
-test('global wave hits once across the complete map and upper platforms, and respects 240-tick cooldown',()=>{
- for(const source of [0,1]){const t=setup(source,2800);t.target.y=320;t.target.ground='high';t.config.arena.platforms=[{id:'high',name:'high',tier:4,left:t.target.x-120,right:t.target.x+120,y:320}];t.press('B',-1);assert.equal(t.caster.attack.id,'frog-laugh-global');assert.equal(t.run(30).some(e=>e.kind==='hit'),false);
-  const hits=t.run(30).filter(e=>e.kind==='hit');assert.equal(hits.length,1);assert.equal(hits[0].amount,25);
-  const refused=t.press('B',-1);assert.ok(refused.some(e=>e.kind==='skill-unavailable'));assert.equal(t.caster.attack,null);
-  t.run(190);
-  t.press('B',-1);assert.equal(t.caster.attack.id,'frog-laugh-global');
-  Object.assign(t.target,{recovery:null,launched:false,hitstun:0,ground:'high',y:320,vy:0});
-  assert.equal(t.run(60).filter(e=>e.kind==='hit').length,1);
+test('large wave has a bounded range and height, and a 360-tick cooldown',()=>{
+ for(const source of [0,1]){
+  const near=setup(source,400);near.press('B',-1);assert.equal(near.run(60).filter(e=>e.kind==='hit').length,1);
+  const refused=near.press('B',-1);assert.ok(refused.some(e=>e.kind==='skill-unavailable'));
+  near.run(310);near.press('B',-1);assert.equal(near.caster.attack.id,'frog-laugh-global');
+  const far=setup(source,1000);far.press('B',-1);assert.equal(far.run(60).some(e=>e.kind==='hit'),false);
+  const high=setup(source,400);high.target.y=320;high.target.ground='high';high.config.arena.platforms=[{id:'high',name:'high',tier:4,left:high.target.x-120,right:high.target.x+120,y:320}];high.press('B',-1);assert.equal(high.run(60).some(e=>e.kind==='hit'),false);
  }
 });
 test('ascension freezes battle during its cinematic and grants 660 playable ticks without healing',()=>{
@@ -85,7 +84,7 @@ test('angel basics scale reach and damage by 1.25x and do not refill energy whil
  const t=setup();t.caster.ascendUntil=660;
  for(const raw of frog.fighter.actions.filter(a=>a.slot==='A')){t.caster.attack={id:raw.id,frame:0,connected:false,landed:false};const a=actionFor(t.config,t.state,0);assert.equal(a.damage,raw.damage*1.25);assert.ok(Math.abs(a.hitbox.w-raw.hitbox.w*1.25)<1e-9);assert.equal(a.hitbox.h,raw.hitbox.h*1.25);}
  t.caster.attack={id:'frog-laugh-global',frame:0,connected:false,landed:false};assert.equal(actionFor(t.config,t.state,0).entities[0].damage,31.25);
- const near=setup(0,295);near.caster.ascendUntil=660;near.caster.energy=100;near.press('B');const hits=near.run(85).filter(e=>e.kind==='hit');assert.deepEqual(hits.map(e=>e.amount),[35,35,55]);assert.equal(near.target.hp,875);
+ const near=setup(0,200);near.caster.ascendUntil=660;near.caster.energy=100;near.press('B');const hits=near.run(85).filter(e=>e.kind==='hit');assert.deepEqual(hits.map(e=>e.amount),[35,35,55]);assert.equal(near.target.hp,875);
  assert.equal(near.caster.energy,100);
 });
 test('extra empowered jab reach actually connects beyond the former range on both facings',()=>{
@@ -117,8 +116,8 @@ test('only empowered laugh can start in the air; ascension preserves height and 
  }
 });
 
-test('empowered laugh reaches 1.25x radius and deals 1.25x damage',()=>{
- const near=setup(0,295);near.caster.ascendUntil=660;near.press('B');const action=actionFor(near.config,near.state,0);assert.equal(action.entities[0].hitbox.w,600);
+test('empowered laugh reaches 1.1x radius and deals 1.25x damage',()=>{
+ const near=setup(0,200);near.caster.ascendUntil=660;near.press('B');const action=actionFor(near.config,near.state,0);assert.ok(Math.abs(action.entities[0].hitbox.w-448.8)<1e-8);
  assert.deepEqual(near.run(90).filter(e=>e.kind==='hit').map(e=>e.amount),[35,35,55]);
  const far=setup(0,360);far.caster.ascendUntil=660;far.press('B');assert.equal(far.run(90).some(e=>e.kind==='hit'),false);
 });
@@ -316,4 +315,14 @@ test('frog ultimate starts its BGM at frame zero with no old transformation soun
  assert.deepEqual(opening.map(e=>[e.actionAudio.cue.clip,e.actionAudio.cue.channel]),[['ultimate-bgm','sfx']]);
  assert.equal(t.run(60).filter(e=>e.kind==='action-audio').length,0);assert.equal(t.state.arenaFrame,world);
  assert.equal(frog.audio.ascension,undefined);
+});
+
+test('blocking laugh extends its recovery by 12 frames, whiff does not',()=>{
+ const lengths=[];
+ for(const block of [false,true]){
+  const t=setup(0,block?160:1000);t.press('B');let frames=0;
+  while(t.caster.attack && frames<100){t.tick(NEUTRAL,block?input([],0,1):NEUTRAL);frames++;}
+  lengths.push(frames);
+ }
+ assert.ok(lengths[1]>=lengths[0]+12,JSON.stringify(lengths));
 });

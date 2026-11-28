@@ -1,5 +1,6 @@
 import {defineFighter} from '../fighter-kit.js';
 import {ENERGY_PER_STOCK,MAX_ENERGY,type ActionDefinition} from '../../core/types.js';
+import {FROG_RULES} from '../../core/frog-kit.js';
 import type {EntityDefinition} from '../../core/entities.js';
 const sfx=(frame:number,clip:string)=>({frame,clip,channel:'sfx' as const,stopOnInterrupt:false});
 const ids=['common-jab','common-sweep','frog-left-kick','frog-ha','common-finish'];
@@ -22,7 +23,7 @@ const legLaunch:ActionDefinition={
 const wave=(n:number,global=false):EntityDefinition=>({
  id:global?'frog-global-wave':'frog-laugh-wave-'+n,behavior:global?'frog-global':'frog-wave',spawnFrame:global?32:16+n*10,
  offset:{x:0,y:-65},velocity:{x:0,y:0},lifetime:8,
- hitbox:{x:-240,y:-240,w:480,h:480},damage:global?25:n===2?44:28,
+ hitbox:global?{x:-FROG_RULES.globalRadius,y:-FROG_RULES.globalHeight/2,w:FROG_RULES.globalRadius*2,h:FROG_RULES.globalHeight}:{x:-FROG_RULES.laughRadius,y:-FROG_RULES.laughRadius,w:FROG_RULES.laughRadius*2,h:FROG_RULES.laughRadius*2},damage:global?25:n===2?44:28,
  hitstun:global?18:n===2?30:14,blockstun:8,guardCost:global?12:14,push:global?9:n===2?10:0,lift:global?10:n===2?15:0,stop:2,
  feedback:{audio:{clip:'wave-hit'},shape:'ring',color:'#ffe7b0',shake:global?2:2.5,flash:.55}
 });

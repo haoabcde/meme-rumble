@@ -126,7 +126,7 @@ export const gagaTurretActions: SignatureMove[] = [
   },
   {
     id: gagaActionIds.overclock, name: '供电桩 · 增压力场', slot: 'C', direction: 'up', posture: 'ground',
-    plantPylon: { radius: 520, duration: 480, offsetX: 60 },
+    plantPylon: { radius: 400, duration: 360, offsetX: 60 },
     startup: 12, active: 4, recovery: 16,
     hitbox: { x: 16, y: -110, w: 82, h: 110 },
     damage: 45, hitstun: 18, blockstun: 10, guardCost: 11, push: 7, lift: 0,
@@ -194,7 +194,7 @@ export const gagaSpecials: NormalMove[] = [
     id: gagaActionIds.slide, name: '破防滑铲', slot: 'A', direction: 'down', posture: 'ground', guardBreaker: true,
     startup: 13, active: 4, recovery: 19,
     hitbox: { x: 24, y: -91, w: 61, h: 80 },
-    damage: 130, hitstun: 23, blockstun: 14, guardCost: 22, push: 14, lift: 0,
+    damage: 105, hitstun: 23, blockstun: 14, guardCost: 22, push: 14, lift: 0,
     stop: 5, advance: 7, advanceFrom: 7, activeAdvance: 32, pose: 'sweep', swingOnActive: true
   }
 ];

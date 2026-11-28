@@ -9,7 +9,7 @@ const tail=(stage:1|2|3):ActionDefinition=>({
  id:['common-jab','common-sweep','common-finish'][stage-1],name:['左转抽尾','右转反抽','转身上挑'][stage-1],slot:'A',posture:'ground',
  linkOnly:stage>1,startup:stage===3?8:6,active:4,recovery:stage===3?24:15,
  hitbox:{x:4,y:stage===3?-166:-112,w:150,h:stage===3?158:92},damage:45,fixedDamage:true,
- hitstun:stage===3?34:22,blockstun:7,guardCost:50,guardHitsToBreak:2,push:stage===3?5.5:2.6,lift:stage===3?13:0,
+ hitstun:stage===3?34:22,blockstun:7,guardCost:14,push:stage===3?5.5:2.6,lift:stage===3?13:0,
  stop:4,advance:24/(stage===3?8:6),chainAfter:13,
  cancelOnHit:stage===1?['common-sweep','common-launch','dash']:stage===2?['common-finish','common-launch','dash']:['dash'],
  audioTimeline:[voice('tail-voice-'+stage),sfx(stage===3?8:6,'tail-swing')],

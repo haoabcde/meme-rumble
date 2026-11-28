@@ -2,10 +2,10 @@ import {MAX_ENERGY,type ActionDefinition,type Box,type FighterAction,type Fighte
 import {platformAt} from './terrain.js';
 
 export const FROG_RULES=Object.freeze({
- buffTicks:660,fadeTicks:36,fadeLife:180,body:80,laughRadius:240,
- poweredMeleeScale:1.25,poweredLaughRange:1.25,poweredLaughDamage:1.25,
+ buffTicks:660,fadeTicks:36,fadeLife:180,body:80,laughRadius:204,globalRadius:650,globalHeight:260,
+ poweredMeleeScale:1.25,poweredLaughRange:1.1,poweredLaughDamage:1.25,
  poweredSpeed:1.25,poweredDashScale:1.35,incomingDamage:.88,
- warpGain:15,warpHidden:6,crouchStartup:2,crouchMaxTicks:36,crouchCooldown:90,globalCooldown:240
+ warpGain:15,warpHidden:6,crouchStartup:2,crouchMaxTicks:36,crouchCooldown:90,globalCooldown:360
 });
 export const frogPowered=(f:FighterState,state:MatchState)=>(f.ascendUntil??0)>state.arenaFrame;
 export function frogBox(box:Box,scale:number):Box{return {x:box.x*scale,y:(box.y+65)*scale-65,w:box.w*scale,h:box.h*scale};}
