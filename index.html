@@ -293,7 +293,19 @@
         <footer class="screen-footer">
           <button class="subtle" data-go="roster" type="button">返回选角</button>
           <div id="map-rules" class="map-rules">
-            <label><span id="round-limit-label">时限（秒）</span> <input id="round-limit" type="number" min="30" max="600" step="1" value="60" aria-label="单回合时限，30 到 600 秒"></label>
+            <div class="time-rule" role="group" aria-labelledby="round-limit-label">
+              <span id="round-limit-label">回合时限</span>
+              <div class="time-presets">
+                <button type="button" data-seconds="30" aria-pressed="false">30秒</button>
+                <button type="button" data-seconds="60" aria-pressed="true">60秒</button>
+                <button type="button" data-seconds="90" aria-pressed="false">90秒</button>
+                <button type="button" data-seconds="120" aria-pressed="false">120秒</button>
+                <button type="button" data-seconds="180" aria-pressed="false">180秒</button>
+                <button type="button" data-seconds="300" aria-pressed="false">300秒</button>
+                <button type="button" id="custom-time" aria-haspopup="dialog" aria-controls="time-dialog" aria-label="自定义时限" aria-pressed="false">自定义</button>
+              </div>
+            </div>
+            <label id="cpu-rule" hidden>电脑难度 <select id="cpu-difficulty"><option value="easy">简单</option><option value="normal" selected>普通</option><option value="hard">困难</option></select></label>
             <label id="round-wins-rule">赛制 <select id="round-wins" aria-label="整场获胜所需回合"><option value="1">一回合决胜</option><option value="2" selected>先赢两回合</option><option value="3">先赢三回合</option></select></label>
             <p class="relay-rules" id="relay-rules" hidden>败方换人 · 胜者保留生命</p>
           </div>
@@ -450,6 +462,15 @@
             <article id="move-guide-panel-two"><div class="move-panel-head"><h3 class="p2"></h3><div class="move-form-tabs" hidden></div></div><p class="move-chain"></p><dl class="move-list"></dl></article>
           </div>
         </div>
+      </dialog>
+
+      <dialog id="time-dialog" class="guide" aria-labelledby="time-dialog-title">
+        <div class="guide-head"><h2 id="time-dialog-title">自定义时限</h2><button id="cancel-time" class="subtle" type="button">取消</button></div>
+        <form id="time-form">
+          <label for="round-limit">秒数 <small>30–600</small></label>
+          <input id="round-limit" type="number" min="30" max="600" step="1" value="60" required inputmode="numeric">
+          <button class="subtle" type="submit">确定</button>
+        </form>
       </dialog>
 
       <dialog id="settings" class="guide settings" aria-labelledby="settings-title">

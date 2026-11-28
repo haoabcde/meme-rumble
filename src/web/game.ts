@@ -14,7 +14,7 @@ import { fighterPresentation, fitPresentationArt } from './fighter-presentation.
 import { closeDialogSmooth, inkSymbol, setRansomText } from './ui-art.js';
 import { FightAudio, type SampleVoice } from './audio.js';
 import { OnlineRoom, type OnlineStart, type OnlineLobby } from './online-room.js';
-import { cpuInput } from './cpu.js';
+import { cpuInput, type CpuDifficulty } from './cpu.js';
 import { tierAt } from '../core/terrain.js';
 import { entranceFor, openingFrame, openingTicks, previewArena, recoveryLabels, Renderer, seatColors } from './renderer.js';
 import { bindingMap, installSettings, keyHint, loadPreferences, renderGuide, type Control, type Seat } from './settings.js';
@@ -120,6 +120,10 @@ const trainingDummy = element<HTMLSelectElement>('training-dummy');
 const trainingSpeed = element<HTMLSelectElement>('training-speed');
 const trainingPanel = element<HTMLDetailsElement>('training-panel');
 const roundLimit = element<HTMLInputElement>('round-limit');
+const timePresets = Array.from(document.querySelectorAll<HTMLButtonElement>('.time-presets [data-seconds]'));
+const customTime = element<HTMLButtonElement>('custom-time');
+const timeDialog = element<HTMLDialogElement>('time-dialog');
+const cpuDifficulty = element<HTMLSelectElement>('cpu-difficulty');
 const roundWins = element<HTMLSelectElement>('round-wins');
 const fillTrainingEnergy = element('fill-training-energy');
 const trainingGround = element('training-ground');
@@ -193,7 +197,8 @@ const trainingInputs: string[] = [];
 let trainingDownHeld = false;
 let mode: Mode = 'local';
 let onlineFormat: BattleFormat = 'standard';
-let localMapRules: { roundSeconds: string; winsToFinish: string } | undefined;
+let roundSeconds = rules.roundSeconds;
+let localMapRules: { roundSeconds: number; winsToFinish: string } | undefined;
 let onlineSeat: Seat = 0;
 let lastOnlineInputAt = -Infinity;
 let format: BattleFormat = 'standard';
@@ -315,7 +320,7 @@ function syncOnlineLobby(packet: OnlineLobby) {
     return;
   }
   const joined = mode !== 'online';
-  if (joined) localMapRules = { roundSeconds: roundLimit.value, winsToFinish: roundWins.value };
+  if (joined) localMapRules = { roundSeconds, winsToFinish: roundWins.value };
   if (joined || onlineFormat !== packet.format) activeSlots.fill(0);
   mode = 'online';
   onlineSeat = packet.seat;
@@ -328,7 +333,8 @@ function syncOnlineLobby(packet: OnlineLobby) {
     relayPicks[seat] = [lead, reserve];
     confirmed[seat] = packet.ready[seat];
   }
-  roundLimit.value = String(packet.roundSeconds);
+  roundSeconds = packet.roundSeconds;
+  renderTimeChoices();
   roundWins.value = String(packet.winsToFinish);
   const next = confirmed.every(Boolean) ? 'maps' : 'roster';
   if (screen !== next) {
@@ -391,7 +397,7 @@ function enterOnlineMatch(packet: OnlineStart) {
 function leaveOnlineMatch(notice = '') {
   onlineRoom.disconnect();
   if (localMapRules) {
-    roundLimit.value = localMapRules.roundSeconds;
+    roundSeconds = localMapRules.roundSeconds;
     roundWins.value = localMapRules.winsToFinish;
     localMapRules = undefined;
   }
@@ -861,6 +867,7 @@ function show(next: Screen) {
   element('ui-notice').hidden = true;
   debt = 0;
   screen = next;
+  if (next !== 'maps' && timeDialog.open) timeDialog.close();
   if (next !== 'match') trainingPanel.open = false;
   stage.dataset.screen = next;
   stage.dataset.phase = next === 'match' ? state.phase : next;
@@ -880,11 +887,11 @@ function show(next: Screen) {
     element('map-rules').hidden = mode === 'training';
     element('training-rule').hidden = mode !== 'training';
     element('round-wins-rule').hidden = relaySelected();
-    roundLimit.disabled = mode === 'online' && onlineSeat !== 0;
-    roundWins.disabled = roundLimit.disabled || relaySelected();
+    element('cpu-rule').hidden = mode !== 'cpu';
+    roundWins.disabled = (mode === 'online' && onlineSeat !== 0) || relaySelected();
+    renderTimeChoices();
     element('relay-rules').hidden = !relaySelected();
-    text(element('round-limit-label'), relaySelected() ? '单场时限·秒' : '时限·秒');
-    roundLimit.setAttribute('aria-label', relaySelected() ? '车轮战单场时限' : '单回合时限');
+    text(element('round-limit-label'), relaySelected() ? '单场时限' : '回合时限');
     selectArena(arenaIndex);
   }
   renderPreparationNav();
@@ -1128,7 +1135,7 @@ function configureMatch(immediate: boolean) {
     fighters: [roster[selected[0]].fighter, roster[selected[1]].fighter],
     rules: training ? rules : {
       ...rules,
-      roundSeconds: Number(roundLimit.value),
+      roundSeconds,
       winsToFinish: Number(roundWins.value)
     },
     training,
@@ -1435,13 +1442,45 @@ element<HTMLSelectElement>('roster-format').addEventListener('change', event => 
   setBattleFormat(next);
   show('roster');
 });
-for (const field of [roundLimit, roundWins]) {
-  field.addEventListener('change', () => {
-    const seconds = Number(roundLimit.value);
-    roundLimit.value = String(Number.isFinite(seconds) ? Math.max(30, Math.min(600, Math.round(seconds))) : 60);
-    if (mode === 'online' && onlineSeat === 0) onlineRoom.setRules(Number(roundLimit.value), Number(roundWins.value));
-  });
+function renderTimeChoices() {
+  const readOnly = mode === 'online' && onlineSeat !== 0;
+  const preset = timePresets.find(button => Number(button.dataset.seconds) === roundSeconds);
+  for (const button of timePresets) {
+    button.setAttribute('aria-pressed', String(button === preset));
+    button.disabled = readOnly;
+  }
+  customTime.disabled = readOnly;
+  customTime.setAttribute('aria-pressed', String(!preset));
+  customTime.setAttribute('aria-label', preset ? '自定义时限' : '自定义时限，' + roundSeconds + ' 秒');
+  text(customTime, preset ? '自定义' : roundSeconds + '秒 · 自定');
 }
+
+function syncMatchRules() {
+  if (mode === 'online' && onlineSeat === 0) onlineRoom.setRules(roundSeconds, Number(roundWins.value));
+}
+
+function selectTime(seconds: number) {
+  roundSeconds = seconds;
+  renderTimeChoices();
+  syncMatchRules();
+}
+
+for (const button of timePresets) {
+  button.addEventListener('click', () => selectTime(Number(button.dataset.seconds)));
+}
+roundWins.addEventListener('change', syncMatchRules);
+customTime.addEventListener('click', () => {
+  roundLimit.value = String(roundSeconds);
+  timeDialog.showModal();
+  roundLimit.focus();
+  roundLimit.select();
+});
+element('cancel-time').addEventListener('click', () => timeDialog.close());
+element('time-form').addEventListener('submit', event => {
+  event.preventDefault();
+  selectTime(roundLimit.valueAsNumber);
+  timeDialog.close();
+});
 pickArena.addEventListener('click', () => go('maps'));
 routeToggle.addEventListener('click', () => { routeVisible = !routeVisible; selectArena(arenaIndex); });
 element('start').addEventListener('click', () => startMatch());
@@ -1577,7 +1616,10 @@ function navigationKey(event: KeyboardEvent) {
   const direction = increase ? 1 : decrease ? -1 : 0;
   const focused = document.activeElement;
   const focusedMap = mapButtons.indexOf(focused as HTMLButtonElement);
-  if (direction && (screen === 'menu' || screen === 'pause' || screen === 'result')) {
+  if (direction && screen === 'maps' && focused instanceof HTMLButtonElement && focused.closest('.time-presets')) {
+    const choices = [...timePresets, customTime];
+    choices[(choices.indexOf(focused) + direction + choices.length) % choices.length].focus();
+  } else if (direction && (screen === 'menu' || screen === 'pause' || screen === 'result')) {
     const choices = screen === 'menu' ? modeButtons :
       Array.from(screens[screen].querySelectorAll<HTMLButtonElement>('button:not([disabled]):not([hidden])'));
     const current = choices.indexOf(focused as HTMLButtonElement);
@@ -1626,7 +1668,7 @@ function stickFor(seat: Seat): Stick {
 
 window.addEventListener('keydown', event => {
   if (event.code === 'Tab' && screen === 'match' && !event.repeat && !guide.open && !settings.dialog.open) { event.preventDefault(); toggleQuickMoves(); return; }
-  if (guide.open || settings.dialog.open || onlineRoom.open || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (guide.open || timeDialog.open || settings.dialog.open || onlineRoom.open || event.metaKey || event.ctrlKey || event.altKey) return;
   if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement ||
       (event.target instanceof HTMLElement && event.target.isContentEditable)) {
     if (event.code === 'Escape') { event.preventDefault(); event.target.blur(); }
@@ -1701,7 +1743,8 @@ function readInput(seat: Seat): InputFrame {
 
 function opponentInput(): InputFrame {
   if (mode === 'local') return readInput(1);
-  if (mode === 'cpu' || trainingDummy.value === 'cpu') return cpuInput(state, config);
+  if (mode === 'cpu') return cpuInput(state, config, cpuDifficulty.value as CpuDifficulty);
+  if (trainingDummy.value === 'cpu') return cpuInput(state, config);
   if (trainingDummy.value === 'jab' && !state.freeze && state.arenaFrame % rules.ticksPerSecond === 0) {
     return { ...NEUTRAL, pressed: ['A'] };
   }

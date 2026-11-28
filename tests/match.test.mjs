@@ -319,6 +319,96 @@ test('either player can branch from a jab into a launcher and jump-cancel into a
   }
 });
 
+test('released down-skill input survives hitstop for a legal cancel and expires on whiff', () => {
+  const settings = trainingOn(arenas.at(-1));
+  const jab = baseline.actions.find(action => action.id === 'common-jab');
+  const followup = { ...jab, id: 'buffered-down-skill', slot: 'B', direction: 'down' };
+  settings.fighters[0] = { ...baseline, actions: [
+    ...baseline.actions.map(action => action === jab ? { ...jab, cancelOnHit: [followup.id] } : action),
+    followup
+  ] };
+  const downSkill = { ...input(['B']), sampled: [{ x: 0, y: 1 }] };
+  const hit = begin(settings);
+  closeDistance(hit);
+  step(hit, [input(['A']), NEUTRAL], settings);
+  waitForEvent(hit, settings, 'hit');
+  assert.ok(hit.freeze > 1);
+  step(hit, [downSkill, NEUTRAL], settings);
+  stepFor(hit, hit.freeze, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(hit.fighters[0].buffer[0]?.remaining, 12);
+  const cancel = step(hit, [NEUTRAL, NEUTRAL], settings);
+  assert.equal(cancel.find(event => event.kind === 'swing')?.actionId, followup.id);
+  assert.equal(hit.fighters[0].buffer.length, 0);
+
+  const miss = begin(settings);
+  step(miss, [input(['A']), NEUTRAL], settings);
+  step(miss, [downSkill, NEUTRAL], settings);
+  const recovery = stepFor(miss, jab.startup + jab.active + jab.recovery, [NEUTRAL, NEUTRAL], settings);
+  assert.ok(recovery.some(event => event.kind === 'whiff'));
+  assert.ok(!recovery.some(event => event.actionId === followup.id));
+  assert.equal(miss.fighters[0].buffer.length, 0);
+});
+
+test('Gaga U and I use the final recovery window after a hit or whiff', () => {
+  const { fighter: gaga } = roster.find(entry => entry.fighter.id === 'gaga');
+  const jab = gaga.actions.find(action => action.id === 'gaga-flipper-jab');
+  const length = jab.startup + jab.active + jab.recovery;
+  for (const seat of [0, 1]) {
+    for (const didHit of [false, true]) {
+      for (const [key, actionId, y] of [
+        ['B', 'gaga-sword-slash', 0],
+        ['C', 'gaga-turret-deploy', 0],
+        ['B', 'gaga-ground-pole-throw', 1]
+      ]) {
+        for (const lead of [12, 13]) {
+          const settings = trainingOn(arenas.at(-1));
+          settings.fighters[seat] = gaga;
+          const state = begin(settings);
+          const player = state.fighters[seat];
+          if (didHit) closeDistance(state);
+          step(state, inputForSeat(seat, input(['A'])), settings);
+          if (didHit) {
+            waitForEvent(state, settings, 'hit', seat);
+            stepFor(state, state.freeze, [NEUTRAL, NEUTRAL], settings);
+          }
+          const wait = length - lead - player.attack.frame;
+          assert.ok(wait >= 0);
+          stepFor(state, wait, [NEUTRAL, NEUTRAL], settings);
+          step(state, inputForSeat(seat, input([key], 0, y)), settings);
+          assert.equal(player.attack.id, jab.id);
+          stepFor(state, lead - 2, inputForSeat(seat, input([], 0, y)), settings);
+          step(state, inputForSeat(seat, input([], player.facing)), settings);
+          assert.equal(player.attack?.id, lead === 12 ? actionId : undefined);
+        }
+      }
+    }
+  }
+});
+
+test('only skills pressed during an uninterrupted normal use the longer buffer', () => {
+  const normal = { id: 'test-a', frame: 0, connected: false, landed: false };
+  const contexts = [
+    [{ moving: true }, false],
+    [{ ground: null }, false],
+    [{ ground: null, attack: normal }, true],
+    [{ hitstun: 4, attack: normal }, false],
+    [{ recovery: { phase: 'down', remaining: 20, facing: 1 } }, false],
+    [{ attack: { ...normal, id: 'test-b' } }, false]
+  ];
+  for (const seat of [0, 1]) {
+    for (const [status, extendsSkills] of contexts) {
+      const state = begin();
+      const fighter = state.fighters[seat];
+      Object.assign(fighter, status);
+      state.freeze = 1;
+      const keys = ['B', 'C', 'ULT', 'jump', 'dash'];
+      step(state, inputForSeat(seat, input(keys, 1)), config);
+      assert.deepEqual(fighter.buffer.map(command => [command.key, command.remaining, command.x]),
+        keys.map(key => [key, extendsSkills && (key === 'B' || key === 'C') ? 12 : rules.inputBuffer, 1]));
+    }
+  }
+});
+
 test('the shared air dash adds horizontal reach once per takeoff and replenishes on landing', () => {
   const settings = trainingOn(arenas[3]);
   const state = begin(settings);
@@ -615,9 +705,11 @@ test('takeoff uses the sampled turn while double jump and air attacks keep that 
     const fighter = state.fighters[seat];
     const direction = -fighter.facing;
     const pair = command => inputForSeat(seat, command);
-    const takeoff = { ...input(['jump']), sampled: [{ x: direction, y: 0 }] };
+    const start = fighter.x;
+    const takeoff = { ...input(['jump'], -direction), sampled: [{ x: direction, y: 0 }] };
     assert.equal(step(state, pair(takeoff), settings)[0]?.kind, 'jump');
     assert.equal(fighter.facing, direction);
+    assert.equal(fighter.x, start + direction * baseline.airSpeed);
 
     const before = fighter.x;
     assert.equal(step(state, pair(input(['jump'], -direction)), settings)[0]?.kind, 'air-jump');

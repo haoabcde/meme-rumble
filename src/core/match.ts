@@ -16,6 +16,7 @@ import { frogAction, frogCanStart, startFrog, finishAscension, tickAscension, fr
 
 const seats = [0, 1] as const;
 const slotPriority = ['ULT', 'C', 'B', 'A'] as const;
+const normalToSkillBuffer = 12;
 const roundOverLandingHold = 12;
 const roundOverMaxExtraTicks = 60;
 const other = (seat: 0 | 1) => seat === 0 ? 1 : 0;
@@ -247,7 +248,13 @@ function queueInputs(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     const opponent = state.fighters[other(seat)];
     const input = inputs[seat];
     const action = attackFor(config, state, seat);
-    if (input.y !== 1) fighter.buffer = fighter.buffer.filter(command => !(command.down && ['A','B','C'].includes(command.key)));
+    // Offensive follow-ups keep the press's direction through hitstop and recovery.
+    // Releasing down while defending still drops a queued crouching attack.
+    const attacking = fighter.attack && !fighter.hitstun && !fighter.blockstun &&
+      !fighter.guardBreak && !fighter.recovery && !fighter.launched;
+    if (input.y !== 1 && !attacking) {
+      fighter.buffer = fighter.buffer.filter(command => !(command.down && ['A', 'B', 'C'].includes(command.key)));
+    }
     if (!input.pressed.length) continue;
     const keys = [...new Set([...(input.held ?? []), ...input.pressed])];
     for (const [index, key] of input.pressed.entries()) {
@@ -264,8 +271,10 @@ function queueInputs(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
         const forward = fighter.ground ? sideToward(fighter, opponent) : fighter.facing;
         directions.push(x === forward ? 'forward' : 'back');
       }
+      const skillFollowup = attacking && action?.slot === 'A' && (key === 'B' || key === 'C');
+      const remaining = skillFollowup ? Math.max(config.rules.inputBuffer, normalToSkillBuffer) : config.rules.inputBuffer;
       fighter.buffer.push({
-        key, keys, x, directions, down: y === 1, sampledAt: state.frame, remaining: config.rules.inputBuffer
+        key, keys, x, directions, down: y === 1, sampledAt: state.frame, remaining
       });
     }
     bufferChain(fighter, action, config.fighters[seat].actions);
@@ -857,7 +866,7 @@ function updateControl(
     f.ground = null;
     f.guarding = false;
     f.dash = 0;
-    return;
+    return dropping ? undefined : jump.x;
   }
   const dashCancel = Boolean(f.attack && cancels?.includes('dash') && f.buffer.some(command => command.key === 'dash'));
   const airborne = !f.ground;
@@ -871,7 +880,7 @@ function updateControl(
     f.vy = -definition.airJump;
     f.jumpCount=2;f.secondApex=false;
     events.push({ kind: 'air-jump', source: seat, x: f.x, y: f.y });
-    return;
+    return jump.x;
   }
   if (f.attack && !dashCancel) return;
   const dash = !bound && f.buffer.find(command => command.key === 'dash');
@@ -896,6 +905,7 @@ function updateControl(
     }
   }
   f.guarding = Boolean(f.ground && input.y === 1 && !f.dash);
+  if (f.guarding && !f.attack && input.x && !bound) f.facing = input.x;
   if (!f.guarding && f.guardWait === 0 && state.frame % 3 === 0) {
     f.guard = Math.min(config.rules.guardMax, f.guard + 1);
   }
@@ -2004,6 +2014,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   advanceArena(state, config);
   const walkStart: Duo<number> = [state.fighters[0].x, state.fighters[1].x];
   const walkFacing: Duo<Side> = [state.fighters[0].facing, state.fighters[1].facing];
+  const takeoffX: Duo<Stick['x'] | undefined> = [undefined, undefined];
   for (const seat of seats) {
     if (carriedBySummon(state, seat) || diveCarrierFor(state, config, seat) !== undefined) continue;
     const fighter = state.fighters[seat];
@@ -2015,7 +2026,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
     const lastAttack = fighter.attack;
     const lastFrame = lastAttack?.frame;
     const wasRising = fighter.recovery?.phase === 'rise';
-    updateControl(state, config, seat, inputs[seat], events, ultimates.started.includes(seat));
+    takeoffX[seat] = updateControl(state, config, seat, inputs[seat], events, ultimates.started.includes(seat));
     const attack = fighter.attack;
     if (attack && (attack !== lastAttack || attack.frame !== lastFrame)) {
       const timeline = actionFor(config, state, seat)?.audioTimeline;
@@ -2056,8 +2067,11 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   const walking = seats.map(seat => {
     const fighter = state.fighters[seat];
     fighter.dashActive = fighter.dash > 0;
+    // Only takeoff uses the press's direction; subsequent air steering stays live.
+    const x = takeoffX[seat];
+    const input = x === undefined ? inputs[seat] : { ...inputs[seat], x };
     return !carriedBySummon(state, seat) && diveCarrierFor(state, config, seat) === undefined &&
-      motion(state, config, seat, inputs[seat], events);
+      motion(state, config, seat, input, events);
   });
   for (const seat of seats) {
     const carrierSeat = diveCarrierFor(state, config, seat);

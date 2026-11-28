@@ -160,6 +160,69 @@ test('guard and guard break have distinct stop, no damage and no heavy recoil', 
   }
 });
 
+test('held ground guard turns in either direction without walking', () => {
+  for (const seat of [0, 1]) {
+    const session = opening(fighter('attacker', [move]), seat);
+    const toward = seat === 0 ? -1 : 1;
+    const x = session.target.x;
+    for (const direction of [-toward, 0, toward, -toward]) {
+      session.tick(NEUTRAL, input([], { x: direction, y: 1 }));
+      assert.equal(session.target.facing, direction || -toward);
+      assert.equal(session.target.guarding, true);
+      assert.equal(session.target.moving, false);
+      assert.equal(session.target.x, x);
+    }
+    session.tick(input(['B']), input([], { y: 1 }));
+    const events = session.tick(NEUTRAL, input([], { x: toward, y: 1 }));
+    assert.equal(events[0].kind, 'block');
+    assert.equal(session.target.facing, toward);
+    session.tick(NEUTRAL, input([], { x: -toward, y: 1 }));
+    assert.ok(session.target.blockstun > 0);
+    assert.equal(session.target.facing, toward);
+  }
+});
+
+test('guard turning respects airborne, attack and binding states', () => {
+  const downRight = input([], { x: 1, y: 1 });
+  const session = opening(fighter('attacker'), 0, fighter('defender', [move]));
+  session.tick(NEUTRAL, input(['jump']));
+  const airX = session.target.x;
+  session.tick(NEUTRAL, downRight);
+  assert.ok(session.target.x > airX);
+  assert.equal(session.target.ground, null);
+  assert.equal(session.target.guarding, false);
+  assert.equal(session.target.facing, -1);
+
+  const grounded = opening(fighter('attacker'), 0, fighter('defender', [move]));
+  grounded.tick(NEUTRAL, input(['B']));
+  grounded.tick(NEUTRAL, downRight);
+  assert.equal(grounded.target.attack.id, move.id);
+  assert.equal(grounded.target.facing, -1);
+
+  const bound = opening(fighter('attacker'));
+  bound.target.bindUntil = bound.state.arenaFrame + 10;
+  bound.tick(NEUTRAL, downRight);
+  assert.equal(bound.target.guarding, true);
+  assert.equal(bound.target.facing, -1);
+});
+
+test('turning a held guard preserves the fresh-press counter window', () => {
+  const answer = { ...move, id: 'answer', linkOnly: true };
+  const guard = {
+    ...fighter('defender', [answer]),
+    guardCounter: { windowFrames: 3, actionId: answer.id }
+  };
+  for (const [delay, expected] of [[0, 'parry'], [3, 'block']]) {
+    const session = opening(fighter('attacker', [move]), 0, guard);
+    const faceAway = input([], { x: 1, y: 1 });
+    session.tick(NEUTRAL, faceAway);
+    for (let i = 0; i < delay; i++) session.tick(NEUTRAL, faceAway);
+    session.tick(input(['B']), faceAway);
+    const events = session.tick(NEUTRAL, input([], { x: -1, y: 1 }));
+    assert.equal(events[0].kind, expected);
+  }
+});
+
 test('a heavy hit leads with recoil after freeze and preserves total unobstructed travel', () => {
   for (const seat of [0, 1]) {
     const action = { ...move, impact: 'heavy', push: 10, stop: 4 };

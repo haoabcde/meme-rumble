@@ -7,7 +7,15 @@ import { approachPlatform } from './navigation.js';
 
 const toward = (from: number, to: number) => Math.sign(to - from) as Axis;
 
-export function cpuInput(state: MatchState, config: MatchConfig): InputFrame {
+export type CpuDifficulty = 'easy' | 'normal' | 'hard';
+
+const tactics = {
+  easy:   { guardAfter: 8, guardWindow: 8, jabInterval: 30, counter: false, followUp: false },
+  normal: { guardAfter: 3, guardWindow: 18, jabInterval: 11, counter: true, followUp: true },
+  hard:   { guardAfter: 2, guardWindow: 34, jabInterval: 7, counter: true, followUp: true }
+} as const;
+
+export function cpuInput(state: MatchState, config: MatchConfig, difficulty: CpuDifficulty = 'normal'): InputFrame {
   if (state.phase !== 'fight' || state.cutIn || state.summon?.phase === 'cut-in') return NEUTRAL;
   const [opponent, cpu] = state.fighters;
   if (cpu.hitstun || cpu.guardBreak || cpu.recovery) return NEUTRAL;
@@ -15,6 +23,7 @@ export function cpuInput(state: MatchState, config: MatchConfig): InputFrame {
   const direction = toward(cpu.x, opponent.x);
   const higher = cpu.y - opponent.y;
   const beat = state.frame % 48;
+  const tactic = tactics[difficulty];
   const { actions, airDash, airJump } = config.fighters[1];
 
   const tears = (cpu.tearUnits ?? 0) / TEAR_UNITS_PER_POINT;
@@ -35,7 +44,7 @@ export function cpuInput(state: MatchState, config: MatchConfig): InputFrame {
     return { x: 0, y: 0, pressed: [], held: ['C'] };
   }
   if (cpu.attack) {
-    if (!cpu.attack.landed || state.freeze !== 1 || distance > 160) return NEUTRAL;
+    if (!tactic.followUp || !cpu.attack.landed || state.freeze !== 1 || distance > 160) return NEUTRAL;
     const links = actionFor(config, state, 1)?.cancelOnHit;
     if (cpu.ground && links?.includes('jump')) return { x: direction, y: 0, pressed: ['jump'] };
     const followUps = actions.filter(action => links?.includes(action.id));
@@ -47,7 +56,7 @@ export function cpuInput(state: MatchState, config: MatchConfig): InputFrame {
   if (state.freeze) return NEUTRAL;
   if (opponent.recovery) return distance > 134 ? { x: direction, y: 0, pressed: [] } : NEUTRAL;
   if (cpu.blockstun) {
-    const canRetaliate = cpu.blockstun === Math.min(4, config.rules.inputBuffer) &&
+    const canRetaliate = tactic.counter && cpu.blockstun === Math.min(4, config.rules.inputBuffer) &&
       distance < 112 && Math.abs(higher) < 55;
     return canRetaliate ? { x: direction, y: 0, pressed: ['A'] } : NEUTRAL;
   }
@@ -55,7 +64,7 @@ export function cpuInput(state: MatchState, config: MatchConfig): InputFrame {
     return distance < 116 && Math.abs(higher) < 72 && !opponent.guarding
       ? { x: direction, y: 0, pressed: ['A'] } : NEUTRAL;
   }
-  if (opponent.attack && opponent.attack.frame >= 3 && distance < 140 && cpu.ground && beat < 18) {
+  if (opponent.attack && opponent.attack.frame >= tactic.guardAfter && distance < 140 && cpu.ground && beat < tactic.guardWindow) {
     return { x: 0, y: 1, pressed: [] };
   }
   if (!cpu.ground && distance < 127 && higher > -95 && higher < 92 && (opponent.hitstun > 0 || beat % 9 === 2)) {
@@ -118,7 +127,7 @@ export function cpuInput(state: MatchState, config: MatchConfig): InputFrame {
   if (distance > 260 && cpu.ground === 'floor' && beat % 24 === 0) {
     return { x: direction, y: 0, pressed: ['dash'] };
   }
-  if (cpu.ground && distance < 113 && Math.abs(higher) < 87 && beat % 11 === 7) {
+  if (cpu.ground && distance < 113 && Math.abs(higher) < 87 && (beat - 7) % tactic.jabInterval === 0) {
     return { x: direction, y: 0, pressed: ['A'] };
   }
   return { x: distance > 76 ? direction : 0, y: 0, pressed: [] };

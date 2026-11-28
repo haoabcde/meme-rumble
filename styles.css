@@ -1241,8 +1241,8 @@ img { display: block; }
 .map-choice[aria-pressed="true"] > span { background: var(--p5-black); color: var(--p5-white); }
 .map-choice:focus-visible { position: relative; outline: 3px solid var(--p5-yellow); outline-offset: -2px; }
 
-.map-rules { display: flex; align-items: center; justify-content: center; gap: 1cqw; }
-.map-rules label, .training-rule {
+.map-rules { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .38em 1cqw; }
+.map-rules label, .time-rule, .training-rule {
   display: inline-flex;
   align-items: center;
   gap: .45em;
@@ -1252,7 +1252,25 @@ img { display: block; }
   font-style: italic;
   white-space: nowrap;
 }
-.map-rules select, .map-rules input, .training-tools select {
+.time-presets { display: flex; gap: 2px; }
+.time-presets button {
+  padding: .38em .55em;
+  border: 1px solid #8b8790;
+  background: #222025;
+  color: var(--p5-white);
+  font: inherit;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+.time-presets button[aria-pressed="true"] { border-color: var(--p5-yellow); background: var(--p5-yellow); color: var(--p5-black); }
+.time-presets button:is(:hover, :focus-visible):enabled { border-color: white; outline: 2px solid white; outline-offset: 0; }
+.time-presets #custom-time { border-style: dashed; }
+#time-dialog { width: min(350px, calc(100% - 32px)); }
+#time-form { display: flex; align-items: center; gap: 10px; font-weight: 900; }
+#time-form label small { display: block; font-variant-numeric: tabular-nums; }
+#time-form input { min-width: 0; flex: 1; padding: .33em; border: 2px solid var(--p5-black); background: white; color: black; font: inherit; }
+#time-form button { background: var(--p5-yellow); color: var(--p5-black); }
+.map-rules select, .training-tools select {
   font: inherit;
   font-style: normal;
   font-weight: 850;
@@ -2506,7 +2524,12 @@ kbd {
   .map-choice[aria-pressed="true"] > span { background: var(--p5-black); color: var(--p5-white); }
   .map-badges { gap: .1em .2em; }
   .map-grid { grid-auto-rows: minmax(43px, 1fr); padding-left: 4px; }
+  .stage[data-screen="maps"] { width: 100%; min-height: clamp(350px, 65svh, 450px); }
+  .maps-screen { grid-template-columns: minmax(0, 1fr); }
   .maps-screen .screen-footer { flex-wrap: wrap; }
+  .time-rule, .time-presets { max-width: 100%; flex-wrap: wrap; }
+  .map-rules label, .time-rule { font-size: 11px; }
+  .time-presets button { min-height: 28px; }
   .maps-screen .map-rules { order: -1; width: 100%; justify-content: flex-start; }
   .stage[data-screen="pause"] { min-height: 245px; }
   .dialog { width: min(74%, 390px); }
