@@ -4,7 +4,7 @@ import { platformAt } from './terrain.js';
 export const summonCutInFrames = 48;
 export const summonFallFrames = 36;
 export const summonImpactFrames = 12;
-export const summonArea = { halfWidth: 138, above: 148, below: 22 };
+export const summonArea = { halfWidth: 180, above: 148, below: 22 };
 export const dijiangPitch = Math.PI / 5;
 export const summonCatchRadius = 32;
 

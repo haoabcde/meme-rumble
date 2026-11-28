@@ -59,6 +59,13 @@ function publishLobby(room) {
 
 function updateLobby(peer, message, now) {
   const room = peer.room;
+  if (room.match?.finished && message.type === 'return-lobby') {
+    room.match = null;
+    room.updatedAt = now;
+    for (const player of room.players) { player.ready = false; player.input = NEUTRAL; }
+    publishLobby(room);
+    return;
+  }
   if (room.match || room.players.length !== 2) return;
   const host = peer === room.players[0];
   const ready = room.players.every(player => player.ready);
@@ -75,7 +82,7 @@ function updateLobby(peer, message, now) {
     for (const player of room.players) player.ready = false;
   } else if (host && ready) {
     if (message.type === 'arena' && stages.has(message.arena)) room.arena = message.arena;
-    else if (message.type === 'rules' && [30, 45, 60, 90, 120, 180].includes(message.roundSeconds) &&
+    else if (message.type === 'rules' && Number.isInteger(message.roundSeconds) && message.roundSeconds >= 30 && message.roundSeconds <= 600 &&
       [1, 2, 3].includes(message.winsToFinish)) {
       room.roundSeconds = message.roundSeconds;
       room.winsToFinish = message.winsToFinish;
@@ -202,10 +209,10 @@ function tickRooms() {
   const now = Date.now();
   for (const room of rooms.values()) {
     if (!room.match) {
-      if (now - room.updatedAt > 5 * 60_000) endRoom(room, '等候超时，请重新创建房间');
       continue;
     }
     const { config, state, relay } = room.match;
+    if (room.match.finished) continue;
     const input = room.players.map(peer => now - (peer.inputAt ?? 0) <= 300 ? peer.input : NEUTRAL);
     const phase = state.phase;
     const events = relay ? stepRelayMatch(relay, input) : step(state, input, config);
@@ -222,8 +229,7 @@ function tickRooms() {
     const packet = { type: 'frame', state: relay?.state ?? state, events: swapped ? [] : events, relay: relayView };
     for (const peer of room.players) send(peer.socket, packet);
     if (relay ? relay.phase === 'finished' : state.phase === 'match-over') {
-      rooms.delete(room.code);
-      for (const peer of room.players) peer.socket.close();
+      room.match.finished = true;
     }
   }
 }

@@ -972,6 +972,36 @@ test('Gaga down + J exits guard and slides 784 units in either facing direction'
   }
 });
 
+test('Gaga platform drop wins over a simultaneous or slightly earlier slide', () => {
+  for (const seat of [0, 1]) {
+    for (const simultaneous of [true, false]) {
+      const settings = seat === 0 ? gagaConfig : { ...gagaConfig, fighters: [gagaDummy, gaga] };
+      const state = begin(settings);
+      const fighter = state.fighters[seat];
+      const platform = gagaConfig.arena.platforms[0];
+      Object.assign(fighter, { ground: platform.id, y: platform.y, x: (platform.left + platform.right) / 2 });
+      const tick = pressed => step(state, seat === 0 ? [input(pressed, 0, 1), NEUTRAL] : [NEUTRAL, input(pressed, 0, 1)], settings);
+      if (!simultaneous) {
+        tick(['A']);
+        assert.equal(fighter.attack.id, gagaActionIds.slide);
+      }
+      const events = tick(simultaneous ? ['A', 'jump'] : ['jump']);
+      assert.ok(events.some(event => event.kind === 'drop'));
+      assert.equal(fighter.attack, null);
+      assert.equal(fighter.ignorePlatform, platform.id);
+    }
+  }
+  const state = begin(gagaConfig);
+  const fighter = state.fighters[0];
+  const platform = gagaConfig.arena.platforms[0];
+  Object.assign(fighter, { ground: platform.id, y: platform.y, x: platform.left + 300 });
+  step(state, [input(['A'], 0, 1), NEUTRAL], gagaConfig);
+  stepFor(state, 11, [NEUTRAL, NEUTRAL], gagaConfig);
+  const events = step(state, [input(['jump'], 0, 1), NEUTRAL], gagaConfig);
+  assert.ok(!events.some(event => event.kind === 'drop'));
+  assert.equal(fighter.attack.id, gagaActionIds.slide);
+});
+
 test('Gaga can hit a distant target once during the long slide and stays inside the arena', () => {
   const state = begin(gagaConfig);
   const [attacker, defender] = state.fighters;
@@ -1204,6 +1234,23 @@ test('Dijiang freezes the whole match and hits through guard once after a 0.6-se
   assert.ok(!after.some(event => event.kind === 'summon-impact'));
   assert.equal(caster.attack, null);
   assert.equal(state.summon, undefined);
+});
+
+test('Dijiang impact covers the widened landing marker without hitting beyond it', () => {
+  for (const direction of [-1, 1]) {
+    for (const [distance, shouldHit] of [[160, true], [181, false]]) {
+      const state = begin(gagaConfig);
+      const [caster, target] = state.fighters;
+      caster.energy = MAX_ENERGY;
+      step(state, [summonInput, NEUTRAL], gagaConfig);
+      stepFor(state, 48 + summonFallFrames - 1, [NEUTRAL, NEUTRAL], gagaConfig);
+      target.x = state.summon.x + direction * distance;
+      target.y = state.summon.y;
+      target.ground = 'floor';
+      const events = step(state, [NEUTRAL, NEUTRAL], gagaConfig);
+      assert.equal(events.some(event => event.kind === 'hit'), shouldHit, `${direction} / ${distance}`);
+    }
+  }
 });
 
 test('Dijiang still hits the floor after interruption when an elevated opponent dashes out of the dive', () => {

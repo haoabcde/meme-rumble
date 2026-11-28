@@ -111,7 +111,7 @@ const fullscreen = element<HTMLButtonElement>('fullscreen');
 const trainingDummy = element<HTMLSelectElement>('training-dummy');
 const trainingSpeed = element<HTMLSelectElement>('training-speed');
 const trainingPanel = element<HTMLDetailsElement>('training-panel');
-const roundLimit = element<HTMLSelectElement>('round-limit');
+const roundLimit = element<HTMLInputElement>('round-limit');
 const roundWins = element<HTMLSelectElement>('round-wins');
 const fillTrainingEnergy = element('fill-training-energy');
 const trainingGround = element('training-ground');
@@ -841,7 +841,7 @@ function show(next: Screen) {
     roundLimit.disabled = mode === 'online' && onlineSeat !== 0;
     roundWins.disabled = roundLimit.disabled || relaySelected();
     element('relay-rules').hidden = !relaySelected();
-    text(element('round-limit-label'), relaySelected() ? '单场时限' : '时限');
+    text(element('round-limit-label'), relaySelected() ? '单场时限·秒' : '时限·秒');
     roundLimit.setAttribute('aria-label', relaySelected() ? '车轮战单场时限' : '单回合时限');
     selectArena(arenaIndex);
   }
@@ -1269,8 +1269,12 @@ function endMatch() {
   if (relay) renderRelayResult(relay);
   else renderStandardResult();
   show('result');
-  element('rematch').hidden = mode === 'online';
-  (mode === 'online' ? screens.result.querySelector<HTMLButtonElement>('[data-go="menu"]') : element('rematch'))?.focus();
+  element('rematch').hidden = false;
+  element('rematch').firstChild!.textContent = mode === 'online' ? '返回房间 ' : '再战 ';
+  for (const destination of ['roster', 'maps']) {
+    screens.result.querySelector<HTMLButtonElement>('[data-go="' + destination + '"]')!.hidden = mode === 'online';
+  }
+  element('rematch').focus();
 }
 
 function renderStandardResult() {
@@ -1376,6 +1380,8 @@ element<HTMLSelectElement>('roster-format').addEventListener('change', event => 
 });
 for (const field of [roundLimit, roundWins]) {
   field.addEventListener('change', () => {
+    const seconds = Number(roundLimit.value);
+    roundLimit.value = String(Number.isFinite(seconds) ? Math.max(30, Math.min(600, Math.round(seconds))) : 60);
     if (mode === 'online' && onlineSeat === 0) onlineRoom.setRules(Number(roundLimit.value), Number(roundWins.value));
   });
 }
@@ -1386,7 +1392,7 @@ element('skip-versus').addEventListener('click', enterMatch);
 element('resume').addEventListener('click', enterMatch);
 element('pause').addEventListener('click', pauseMatch);
 element('restart').addEventListener('click', () => startMatch(Boolean(config.training)));
-element('rematch').addEventListener('click', () => startMatch());
+element('rematch').addEventListener('click', () => mode === 'online' ? onlineRoom.returnToLobby() : startMatch());
 element('reset-training').addEventListener('click', () => startMatch(true));
 fillTrainingEnergy.addEventListener('click', () => {
   if (screen !== 'match' || !config.training) return;

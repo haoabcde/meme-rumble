@@ -567,6 +567,29 @@ function updateControl(
     return;
   }
 
+  // Resolve Gaga's platform drop before her down+attack slide when both
+  // buttons arrive together, or jump follows the slide before it becomes active.
+  const dropCommand = f.buffer.find(command => command.key === 'jump' && command.down);
+  const earlySlide = f.attack?.id === 'gaga-belly-slide' && previousAction &&
+    f.attack.frame < previousAction.startup;
+  if (definition.id === 'gaga' && dropCommand && f.ground && f.ground !== 'floor' &&
+      (!f.attack || earlySlide)) {
+    f.buffer = f.buffer.filter(command => command !== dropCommand &&
+      !(command.key === 'A' && command.down && command.sampledAt === dropCommand.sampledAt));
+    f.attack = null;
+    delete f.reaction;
+    f.ignorePlatform = f.ground;
+    f.vy = 2;
+    f.jumpCount = 0;
+    f.secondApex = false;
+    f.jumpOriginY = f.y;
+    events.push({ kind: 'drop', source: seat, x: f.x, y: f.y });
+    f.ground = null;
+    f.guarding = false;
+    f.dash = 0;
+    return;
+  }
+
   // A held crouch is a live intent, not a short press buffer. It becomes
   // eligible on the exact tick recovery ends, without cancelling the attack.
   if (definition.id === 'frog' && !f.attack && f.ground && !f.dash &&

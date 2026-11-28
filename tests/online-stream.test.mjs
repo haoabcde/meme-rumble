@@ -7,7 +7,7 @@ import test from 'node:test';
 import WebSocket from 'ws';
 
 const waitFor = async predicate => {
-  for (let i = 0; i < 500; i++) {
+  for (let i = 0; i < 4000; i++) {
     const result = predicate();
     if (result) return result;
     await new Promise(resolve => setTimeout(resolve, 20));
@@ -15,7 +15,7 @@ const waitFor = async predicate => {
   throw Error('Timed out waiting for online server');
 };
 
-test('compressed and uncompressed clients receive identical playable snapshots', { timeout: 15000 }, async t => {
+test('clients share snapshots, custom time and a persistent rematch lobby', { timeout: 85000 }, async t => {
   const probe = createServer();
   probe.listen(0, '127.0.0.1');
   await once(probe, 'listening');
@@ -60,13 +60,27 @@ test('compressed and uncompressed clients receive identical playable snapshots',
     peer.send({ type: 'select', lineup: [index ? 'gaga' : 'whale', null], ready: true, revision: 1 });
   }
   await waitFor(() => host.messages.some(message => message.type === 'lobby' && message.ready.every(Boolean)));
-  host.send({ type: 'rules', roundSeconds: 180, winsToFinish: 2 });
-  await waitFor(() => guest.messages.some(message => message.type === 'lobby' && message.roundSeconds === 180));
+  host.send({ type: 'rules', roundSeconds: 137, winsToFinish: 2 });
+  await waitFor(() => guest.messages.some(message => message.type === 'lobby' && message.roundSeconds === 137));
+  host.send({ type: 'rules', roundSeconds: 30, winsToFinish: 1 });
+  await waitFor(() => guest.messages.some(message => message.type === 'lobby' && message.roundSeconds === 30));
   host.send({ type: 'start' });
   const start = await waitFor(() => guest.messages.find(message => message.type === 'start'));
-  assert.equal(start.roundSeconds, 180);
+  assert.equal(start.roundSeconds, 30);
   await waitFor(() => [...host.frames.values()].some(state => state.phase === 'fight'));
   const frame = await waitFor(() => [...host.frames.keys()].find(frame =>
     guest.frames.has(frame) && host.frames.get(frame).phase === 'fight'));
   assert.deepEqual(guest.frames.get(frame), host.frames.get(frame));
+  await waitFor(() => guest.messages.some(message => message.type === 'frame' && message.state.phase === 'match-over'));
+  assert.equal(host.socket.readyState, WebSocket.OPEN);
+  assert.equal(guest.socket.readyState, WebSocket.OPEN);
+  const before = guest.messages.length;
+  guest.send({ type: 'return-lobby' });
+  const lobby = await waitFor(() => guest.messages.slice(before).find(message => message.type === 'lobby'));
+  assert.deepEqual(lobby.ready, [false, false]);
+  assert.equal(lobby.roundSeconds, 30);
+  for (const [index, peer] of peers.entries()) peer.send({ type: 'select', lineup: [index ? 'gaga' : 'whale', null], ready: true, revision: 2 });
+  await waitFor(() => guest.messages.slice(before).some(message => message.type === 'lobby' && message.ready.every(Boolean)));
+  host.send({ type: 'start' });
+  await waitFor(() => guest.messages.slice(before).some(message => message.type === 'start'));
 });

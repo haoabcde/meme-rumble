@@ -1251,7 +1251,7 @@ img { display: block; }
   font-style: italic;
   white-space: nowrap;
 }
-.map-rules select, .training-tools select {
+.map-rules select, .map-rules input, .training-tools select {
   font: inherit;
   font-style: normal;
   font-weight: 850;

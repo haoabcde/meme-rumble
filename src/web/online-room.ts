@@ -120,6 +120,10 @@ export class OnlineRoom {
     this.sendLobby({ type: 'start' });
   }
 
+  returnToLobby() {
+    this.sendLobby({ type: 'return-lobby' });
+  }
+
   private sendLobby(message: object) {
     if (this.active && this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(message));
@@ -171,6 +175,7 @@ export class OnlineRoom {
       let packet: ServerMessage;
       try { packet = JSON.parse(event.data); } catch { socket.close(); return; }
       if (packet.type === 'waiting') {
+        this.setBusy(false);
         this.code.value = packet.code;
         this.code.select();
         this.status.textContent = '把房间码发给好友，等对方加入。';
