@@ -147,8 +147,10 @@ function paintTriangle(ctx: CanvasRenderingContext2D, image: HTMLImageElement, p
 
 function registerScene(arena: ArenaDefinition, { image, bands, shaft }: Illustration) {
   const canvas = document.createElement('canvas');
-  canvas.width = Math.round(arena.width * .75);
-  canvas.height = Math.round(arena.height * .75);
+  // Keep the registered stage at world resolution: the previous 75% cache
+  // softened every platform and made seams more visible on close cameras.
+  canvas.width = arena.width;
+  canvas.height = arena.height;
   const ctx = canvas.getContext('2d', { alpha: false })!;
   ctx.scale(canvas.width / arena.width, canvas.height / arena.height);
   const rows = lockVerticalLines([

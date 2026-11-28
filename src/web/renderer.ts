@@ -1305,7 +1305,7 @@ export class Renderer {
     ctx.filter = 'none';
     this.drawEffects(arenaFrame, state.frame, Boolean(config.training), reducedMotion);
     ctx.resetTransform();
-    for (const seat of [0, 1] as const) {
+    if (debug) for (const seat of [0, 1] as const) {
       const f = state.fighters[seat];
       const def = config.fighters[seat];
       if (!f.hp) continue;

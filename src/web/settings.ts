@@ -10,6 +10,7 @@ export interface Preferences {
   sfxVolume: number;
   voiceVolume: number;
   bgmVolume: number;
+  developerMode: boolean;
   shake: boolean;
   camera: 'wide' | 'focus';
   bindings: Duo<Bindings>;
@@ -17,11 +18,10 @@ export interface Preferences {
 
 const storageKey = 'meme-rumble-settings-v1';
 const defaults: Duo<Bindings> = [
-  { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', jump: 'KeyK', dash: 'KeyL', A: 'KeyJ', B: 'KeyU', C: 'KeyI', ULT: 'KeyO' },
+  { left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS', jump: 'KeyK', dash: 'KeyL', A: 'KeyJ', B: 'KeyU', C: 'KeyO', ULT: 'KeyI' },
   { left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown',
-    jump: 'ShiftRight', dash: 'Enter', A: 'Comma', B: 'Period', C: 'Slash', ULT: 'Quote' }
+    jump: 'Numpad2', dash: 'Numpad3', A: 'Numpad1', B: 'Numpad4', C: 'Numpad6', ULT: 'Numpad5' }
 ];
-const aliases: Partial<Bindings> = { jump: 'Numpad2', dash: 'Numpad3', A: 'Numpad1', B: 'Numpad4', C: 'Numpad5', ULT: 'Numpad6' };
 const seats = [0, 1] as const;
 const legacyControls: Control[] = ['left', 'right', 'up', 'down', 'jump', 'dash', 'A', 'B', 'C'];
 const controls: Control[] = [...legacyControls, 'ULT'];
@@ -53,7 +53,7 @@ function bindable(code: unknown): code is string {
 }
 
 export function loadPreferences(): Preferences {
-  const fresh: Preferences = { volume: 70, sfxVolume: 100, voiceVolume: 100, bgmVolume: 100, shake: true, camera: 'wide', bindings: resetBindings() };
+  const fresh: Preferences = { volume: 70, sfxVolume: 100, voiceVolume: 100, bgmVolume: 100, developerMode: false, shake: true, camera: 'wide', bindings: resetBindings() };
   try {
     const value = JSON.parse(localStorage.getItem(storageKey) ?? 'null') as Partial<Preferences> | null;
     if (!value) return fresh;
@@ -64,6 +64,7 @@ export function loadPreferences(): Preferences {
       }
     }
     if (typeof value.shake === 'boolean') fresh.shake = value.shake;
+    if (typeof value.developerMode === 'boolean') fresh.developerMode = value.developerMode;
     if (value.camera === 'focus') fresh.camera = value.camera;
     const keys = seats.flatMap(seat => legacyControls.map(action => value.bindings?.[seat]?.[action]));
     if (keys.every(bindable) && new Set(keys).size === keys.length) {
@@ -102,12 +103,6 @@ export function bindingMap(preferences: Preferences) {
   for (const seat of seats) {
     for (const control of controls) map.set(preferences.bindings[seat][control], { seat, control });
   }
-  for (const control of controls) {
-    const code = aliases[control];
-    if (code && preferences.bindings[1][control] === defaults[1][control] && !map.has(code)) {
-      map.set(code, { seat: 1, control });
-    }
-  }
   return map;
 }
 
@@ -120,7 +115,6 @@ function element<T extends HTMLElement>(id: string): T {
 }
 
 export function renderGuide(preferences: Preferences) {
-  const boundKeys = bindingMap(preferences);
   const guideRows = [
     { title: '左右移动', controls: ['left', 'right'] },
     { title: '跳跃 / 二段跳', controls: ['jump'] },
@@ -149,14 +143,6 @@ export function renderGuide(preferences: Preferences) {
         key.textContent = keyLabel(preferences.bindings[seat][control]);
         keys.append(key);
       });
-      const last = row.controls.at(-1)!;
-      const alias = seat === 1 && aliases[last];
-      if (alias && boundKeys.get(alias)?.seat === 1 && boundKeys.get(alias)?.control === last) {
-        const alternative = document.createElement('kbd');
-        const prefix = row.controls.slice(0, -1).map(control => keyLabel(preferences.bindings[seat][control]));
-        alternative.textContent = [...prefix, keyLabel(alias)].join(' + ');
-        keys.append(' / ', alternative);
-      }
       pair.append(label, keys);
       list.append(pair);
     }
@@ -195,6 +181,7 @@ export function installSettings(preferences: Preferences, changed: () => void) {
   const bgmLabel = element<HTMLOutputElement>('bgm-volume-value');
   const camera = element<HTMLSelectElement>('camera');
   const shake = element<HTMLInputElement>('shake');
+  const developerMode = element<HTMLInputElement>('developer-mode');
   const status = element('binding-message');
   const buttons: Array<{ seat: Seat; control: Control; node: HTMLButtonElement }> = [];
   let awaiting: (typeof buttons)[number] | undefined;
@@ -210,6 +197,7 @@ export function installSettings(preferences: Preferences, changed: () => void) {
     bgmLabel.value = preferences.bgmVolume + '%';
     camera.value = preferences.camera;
     shake.checked = preferences.shake;
+    developerMode.checked = preferences.developerMode;
     for (const { seat, control, node } of buttons) {
       const recording = node === awaiting?.node;
       const key = keyLabel(preferences.bindings[seat][control]);
@@ -253,6 +241,7 @@ export function installSettings(preferences: Preferences, changed: () => void) {
   bgmVolume.addEventListener('input', () => { preferences.bgmVolume = Number(bgmVolume.value); commit(); });
   camera.addEventListener('change', () => { preferences.camera = camera.value === 'focus' ? 'focus' : 'wide'; commit(); });
   shake.addEventListener('change', () => { preferences.shake = shake.checked; commit(); });
+  developerMode.addEventListener('change', () => { preferences.developerMode = developerMode.checked; commit(); });
   element('reset-bindings').addEventListener('click', () => {
     awaiting = undefined;
     preferences.bindings = resetBindings();

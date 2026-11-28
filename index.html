@@ -379,7 +379,7 @@
           </details>
           <div id="match-tag" class="match-tag"></div>
           <div class="fight-tools">
-            <button id="debug" class="subtle" type="button" aria-pressed="false">判定框 <kbd>H</kbd></button>
+            <button id="debug" class="subtle" type="button" aria-pressed="false" hidden>判定框 <kbd>H</kbd></button>
             <button id="pause" class="subtle" type="button">暂停 <kbd>Esc</kbd></button>
           </div>
         </div>
@@ -461,6 +461,7 @@
           <label for="bgm-volume">背景音乐 <output id="bgm-volume-value">100%</output></label><input id="bgm-volume" type="range" min="0" max="100" step="5" value="100">
           <label for="camera">镜头</label><select id="camera"><option value="wide">同屏跟随</option><option value="focus">近身特写</option></select>
           <label for="shake">命中震动</label><input id="shake" type="checkbox" checked>
+          <label for="developer-mode">开发者模式</label><input id="developer-mode" type="checkbox">
         </div>
         <div class="settings-heading"><h3>键位</h3><button class="subtle" id="reset-bindings" type="button">恢复默认键位</button></div>
         <div class="guide-grid">

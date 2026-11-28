@@ -281,6 +281,7 @@ export class FightAudio {
   private samples = new Map<GagaSample, AudioBuffer>();
   private bananaSamples = new Map<BananaSample, AudioBuffer>();
   private bgmSamples = new Map<'main' | 'menu', AudioBuffer>();
+  private samplesStarted = false;
   private bgmGains: Record<'main' | 'menu', number> = { main: .24, menu: .24 };
   private bgmActive = false;
   private bgmTrack: 'main' | 'menu' = 'main';
@@ -409,7 +410,7 @@ export class FightAudio {
   private preload() {
     const context = this.context;
     if (!context) return;
-    if (!this.samples.size && !this.bananaSamples.size && !this.bgmSamples.size) this.loadSamples(context);
+    if (!this.samplesStarted) this.loadSamples(context);
     for (const bank of this.banks) {
       for (const { src } of Object.values(bank ?? {})) {
         if (this.buffers.has(src)) continue;
@@ -518,6 +519,8 @@ export class FightAudio {
   }
 
   private loadSamples(ctx: AudioContext) {
+    if (this.samplesStarted) return;
+    this.samplesStarted = true;
     if (typeof __GAGA_SOUNDS__ !== 'undefined') this.decodeBank(ctx, __GAGA_SOUNDS__, this.samples);
     if (typeof __BANANA_SOUNDS__ !== 'undefined') this.decodeBank(ctx, __BANANA_SOUNDS__, this.bananaSamples);
     if (typeof __BGM_SOUNDS__ !== 'undefined') {

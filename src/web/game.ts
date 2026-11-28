@@ -221,6 +221,12 @@ reducedMotion.addEventListener('change', () => {
 });
 
 const settings = installSettings(preferences, () => {
+  debugButton.hidden = !preferences.developerMode;
+  element('step-training').hidden = !preferences.developerMode || !config?.training;
+  if (!preferences.developerMode) {
+    debug = false;
+    debugButton.setAttribute('aria-pressed', 'false');
+  }
   if (!preferences.shake) {
     for (const meter of healthMeters) motions.get(meter)?.cancel();
   }
@@ -236,6 +242,7 @@ const settings = installSettings(preferences, () => {
   if (screen === 'match' || screen === 'pause') buildUltimateCues();
   footer();
 });
+debugButton.hidden = !preferences.developerMode;
 audio.volume = new URLSearchParams(location.search).has('silent') ? 0 : preferences.volume / 100;
 audio.sfxVolume = preferences.sfxVolume / 100;
 audio.voiceVolume = preferences.voiceVolume / 100;
@@ -1095,7 +1102,7 @@ function configureMatch(immediate: boolean) {
   element('training-tools').hidden = !training;
   trainingPanel.hidden = !training;
   fillTrainingEnergy.hidden = !training;
-  element('step-training').hidden = !training;
+  element('step-training').hidden = !training || !preferences.developerMode;
   element('match-tag').hidden = training;
   text(element('match-tag'), config.arena.name);
 }
@@ -1301,6 +1308,7 @@ function renderRelayResult(session: RelaySession) {
 }
 
 function toggleDebug() {
+  if (!preferences.developerMode) return;
   debug = !debug;
   debugButton.setAttribute('aria-pressed', String(debug));
   if (screen === 'match') {
@@ -1388,7 +1396,7 @@ fillTrainingEnergy.addEventListener('click', () => {
   renderHUD();
 });
 element('step-training').addEventListener('click', () => {
-  if (screen !== 'pause' || !config.training) return;
+  if (!preferences.developerMode || screen !== 'pause' || !config.training) return;
   tick(NEUTRAL);
   renderHUD();
   pauseSummary();
@@ -1554,7 +1562,7 @@ window.addEventListener('keydown', event => {
   }
   if (!event.repeat && ((screen === 'roster' && rosterKey(event)) || navigationKey(event))) return;
   if (screen !== 'match' || document.activeElement !== canvas) return;
-  if (event.code === 'KeyH' && !event.repeat) toggleDebug();
+  if (event.code === 'KeyH' && !event.repeat && preferences.developerMode) toggleDebug();
   if (event.code === 'KeyR' && mode === 'training' && !event.repeat) startMatch(true);
   const binding = matchBinding(event.code);
   if (!binding) return;
