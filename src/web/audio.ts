@@ -1,5 +1,5 @@
 import { gagaActionIds } from '../content/fighters/gaga.js';
-import { bananaActionIds } from '../content/fighters/banana.js';
+import { bananaActionIds, bananaAdditionalActionIds } from '../content/fighters/banana.js';
 import type { FighterAudioBank } from '../content/fighter-kit.js';
 import { actionFor } from '../core/match.js';
 import { frogPowered } from '../core/frog-kit.js';
@@ -211,7 +211,10 @@ const actionWinds: Partial<Record<string, Wind>> = {
   [bananaActionIds.kqBomb]: [620, 2200, 340, .16, .28],
   [bananaActionIds.kqDetonate]: [1800, 4200, 900, .06, .16],
   [bananaActionIds.joAirDive]: [480, 2600, 320, .28, .44],
-  [bananaActionIds.theWorld]: [240, 1100, 95, .65, .58]
+  [bananaActionIds.theWorld]: [240, 1100, 95, .65, .58],
+  [bananaAdditionalActionIds.airClaw]: [1700, 4200, 940, .065, .24],
+  [bananaAdditionalActionIds.airPressure]: [340, 2360, 205, .24, .37],
+  [bananaAdditionalActionIds.burst]: [620, 2180, 310, .24, .32]
 };
 const earthTransient: Noise = [730, .16, .44];
 const dijiangDiveRoar: Wind = [105, 1450, 210, .60, .66];
@@ -229,7 +232,8 @@ const gagaSounds: Record<GagaContact, { tone: Tone; transient: Noise }> = {
 };
 
 type BananaSound = { tone: Tone; transient?: Noise; cry?: [duration: number, volume: number] };
-type BananaActionId = typeof bananaActionIds[keyof typeof bananaActionIds];
+type BananaActionId = typeof bananaActionIds[keyof typeof bananaActionIds] |
+  typeof bananaAdditionalActionIds[keyof typeof bananaAdditionalActionIds];
 
 const bananaHits: Record<BananaActionId, BananaSound> = {
   [bananaActionIds.jab]: { tone: [980, 420, .055, 'sine', .10], transient: [4100, .038, .20] },
@@ -256,7 +260,10 @@ const bananaHits: Record<BananaActionId, BananaSound> = {
   [bananaActionIds.kqBomb]: { tone: [440, 190, .11, 'sine', .16], transient: [2400, .06, .22] },
   [bananaActionIds.kqDetonate]: { tone: [145, 48, .12, 'triangle', .22] },
   [bananaActionIds.joAirDive]: { tone: [200, 58, .18, 'triangle', .28], transient: [2200, .11, .32] },
-  [bananaActionIds.theWorld]: { tone: [145, 36, .42, 'triangle', .36], transient: [1500, .28, .42] }
+  [bananaActionIds.theWorld]: { tone: [145, 36, .42, 'triangle', .36], transient: [1500, .28, .42] },
+  [bananaAdditionalActionIds.airClaw]: { tone: [980, 420, .055, 'sine', .10], transient: [4100, .038, .20] },
+  [bananaAdditionalActionIds.airPressure]: { tone: [390, 118, .115, 'triangle', .15], transient: [2350, .11, .28] },
+  [bananaAdditionalActionIds.burst]: { tone: [510, 155, .20, 'sine', .18], transient: [2250, .19, .29], cry: [.25, .07] }
 };
 const bananaEvents: Partial<Record<EventKind, BananaSound>> = {
   'tear-splash': { tone: [750, 105, .24, 'sine', .18], transient: [2000, .19, .28] },
@@ -293,6 +300,7 @@ export class FightAudio {
   private banks: Duo<FighterAudioBank | undefined> = [undefined, undefined];
   private sources: EmbeddedAudio = {};
   private buffers = new Map<string, AudioBuffer | undefined>();
+  private loading = new Map<string, Promise<void>>();
   private levels = new Map<string, { peak: number; rms: number }>();
   private reported = new Set<string>();
   private playing = new Set<Playback>();
@@ -351,11 +359,31 @@ export class FightAudio {
     if (this.sources !== sources) {
       this.sources = sources;
       this.buffers = new Map();
+      this.loading = new Map();
       this.levels.clear();
       this.reported.clear();
     }
     if (banks.some(bank => bank && Object.keys(bank).length)) this.ensureContext();
     this.preload();
+  }
+
+  /** Begin loading selected fighters before the first action can consume a frame-zero cue. */
+  async prepare(banks: readonly (FighterAudioBank | undefined)[], sources: EmbeddedAudio) {
+    if (this.sources !== sources) {
+      this.sources = sources;
+      this.buffers = new Map();
+      this.loading = new Map();
+      this.levels.clear();
+      this.reported.clear();
+    }
+    this.ensureContext();
+    if (!this.context) return;
+    const pending: Promise<void>[] = [];
+    for (const bank of banks) for (const { src } of Object.values(bank ?? {})) {
+      const task = this.queueDecode(src);
+      if (task) pending.push(task);
+    }
+    await Promise.all(pending);
   }
 
   stopAll(stopBgm = true) {
@@ -416,11 +444,23 @@ export class FightAudio {
     if (!this.samplesStarted) this.loadSamples(context);
     for (const bank of this.banks) {
       for (const { src } of Object.values(bank ?? {})) {
-        if (this.buffers.has(src)) continue;
-        this.buffers.set(src, undefined);
-        void this.decode(context, src, this.buffers);
+        void this.queueDecode(src);
       }
     }
+  }
+
+  private queueDecode(src: string) {
+    const existing = this.loading.get(src);
+    if (existing) return existing;
+    if (this.buffers.has(src) || !this.context) return;
+    const buffers = this.buffers;
+    const loading = this.loading;
+    buffers.set(src, undefined);
+    const task = this.decode(this.context, src, buffers).finally(() => {
+      if (loading.get(src) === task) loading.delete(src);
+    });
+    loading.set(src, task);
+    return task;
   }
 
   private async decode(context: AudioContext, src: string, buffers: Map<string, AudioBuffer | undefined>) {
@@ -447,7 +487,11 @@ export class FightAudio {
         this.levels.set(src, sampleLevel(Array.from({ length: buffer.numberOfChannels }, (_, i) => buffer.getChannelData(i))));
       }
     } catch (error) {
-      if (buffers === this.buffers) this.report('Unable to preload ' + src, error);
+      if (buffers === this.buffers) {
+        // A transient network or decoding failure must not silence this clip for the entire session.
+        buffers.delete(src);
+        this.report('Unable to preload ' + src, error);
+      }
     }
   }
 
@@ -648,9 +692,10 @@ export class FightAudio {
   }
 
   private playNamed(seat: Seat, clip: string) {
-    if (this.banks[seat]?.[clip]) return this.playClip(seat, { clip, channel: 'sfx' });
+    const channel = clip === 'slide-call' ? 'voice' : 'sfx';
+    if (this.banks[seat]?.[clip]) return this.playClip(seat, { clip, channel });
     const ctx = this.context;
-    const output = this.sfx;
+    const output = channel === 'voice' ? this.voice : this.sfx;
     if (!ctx || !output || !this.canPlay()) return false;
     const gagaClip = Object.hasOwn(sampleVolumes, clip) ? clip as GagaSample : undefined;
     if (!gagaClip) return false;
@@ -751,7 +796,7 @@ export class FightAudio {
 
   startSample(name: GagaSample, delay = 0): SampleVoice | null {
     const ctx = this.context;
-    const bus = this.sfx;
+    const bus = name === 'victory-lalala' ? this.voice : this.sfx;
     const buffer = this.samples.get(name);
     if (!ctx || !bus || !this.enabled || this.volume <= 0 || ctx.state !== 'running' || !buffer) return null;
     const source = ctx.createBufferSource();
@@ -997,7 +1042,8 @@ export class FightAudio {
       } else if (wind) {
         this.playWind(ctx, output, wind, now);
         if (bananaId === bananaActionIds.cry || bananaId === bananaActionIds.recharge ||
-          bananaId === bananaActionIds.pressure || bananaId === bananaActionIds.uppercut) {
+          bananaId === bananaActionIds.pressure || bananaId === bananaActionIds.uppercut ||
+          bananaId === bananaAdditionalActionIds.airPressure || bananaId === bananaAdditionalActionIds.burst) {
           const rising = bananaId === bananaActionIds.uppercut;
           this.playCry(ctx, output, now, rising ? .35 : .22, rising ? .095 : .065);
         }

@@ -4,6 +4,8 @@ import { arenas } from '../dist/content/arenas.js';
 import { rules, testFighter } from '../dist/content/demo.js';
 import { basicAttack } from '../dist/content/fighter-kit.js';
 import { frog } from '../dist/content/fighters/frog.js';
+import { gaga } from '../dist/content/fighters/gaga.js';
+import { banana, bananaAdditionalActionIds } from '../dist/content/fighters/banana.js';
 import { createMatch, step } from '../dist/core/match.js';
 import { NEUTRAL } from '../dist/core/types.js';
 import { FightAudio } from '../dist/web/audio.js';
@@ -141,6 +143,64 @@ async function finishPreload(context) {
   await Promise.resolve();
 }
 
+test('selected fighter clips can finish loading before the match and are reused at start', async t => {
+  const sources = { 'open.wav': sourceData(1) };
+  const selectedBank = { opening: bank.opening };
+  const { audio, context } = audioFixture(t, [undefined, undefined], sources);
+  const prepared = audio.prepare([selectedBank], sources);
+  assert.equal(context.requests.length, 1, 'the selected audio begins decoding before match configuration');
+  context.requests[0].resolve();
+  await prepared;
+  audio.configure([selectedBank, undefined], sources);
+  assert.equal(context.requests.length, 1, 'starting the match reuses the prepared audio');
+  const match = matchFixture(audio, []);
+  const action = { id: 'probe', frame: 0 };
+  match.state.fighters[0].attack = action;
+  match.update([{ kind: 'action-audio', source: 0, x: 0, y: 0,
+    actionAudio: { attack: action, cue: { frame: 0, clip: 'opening', channel: 'voice', stopOnInterrupt: false } } }]);
+  assert.deepEqual(markers(context), [1], 'the first action can play immediately');
+});
+
+test('a failed clip load can be retried on the next preparation', async t => {
+  t.mock.method(console, 'warn', () => {});
+  const sources = { 'open.wav': sourceData(1) };
+  const selectedBank = { opening: bank.opening };
+  const { audio, context } = audioFixture(t, [undefined, undefined], sources);
+  const first = audio.prepare([selectedBank], sources);
+  context.requests[0].reject(new Error('temporary failure'));
+  await first;
+  const second = audio.prepare([selectedBank], sources);
+  assert.equal(context.requests.length, 2);
+  context.requests[1].resolve();
+  await second;
+  audio.configure([selectedBank, undefined], sources);
+  assert.equal(context.requests.length, 2, 'successful retry remains cached');
+});
+
+test('Gaga slide voice uses the voice volume channel', async t => {
+  const { audio, context } = audioFixture(t, [{ 'slide-call': bank.opening }, undefined], { 'open.wav': sourceData(1) });
+  await finishPreload(context);
+  audio.voiceVolume = .3;
+  const match = matchFixture(audio, []);
+  match.config.fighters[0] = gaga.fighter;
+  match.update([{ kind: 'swing', source: 0, x: 0, y: 0, actionId: 'gaga-belly-slide' }]);
+  assert.deepEqual(markers(context), [1]);
+  assert.equal(context.clips[0].output.output.gain.value, .3);
+});
+
+test('Banana added air and close-range moves have swing and hit effects', t => {
+  const { audio, context } = audioFixture(t, [undefined, undefined], {});
+  const match = matchFixture(audio, []);
+  match.config.fighters[0] = banana.fighter;
+  for (const actionId of Object.values(bananaAdditionalActionIds)) {
+    for (const kind of ['swing', 'hit']) {
+      const before = context.played.length;
+      match.update([{ kind, source: 0, x: 0, y: 0, actionId }]);
+      assert.ok(context.played.length > before, `${actionId} ${kind} should have audio`);
+    }
+  }
+});
+
 function matchFixture(audio, first, second = []) {
   const config = {
     rules, arena: arenas[0], training: true,
@@ -151,7 +211,7 @@ function matchFixture(audio, first, second = []) {
   state.fighters[0].x = 1800;
   state.fighters[1].x = 1890;
   return {
-    state,
+    state, config,
     update(events = []) { audio.update(config, state, events); },
     tick(player = NEUTRAL, opponent = NEUTRAL) {
       const events = step(state, [player, opponent], config);

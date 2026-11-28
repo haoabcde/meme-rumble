@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Tempo, beatFrames, easeOutBack, fadeSince, shotFading, shotOpacity } from '../dist/web/cinematics.js';
+import { Tempo, beatFrames, crossedIntroCues, easeOutBack, fadeSince, shotFading, shotOpacity } from '../dist/web/cinematics.js';
 import { frameEntrance } from '../dist/web/camera.js';
 
 function sung(tempo, loud, origin) {
@@ -10,6 +10,16 @@ function sung(tempo, loud, origin) {
   }
   return beats;
 }
+
+test('network snapshots play crossed entrance cues once for the correct fighter', () => {
+  const intro = { cues: [{ at: 12, sound: { kind: 'land' } }, { at: 26, sound: { kind: 'swing', actionId: 'gaga-belly-slide' } }] };
+  assert.deepEqual(crossedIntroCues(10, 27, [undefined, intro]), [
+    { seat: 1, sound: { kind: 'land' } },
+    { seat: 1, sound: { kind: 'swing', actionId: 'gaga-belly-slide' } }
+  ]);
+  assert.deepEqual(crossedIntroCues(27, 27, [undefined, intro]), []);
+  assert.deepEqual(crossedIntroCues(27, 29, [undefined, intro]), []);
+});
 
 test('without a recording the beat falls on a steady interval from the frame the shot asks for', () => {
   assert.equal(beatFrames, 30);

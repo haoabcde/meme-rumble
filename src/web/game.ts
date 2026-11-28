@@ -18,10 +18,11 @@ import { cpuInput } from './cpu.js';
 import { tierAt } from '../core/terrain.js';
 import { entranceFor, openingFrame, openingTicks, previewArena, recoveryLabels, Renderer, seatColors } from './renderer.js';
 import { bindingMap, installSettings, keyHint, loadPreferences, renderGuide, type Control, type Seat } from './settings.js';
-import { Tempo, shotFading, type Cinematic, type FeatureShot } from './cinematics.js';
+import { Tempo, crossedIntroCues, shotFading, type Cinematic, type FeatureShot } from './cinematics.js';
 import { gagaVictory } from './gaga-cinematics.js';
 
 declare const __FIGHTER_AUDIO__: Record<string, string>;
+const fighterAudioSources = __FIGHTER_AUDIO__;
 
 function element<T extends HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
@@ -208,6 +209,9 @@ let debt = 0;
 let introRemaining = 0;
 let fightCueUntil = 0;
 let feature: FeatureShot | null = null;
+let featureCinematic: Cinematic | null = null;
+let featureSeat: Seat = 0;
+let featureVoice: SampleVoice | null = null;
 let toastTimer = 0;
 let windowFit = false;
 
@@ -269,7 +273,8 @@ const menuFeature = element<HTMLImageElement>('menu-feature');
 const modeArt = { local: fighterArt.whale, cpu: fighterArt.gaga, training: fighterArt.frog, online: fighterArt.banana };
 const onlineRoom = new OnlineRoom(syncOnlineLobby, enterOnlineMatch, ({ state: next, events, relay: view }) => {
   if (mode !== 'online' || screen !== 'match') return;
-  const previous = state.phase;
+  const previousState = state;
+  const previous = previousState.phase;
   const swapped = relay && view && view.generation !== relay.generation;
   state = next;
   if (relay && view) {
@@ -288,7 +293,14 @@ const onlineRoom = new OnlineRoom(syncOnlineLobby, enterOnlineMatch, ({ state: n
   }
   renderCombatNotices(events);
   renderer.add(events, state, config.fighters);
-  audio.update(config, state, events);
+  const total = openingTicks(config.fighters);
+  const from = previousState.phase === 'ready' && previousState.round === state.round
+    ? openingFrame(previousState, config.fighters) : -1;
+  const to = state.phase === 'ready' ? openingFrame(state, config.fighters)
+    : previousState.phase === 'ready' && state.phase === 'fight' ? total - 1 : -1;
+  const openingSounds = reducedMotion.matches ? [] : crossedIntroCues(from, to, config.fighters.map(entranceFor))
+    .map(({ seat, sound }) => ({ ...sound, source: seat, x: state.fighters[seat].x, y: state.fighters[seat].y }));
+  audio.update(config, state, [...events, ...openingSounds]);
   if (relay ? relay.phase === 'finished' : state.phase === 'match-over') endMatch();
 }, leaveOnlineMatch);
 
@@ -694,7 +706,7 @@ function renderMoveGuide() {
     const starterHint = fighter.id === 'banana'
       ? (form === 'alt'
         ? 'JO 主线：' + commandHint(seat, { slot: 'A', label: '' }) + ' 五连欧拉 → ' + commandHint(seat, { slot: 'B', label: '' }) + ' 自动追踪 → ' + commandHint(seat, { slot: 'C', label: '' }) + ' 炸弹硬币/再按起爆'
-        : '上手主线：' + commandHint(seat, { slot: 'C', label: '' }, [], true) + ' 补泪 → ' + commandHint(seat, { slot: 'B', label: '' }, [], true) + ' 喷射（满 3 格按 ' + commandHint(seat, { slot: 'ULT', direction: 'down', label: '' }) + ' 觉醒）')
+        : '上手主线：' + commandHint(seat, { slot: 'C', label: '' }, [], true) + ' 补泪 → ' + commandHint(seat, { slot: 'B', label: '' }, [], true) + ' 喷射（满 3 格按 ' + commandHint(seat, { slot: 'ULT', label: '' }) + ' 觉醒）')
       : fighter.id === 'gaga'
       ? '上手主线：' + commandHint(seat, { slot: 'C', label: '' }) + ' 放炮台 → 用 ' + commandHint(seat, { slot: 'B', label: '' }) + ' 剑波牵制'
       : fighter.id === 'frog'
@@ -1036,7 +1048,16 @@ async function confirmSeat(seat: Seat) {
     preparingSeats.add(seat);
     renderRoster();
     try {
-      await Promise.all([prepareFighterArt(ids), prepareArenaArt(),
+      const audioPicks = relaySelected() ? relayPicks.flat() : selected;
+      const audioBanks = [...new Set([...selection, ...audioPicks])]
+        .filter((index): index is number => index !== null)
+        .map(index => roster[index].audio);
+      // Do not block matchmaking indefinitely on a slow or unavailable audio request.
+      const audioReady = Promise.race([
+        audio.prepare(audioBanks, fighterAudioSources),
+        new Promise<void>(resolve => window.setTimeout(resolve, 3000))
+      ]);
+      await Promise.all([prepareFighterArt(ids), prepareArenaArt(), audioReady,
         ...(ids.includes('frog') ? [frogArtReady] : []),
         ...(ids.includes('banana') ? [prepareBananaArt()] : [])]);
       if (screen !== 'roster' || selection.join(',') !== picks().join(',')) return;
@@ -1141,7 +1162,7 @@ function refreshCombatants() {
   audio.configure([
     roster.find(entry => entry.fighter.id === config.fighters[0].id)?.audio,
     roster.find(entry => entry.fighter.id === config.fighters[1].id)?.audio
-  ], __FIGHTER_AUDIO__);
+  ], fighterAudioSources);
   renderer.load(config.arena);
   lastChains = [null, null];
   lifeDisplay = [null, null];
@@ -1253,11 +1274,16 @@ function startFeature() {
     paint: ctx => cinematic.paint(ctx, shot)
   };
   feature = shot;
+  featureCinematic = cinematic;
+  featureSeat = seat;
   return true;
 }
 
 function finishFeature() {
   if (!feature) return;
+  featureVoice?.stop();
+  featureVoice = null;
+  featureCinematic = null;
   feature = null;
   state.phaseTicks = Math.min(state.phaseTicks, 18);
   clearInputs();
@@ -2017,7 +2043,15 @@ function frame(now: number) {
     while (debt >= tickMs) {
       debt -= tickMs;
       if (feature) {
-        feature.tempo.hear(undefined, feature.frame);
+        if (featureCinematic?.sound === 'victory-lalala' &&
+            feature.frame === (featureCinematic.soundAt ?? 0)) {
+          featureVoice = audio.startSample('victory-lalala');
+        }
+        const cues = featureCinematic?.cues?.filter(cue => cue.at === feature!.frame)
+          .map(cue => ({ kind: cue.sound, source: featureSeat,
+            x: state.fighters[featureSeat].x, y: state.fighters[featureSeat].y })) ?? [];
+        if (cues.length) audio.update(config, state, cues);
+        feature.tempo.hear(featureVoice?.level(), feature.frame);
         if (++feature.frame >= feature.frames) finishFeature();
         continue;
       }

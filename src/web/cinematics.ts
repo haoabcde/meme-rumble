@@ -20,6 +20,14 @@ export interface FighterIntro {
   effect?(ctx: CanvasRenderingContext2D, frame: number, fighter: FighterState): void;
 }
 
+/** Collect each entrance cue crossed by a snapshot, even when network updates skip frames. */
+export function crossedIntroCues(previous: number, current: number, intros: readonly (FighterIntro | undefined)[]) {
+  if (current <= previous) return [];
+  return intros.flatMap((intro, seat) => (intro?.cues ?? [])
+    .filter(cue => cue.at > previous && cue.at <= current)
+    .map(cue => ({ seat: seat as 0 | 1, sound: cue.sound })));
+}
+
 export interface FeatureShot {
   /** Frame on screen, counted from zero. */
   frame: number;
