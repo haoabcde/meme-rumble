@@ -28,7 +28,7 @@ const dorm = stage({
 ]);
 
 const court = stage({
-  id: 'night-court', name: '夜训球场', theme: 'court', width: 4480, spawn: [1940, 2540],
+  id: 'night-court', name: '雨夜商街', theme: 'court', width: 4480, spawn: [1940, 2540],
   terrain: '长台交锋 · 短台换边',
   description: '先上主战台。沿台面向两侧走可登高，中央双短台可互跳。站在高台外侧下穿可直接回到侧台。',
   routes: [['runway', 'west-stand', 'west-step', 'west-top'], ['runway', 'east-stand', 'east-step', 'east-top']]

@@ -340,7 +340,7 @@ export function defineFighter(spec: FighterPackage): RosterEntry {
     validateCounterTarget(id, guardCounter.actionId, actions);
   }
   const fighter: FighterDefinition = {
-    maxHp: 1000, run: 8, airSpeed: 9, jump: 18, dash: 23, airDash: true, airJump: 13,
+    maxHp: 1000, run: 8, airSpeed: 9, jump: 18, dash: 23, airDash: true, airJump: 16,
     hurtbox: { x: -28, y: -114, w: 56, h: 114 }, bodyWidth: 72,
     ...stats, id, name, actions, guardCounter, ultimateCost: ultimate?.cost, ultimateGain: ultimate?.gain
   };

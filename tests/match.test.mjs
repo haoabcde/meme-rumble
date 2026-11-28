@@ -489,22 +489,38 @@ test('jump and dash tapped in the same tick still start the dash on the next tic
   assert.deepEqual(next.map(event => [event.kind, event.direction]), [['dash', -1]]);
 });
 
-test('the second jump still lands on the middle tier when the upper lip is beyond its peak', () => {
-  const { settings, lower: bench } = overlappingLedges();
-  const state = begin(settings);
-  const fighter = state.fighters[0];
-  fighter.x = (bench.left + bench.right) / 2;
-  step(state, [input(['jump']), NEUTRAL], settings);
-  stepFor(state, 16, [NEUTRAL, NEUTRAL], settings);
-  assert.deepEqual(step(state, [input(['jump']), NEUTRAL], settings).map(event => event.kind), ['air-jump']);
-  let peak = fighter.y;
-  for (let frame = 0; frame < 42 && !fighter.ground; frame++) {
-    step(state, [NEUTRAL, NEUTRAL], settings);
-    peak = Math.min(peak, fighter.y);
+test('all fighters can skip an intermediate platform with a second jump on both sides of each layered arena', () => {
+  for (const arena of platformArenas) {
+    const floor = { ...arena, id: 'floor', y: arena.floor };
+    for (const { fighter } of roster) {
+      const settings = { ...trainingOn(arena), fighters: [fighter, fighter] };
+      for (const [seat, route] of arena.routes.entries()) {
+        const surfaces = [floor, ...route.map(id => arena.platforms.find(p => p.id === id))];
+        for (let index = 0; index < surfaces.length - 2; index++) {
+          const [from, middle, upper] = surfaces.slice(index, index + 3);
+          const left = Math.max(from.left, middle.left, upper.left);
+          const right = Math.min(from.right, middle.right, upper.right);
+          if (right - left < fighter.bodyWidth) continue;
+          const state = begin(settings);
+          const actor = state.fighters[seat];
+          state.fighters[1 - seat].x = seat === 0 ? arena.right : arena.left;
+          Object.assign(actor, { x: (left + right) / 2, ground: from.id, y: from.y });
+          const normal = structuredClone(state);
+          const jump = input(['jump']);
+          const label = `${arena.name} / ${fighter.id} / ${from.id} → ${upper.id}`;
+          landAfter(normal, jump, settings, seat);
+          assert.equal(normal.fighters[seat].ground, middle.id, label);
+
+          step(state, inputForSeat(seat, jump), settings);
+          stepFor(state, 16, undefined, settings);
+          const takeoff = landAfter(state, jump, settings, seat);
+          assert.deepEqual(takeoff.map(event => event.kind), ['air-jump'], label);
+          assert.equal(actor.ground, upper.id, label);
+          assert.equal(actor.jumpCount, 0, label);
+        }
+      }
+    }
   }
-  assert.equal(settings.arena.floor - peak, 231);
-  assert.equal(fighter.ground, bench.id);
-  assert.equal(fighter.jumpCount, 0);
 });
 
 test('an airborne side switch updates facing before the next directional action is sampled', () => {
@@ -1232,7 +1248,7 @@ test('players can pursue and land a hit across the dorm corridor, then drop on e
   }
 });
 
-test('the full court runway supports ground pursuit and a hit at either end', () => {
+test('the market runway supports ground pursuit and a hit at either end', () => {
   const settings = trainingOn(arenas.find(arena => arena.id === 'night-court'));
   const { arena } = settings;
   const runway = arena.platforms.find(platform => platform.id === 'runway');
@@ -1253,7 +1269,7 @@ test('the full court runway supports ground pursuit and a hit at either end', ()
   }
 });
 
-test('both sides of the court can cross the short balconies and take the high roof shortcut down', () => {
+test('both sides of the market can cross the short balconies and take the high roof shortcut down', () => {
   const arena = arenas.find(arena => arena.id === 'night-court');
   const floor = { ...arena, id: 'floor', y: arena.floor };
   for (const { fighter } of roster) {

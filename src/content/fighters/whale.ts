@@ -49,7 +49,7 @@ const ult:ActionDefinition={...spin(),id:'open-source',name:'开源！',slot:'UL
 const {slot:_slot,energyCost:_energy,...ultimateMove}=ult;
 export const whale=defineFighter({id:'whale',name:'大肥鱼',accent:'#75a9ff',height:144,art:{portrait:'大肥鱼/常态_手绘轻像素_V1.webp',motion:'大肥鱼/完整动作_手绘轻像素_V2.webp',motionScale:2},
  audio:Object.fromEntries(Object.entries({'tail-voice-1':'普攻一_欧','tail-voice-2':'普攻二_鲸','tail-voice-3':'普攻三_鲸','ultimate-voice':'大招_鲸鲸','eat-voice':'偷吃_喃喃两声_V23','tail-swing':'尾击挥风','tail-hit':'尾击命中','event-block':'铁盆格挡','event-parry':'铁盆触发','rice-throw':'米饭掷出','rice-hit':'米饭黏住',eat:'偷吃米饭',wind:'蓝色旋风',summon:'召唤潮鸣','pool-warning':'水潭预警','water-hit':'水鲸破水','pool-breach':'水鲸破水','pool-final':'巨鲸冲天'}).map(([id,name])=>[id,{src:'assets/audio/whale/'+name+'.wav',volume:id==='water-hit'?.5:1}])),
- stats:{run:7,airSpeed:8,jump:18,airJump:14,dash:24,airDash:true,hurtbox:{x:-27,y:-140,w:54,h:140},bodyWidth:72},
+ stats:{run:7,airSpeed:8,jump:18,airJump:17,dash:24,airDash:true,hurtbox:{x:-27,y:-140,w:54,h:140},bodyWidth:72},
  commonMoves:[tail(1),tail(2),tail(3),{...tail(1),id:'common-air',name:'空中尾击',posture:'air',advance:0,linkOnly:false,chainAfter:undefined,cancelOnHit:[],airControl:.35}],
  guardCounter:{windowFrames:4,actionId:'whale-counter',whileGuarding:true},
  signatureMoves:[rice(),rice(true),spin(),spin(true),counter,{...rice(),id:'whale-eat',name:'贪吃反噬',whale:'eat',audioTimeline:[voice('eat-voice'),sfx(3,'eat')],linkOnly:true,entities:[],startup:6,recovery:11,animation:[{frame:0,cell:68},{frame:3,cell:71},{frame:14,cell:77}]}],
