@@ -14,7 +14,7 @@ import { DEFAULT_RISE_FRAMES, isAttack } from '../core/types.js';
 import type { ActionDefinition, ArenaDefinition, Box, CombatEvent, FighterAction, FighterState, ImpactTier, MatchConfig, MatchState, Platform, Summon } from '../core/types.js';
 import { cinematicOwner } from '../core/whale-kit.js';
 import { drawInkBackdrop, drawInkFloor, drawInkMechanism, drawInkScenery, redrawWhenBackdropReady } from './arena-ink.js';
-import { drawIllustratedArena, redrawWhenIllustrationReady } from './illustrated-arenas.js';
+import { drawIllustratedArena, drawIllustrationPreview, redrawWhenIllustrationReady } from './illustrated-arenas.js';
 import { backgrounds, ringPerformers, drawEngineeringCrate, drawGagaLaunchTrail,
   drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose,
   gagaReactionPose, gagaStatePose, motionArt, sprites, type PolePose } from './art.js';
@@ -511,6 +511,7 @@ export function previewArena(canvas: HTMLCanvasElement, arena: ArenaDefinition, 
   }
   const draw = () => {
     if (canvas.dataset.variant !== variant) return;
+    if (arena.theme === 'court' && drawIllustrationPreview(ctx, arena)) return;
     const top = ink ? Math.max(0, arena.floor - 1255) : 0;
     const bottom = ink ? Math.min(arena.height, arena.floor + 250) : arena.height;
     const scaleY = canvas.height / (bottom - top);

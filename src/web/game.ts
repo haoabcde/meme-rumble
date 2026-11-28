@@ -125,6 +125,7 @@ const roundLabel = element('round');
 const names = namesSuffix.map(id => element('name-' + id));
 const scores = namesSuffix.map(id => element('score-' + id));
 const healthBars = namesSuffix.map(id => element('hp-' + id));
+const healthMeters = healthBars.map(bar => bar.parentElement!);
 const guardBars = namesSuffix.map(id => element('guard-' + id));
 const healthValues = namesSuffix.map(id => element('hp-value-' + id));
 const hudFighters = namesSuffix.map(id => element('hud-fighter-' + id));
@@ -216,6 +217,9 @@ reducedMotion.addEventListener('change', () => {
 });
 
 const settings = installSettings(preferences, () => {
+  if (!preferences.shake) {
+    for (const meter of healthMeters) motions.get(meter)?.cancel();
+  }
   clearInputs();
   bindings = bindingMap(preferences);
   audio.volume = new URLSearchParams(location.search).has('silent') ? 0 : preferences.volume / 100;
@@ -1083,7 +1087,8 @@ function refreshCombatants() {
     const def = config.fighters[seat];
     portraits[seat].dataset.fighter = def.id;
     portraits[seat].src = fighterArt[def.id];
-    healthBars[seat].parentElement!.setAttribute('aria-valuemax', String(def.maxHp));
+    motions.get(healthMeters[seat])?.cancel();
+    healthMeters[seat].setAttribute('aria-valuemax', String(def.maxHp));
     guardBars[seat].parentElement!.setAttribute('aria-valuemax', String(rules.guardMax));
     winPips[seat].hidden = Boolean(relay);
     relayStatus[seat].hidden = !relay;
@@ -1651,12 +1656,17 @@ function renderHUD() {
     if (justEnteredCritical) {
       animateUI(criticalLabel, [{ scale: '.83' }, { scale: '1.09', offset: .66 }, { scale: '1' }], 220);
     }
-    if (damaged) {
-      const impact = seat === 0 ? '-4px' : '4px';
-      animateUI(healthBars[seat].parentElement!, [
-        { translate: impact + ' 0', filter: 'brightness(1.14)' },
+    if (damaged && preferences.shake) {
+      const loss = (life.hp - fighter.hp) / config.fighters[seat].maxHp;
+      const strength = Math.min(8, 3 + loss * 45);
+      const kick = seat === 0 ? -strength : strength;
+      animateUI(healthMeters[seat], [
+        { translate: kick + 'px -1px', filter: 'brightness(1.38)' },
+        { translate: -kick * .55 + 'px 1px', filter: 'brightness(1.16)', offset: .2 },
+        { translate: kick * .28 + 'px 0', filter: 'brightness(1.06)', offset: .42 },
+        { translate: -kick * .12 + 'px 0', filter: 'brightness(1)', offset: .65 },
         { translate: '0 0', filter: 'brightness(1)' }
-      ], 150);
+      ], 145 + strength * 7);
     }
     if (fighter.hp > life.hp) life.trail = fighter.hp;
     if (damaged || (state.phase === 'fight' && (fighter.hitstun || fighter.recovery))) {

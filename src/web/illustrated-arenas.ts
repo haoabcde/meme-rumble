@@ -188,6 +188,19 @@ export function drawIllustratedArena(ctx: CanvasRenderingContext2D, arena: Arena
   return true;
 }
 
+export function drawIllustrationPreview(ctx: CanvasRenderingContext2D, arena: ArenaDefinition) {
+  const image = scenes.get(arena.id)?.image;
+  if (!image?.naturalWidth) return false;
+  const { width, height } = ctx.canvas;
+  const scale = Math.min(width / image.naturalWidth, height / image.naturalHeight);
+  const artWidth = image.naturalWidth * scale;
+  const artHeight = image.naturalHeight * scale;
+  ctx.fillStyle = '#111725';
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(image, (width - artWidth) / 2, (height - artHeight) / 2, artWidth, artHeight);
+  return true;
+}
+
 export function redrawWhenIllustrationReady(arena: ArenaDefinition, redraw: () => void) {
   const art = scenes.get(arena.id);
   if (art && !art.image.naturalWidth) void art.ready.then(redraw);
