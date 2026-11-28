@@ -7,6 +7,7 @@ import { rules, testFighter } from '../dist/content/demo.js';
 import { arenas } from '../dist/content/arenas.js';
 import { gagaActionIds, gagaGroundCombo } from '../dist/content/fighters/gaga.js';
 import { bananaActionIds, bananaAdditionalActionIds, bananaComboNames } from '../dist/content/fighters/banana.js';
+import { LEGACY_BANANA_SKILLS } from '../dist/content/fighters/legacy-skills.js';
 import { roster } from '../dist/content/roster.js';
 import { defineFighter } from '../dist/content/fighter-kit.js';
 import { dijiangBurialTip, frameDijiangImpact, frameDijiangLength } from '../dist/web/camera.js';
@@ -48,20 +49,23 @@ const tears = fighter => fighter.tearUnits / TEAR_UNITS_PER_POINT;
 const setTears = (fighter, points) => { fighter.tearUnits = points * TEAR_UNITS_PER_POINT; };
 const hold = (key, pressed = [], x = 0, y = 0) => ({ ...input(pressed, x, y), held: [key] });
 
-test('Banana equips pressure, uppercut, recharge, JO awakening, Killer Queen I, air dive J, JO up/down/U skills, wave/burst/The World ULT, and 5-hit JO combo', () => {
+test('Banana equips pressure, uppercut, recharge, JO awakening, Killer Queen I, air dive J, JO up/down/U skills, wave/burst skills and The World ULT, and 5-hit JO combo', () => {
   assert.equal(new Set(bananaActions.map(move => move.id)).size, bananaActions.length);
   assert.equal(bananaComboNames.length, 4);
-  assert.deepEqual(bananaActions.filter(move => move.slot === 'B').map(move => move.tearCost), [20, 20, 10, 0, 35, 0]);
+  assert.deepEqual(bananaActions.filter(move => move.slot === 'B').map(move => move.tearCost), [16, 16, 10, 0, 35, 0, 25]);
   assert.deepEqual(bananaActions.filter(move => move.slot === 'C').map(move => move.id),
-    [bananaActionIds.recharge, bananaActionIds.kqBomb, bananaActionIds.kqDetonate]);
+    [bananaActionIds.recharge, bananaActionIds.kqBomb, bananaActionIds.kqDetonate, bananaActionIds.wave]);
   assert.equal(bananaMove(bananaActionIds.joAirDive).slot, 'A');
   assert.equal(bananaMove(bananaActionIds.joLift).slot, 'A');
   assert.equal(bananaMove(bananaActionIds.joSlide).slot, 'A');
   assert.equal(bananaMove(bananaActionIds.joSheerHeart).slot, 'B');
   assert.equal(bananaMove(bananaActionIds.joAntiAir).slot, 'B');
   assert.equal(bananaMove(bananaActionIds.joAwaken).slot, 'ULT');
-  assert.equal(bananaMove(bananaActionIds.joAwaken).direction, 'down');
   assert.equal(bananaMove(bananaActionIds.joAwaken).energyCost, MAX_ENERGY);
+  assert.equal(bananaMove(bananaAdditionalActionIds.burst).slot, 'B');
+  assert.equal(bananaMove(bananaActionIds.wave).tearCost, 30);
+  assert.equal(bananaMove(bananaActionIds.wave).slot, 'C');
+  assert.equal(bananaMove(bananaActionIds.theWorld).energyCost, 2 * ENERGY_PER_STOCK);
 });
 
 test('Banana four-hit buffered combo is mirrored for either player and earns four hit rewards', () => {
@@ -73,7 +77,7 @@ test('Banana four-hit buffered combo is mirrored for either player and earns fou
     const events = [...step(state, frames, bananaConfig), ...bananaStep(state, 150)];
     assert.deepEqual(events.filter(e => e.kind === 'hit').map(e => e.actionId),
       [bananaActionIds.jab, bananaActionIds.backhand, bananaActionIds.headbutt, bananaActionIds.cry]);
-    assert.equal(state.fighters[1 - source].hp, 819);
+    assert.equal(state.fighters[1 - source].hp, 812);
     assert.equal(tears(state.fighters[source]), 92);
     assert.equal(tears(state.fighters[1 - source]), 80);
     assert.equal(state.fighters[source].attack, null);
@@ -110,7 +114,7 @@ test('Banana directional normals and air normal select distinct actions', () => 
   const start = state.fighters[0].x;
   step(state, [input(['A'], 0, 1), NEUTRAL], bananaConfig);
   bananaStep(state, 45);
-  assert.equal(state.fighters[0].x - start, 336);
+  assert.equal(state.fighters[0].x - start, 96);
 });
 
 test('Banana 3A headbutt pounces forward over 200 units on whiff', () => {
@@ -119,18 +123,20 @@ test('Banana 3A headbutt pounces forward over 200 units on whiff', () => {
   const start = state.fighters[0].x;
   step(state, [input(['A', 'A', 'A']), NEUTRAL], bananaConfig);
   bananaStep(state, 90);
-  assert.equal(state.fighters[0].x - start, 14 + 22 + 222);
+  assert.equal(state.fighters[0].x - start, 26 + 28 + 222);
 });
 
-test('Banana holding I charges energy slowly up to 3 bars (MAX_ENERGY) and resets between rounds', () => {
+test('Banana holding I charges tears quickly, limits energy gain (~18/s), and resets between rounds', () => {
   const state = begin(bananaConfig);
   const [f] = state.fighters;
   assert.equal(f.energy, 0);
   step(state, [hold('C', ['C']), NEUTRAL], bananaConfig);
   bananaStep(state, 59, [hold('C'), NEUTRAL]);
-  assert.equal(f.energy, 30);
-  bananaStep(state, 540, [hold('C'), NEUTRAL]);
-  assert.equal(f.energy, MAX_ENERGY);
+  assert.equal(f.energy, 18);
+  assert.equal(tears(f), 84);
+  bananaStep(state, 100, [hold('C'), NEUTRAL]);
+  assert.equal(f.energy, 48);
+  assert.equal(tears(f), 100);
   bananaStep(state, 10);
   assert.equal(f.attack, null);
   state.remaining = 1;
@@ -140,7 +146,7 @@ test('Banana holding I charges energy slowly up to 3 bars (MAX_ENERGY) and reset
   assert.equal(state.fighters[0].joAwakened, undefined);
 });
 
-test('Banana short U uses 20 tears once, mirrors hits, slows movement, and consumes no more on release', () => {
+test('Banana short U uses 16 tears once, mirrors hits, slows movement, and consumes no more on release', () => {
   for (const source of [0, 1]) {
     const state = begin(bananaConfig);
     const f = state.fighters[source], target = state.fighters[1 - source];
@@ -152,7 +158,7 @@ test('Banana short U uses 20 tears once, mirrors hits, slows movement, and consu
     const hits = bananaStep(state, 15).filter(event => event.kind === 'hit');
     assert.equal(hits.length, 1);
     assert.equal(hits[0].facing, f.facing);
-    assert.equal(tears(f), 40);
+    assert.equal(tears(f), 44);
     assert.equal(f.energy, 12);
     assert.equal(tears(target), 65);
     assert.equal(target.energy, 18);
@@ -164,7 +170,7 @@ test('Banana short U uses 20 tears once, mirrors hits, slows movement, and consu
     assert.ok(Math.abs(Math.abs(target.x - x) - banana.run * .55) < 1e-9);
     bananaStep(state, 30);
     assert.equal(f.attack, null);
-    assert.equal(tears(f), 40);
+    assert.equal(tears(f), 44);
   }
 });
 
@@ -208,7 +214,7 @@ test('Banana earns energy for each damaging U pulse, with no award on block or w
     else assert.equal(hits.length, 0);
     if (mode === 'block') assert.ok(events.some(event => event.kind === 'block'));
     assert.equal(f.energy, hits.length * 12);
-    assert.ok(tears(f) <= 40);
+    assert.ok(tears(f) <= 44);
   }
 });
 
@@ -219,7 +225,7 @@ test('Banana sustained U drains 10 per second, moves at reduced speed, and drops
   bananaStep(state, spray.startup + spray.active - 1, [hold('B'), NEUTRAL]);
   const start = f.x;
   const events = bananaStep(state, 60, [hold('B', ['dash'], 1), NEUTRAL]);
-  assert.equal(tears(f), 30);
+  assert.equal(tears(f), 34);
   assert.equal(f.attack.sustainedFrames, 60);
   assert.ok(Math.abs(f.x - start - banana.run * .45 * 60) < 1e-8);
   assert.equal(events.some(event => event.kind === 'dash'), false);
@@ -233,7 +239,7 @@ test('Banana sustained U drains 10 per second, moves at reduced speed, and drops
 test('Holding U through depletion forces recovery and does not automatically recast', () => {
   const state = begin(bananaConfig), [f] = state.fighters;
   const spray = bananaMove(bananaActionIds.pressure);
-  setTears(f, 21);
+  setTears(f, 17);
   step(state, [hold('B', ['B']), NEUTRAL], bananaConfig);
   bananaStep(state, spray.startup + spray.active + 4, [hold('B'), NEUTRAL]);
   assert.ok(tears(f) > 0);
@@ -308,7 +314,7 @@ test('A direct air water ball detonates before reaching the floor and applies da
 });
 
 test('ground and air U report their own costs, and air J works at zero tears', () => {
-  for (const [air, cost] of [[true, 10], [false, 20]]) {
+  for (const [air, cost] of [[true, 10], [false, 16]]) {
     const state = begin(bananaConfig), [f] = state.fighters;
     setTears(f, cost - 1);
     if (air) Object.assign(f, { ground: null, y: f.y - 80 });
@@ -337,20 +343,21 @@ test('Banana gains tears and energy together and an underfunded ultimate does no
   assert.equal(preEvents.some(event => event.kind === 'wave-windup'), false);
   assert.equal(f.attack, null);
   f.joAwakened = true;
+  f.energy = 2 * ENERGY_PER_STOCK - 1;
   const events = step(state, [input(['ULT']), NEUTRAL], bananaConfig);
-  assert.equal(events.find(event => event.kind === 'ultimate-no-energy')?.amount, MAX_ENERGY);
+  assert.equal(events.find(event => event.kind === 'ultimate-no-energy')?.amount, 2 * ENERGY_PER_STOCK);
   bananaStep(state, 10, [hold('C'), NEUTRAL]);
   assert.equal(f.attack, null);
-  assert.equal(f.energy, MAX_ENERGY - 1);
+  assert.equal(f.energy, 2 * ENERGY_PER_STOCK - 1);
   assert.equal(tears(f), 68);
   assert.equal(state.cutIn, undefined);
 });
 
-test('neutral I can replenish tears at full meter and an underfunded S+O does not start crying', () => {
+test('neutral I replenishes tears and an underfunded O does not start crying', () => {
   const state = begin(bananaConfig);
   const cat = state.fighters[0];
   cat.energy = MAX_ENERGY - 1;
-  const refused = step(state, [input(['ULT'], 0, 1), NEUTRAL], bananaConfig);
+  const refused = step(state, [input(['ULT']), NEUTRAL], bananaConfig);
   assert.ok(refused.some(event => event.kind === 'ultimate-no-energy'));
   assert.equal(cat.attack, null);
   cat.energy = MAX_ENERGY;
@@ -362,7 +369,7 @@ test('neutral I can replenish tears at full meter and an underfunded S+O does no
   assert.equal(cat.energy, MAX_ENERGY);
 });
 
-test('Banana triggers JO awakening ONLY with S+O at 3 bars, NOT I, J, or neutral O, unlocks 5A JO combo and blocks repeat S+O', () => {
+test('Banana triggers JO awakening ONLY with O (ULT) at 3 bars, NOT J or I, and unlocks 5A JO combo', () => {
   const guardState = begin(bananaConfig);
   guardState.fighters[0].energy = MAX_ENERGY;
   closeDistance(guardState);
@@ -372,23 +379,17 @@ test('Banana triggers JO awakening ONLY with S+O at 3 bars, NOT I, J, or neutral
 
   const cryState = begin(bananaConfig);
   cryState.fighters[0].energy = MAX_ENERGY;
-  step(cryState, [hold('C', ['C']), NEUTRAL], bananaConfig);
+  step(cryState, [input(['C']), NEUTRAL], bananaConfig);
   assert.equal(cryState.fighters[0].attack?.id, bananaActionIds.recharge);
-  assert.equal(cryState.fighters[0].energy, MAX_ENERGY);
   assert.equal(cryState.fighters[0].joAwakened, undefined);
-
-  const ultState = begin(bananaConfig);
-  ultState.fighters[0].energy = MAX_ENERGY;
-  step(ultState, [input(['ULT']), NEUTRAL], bananaConfig);
-  assert.equal(ultState.fighters[0].attack?.id, bananaActionIds.wave);
-  assert.equal(ultState.fighters[0].joAwakened, undefined);
+  assert.equal(cryState.cutIn, undefined);
 
   for (const source of [0, 1]) {
     const state = begin(bananaConfig), f = state.fighters[source], target = state.fighters[1 - source];
     closeDistance(state);
     f.energy = MAX_ENERGY;
     const commands = [NEUTRAL, NEUTRAL];
-    commands[source] = input(['ULT'], 0, 1);
+    commands[source] = input(['ULT']);
     const awaken = bananaMove(bananaActionIds.joAwaken);
     assert.equal(step(state, commands, bananaConfig)[0]?.kind, 'wave-windup');
     assert.equal(f.energy, 0);
@@ -401,14 +402,6 @@ test('Banana triggers JO awakening ONLY with S+O at 3 bars, NOT I, J, or neutral
     assert.equal(shatterEvents.some(e => e.kind === 'jo-shatter' && e.source === source), true);
     assert.equal(state.cutIn, undefined);
     assert.equal(f.attack, null);
-
-    // Repeat S+O once already awakened is unbound and does not spend energy.
-    f.energy = MAX_ENERGY;
-    const repeatEvents = step(state, commands, bananaConfig);
-    assert.equal(repeatEvents.some(e => e.ultimateReason === 'unbound'), true);
-    assert.equal(f.energy, MAX_ENERGY);
-    assert.equal(f.attack, null);
-    f.energy = 0;
 
     // Now test the 5-hit JO combo: 1A -> 2A -> 3A (pounce behind) -> 4A (uppercut) -> 5A (Ora barrage + finisher).
     closeDistance(state);
@@ -602,7 +595,7 @@ test('JO Banana up+J rises into Star Platinum Shoryuken, down+J slides with Star
   step(state, [input(['A'], 0, 1), NEUTRAL], bananaConfig);
   assert.equal(f.attack.id, bananaActionIds.joSlide);
   const slideEvents = bananaStep(state, 22);
-  assert.ok(f.x - startX >= 200);
+  assert.ok(f.x - startX >= 24);
   assert.equal(slideEvents.some(e => e.kind === 'hit' && e.actionId === bananaActionIds.joSlide), true);
 
   bananaStep(state, 30);
@@ -725,12 +718,12 @@ test('JO Banana Killer Queen orb does not U-turn backward once behind the oppone
   assert.ok(state.projectiles[0].vx > 0);
 });
 
-test('JO Banana 3-bar ULT activates The World time stop, warps, flicks, and launches enemy on release', () => {
+test('JO Banana 2-bar ULT activates The World time stop in range, warps, flicks, and launches enemy on release', () => {
   const state = begin(bananaConfig);
   const [f, target] = state.fighters;
   f.joAwakened = true;
-  f.energy = MAX_ENERGY;
-  target.x = f.x + 520;
+  f.energy = 2 * ENERGY_PER_STOCK;
+  target.x = f.x + 320;
   const startRemaining = state.remaining;
 
   // Trigger The World via ULT.
@@ -741,29 +734,29 @@ test('JO Banana 3-bar ULT activates The World time stop, warps, flicks, and laun
 
   // Opponent input is frozen during time stop and round timer pauses.
   const oppStartX = target.x;
-  bananaStep(state, 89, [NEUTRAL, input([], 1)]);
+  bananaStep(state, 41, [NEUTRAL, input([], 1)]);
   assert.equal(target.x, oppStartX);
   assert.equal(state.remaining, startRemaining);
 
-  // Frame 90: Banana Cat warps beside the frozen enemy.
+  // Frame 42: Banana Cat warps beside the frozen enemy.
   const warpEvents = bananaStep(state, 1);
   assert.equal(warpEvents.some(e => e.kind === 'time-stop-warp'), true);
   assert.ok(Math.abs(f.x - target.x) <= 70);
 
-  // Frame 135: Stand rush begins; barrage pulses fire while enemy stays frozen until release.
-  const flickEvents = bananaStep(state, 45);
+  // Frame 72: Stand rush begins; barrage pulses fire while enemy stays frozen until release.
+  const flickEvents = bananaStep(state, 30);
   assert.equal(flickEvents.some(e => e.kind === 'time-stop-flick'), true);
   assert.equal(target.hp, 1000);
   assert.equal(target.x, oppStartX);
 
-  // Frame 246 (4.1s): Barrage & finisher pulses land visually, then time resumes and enemy takes 260 damage & flies away!
-  const relEvents = bananaStep(state, 111);
+  // Frame 144 (2.4s): Barrage & finisher pulses land visually, then time resumes and enemy takes 275 damage & flies away!
+  const relEvents = bananaStep(state, 72);
   assert.equal(relEvents.some(e => e.kind === 'time-stop-hit'), true);
   assert.equal(relEvents.some(e => e.kind === 'time-stop-hit' && e.heavy === true), true);
   assert.equal(relEvents.some(e => e.kind === 'time-stop-release'), true);
   assert.equal(relEvents.some(e => e.kind === 'hit' && e.actionId === bananaActionIds.theWorld), true);
   assert.equal(state.timeStop, undefined);
-  assert.equal(target.hp, 1000 - 260);
+  assert.equal(target.hp, 1000 - 275);
   assert.ok(target.vy < 0);
   assert.equal(target.recovery?.phase, 'fall');
 });
@@ -781,22 +774,20 @@ test('The initial wave windup can be interrupted before the cut-in', () => {
   assert.equal(state.projectiles.length, 0);
 });
 
-test('Banana can go directly from crying into S+O awakening and gets a ground requirement in the air', () => {
+test('Banana can go directly from crying into O awakening and gets a ground requirement in the air', () => {
   const state = begin(bananaConfig), [f] = state.fighters;
-  f.energy = MAX_ENERGY - 1;
   step(state, [hold('C', ['C']), NEUTRAL], bananaConfig);
-  assert.equal(f.attack.id, bananaActionIds.recharge);
   bananaStep(state, 2, [hold('C'), NEUTRAL]);
-  assert.equal(f.energy, MAX_ENERGY);
+  f.energy = MAX_ENERGY;
   bananaStep(state, 1);
-  const events = step(state, [input(['ULT'], 0, 1), NEUTRAL], bananaConfig);
+  const events = step(state, [input(['ULT']), NEUTRAL], bananaConfig);
   assert.equal(events[0]?.kind, 'wave-windup');
   assert.equal(f.energy, 0);
 
   const air = begin(bananaConfig), [airFighter] = air.fighters;
   airFighter.energy = MAX_ENERGY;
   step(air, [input(['jump']), NEUTRAL], bananaConfig);
-  const refused = step(air, [input(['ULT'], 0, 1), NEUTRAL], bananaConfig);
+  const refused = step(air, [input(['ULT']), NEUTRAL], bananaConfig);
   assert.equal(refused.find(event => event.kind === 'wave-unavailable')?.requirement, 'ground');
   assert.equal(air.cutIn, undefined);
   assert.equal(airFighter.energy, MAX_ENERGY);
@@ -955,7 +946,7 @@ test('Gaga up + J rushes forward before launching, with no damage during the rus
   assert.equal(defender.vy, -14);
 });
 
-test('Gaga down + J exits guard and slides 784 units in either facing direction', () => {
+test('Gaga down + J exits guard and slides 170 units in either facing direction', () => {
   for (const direction of [-1, 1]) {
     const state = begin(gagaConfig);
     const [attacker, defender] = state.fighters;
@@ -967,7 +958,7 @@ test('Gaga down + J exits guard and slides 784 units in either facing direction'
     assert.equal(attacker.attack.id, gagaActionIds.slide);
     assert.equal(attacker.guarding, false);
     stepFor(state, 38, [NEUTRAL, NEUTRAL], gagaConfig);
-    assert.equal(attacker.x, 1900 + 784 * direction);
+    assert.equal(attacker.x, 1900 + 170 * direction);
     assert.equal(defender.hp, 1000);
   }
 });
@@ -996,7 +987,7 @@ test('Gaga platform drop wins over a simultaneous or slightly earlier slide', ()
   const platform = gagaConfig.arena.platforms[0];
   Object.assign(fighter, { ground: platform.id, y: platform.y, x: platform.left + 300 });
   step(state, [input(['A'], 0, 1), NEUTRAL], gagaConfig);
-  stepFor(state, 11, [NEUTRAL, NEUTRAL], gagaConfig);
+  stepFor(state, 13, [NEUTRAL, NEUTRAL], gagaConfig);
   const events = step(state, [input(['jump'], 0, 1), NEUTRAL], gagaConfig);
   assert.ok(!events.some(event => event.kind === 'drop'));
   assert.equal(fighter.attack.id, gagaActionIds.slide);
@@ -1006,10 +997,10 @@ test('Gaga can hit a distant target once during the long slide and stays inside 
   const state = begin(gagaConfig);
   const [attacker, defender] = state.fighters;
   defender.x = gagaConfig.arena.right;
-  attacker.x = defender.x - 420;
+  attacker.x = defender.x - 150;
   step(state, [input(['A'], 0, 1), NEUTRAL], gagaConfig);
   const hits = stepFor(state, 65, [NEUTRAL, NEUTRAL], gagaConfig).filter(event => event.kind === 'hit');
-  assert.deepEqual(hits.map(event => event.amount), [130]);
+  assert.deepEqual(hits.map(event => event.amount), [105]);
   assert.equal(defender.x, gagaConfig.arena.right);
   assert.ok(attacker.x < defender.x);
 });
@@ -1086,11 +1077,11 @@ test('Gaga equips ranged Grand Vision sword wave U, remote shatter/spire up+B, a
   assert.equal(attacker.attack.id, gagaActionIds.airThrow);
 });
 
-test('Gaga down+B Xiranite dome parries frontal attacks and bursts liquid spikes', () => {
+test('Gaga down+C Xiranite dome parries frontal attacks and bursts liquid spikes', () => {
   const state = begin(gagaConfig);
   const [defender, attacker] = state.fighters;
   closeDistance(state);
-  step(state, [input(['B'], 0, 1), input(['A'])], gagaConfig);
+  step(state, [input(['C'], 0, 1), input(['A'])], gagaConfig);
   assert.equal(defender.attack.id, gagaActionIds.xiraniteGuard);
   const events = stepFor(state, 20, [NEUTRAL, NEUTRAL], gagaConfig);
   assert.equal(events.some(e => e.kind === 'parry' && e.source === 0), true);
@@ -1142,28 +1133,23 @@ test('Gaga up+C plants a power pylon field that doubles friendly turret attack s
   assert.equal(expireEvents.filter(e => e.kind === 'turret-fire' && e.turretKind === 'bolt').length, 1);
 });
 
-test('Gaga selects back+U ground throw, U air throw and J air strike at 0 energy', () => {
+test('Gaga selects down+U ground throw, U air throw and J air strike at 0 energy', () => {
   for (const [key, air, x, actionId] of [
-    ['B', false, -1, gagaActionIds.groundThrow], ['B', true, 0, gagaActionIds.airThrow],
+    ['B', false, 0, gagaActionIds.groundThrow], ['B', true, 0, gagaActionIds.airThrow],
     ['A', true, 0, gagaActionIds.airStrike]
   ]) {
     const state = begin(gagaConfig);
     if (air) step(state, [input(['jump']), NEUTRAL], gagaConfig);
-    else {
-      step(state, [input([], x), NEUTRAL], gagaConfig);
-      assert.equal(state.fighters[0].facing, x);
-    }
-    step(state, [input([key], x), NEUTRAL], gagaConfig);
+    step(state, [input([key], x, actionId === gagaActionIds.groundThrow ? 1 : 0), NEUTRAL], gagaConfig);
     assert.equal(state.fighters[0].attack.id, actionId);
     assert.equal(state.fighters[0].energy, 0);
-    assert.equal(state.fighters[0].facing, 1);
   }
 });
 
 test('a downward direction keeps C on its own skill even with three full stocks', () => {
   for (const [definition, skill, cost] of [
     [banana, bananaActionIds.recharge, 0],
-    [gaga, gagaActionIds.turret, 0]
+    [gaga, gagaActionIds.xiraniteGuard, 0]
   ]) {
     for (const source of [0, 1]) {
       const settings = { ...config, fighters: [definition, definition] };
@@ -1435,7 +1421,7 @@ test('Gaga spends no energy and the box rises, falls, hits only once and builds 
   assert.equal(land.length, 1);
   assert.equal(land[0].y, settings.arena.floor);
   assert.equal(state.turrets.bolt.x, land[0].x);
-  assert.equal(state.turrets.bolt.hp, 2);
+  assert.equal(state.turrets.bolt.hp, 90);
   assert.equal(state.projectiles.length, 0);
 });
 
@@ -1448,7 +1434,7 @@ test('a landed box replaces the old tower, builds in 20 ticks and fires a fixed 
   const first = castToLanding(state, settings);
   assert.equal(first.filter(event => event.kind === 'turret-land').length, 1);
   const old = state.turrets.bolt;
-  stepFor(state, 17, [NEUTRAL, NEUTRAL], settings);
+  stepFor(state, 180, [NEUTRAL, NEUTRAL], settings);
   attacker.x += 90;
   const second = castToLanding(state, settings);
   assert.deepEqual(second.filter(event => event.kind === 'turret-burst' || event.kind === 'turret-land').map(event => event.kind),
@@ -1472,14 +1458,14 @@ test('a landed box replaces the old tower, builds in 20 ticks and fires a fixed 
   assert.equal(state.turrets.bolt, null);
 });
 
-test('two distinct enemy attacks destroy a turret, with no duplicate hits on active frames', () => {
+test('two distinct enemy attacks destroy a turret by HP, with no duplicate hits on active frames', () => {
   const state = begin(gagaConfig);
   const [owner, enemy] = state.fighters;
   [owner.x, enemy.x] = [650, 900];
-  state.turrets.bolt = { kind: 'bolt', owner: 0, x: 840, y: gagaConfig.arena.floor, facing: 1, age: 20, hp: 2 };
+  state.turrets.bolt = { kind: 'bolt', owner: 0, x: 840, y: gagaConfig.arena.floor, facing: 1, age: 20, hp: 150, maxHp: 150 };
   step(state, [NEUTRAL, input(['A'])], gagaConfig);
   stepFor(state, 24, [NEUTRAL, NEUTRAL], gagaConfig);
-  assert.equal(state.turrets.bolt.hp, 1);
+  assert.equal(state.turrets.bolt.hp, 60);
   step(state, [NEUTRAL, input(['A'])], gagaConfig);
   const events = stepFor(state, 12, [NEUTRAL, NEUTRAL], gagaConfig);
   assert.equal(events.filter(event => event.kind === 'turret-burst').length, 1);
@@ -1614,10 +1600,12 @@ test('Gaga restarts the forward walk cycle when turning around', () => {
     [attacker.x, defender.x] = [900, 900 + facing * 320];
     stepFor(state, 4, [input([], facing), NEUTRAL], gagaConfig);
     assert.equal(attacker.facing, facing);
-    assert.deepEqual(attacker.walk, { direction: 'forward', distance: gaga.run * 4 });
+    assert.equal(attacker.walk.direction, 'forward');
+    assert.ok(Math.abs(attacker.walk.distance - gaga.run * 4) < 1e-9);
     stepFor(state, 3, [input([], -facing), NEUTRAL], gagaConfig);
     assert.equal(attacker.facing, -facing);
-    assert.deepEqual(attacker.walk, { direction: 'forward', distance: gaga.run * 3 });
+    assert.equal(attacker.walk.direction, 'forward');
+    assert.ok(Math.abs(attacker.walk.distance - gaga.run * 3) < 1e-9);
     step(state, [NEUTRAL, NEUTRAL], gagaConfig);
     assert.equal(attacker.walk, undefined);
     assert.equal(attacker.facing, -facing);
@@ -1664,10 +1652,10 @@ test('Gaga contact sound and sparks use the resolved move and separate guard fro
       const target = blocking ? input([], 0, 1) : NEUTRAL;
       step(state, [input(['A'], 0, direction), target], gagaConfig);
       const events = stepFor(state, 20, [NEUTRAL, target], gagaConfig);
-      const contact = events.find(event => event.kind === (blocking ? 'block' : 'hit'));
-      assert.equal(gagaContact(contact, gagaConfig.fighters), blocking ? 'guard' : cue);
+      const contact = events.find(event => event.kind === (blocking && direction !== 1 ? 'block' : 'hit'));
+      assert.equal(gagaContact(contact, gagaConfig.fighters), blocking && direction !== 1 ? 'guard' : cue);
       assert.equal(contact.facing, 1);
-      if (blocking) assert.equal(state.fighters[1].reaction, undefined);
+      if (blocking && direction !== 1) assert.equal(state.fighters[1].reaction, undefined);
     }
   }
 });
@@ -1752,5 +1740,41 @@ test('Gaga’s turret crate lands on either moving deck and the built turret rid
     assert.equal(turret.x - moved.left, offset);
     assert.equal(turret.y, moved.y);
     assert.ok(turret.age > 20);
+  }
+});
+
+test('Banana can connect a normal combo from farther away while spray stays bounded', () => {
+  for (const source of [0, 1]) {
+    const state = begin(bananaConfig);
+    const [attacker, target] = [state.fighters[source], state.fighters[1 - source]];
+    attacker.x = 1800; target.x = 1800 + (source === 0 ? 170 : -170);
+    attacker.facing = source === 0 ? 1 : -1;
+    target.facing = -attacker.facing;
+    const frames = [NEUTRAL, NEUTRAL];
+    frames[source] = input(['A', 'A', 'A', 'A']);
+    const events = [...step(state, frames, bananaConfig), ...bananaStep(state, 150)];
+    assert.deepEqual(events.filter(event => event.kind === 'hit').map(event => event.actionId),
+      [bananaActionIds.jab, bananaActionIds.backhand, bananaActionIds.headbutt, bananaActionIds.cry]);
+  }
+  for (const [distance, shouldHit] of [[470, true], [540, false]]) {
+    const state = begin(bananaConfig), [attacker, target] = state.fighters;
+    attacker.x = 1800; target.x = attacker.x + distance;
+    const events = [...step(state, [input(['B']), NEUTRAL], bananaConfig), ...bananaStep(state, 20)];
+    assert.equal(events.some(event => event.kind === 'hit' && event.actionId === bananaActionIds.pressure), shouldHit);
+  }
+});
+
+
+test('Banana previous first strike misses at 170 while the revised strike connects', () => {
+  const previous = LEGACY_BANANA_SKILLS.usabilityPass;
+  const oldFighter = { ...banana, actions: banana.actions.map(action => action.id === bananaActionIds.jab
+    ? { ...action, hitbox: previous.jabHitbox, advance: previous.jabAdvance, activeAdvance: previous.jabActiveAdvance }
+    : action) };
+  for (const [fighter, expected] of [[oldFighter, false], [banana, true]]) {
+    const settings = { ...bananaConfig, fighters: [fighter, banana] };
+    const state = begin(settings), [attacker, target] = state.fighters;
+    attacker.x = 1800; target.x = 1970;
+    const events = [...step(state, [input(['A']), NEUTRAL], settings), ...bananaStep(state, 30, bananaNeutral, settings)];
+    assert.equal(events.some(event => event.kind === 'hit' && event.actionId === bananaActionIds.jab), expected);
   }
 });

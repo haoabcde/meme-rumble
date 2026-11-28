@@ -19,7 +19,6 @@ import fishSchool from '../../assets/角色/特效/大肥鱼/水鲸鱼群_V3/流
 
 let tornado:any,ultimate:any,water:any;
 const load=(src:string)=>{const im=new Image();im.src=src;return im.decode().then(()=>im)};
-void load(locomotionV25).then(im=>registerLocomotion(im,'whale'));
 
 void Promise.all(Object.entries({portrait,waterWhale,waterParts,runeParts,whaleTurn,whaleLeap,fishSchool,poolParts}).map(async([k,v])=>[k,await load(v)] as const)).then(entries=>{
  const images=Object.fromEntries(entries);water=createWaterRenderer(images,{preview:true});tornado=createUnifiedTornadoRenderer(water.whales[0]);ultimate=createUltimateRenderer(images,water);
@@ -121,6 +120,7 @@ export function drawWhaleEntities(ctx:CanvasRenderingContext2D,state:MatchState,
  }
  for(const seat of [0,1] as const){const f=state.fighters[seat],a=config.fighters[seat].actions.find(a=>a.id===f.attack?.id),age=f.attack?.frame??0;
   if(a&&'whale' in a&&a.whale==='spin'&&age<12)tornado?.formation(ctx,{x:f.x,y:f.y},age,layer);
+  if(a?.id==='whale-whirlwind-dash' && age>=a.startup && age<a.startup+a.active) tornado?.wind(ctx,f.x,f.y,age-a.startup,layer,a.active);
   if(config.fighters[seat].id==='whale')water?.motion(ctx,f,state,a,layer);
   if(layer==='front'&&(f.bindUntil??0)>state.arenaFrame)drawStickyFeet(ctx,f.x,f.y,f.bindUntil!-state.arenaFrame);
  }

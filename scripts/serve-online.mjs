@@ -10,35 +10,18 @@ import { createRelayMatch, stepRelayMatch } from '../dist/core/relay.js';
 import { createMatch, step } from '../dist/core/match.js';
 import { maxPendingPresses, NEUTRAL } from '../dist/core/types.js';
 import { createSiteHandler, isAllowedOrigin } from './static-site.mjs';
+import { packetInput } from './online-input.mjs';
 
 const build = (await readFile(new URL('../dist/online-version.txt', import.meta.url), 'utf8')).trim();
 const fighters = new Map(roster.map(entry => [entry.fighter.id, entry.fighter]));
 const stages = new Map(arenas.map(arena => [arena.id, arena]));
 const acceptedOrigins = new Set((process.env.ONLINE_ORIGINS ?? '').split(',').map(origin => origin.trim()).filter(Boolean));
 const rooms = new Map();
-const controls = new Set(['A', 'B', 'C', 'ULT', 'jump', 'dash']);
-const axis = value => value === -1 || value === 1 ? value : 0;
-const commands = list => Array.isArray(list) ? [...new Set(list.filter(key => controls.has(key)))] : [];
 const send = (socket, message) => {
   if (socket?.readyState !== WebSocket.OPEN) return;
   if (socket.bufferedAmount > 128 * 1024) return socket.close(1008, 'Slow connection');
   socket.send(JSON.stringify(message));
 };
-
-function packetInput(packet) {
-  const x = axis(packet.x);
-  const y = axis(packet.y);
-  const pressed = [];
-  const sampled = [];
-  for (const [index, key] of (Array.isArray(packet.pressed) ? packet.pressed : []).entries()) {
-    if (!controls.has(key)) continue;
-    const stick = Array.isArray(packet.sampled) ? packet.sampled[index] : packet.sampled?.[key];
-    pressed.push(key);
-    sampled.push({ x: axis(stick?.x ?? x), y: axis(stick?.y ?? y) });
-    if (pressed.length === maxPendingPresses) break;
-  }
-  return { x, y, pressed, held: commands(packet.held), sampled };
-}
 
 function endRoom(room, notice) {
   if (!rooms.delete(room.code)) return;

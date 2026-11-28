@@ -11,7 +11,8 @@
     "build:site": "tsc && node scripts/build-site.mjs",
     "preview:site": "node scripts/serve-site.mjs",
     "test": "npm run build && node --test tests/*.test.mjs",
-    "package:characters": "npm run build && node scripts/package-characters.mjs"
+    "package:characters": "npm run build && node scripts/package-characters.mjs",
+    "build:web": "tsc && node scripts/build-web.mjs"
   },
   "devDependencies": {
     "esbuild": "0.25.12",

@@ -573,7 +573,9 @@ test('all fighters can skip an intermediate platform with a second jump on both 
 
           step(state, inputForSeat(seat, jump), settings);
           stepFor(state, 16, undefined, settings);
-          const takeoff = landAfter(state, jump, settings, seat);
+          let takeoff;
+          try { takeoff = landAfter(state, jump, settings, seat); }
+          catch (error) { error.message += ` (${label})`; throw error; }
           assert.deepEqual(takeoff.map(event => event.kind), ['air-jump'], label);
           assert.equal(actor.ground, upper.id, label);
           assert.equal(actor.jumpCount, 0, label);

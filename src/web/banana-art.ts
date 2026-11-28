@@ -1198,7 +1198,7 @@ function drawJoAwakenedBody(ctx: CanvasRenderingContext2D, f: FighterState, acti
     if (action.id === ids.joJab || action.id === ids.jab) {
       if (frame < action.startup) { sheet = joCombatAtlas; cols = 4; cell = 0; }
       else { sheet = joArcadeAtlas; cols = 3; cell = 3; lean = .04; }
-    } else if (action.id === ids.joCross || action.id === ids.backhand) {
+    } else if (action.id === ids.joCross || action.id === ids.joSlide || action.id === ids.backhand) {
       if (frame < action.startup) { sheet = joCombatAtlas; cols = 4; cell = 0; }
       else { sheet = joCombatAtlas; cols = 4; cell = 1; }
     } else if (action.id === ids.joPounce || action.id === ids.headbutt) {
@@ -1217,7 +1217,7 @@ function drawJoAwakenedBody(ctx: CanvasRenderingContext2D, f: FighterState, acti
       else if (frame < 36) { sheet = joCombatAtlas; cols = 4; cell = 0; lean = -.05; }
       else if (frame < 46) { sheet = joCombatAtlas; cols = 4; cell = 5; lean = .05; }
       else { sheet = joArcadeAtlas; cols = 3; cell = 0; }
-    } else if (action.id === ids.slide || action.id === ids.joSlide) {
+    } else if (action.id === ids.slide) {
       if (frame < action.startup) { sheet = joArcadeAtlas; cols = 3; cell = 5; }
       else if (recovery < action.recovery * .65) { sheet = joCombatAtlas; cols = 4; cell = 3; }
       else { sheet = joArcadeAtlas; cols = 3; cell = 0; }
@@ -1272,8 +1272,8 @@ function drawJoAwakenedBody(ctx: CanvasRenderingContext2D, f: FighterState, acti
   const breath = reducedMotion || f.attack || f.guarding ? 0 : Math.sin(tick * .12) * .018;
   ctx.save();
   ctx.shadowBlur = 0;
-  if ((action?.id === ids.slide || action?.id === ids.joSlide) && active) {
-    ctx.fillStyle = action.id === ids.joSlide ? '#fde047b8' : '#c084fc99';
+  if (action?.id === ids.slide && active) {
+    ctx.fillStyle = '#c084fc99';
     ctx.beginPath();
     ctx.ellipse(-24, -2, 82, 5, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -1337,8 +1337,8 @@ export function drawBanana(ctx: CanvasRenderingContext2D, f: FighterState,
     return;
   }
   const frame = f.attack?.frame ?? 0;
-  if (action?.id === ids.wave && action.cutIn &&
-    drawBananaWaveMotion(ctx, frame, action.startup, action.cutIn.at, reducedMotion)) return;
+  if (action?.id === ids.wave &&
+    drawBananaWaveMotion(ctx, frame, action.startup, action.cutIn?.at ?? 8, reducedMotion)) return;
   const recovery = action ? frame - action.startup - action.active : 0;
   const active = Boolean(action && frame >= action.startup && recovery < 0);
   const combatCell = combatCellFor(f, action, frame, recovery);

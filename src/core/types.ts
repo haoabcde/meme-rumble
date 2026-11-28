@@ -1,3 +1,4 @@
+export const MAX_WHALE_MANA = 100;
 import type { EntityDefinition, EntityState } from './entities.js';
 
 export type Impact = 'light' | 'medium' | 'heavy';
@@ -115,6 +116,8 @@ export interface ActionDefinition extends ActionTiming {
   /** Authored whale kit hooks; serialized state, no renderer-side combat logic. */
   whale?: 'rice' | 'rice-up' | 'spin' | 'spin-up' | 'counter' | 'eat' | 'open-source';
   frog?: 'laugh' | 'global' | 'ascend' | 'crouch' | 'burrow' | 'evade';
+  guardBreaker?: boolean;
+  whaleManaCost?: number;
   radial?: boolean;
   chainAfter?: number;
   guardHitsToBreak?: number;
@@ -122,7 +125,7 @@ export interface ActionDefinition extends ActionTiming {
   hitbox: Box;
   summon?: true;
   cutIn?: { at: number; duration: number };
-  timeStop?: { teleportAt: number; flickAt: number; releaseAt: number };
+  timeStop?: { teleportAt: number; flickAt: number; releaseAt: number; range?: number };
   awakenJo?: boolean;
   requiresJo?: boolean;
   joReplacement?: string;
@@ -287,6 +290,7 @@ export interface Command {
 }
 
 export interface Attack {
+  blockedRecovery?: number;
   id: string;
   frame: number;
   cinematicFreezeUntil?: number;
@@ -299,6 +303,9 @@ export interface Attack {
   released?: boolean;
   sustainedFrames?: number;
   hitTurrets?: TurretKind[];
+  hitPylon?: boolean;
+  hitProjectiles?: number[];
+  hitEntities?: number[];
   projectileSpawned?: boolean;
   spawnedEntities?: string[];
   diveCarry?: boolean;
@@ -338,9 +345,14 @@ export interface FighterState {
   /** Empowered dodge presentation follows the real dash endpoint, including walls and platforms. */
   frogDodge?: {tick:number;fromX:number;fromY:number;toX:number;toY:number;arrivedAt?:number};
   frogFollowup?: boolean;
+  bananaWaveCooldownUntil?: number;
+  frogCrouchCooldownUntil?: number;
+  frogGlobalCooldownUntil?: number;
 
   bindUntil?: number;
   guardChain?: { source: number; count: number; until: number };
+  turretCooldownUntil?: Partial<Record<TurretKind, number>>;
+  pylonCooldownUntil?: number;
   jumpCount?: number;
   secondApex?: boolean;
   jumpOriginY?: number;
@@ -353,11 +365,15 @@ export interface FighterState {
   ignorePlatform: string | null;
   hp: number;
   energy: number;
+  cryEnergyRemainder?: number;
   joAwakened?: boolean;
+  joUntil?: number;
   bombMark?: { source: 0 | 1; remaining: number };
   crystalMark?: { source: 0 | 1; remaining: number };
   slow: number;
   tearUnits?: number;
+  whaleMana?: number;
+  whaleManaFeedback?: number;
   walk?: WalkState;
   reaction?: HitReaction;
   guard: number;
@@ -373,7 +389,9 @@ export interface FighterState {
   dash: number;
   /** True through the final tick of dash movement, including hitstop snapshots. */
   dashActive?: boolean;
-  airDashUsed: boolean;
+  airActionUsed: boolean;
+  airJumpUsed?: boolean;
+  airDashUsed?: boolean;
   guarding: boolean;
   /** Undefined when released, zero when held past the window, positive while armed. */
   guardCounterLeft?: number;
@@ -388,6 +406,7 @@ export interface FighterState {
 }
 
 export interface Projectile {
+  id?: number;
   actionId: string;
   source: 0 | 1;
   facing: Side;
@@ -397,10 +416,15 @@ export interface Projectile {
   vx: number;
   vy: number;
   connected: boolean;
+  hp?: number;
+  maxHp?: number;
   boosted?: boolean;
   age?: number;
   locked?: number;
   hitTurrets?: TurretKind[];
+  hitPylon?: boolean;
+  hitProjectiles?: number[];
+  hitEntities?: number[];
 }
 
 export interface Turret {
@@ -410,6 +434,7 @@ export interface Turret {
   y: number;
   age: number;
   hp: number;
+  maxHp?: number;
   facing: Side;
   support?: string;
   charge?: number;
@@ -423,10 +448,12 @@ export interface PowerPylon {
   age: number;
   remaining: number;
   radius: number;
+  hp: number;
+  maxHp: number;
   support?: string;
 }
 
-export type UltimateUnavailable = 'unbound' | 'ground' | 'air' | 'recovery' | 'energy' | 'tears' | 'cinematic' | 'contested';
+export type UltimateUnavailable = 'unbound' | 'ground' | 'air' | 'recovery' | 'energy' | 'tears' | 'mana' | 'cinematic' | 'contested';
 
 export type EventKind = 'swing' | 'ultimate' | 'ultimate-no-energy' | 'ultimate-unavailable' | 'hit' | 'block' | 'parry' | 'break' | 'whiff' | 'dash' | 'dash-no-stamina' | 'jump' | 'air-jump' |
   'skill-unavailable' |
@@ -456,7 +483,7 @@ export interface CombatEvent {
   radius?: number;
   turretKind?: TurretKind;
   surface?: { left: number; right: number };
-  requirement?: 'ground' | 'recovery';
+  requirement?: 'ground' | 'recovery' | 'mana';
   ultimateReason?: UltimateUnavailable;
   chain?: number;
   direction?: Side;
@@ -493,6 +520,7 @@ export interface MatchState {
   timeStop?: TimeStop;
   entities?: EntityState[];
   nextEntityId?: number;
+  nextProjectileId?: number;
   randomState?: number;
 }
 

@@ -188,7 +188,7 @@ test('same-tick contact aliases keep the strongest copy of each sample and kind'
   assert.deepEqual(markers(context), [1, 1, 2, 1]);
 });
 
-test('removed frog up-O is silent while the authored ascension starts its dedicated music', async t => {
+test('frog up-O uses its tactical move while ascension starts its dedicated music', async t => {
   const musicBank = { 'ultimate-bgm': { src: 'open.wav' }, wave: { src: 'active.wav' } };
   const { audio, context } = audioFixture(t, [musicBank, undefined], sources);
   await finishPreload(context);
@@ -203,9 +203,9 @@ test('removed frog up-O is silent while the authored ascension starts its dedica
   };
 
   const { state, events } = start(-1);
-  assert.ok(!events.some(event=>event.kind==='ultimate'));
-  assert.equal(state.fighters[0].energy,300);
-  assert.deepEqual(context.played,[]);
+  assert.ok(events.some(event=>event.kind==='ultimate' && event.actionId==='frog-short-shockwave'));
+  assert.equal(state.fighters[0].energy,200);
+  assert.ok(!context.played.some(source=>source.buffer?.marker===1));
 
   audio.stopAll();
   const offset = context.played.length;
@@ -470,8 +470,8 @@ test('pool sounds follow entity age once through hitstop, ending with a distinct
  const config={fighters:[testFighter,testFighter]},entity={id:7,owner:0,definition:{behavior:'pool'},age:0};
  const state={round:1,phase:'fight',arenaFrame:0,fighters:[{attack:null},{attack:null}],entities:[entity]};
  audio.update(config,state,[]);audio.update(config,state,[]);assert.deepEqual(markers(context),[1]);
- entity.age=35;audio.update(config,state,[]);assert.equal(context.clips.length,1);
- for(let i=0;i<12;i++){entity.age=36+i*7;audio.update(config,state,[]);audio.update(config,state,[]);}
+ entity.age=41;audio.update(config,state,[]);assert.equal(context.clips.length,1);
+ for(let i=0;i<12;i++){entity.age=42+i*7;audio.update(config,state,[]);audio.update(config,state,[]);}
  assert.deepEqual(markers(context),[1,...Array(11).fill(2),3]);
  audio.stopAll();audio.update(config,state,[]);assert.equal(context.clips.length,14);
 });

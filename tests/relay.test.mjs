@@ -258,7 +258,8 @@ test('cross-kit assets clear on handoff and reserve kits and CPU use the active 
   assert.ok(turretEvents.some(event => event.kind === 'turret-fire' && event.source === 0));
   assert.equal(session.state.turrets.bolt.owner, 0);
 
-  stepRelayMatch(session, [NEUTRAL, press('C')]);
+  session.state.randomState = 0x6d2b79f5; // Deterministic successful rice throw.
+  stepRelayMatch(session, [NEUTRAL, press('B')]);
   advanceUntil(session, () => session.state.entities?.some(entity => entity.owner === 1), 30);
   session.state.fighters[0].energy = MAX_ENERGY;
   const summon = stepRelayMatch(session, [press('ULT'), NEUTRAL]);

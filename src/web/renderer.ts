@@ -16,7 +16,7 @@ import { cinematicOwner } from '../core/whale-kit.js';
 import { drawInkBackdrop, drawInkFloor, drawInkMechanism, drawInkScenery, redrawWhenBackdropReady } from './arena-ink.js';
 import { drawIllustratedArena, drawIllustrationPreview, redrawWhenIllustrationReady } from './illustrated-arenas.js';
 import { backgrounds, ringPerformers, drawEngineeringCrate, drawGagaLaunchTrail,
-  drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose,
+  drawGagaPole, drawGrenade, drawThrownPole, drawTurret, drawTurretBolt, gagaActionPose, gagaIdlePose,
   gagaReactionPose, gagaStatePose, motionArt, sprites, type PolePose } from './art.js';
 import { drawBanana, drawBananaJoDashTrail, drawBananaTheWorldStrike, drawBananaWorldStand, type StandLinger } from './banana-art.js';
 import { bananaEffectLife, drawBananaEffect, drawBananaProjectile, drawBananaWave,
@@ -46,6 +46,16 @@ import { drawKnockdownDust, drawKnockdownPose, knockdownPose } from './knockdown
 import { drawWhaleActor, drawWhaleEntities, drawWhaleIntro } from './whale-art.js';
 
 export const seatColors = ['#61d8ff', '#ff849e'];
+
+function drawObjectHealthBar(
+  ctx: CanvasRenderingContext2D, x: number, y: number, hp: number, maxHp: number, color: string, width = 42
+) {
+  const ratio = Math.max(0, Math.min(1, hp / Math.max(1, maxHp)));
+  ctx.fillStyle = '#111533';
+  ctx.fillRect(x - width / 2, y, width, 6);
+  ctx.fillStyle = color;
+  ctx.fillRect(x - width / 2 + 1, y + 1, Math.max(0, Math.round((width - 2) * ratio)), 4);
+}
 const roundEntrances = new Set(['gaga', 'banana']);
 export const openingTicks = (fighters: MatchConfig['fighters']) =>
   fighters.some(fighter => roundEntrances.has(fighter.id)) ? 192 : 120;
@@ -873,18 +883,6 @@ export class Renderer {
     } else {
       ctx.drawImage(this.background, 0, 0, config.arena.width, config.arena.height);
     }
-    const waveLive = state.projectiles.some(p => p.actionId === bananaActionIds.wave) ||
-      state.fighters.some((fighter, seat) => {
-        const move = actionFor(config, state, seat as 0 | 1);
-        return isAttack(move) && move.id === bananaActionIds.wave && Boolean(fighter.attack);
-      });
-    if (waveLive) {
-      ctx.save();
-      ctx.resetTransform();
-      ctx.fillStyle = reducedMotion ? '#0a1f3f44' : '#081b3a6e';
-      ctx.fillRect(0, 0, width, height);
-      ctx.restore();
-    }
     let panel: { x: number; y: number; beat: NonNullable<ReturnType<typeof comicBeat>> } | undefined;
     for (const { event, tier, viewStart } of this.effects) {
       if (!tier) continue;
@@ -952,6 +950,7 @@ export class Renderer {
       const owner = state.fighters[pylon.owner];
       const casterHolding = Boolean(owner.attack?.id === gagaActionIds.overclock && owner.attack.frame < 16);
       drawPowerPylonField(ctx, pylon, state.frame, reducedMotion, casterHolding);
+      drawObjectHealthBar(ctx, pylon.x, pylon.y - 122, pylon.hp, pylon.maxHp, seatColors[pylon.owner], 44);
     }
     for (const turret of Object.values(state.turrets)) {
       if (!turret) continue;
@@ -960,14 +959,7 @@ export class Renderer {
       if (boostPylon) drawTurretSpeedBoost(ctx, boostPylon, turret, state.frame);
       if (turret.age >= turretBuildTicks) {
         const y = turret.y - (turret.kind === 'bolt' ? 142 : 136);
-        for (let i = 0; i < 2; i++) {
-          ctx.fillStyle = '#111533';
-          ctx.fillRect(turret.x - 15 + i * 16, y, 13, 5);
-          if (i < turret.hp) {
-            ctx.fillStyle = seatColors[turret.owner];
-            ctx.fillRect(turret.x - 14 + i * 16, y + 1, 11, 3);
-          }
-        }
+        drawObjectHealthBar(ctx, turret.x, y, turret.hp, turret.maxHp ?? 90, seatColors[turret.owner], 44);
       }
     }
     drawWhaleEntities(ctx, state, config, 'back', reducedMotion ? 0 : presentationFraction);
@@ -1013,8 +1005,10 @@ export class Renderer {
         ? { direction: 'forward' as const, distance: gagaIntro.travelled(introFrame) } : f.walk;
       const statePose = isGaga && !hurtPose && !gagaPose && f.hp && !f.hitstun && !f.guardBreak && !f.recovery
         ? gagaStatePose(f, canWalk ? gait?.distance : undefined) : undefined;
-      const drawnPose = (performing[seat] ? gagaIntro.pose(introFrame) : undefined) ?? hurtPose ?? gagaPose ?? statePose;
-      const walkPose = canWalk && !drawnPose ? walk.sample(gait, motionFrames) : undefined;
+      const idlePose = isGaga && f.ground && f.hp && !move && !gait && !f.dash && !f.guarding &&
+        !f.hitstun && !f.blockstun && !f.guardBreak && !f.recovery ? gagaIdlePose() : undefined;
+      const drawnPose = (performing[seat] ? gagaIntro.pose(introFrame) : undefined) ?? hurtPose ?? gagaPose ?? statePose ?? idlePose;
+      const walkPose = canWalk && !drawnPose && gait ? walk.sample(gait, motionFrames) : undefined;
       const fallingPose = knockdownPose(def.id, f, getUp);
       const barrageEnd = ts ? ts.flickAt + Math.max(20, ts.releaseAt - ts.flickAt - 51) : 0;
       const finisherAt = ts ? ts.releaseAt - 26 : 0;
@@ -1034,6 +1028,21 @@ export class Renderer {
       ctx.ellipse(at, ground + 3, f.ground ? 39 + recline * 22 : 23, f.ground ? 8 : 5, 0, 0, Math.PI * 2);
       ctx.fill();
 
+      if (!reducedMotion && (f.dashActive || action?.id === 'whale-whirlwind-dash' || action?.id === 'frog-air-pounce' || action?.id === 'gaga-belly-slide')) {
+        ctx.save(); ctx.globalAlpha = .55; ctx.strokeStyle = color; ctx.lineWidth = 3;
+        for (let i = 0; i < 3; i++) { const yy = f.y - 35 - i * 27; ctx.beginPath(); ctx.moveTo(at - f.facing * (30 + i * 10), yy); ctx.lineTo(at - f.facing * (90 + i * 16), yy); ctx.stroke(); }
+        ctx.restore();
+      }
+      if (action?.guardBreaker && f.attack && phase < action.startup) {
+        const glow = (phase + 1) / action.startup;
+        ctx.save(); ctx.strokeStyle = '#ff673d'; ctx.globalAlpha = .5 + glow * .5; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(at, f.y - height * .58, 24 + glow * 32, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+      }
+      if (f.whaleManaFeedback !== undefined && arenaFrame - f.whaleManaFeedback < 36) {
+        const age = arenaFrame - f.whaleManaFeedback;
+        ctx.save(); ctx.globalAlpha = 1 - age / 36; ctx.fillStyle = '#55cfff'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('+30', at, f.y - height - 16 - age); ctx.restore();
+      }
       ctx.save();
       ctx.translate(at, f.y);
       ctx.scale(fallingPose?.facing ?? (hurtPose && reaction ? reaction.facing : f.facing), 1);
@@ -1256,8 +1265,14 @@ export class Renderer {
         drawBananaProjectile(ctx, projectile, data);
       } else if (data.kind === 'kq-orb') {
         drawKillerQueenOrb(ctx, projectile);
+        if (projectile.hp !== undefined && projectile.maxHp) {
+          drawObjectHealthBar(ctx, projectile.x, projectile.y - 38, projectile.hp, projectile.maxHp, seatColors[projectile.source], 34);
+        }
       } else if (data.kind === 'sheer-heart') {
         drawSheerHeartAttack(ctx, projectile, state.frame);
+        if (projectile.hp !== undefined && projectile.maxHp) {
+          drawObjectHealthBar(ctx, projectile.x, projectile.y - 56, projectile.hp, projectile.maxHp, seatColors[projectile.source], 40);
+        }
       } else if (data.kind === 'wave') {
         drawBananaWave(ctx, projectile, data, reducedMotion);
       } else {
@@ -1276,6 +1291,11 @@ export class Renderer {
       if (!entity.definition.behavior) drawEntity(ctx, entity, debug);
     }
     drawWhaleEntities(ctx, state, config, 'front', reducedMotion ? 0 : presentationFraction);
+    for (const entity of state.entities ?? []) {
+      if (entity.definition.behavior === 'rice' && entity.grounded && entity.hp !== undefined && entity.maxHp) {
+        drawObjectHealthBar(ctx, entity.x, entity.y - 34, entity.hp, entity.maxHp, seatColors[entity.owner], 30);
+      }
+    }
     drawFrogEffects(ctx, state, config, 'front');
     for (const trail of swingTrails) {
       ctx.save();
@@ -1308,7 +1328,7 @@ export class Renderer {
     if (debug || config.fighters[0].id === config.fighters[1].id) for (const seat of [0, 1] as const) {
       const f = state.fighters[seat];
       const def = config.fighters[seat];
-      if (!f.hp) continue;
+      if (!f.hp || (config.fighters[0].id !== config.fighters[1].id && !debug)) continue;
       const center = (standing(seat) - x) * zoom + dx;
       const poseHeight = f.recovery?.phase === 'down' ? heights[seat] * .60 : heights[seat];
       const markerY = (f.y - poseHeight - y) * zoom + dy - 25;

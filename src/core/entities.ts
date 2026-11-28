@@ -41,6 +41,12 @@ export interface EntityState {
   endingAge?: number;
   firstContactAge?: number;
   lastContactAge?: number;
+  hitTurrets?: import('./types.js').TurretKind[];
+  hitPylon?: boolean;
+  hitProjectiles?: number[];
+  hitEntities?: number[];
+  hp?: number;
+  maxHp?: number;
   id: number;
   owner: 0 | 1;
   slot: Slot;

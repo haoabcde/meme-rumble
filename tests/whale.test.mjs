@@ -27,25 +27,25 @@ test('only the final pool wave launches, retaining twelve equal damage contacts 
   for(let frame=0;frame<250&&hits<12;frame++){
    const events=t.tick();
    for(const event of events.filter(e=>e.kind==='hit'&&e.source===source)){
-    hits++;assert.equal(event.amount,35);
+    hits++;assert.equal(event.amount,30);
     if(hits<12){assert.equal(t.target.vy,0);assert.ok(t.target.ground);}
     else{assert.equal(t.target.vy,-18);assert.equal(t.target.ground,null);assert.equal(t.target.poseEvent.kind,'launch');}
    }
   }
-  assert.equal(hits,12);assert.equal(t.target.hp,580);
+  assert.equal(hits,12);assert.equal(t.target.hp,640);
   const y=t.target.y;t.run(10);assert.ok(t.target.y<y);
-  t.run(50);assert.equal(t.target.hp,580);
+  t.run(50);assert.equal(t.target.hp,640);
  }
 });
-test('tail requires two actual blocks before normal third contact; a lone third stage cannot bypass guard',()=>{
+test('tail stages do not force guard break; a lone third stage also cannot bypass guard',()=>{
  for(const source of [0,1]){
   const t=setup(source,110),guard=source===0?[NEUTRAL,input([],0,1)]:[input([],0,1),NEUTRAL];t.run(12,...guard);
   const hits=[];for(const id of ['common-jab','common-sweep','common-finish']){
    t.caster.attack={id,frame:whale.fighter.actions.find(a=>a.id===id).startup-1,connected:false,landed:false};
    const ev=t.run(8,...guard);hits.push(...ev);t.caster.attack=null;
   }
-  assert.equal(hits.filter(e=>e.kind==='block').length,2);assert.equal(hits.filter(e=>e.kind==='break').length,1);
-  assert.deepEqual(hits.filter(e=>e.kind==='hit').map(e=>e.amount),[45]);assert.equal(t.target.hp,955);
+  assert.equal(hits.filter(e=>e.kind==='block').length,3);assert.equal(hits.filter(e=>e.kind==='break').length,0);
+  assert.deepEqual(hits.filter(e=>e.kind==='hit').map(e=>e.amount),[]);assert.equal(t.target.hp,1000);
   const alone=setup(source,110);alone.run(12,...guard);alone.caster.attack={id:'common-finish',frame:7,connected:false,landed:false};
   const ev=alone.run(7,...guard);assert.equal(alone.target.hp,1000);assert.equal(ev.some(e=>e.kind==='break'),false);
  }
@@ -54,16 +54,16 @@ test('rice direct hit damages and roots, floor contact only roots, airborne root
  for(const source of [0,1]){
   const t=setup(source,130);t.press('B');const ev=t.run(70);assert.equal(ev.filter(e=>e.kind==='hit').length,1);assert.equal(t.target.hp,970);
   const floor=setup(source,800);floor.press('B');floor.run(45);const e=floor.state.entities.find(e=>e.definition.behavior==='rice');assert.ok(e.grounded);
-  floor.target.x=e.x;const before=floor.target.hp;floor.tick();assert.equal(floor.target.hp,before);assert.equal(floor.target.bindUntil-floor.state.arenaFrame,72);
+  floor.target.x=e.x;const before=floor.target.hp;floor.tick();assert.equal(floor.target.hp,before);assert.equal(floor.target.bindUntil-floor.state.arenaFrame,48);
   const x=floor.target.x;floor.run(15,source===0?NEUTRAL:input(['jump'],1),source===0?input(['jump'],1):NEUTRAL);assert.equal(floor.target.x,x);
   const air=setup(source,800);air.press('B');air.run(10);const a=air.state.entities[0];air.target.x=a.x;air.target.y=a.y+50;air.target.ground=null;air.target.vy=-12;air.tick();
-  assert.equal(air.target.bindUntil-air.state.arenaFrame,72);const ax=air.target.x;air.run(6,source===0?NEUTRAL:input([],1),source===0?input([],1):NEUTRAL);assert.equal(air.target.x,ax);assert.ok(air.target.vy>0);
+  assert.equal(air.target.bindUntil-air.state.arenaFrame,48);const ax=air.target.x;air.run(6,source===0?NEUTRAL:input([],1),source===0?input([],1):NEUTRAL);assert.equal(air.target.x,ax);assert.ok(air.target.vy>0);
   const miss=setup(source,1300);miss.press('B');miss.run(135);assert.equal(miss.state.entities.length,0);
  }
 });
-test('I tornado travels off stage, up I tornado snapshots target x/caster y',()=>{
+test('down U tornado travels off stage, up I tornado snapshots target x/caster y',()=>{
  for(const source of [0,1]){
-  const t=setup(source,800),x=t.caster.x;t.press('C');t.run(14);const e=t.state.entities.find(e=>e.definition.behavior==='spin');const ex=e.x;t.run(8);assert.equal(e.x-ex,24*e.facing*8);assert.equal(t.caster.x,x);
+  const t=setup(source,800),x=t.caster.x;t.press('B',1);t.run(14);const e=t.state.entities.find(e=>e.definition.behavior==='spin');const ex=e.x;t.run(8);assert.equal(e.x-ex,24*e.facing*8);assert.equal(t.caster.x,x);
   t.run(180);assert.equal(t.state.entities.length,0);
   const up=setup(source,800);up.target.y-=120;up.target.ground=null;up.press('C',-1);up.run(12);const u=up.state.entities.find(e=>e.definition.behavior==='spin-up');assert.equal(u.x,up.target.x);assert.equal(u.y,up.caster.y);const ux=u.x;up.target.x+=200;up.run(20);assert.equal(u.x,ux);assert.equal(u.windTicks,20);up.run(40);assert.equal(up.state.entities.length,0);
  }
@@ -95,7 +95,7 @@ test('basin punishes a frontal hit with damaging knockback but a cross-up hits t
    const t = setup(seat, 95);
    const guard = input([], 0, 1);
    const inputs = seat === 0 ? [guard, NEUTRAL] : [NEUTRAL, guard];
-   t.run(10, ...inputs);
+   t.run(3, ...inputs);
    const facing = t.caster.facing;
    t.target.x = t.caster.x + 85 * facing * (behind ? -1 : 1);
    t.target.facing = behind ? facing : -facing;
@@ -142,32 +142,31 @@ test('rice has no apex: normal descends straight to six body widths, up follows 
   for(let i=0;i<12;i++){up.tick();assert.equal(u.vx,ux);assert.equal(u.vy,uy);}
  }
 });
-test('holding the basin well beyond four ticks counters later melee and remote contacts on either seat',()=>{
+test('holding the basin beyond its 8-frame parry window blocks normally rather than auto-countering',()=>{
  for(const source of [0,1])for(const remote of [false,true]){
   const t=setup(source,remote?240:95),enemy=1-source,guard=source===0?[input([],0,1),NEUTRAL]:[NEUTRAL,input([],0,1)];t.run(60,...guard);
   assert.equal(t.caster.guardCounterLeft,0);
   if(remote){const orb={id:'orb',spawnFrame:0,offset:{x:190,y:-80},velocity:{x:0,y:0},lifetime:10,hitbox:{x:-25,y:-25,w:50,h:50},damage:50,hitstun:10,blockstun:8,guardCost:10,push:2,lift:0,stop:2};
    t.config.fighters[enemy]={...testFighter,actions:[{...testFighter.actions[0],id:'cast',entities:[orb],hitTimeline:[]}]};t.target.attack={id:'cast',frame:-1,connected:false,landed:false};
   }else t.target.attack={id:'test-a',frame:4,connected:false,landed:false};
-  const events=t.tick(...guard);assert.ok(events.some(e=>e.kind==='parry'&&e.source===source));assert.equal(t.caster.hp,1000);assert.equal(t.caster.guard,100);
-  t.run(8,...guard);assert.ok(t.state.entities.some(e=>e.definition.behavior==='counter'));
+  const events=t.tick(...guard);assert.equal(events.some(e=>e.kind==='parry'&&e.source===source),false);assert.ok(events.some(e=>e.kind==='block'));assert.equal(t.caster.hp,1000);assert.ok(t.caster.guard<100);
+  t.run(8,...guard);assert.equal(t.state.entities?.some(e=>e.definition.behavior==='counter')??false,false);
  }
 });
-test('down I retains the approved neutral tornado instead of inventing a shelter', () => {
+test('down I uses the whirlwind dash without inventing a shelter', () => {
  for (const seat of [0, 1]) {
   const t = setup(seat, 900);
   t.press('C', 1);
-  assert.equal(t.caster.attack?.id, 'tornado');
-  t.run(13);
-  assert.ok(t.state.entities.some(entity => entity.definition.behavior === 'spin'));
+  assert.equal(t.caster.attack?.id, 'whale-whirlwind-dash');
+  const before=t.caster.x;t.run(13);assert.ok(Math.abs(t.caster.x-before)>0);
   assert.ok(!whale.fighter.actions.some(action=>action.id==='whale-shelter'));
  }
 });
 
-test('both ranged tornado commands can be cast back-to-back without spending energy',()=>{
+test('both ranged tornado commands consume their respective mana costs',()=>{
  for(const source of [0,1]){
   const t=setup(source,1000);
-  for(const fixed of [false,true,false,true]){const time=t.state.arenaFrame,energy=t.caster.energy;t.press('C',fixed?-1:0);assert.equal(t.caster.attack.id,fixed?'tornado-up':'tornado');assert.equal(t.caster.energy,energy);for(let i=0;i<40&&t.caster.attack;i++)t.tick();assert.equal(t.caster.attack,null);assert.ok(t.state.arenaFrame-time<40);}
+  for(const fixed of [false,true,false,true]){const time=t.state.arenaFrame,energy=t.caster.energy;t.caster.whaleMana=100;t.press(fixed?'C':'B',fixed?-1:1);assert.equal(t.caster.attack.id,fixed?'tornado-up':'tornado');assert.equal(t.caster.energy,energy);assert.ok(t.caster.whaleMana < 100);for(let i=0;i<40&&t.caster.attack;i++)t.tick();assert.equal(t.caster.attack,null);assert.ok(t.state.arenaFrame-time<40);}
  }
 });
 test('whale state, projectile physics, multihits and root restore deterministically; freeze pauses ages',()=>{
@@ -215,14 +214,14 @@ test('cinematic freezes world time, all actors, projectiles, root and timers; re
   t.tick();assert.equal(t.state.arenaFrame,frozen.arenaFrame+1);
  }
 });
-test('pool snapshots enemy feet, telegraphs 36 playable ticks (0.6 seconds), then schedules exactly twelve equal hits',()=>{
+test('pool snapshots enemy feet, telegraphs 42 playable ticks (0.7 seconds), then schedules exactly twelve equal hits',()=>{
  for(const source of [0,1]){
   const t=setup(source,650);t.caster.energy=300;t.press('ULT');assert.equal(t.caster.energy,0);t.run(60);
   const pool=t.state.entities.find(e=>e.definition.behavior==='pool');assert.ok(pool);assert.equal(pool.x,t.target.x);assert.equal(pool.y,t.target.y);
-  const x=pool.x,y=pool.y;t.run(35);assert.equal(t.target.hp,1000);assert.equal(pool.age,35);
-  const first=t.tick();assert.equal(first.filter(e=>e.kind==='hit').length,1);assert.equal(pool.age,36);
+  const x=pool.x,y=pool.y;t.run(41);assert.equal(t.target.hp,1000);assert.equal(pool.age,41);
+  const first=t.tick();assert.equal(first.filter(e=>e.kind==='hit').length,1);assert.equal(pool.age,42);
   const hits=[...first,...t.run(120)].filter(e=>e.kind==='hit'&&e.source===source);
-  assert.equal(hits.length,12);assert.ok(hits.every(e=>e.amount===35));assert.equal(t.target.hp,580);assert.equal(pool.x,x);assert.equal(pool.y,y);
+  assert.equal(hits.length,12);assert.ok(hits.every(e=>e.amount===30));assert.equal(t.target.hp,640);assert.equal(pool.x,x);assert.equal(pool.y,y);
   t.run(80);assert.equal(t.state.entities.length,0);
  }
 });
@@ -232,25 +231,25 @@ test('pool does not chase a moving opponent and missed waves cannot be banked',(
  t.run(45);t.target.x=x;const hits=t.run(60).filter(e=>e.kind==='hit');assert.ok(hits.length>0&&hits.length<12);
  const up=setup(0,650);up.config.arena.platforms=[{id:'deck',name:'deck',tier:1,left:1000,right:1600,y:600}];up.target.y=600;up.target.ground='deck';up.caster.energy=300;up.press('ULT');up.run(60);assert.equal(up.state.entities[0].y,600);
 });
-test('rice binds for 72 playable ticks (1.2 seconds) and can confirm into ultimate without consuming root during the cinematic',()=>{
+test('rice binds for 48 playable ticks (0.8 seconds) and can confirm into ultimate without consuming root during the cinematic',()=>{
  for(const source of [0,1]){
   const t=setup(source,150);t.caster.energy=300;t.press('B');let hit=false;
   for(let i=0;i<25&&!hit;i++)hit=t.tick().some(e=>e.kind==='hit');assert.ok(hit);
-  assert.equal(t.target.bindUntil-t.state.arenaFrame,72);assert.equal(t.caster.attack.landed,true);
+  assert.equal(t.target.bindUntil-t.state.arenaFrame,48);assert.equal(t.caster.attack.landed,true);
   t.press('ULT');while(t.state.freeze)t.tick();t.tick();assert.equal(t.caster.attack.id,'open-source');t.run(60);
-  const e=t.state.entities.find(e=>e.definition.behavior==='pool');assert.ok(e);assert.ok(t.target.bindUntil-t.state.arenaFrame>=71);
-  t.run(35);assert.equal(e.hits,0);assert.ok(t.target.bindUntil>t.state.arenaFrame);
-  const events=t.run(130);assert.equal(events.filter(e=>e.kind==='hit').length,12);assert.equal(t.target.hp,550);
+  const e=t.state.entities.find(e=>e.definition.behavior==='pool');assert.ok(e);assert.ok(t.target.bindUntil-t.state.arenaFrame>=47);
+  t.run(41);assert.equal(e.hits,0);assert.ok(t.target.bindUntil>t.state.arenaFrame);
+  const events=t.run(130);assert.equal(events.filter(e=>e.kind==='hit').length,12);assert.equal(t.target.hp,610);
  }
 });
 
 
-test('rice releases horizontal movement exactly after 72 playable ticks and pauses the bind during hitstop',()=>{
+test('rice releases horizontal movement exactly after 48 playable ticks and pauses the bind during hitstop',()=>{
  for(const source of [0,1]){
   const t=setup(source,130);t.press('B');let hit=false;for(let i=0;i<25&&!hit;i++)hit=t.tick().some(e=>e.kind==='hit');assert.ok(hit);
-  const until=t.target.bindUntil;assert.equal(until-t.state.arenaFrame,72);const x=t.target.x,dir=source===0?1:-1,controls=source===0?[NEUTRAL,input([],dir)]:[input([],dir),NEUTRAL];
-  t.state.freeze=6;t.run(6,...controls);assert.equal(until-t.state.arenaFrame,72);assert.equal(t.target.x,x);
-  t.run(71,...controls);assert.equal(t.target.x,x);assert.equal(until-t.state.arenaFrame,1);
+  const until=t.target.bindUntil;assert.equal(until-t.state.arenaFrame,48);const x=t.target.x,dir=source===0?1:-1,controls=source===0?[NEUTRAL,input([],dir)]:[input([],dir),NEUTRAL];
+  t.state.freeze=6;t.run(6,...controls);assert.equal(until-t.state.arenaFrame,48);assert.equal(t.target.x,x);
+  t.run(47,...controls);assert.equal(t.target.x,x);assert.equal(until-t.state.arenaFrame,1);
   t.tick(...controls);assert.equal(t.state.arenaFrame,until);assert.equal(t.target.x,x+dir*t.config.fighters[1-source].run);
  }
 });

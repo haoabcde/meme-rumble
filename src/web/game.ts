@@ -56,18 +56,24 @@ type MovePrompt = { slot: Slot; direction?: Direction; label: string };
 const commonMovePrompts: MovePrompt[] = [
   { slot: 'A', label: '普攻' },
   { slot: 'A', direction: 'up', label: '地面挑空' },
+  { slot: 'A', direction: 'down', label: '破防' },
   { slot: 'B', label: '进攻技' },
+  { slot: 'B', direction: 'up', label: '上方向技' },
+  { slot: 'B', direction: 'down', label: '下方向技' },
   { slot: 'C', label: '特色技' },
+  { slot: 'C', direction: 'up', label: '上方向特色技' },
+  { slot: 'C', direction: 'down', label: '下方向特色技' },
   { slot: 'ULT', label: '代表大招' },
   { slot: 'ULT', direction: 'up', label: '战术大招' },
 ];
 const thirdUltimate: MovePrompt = { slot: 'ULT', direction: 'down', label: '进阶大招' };
 const ultimatePrompts = [...commonMovePrompts.filter(prompt => prompt.slot === 'ULT'), thirdUltimate];
 const unavailableLabels: Record<UltimateUnavailable, string> = {
-  unbound: '此大招未接入',
+  mana: '蓝量不足',
+  unbound: '此按键组合没有招式',
   ground: '落地后使用',
   air: '空中使用',
-  recovery: '等当前状态结束',
+  recovery: '冷却或收招中',
   energy: '杀气不足',
   tears: '眼泪不足',
   cinematic: '演出期间无法使用',
@@ -82,9 +88,10 @@ const moveUses: Record<string, string> = {
   'banana-cry-recharge': '按住回泪',
   'banana-jo-awaken': '觉醒 JO 形态',
   'banana-the-world': '时停绝杀',
+  'banana-close-burst': '近身解围',
   'open-source': '水潭控场',
   'frog-ascend': '限时强化',
-  'banana-tilting-tear-sea': '远程压场',
+  'banana-tilting-tear-sea': '推墙控场',
   'gaga-dijiang': '召唤俯冲'
 };
 const moveGuideForms: Duo<'base' | 'alt'> = ['base', 'base'];
@@ -511,6 +518,8 @@ function directMoves(fighter: FighterDefinition, move: MovePrompt) {
 function costHint(action: FighterAction) {
   const qi = isAttack(action) ? (action.energyCost ?? 0) : 0;
   const tears = isAttack(action) ? (action.tearCost ?? 0) : 0;
+  const mana = isAttack(action) ? (action.whaleManaCost ?? 0) : 0;
+  if (mana) return mana + ' 蓝';
   const energy = qi ? (qi / ENERGY_PER_STOCK) + ' 格气' : '0 气';
   if (tears) return energy + ' · ' + tears + ' 泪';
   return energy;
@@ -529,6 +538,7 @@ function makeMoveRow(seat: Seat, prompt: MovePrompt, title: string, detail?: str
   const key = document.createElement('kbd');
   const value = document.createElement('dd');
   key.textContent = commandHint(seat, prompt, comboKeys, hold);
+  keyCell.hidden = mode === 'online' && seat !== onlineSeat;
   keyCell.append(key);
   value.append(title);
   if (detail) {
@@ -563,6 +573,15 @@ function bananaAltActions(fighter: FighterDefinition) {
   };
 }
 
+function currentMove(fighter: FighterDefinition, seat: Seat, action: FighterAction) {
+  if (!state.fighters[seat].joAwakened || !isAttack(action)) return action;
+  const opponent = state.fighters[seat === 0 ? 1 : 0];
+  const bombActive = action.joDetonateReplacement && (opponent.bombMark?.source === seat ||
+    state.projectiles.some(projectile => projectile.source === seat && projectile.actionId === action.joReplacement));
+  const replacement = bombActive ? action.joDetonateReplacement : action.joReplacement;
+  return fighter.actions.find(move => move.id === replacement) ?? action;
+}
+
 function renderMoveList(list: HTMLElement, fighter: FighterDefinition, seat: Seat, detailed: boolean, form: 'base' | 'alt' = 'base') {
   if (detailed && form === 'alt' && fighter.id === 'banana') {
     const { joCombo, list: joMoves } = bananaAltActions(fighter);
@@ -589,12 +608,13 @@ function renderMoveList(list: HTMLElement, fighter: FighterDefinition, seat: Sea
     list.replaceChildren(...rows);
     return;
   }
+
   const prompts = directMoves(fighter, thirdUltimate).length > 0
     ? [...commonMovePrompts, thirdUltimate] : commonMovePrompts;
   const visible = detailed ? prompts : prompts.filter(prompt => prompt.slot !== 'A');
   const rows = visible.flatMap(prompt => {
     const moves = directMoves(fighter, prompt);
-    if (!moves.length) return detailed ? [makeMoveRow(seat, prompt, prompt.label + ' · 未接入')] : [];
+    if (!moves.length) return [];
     if (detailed) return moves.map(action => {
       const name = action.name ?? prompt.label;
       const use = moveUses[action.id];
@@ -634,6 +654,7 @@ function renderMoveGuide() {
   for (const seat of seats) {
     const fighter = config.fighters[seat];
     const panel = element('move-guide-panel-' + namesSuffix[seat]);
+    panel.hidden = mode === 'online' && seat !== onlineSeat;
     text(panel.querySelector('h3')!, seatName(seat) + ' · ' + fighter.name);
     const tabs = panel.querySelector<HTMLElement>('.move-form-tabs')!;
     const hasAlt = fighter.id === 'banana' || fighter.id === 'frog';
@@ -660,7 +681,7 @@ function renderMoveGuide() {
     const chain = panel.querySelector('.move-chain')!;
     const attack = commandHint(seat, commonMovePrompts[0]);
     const lift = commandHint(seat, commonMovePrompts[1]);
-    const jump = keyHint(preferences, seat, ['jump']);
+    const jump = keyHint(preferences, mode === 'online' ? 0 : seat, ['jump']);
     const launcher = form === 'alt' && fighter.id === 'banana'
       ? fighter.actions.find(action => action.id === 'banana-jo-lift')
       : directMoves(fighter, commonMovePrompts[1])[0];
@@ -671,7 +692,7 @@ function renderMoveGuide() {
     const starterHint = fighter.id === 'banana'
       ? (form === 'alt'
         ? 'JO 主线：' + commandHint(seat, { slot: 'A', label: '' }) + ' 五连欧拉 → ' + commandHint(seat, { slot: 'B', label: '' }) + ' 自动追踪 → ' + commandHint(seat, { slot: 'C', label: '' }) + ' 炸弹硬币/再按起爆'
-        : '上手主线：' + commandHint(seat, { slot: 'C', label: '' }, [], true) + ' 补泪 → ' + commandHint(seat, { slot: 'B', label: '' }, [], true) + ' 喷射（满 3 格按 ' + commandHint(seat, thirdUltimate) + ' 觉醒）')
+        : '上手主线：' + commandHint(seat, { slot: 'C', label: '' }, [], true) + ' 补泪 → ' + commandHint(seat, { slot: 'B', label: '' }, [], true) + ' 喷射（满 3 格按 ' + commandHint(seat, { slot: 'ULT', label: '' }) + ' 觉醒）')
       : fighter.id === 'gaga'
       ? '上手主线：' + commandHint(seat, { slot: 'C', label: '' }) + ' 放炮台 → 用 ' + commandHint(seat, { slot: 'B', label: '' }) + ' 剑波牵制'
       : fighter.id === 'frog'
@@ -698,6 +719,7 @@ function buildUltimateCues() {
       node.className = 'ultimate-cue';
       label.className = 'cue-label';
       key.textContent = commandHint(seat, prompt);
+      key.hidden = mode === 'online' && seat !== onlineSeat;
       node.append(inkSymbol('ready', 'ready-ink'), key, label);
       return { prompt, node, label };
     });
@@ -735,20 +757,25 @@ function footer() {
     : 'Meme 乱斗 · 抽象之王');
   const playing = screen === 'match';
   element('fight-key-hints').hidden = !playing;
+  element('quick-moves-button').hidden = !playing;
+  if (!playing) { element('quick-moves').hidden = true; element('quick-moves-button').setAttribute('aria-expanded', 'false'); }
   element('footer-detail').hidden = playing;
   if (playing) {
     for (const seat of seats) {
       const node = element('fight-keys-' + namesSuffix[seat]);
       const fighter = config.fighters[seat];
       const hints = commonMovePrompts.filter(prompt =>
-        (prompt.slot === 'B' || prompt.slot === 'C') && directMoves(fighter, prompt).length);
+        (prompt.slot === 'B' || prompt.slot === 'C' || prompt.slot === 'ULT' || (prompt.slot === 'A' && prompt.direction === 'down')) && directMoves(fighter, prompt).some(move => move.posture === 'any' || (state.fighters[seat].ground ? move.posture === 'ground' : move.posture === 'air')));
       node.hidden = !hints.length || (mode === 'online' ? seat !== onlineSeat : seat === 1 && mode !== 'local');
       node.replaceChildren(seatName(seat), ...hints.map(prompt => {
         const hint = document.createElement('span');
         const key = document.createElement('kbd');
         hint.className = 'fight-key';
         key.textContent = commandHint(seat, prompt);
-        hint.append(key, ' ' + prompt.label);
+        let move = directMoves(fighter, prompt).find(item => item.posture === 'any' || (state.fighters[seat].ground ? item.posture === 'ground' : item.posture === 'air'));
+        if (prompt.slot === 'ULT') move = ultimateAvailability(state, config, seat, prompt.direction === 'up' ? 'up' : undefined).action ?? move;
+        else if (move) move = currentMove(fighter, seat, move);
+        hint.append(key, ' ' + (move?.name ?? prompt.label));
         return hint;
       }));
     }
@@ -914,7 +941,7 @@ function renderRoster() {
     text(panels[seat].querySelector('h3')!, entry?.fighter.name ?? '待选后援');
     text(panels[seat].querySelector('.pick-role')!, entry ? (fighterRoles[entry.fighter.id] ?? '') : '从中间名单点击或用方向键选择');
     const moveList = panels[seat].querySelector('dl')!;
-    if (entry) renderMoveList(moveList, entry.fighter, seat, false);
+    if (entry) renderMoveList(moveList, entry.fighter, seat, true);
     else moveList.replaceChildren();
     lineups[seat].hidden = !choosingRelay;
     lineups[seat].setAttribute('aria-label', who + ' 出场顺序');
@@ -1399,6 +1426,7 @@ fillTrainingEnergy.addEventListener('click', () => {
   audio.enableFromGesture();
   canvas.focus();
   state.fighters[0].energy = MAX_ENERGY;
+  if (state.fighters[0].whaleMana !== undefined) state.fighters[0].whaleMana = 100;
   renderHUD();
 });
 element('step-training').addEventListener('click', () => {
@@ -1420,6 +1448,10 @@ function openGuide(moves: boolean) {
   text(element('guide-title'), moves ? '招式表' : '操作说明');
   element('guide-controls').hidden = moves;
   element('guide-moves').hidden = !moves;
+  const guideOne = element('guide-one').parentElement!;
+  const guideTwo = element('guide-two').parentElement!;
+  guideTwo.hidden = mode === 'online';
+  text(guideOne.querySelector('h3')!, mode === 'online' ? 'P' + (onlineSeat + 1) + ' 你的按键' : 'P1 玩家一');
   if (moves) {
     for (const seat of seats) {
       const fighter = config.fighters[seat];
@@ -1558,6 +1590,7 @@ function stickFor(seat: Seat): Stick {
 }
 
 window.addEventListener('keydown', event => {
+  if (event.code === 'Tab' && screen === 'match' && !event.repeat && !guide.open && !settings.dialog.open) { event.preventDefault(); toggleQuickMoves(); return; }
   if (guide.open || settings.dialog.open || onlineRoom.open || event.metaKey || event.ctrlKey || event.altKey) return;
   if (event.code === 'Escape' && !event.repeat) {
     event.preventDefault();
@@ -1667,14 +1700,35 @@ function trainingState(seat: Seat) {
   if (fighter.guarding && fighter.guardCounterLeft) return '防反窗口 · ' + fighter.guardCounterLeft + ' 帧';
   if (fighter.guarding) return '防御';
   if (fighter.ground) return '地面可操作';
-  const definition = config.fighters[seat];
-  return [
-    definition.airJump && fighter.jumpCount !== 2 ? '二段跳可用' : '',
-    definition.airDash && !fighter.airDashUsed ? '空冲可用' : ''
-  ].filter(Boolean).join(' · ') || '空中机动已用';
+  return '二段跳' + (fighter.airJumpUsed ? '已用' : '可用') + ' · 空冲' + (fighter.airDashUsed ? '已用' : '可用');
 }
 
+let lastHintState = '';
+function refreshDynamicMoves() {
+  const signature = mode + ':' + onlineSeat + '|' + config.fighters.map((f, i) => f.id + ':' + Boolean(state.fighters[i].ground) + ':' + Boolean(state.fighters[i].joAwakened) + ':' + frogPowered(state.fighters[i], state) + ':' + Boolean(state.fighters[i === 0 ? 1 : 0].bombMark?.source === i || state.projectiles.some(p => p.source === i && p.actionId === 'banana-kq-bomb'))).join('|');
+  if (signature === lastHintState) return;
+  lastHintState = signature;
+  footer();
+  for (const seat of seats) {
+    const container = element('quick-moves-' + namesSuffix[seat]);
+    const heading = document.createElement('strong');
+    heading.textContent = seatName(seat) + ' · ' + config.fighters[seat].name + (state.fighters[seat].joAwakened ? ' · JO' : frogPowered(state.fighters[seat], state) ? ' · 强化' : '');
+    const list = document.createElement('dl');
+    renderMoveList(list, config.fighters[seat], seat, true, state.fighters[seat].joAwakened || frogPowered(state.fighters[seat], state) ? 'alt' : 'base');
+    container.replaceChildren(heading, list);
+    container.hidden = mode === 'online' ? seat !== onlineSeat : seat === 1 && mode !== 'local';
+  }
+}
+function toggleQuickMoves() {
+  if (screen !== 'match') return;
+  const panel = element('quick-moves');
+  panel.hidden = !panel.hidden;
+  element('quick-moves-button').setAttribute('aria-expanded', String(!panel.hidden));
+  canvas.focus();
+}
+element('quick-moves-button').addEventListener('click', toggleQuickMoves);
 function renderHUD() {
+  refreshDynamicMoves();
   if (screen === 'match' && stage.dataset.phase !== state.phase) stage.dataset.phase = state.phase;
   text(roundLabel, config.training ? '自由训练' : relay ? '第 ' + (relay.generation + 1) + ' 场' : '第 ' + state.round + ' 回合');
   text(timer, config.training ? '∞' : String(Math.ceil(state.remaining / config.rules.ticksPerSecond)).padStart(2, '0'));
@@ -1727,11 +1781,15 @@ function renderHUD() {
     text(guardValues[seat], fighter.guard + ' / ' + rules.guardMax);
     guardValues[seat].hidden = !debug;
     const tearUnits = fighter.tearUnits;
-    tearRows[seat].hidden = tearUnits === undefined;
-    if (tearUnits !== undefined) {
-      const tears = Math.floor(tearUnits / TEAR_UNITS_PER_POINT);
-      setMeter(tearFills[seat], tears, MAX_TEARS);
-      text(tearCounts[seat], tears + ' / ' + MAX_TEARS);
+    const mana = fighter.whaleMana;
+    tearRows[seat].hidden = tearUnits === undefined && mana === undefined;
+    tearRows[seat].dataset.resource = mana === undefined ? 'tears' : 'mana';
+    text(tearRows[seat].querySelector('span')!, mana === undefined ? '眼泪值' : '蓝量');
+    tearFills[seat].parentElement!.setAttribute('aria-label', mana === undefined ? '眼泪值' : '蓝量');
+    if (tearUnits !== undefined || mana !== undefined) {
+      const amount = mana ?? Math.floor(tearUnits! / TEAR_UNITS_PER_POINT);
+      setMeter(tearFills[seat], amount, 100);
+      text(tearCounts[seat], amount + ' / 100');
     }
     energyRows[seat].hidden = fighter.energy === undefined;
     if (fighter.energy !== undefined) {
@@ -1742,10 +1800,10 @@ function renderHUD() {
       text(energyLabels[seat], String(stocks));
     }
     const powered = frogPowered(fighter, state);
-    const jo = Boolean(fighter.joAwakened);
-    formLabels[seat].hidden = !powered && !jo;
+    const joTimed = Boolean(fighter.joAwakened && fighter.joUntil !== undefined && fighter.joUntil > state.arenaFrame);
+    formLabels[seat].hidden = !powered && !joTimed;
     if (powered) text(formLabels[seat], '强化 ' + ((fighter.ascendUntil! - state.arenaFrame) / config.rules.ticksPerSecond).toFixed(1) + ' 秒');
-    else if (jo) text(formLabels[seat], 'JO 化');
+    else if (joTimed) text(formLabels[seat], 'JO ' + ((fighter.joUntil! - state.arenaFrame) / config.rules.ticksPerSecond).toFixed(1) + ' 秒');
     renderUltimateCues(seat);
     const recent = lastChains[seat];
     const hits = state.fighters[seat === 0 ? 1 : 0].combo ||
@@ -1829,7 +1887,7 @@ function renderCombatNotices(events: readonly CombatEvent[]) {
         notices.push(who + (event.amount ? ' 需要 ' + event.amount + ' 点眼泪' : ' 眼泪不足'));
       } else if (event.kind === 'skill-unavailable') {
         const name = config.fighters[event.source].actions.find(action => action.id === event.actionId)?.name ?? '进攻技';
-        const requirement = event.requirement === 'ground' ? '落地后使用' : '等当前状态结束后使用';
+        const requirement = event.requirement === 'ground' ? '落地后使用' : event.requirement === 'mana' ? '蓝量不足，无法使用' : '等当前状态结束后使用';
         notices.push(who + ' ' + requirement + '「' + name + '」');
       } else if (event.ultimateReason) {
         notices.push(who + ' ' + unavailableLabels[event.ultimateReason]);

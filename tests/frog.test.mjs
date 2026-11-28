@@ -33,25 +33,25 @@ test('laugh deals three independent circular hits then launches; out-of-radius e
  for(const source of [0,1]){const t=setup(source,190);t.press('B');const hits=t.run(90).filter(e=>e.kind==='hit'&&e.source===source);assert.deepEqual(hits.map(e=>e.amount),[28,28,44]);assert.equal(t.target.hp,900);assert.equal(t.caster.x,t.config.arena.spawn[source]);}
  const far=setup(0,330);far.press('B');assert.equal(far.run(80).some(e=>e.kind==='hit'),false);
 });
-test('global wave hits once across the complete map and upper platforms, and can recast as soon as recovery ends',()=>{
- for(const source of [0,1]){const t=setup(source,2800);t.target.y=320;t.target.ground='high';t.config.arena.platforms=[{id:'high',name:'high',tier:4,left:t.target.x-120,right:t.target.x+120,y:320}];t.press('B',-1);assert.equal(t.caster.attack.id,'frog-laugh-global');assert.equal(t.run(30).some(e=>e.kind==='hit'),false);
-  const hits=t.run(30).filter(e=>e.kind==='hit');assert.equal(hits.length,1);assert.equal(hits[0].amount,25);
-  t.press('B',-1);assert.equal(t.caster.attack.id,'frog-laugh-global');
-  // The new launch recovery protects the fallen target, but does not add a cast cooldown.
-  Object.assign(t.target,{recovery:null,launched:false,hitstun:0,ground:'high',y:320,vy:0});
-  assert.equal(t.run(60).filter(e=>e.kind==='hit').length,1);
+test('large wave has a bounded range and height, and a 360-tick cooldown',()=>{
+ for(const source of [0,1]){
+  const near=setup(source,400);near.press('B',-1);assert.equal(near.run(60).filter(e=>e.kind==='hit').length,1);
+  const refused=near.press('B',-1);assert.ok(refused.some(e=>e.kind==='skill-unavailable'));
+  near.run(310);near.press('B',-1);assert.equal(near.caster.attack.id,'frog-laugh-global');
+  const far=setup(source,1000);far.press('B',-1);assert.equal(far.run(60).some(e=>e.kind==='hit'),false);
+  const high=setup(source,400);high.target.y=320;high.target.ground='high';high.config.arena.platforms=[{id:'high',name:'high',tier:4,left:high.target.x-120,right:high.target.x+120,y:320}];high.press('B',-1);assert.equal(high.run(60).some(e=>e.kind==='hit'),false);
  }
 });
-test('ascension freezes battle during its cinematic and grants exactly 900 playable ticks without healing',()=>{
+test('ascension freezes battle during its cinematic and grants 660 playable ticks without healing',()=>{
  const t=setup(0,1200);t.caster.energy=300;t.caster.hp=612;t.press('ULT');assert.equal(t.caster.energy,0);const time=t.state.arenaFrame,remaining=t.state.remaining;
  t.run(59,input(['A','jump','dash'],1),input(['A'], -1));assert.equal(t.state.arenaFrame,time);assert.equal(t.state.remaining,remaining);assert.equal(t.caster.hp,612);
  assert.equal(t.caster.ascendVisual,undefined);assert.equal(t.caster.ascendUntil,undefined);
- t.tick();assert.equal(t.caster.attack,null);assert.equal(t.caster.ascendUntil-time,900);assert.equal(t.caster.energy,0);
+ t.tick();assert.equal(t.caster.attack,null);assert.equal(t.caster.ascendUntil-time,660);assert.equal(t.caster.energy,0);
  assert.deepEqual(t.caster.ascendVisual,{tick:time,x:t.caster.x,y:t.caster.y});
- t.run(450);assert.equal(t.caster.energy,0);const before=t.caster.ascendUntil;
+ t.run(330);assert.equal(t.caster.energy,0);const before=t.caster.ascendUntil;
  t.caster.energy=150;t.press('ULT');assert.equal(t.caster.attack,null);assert.equal(t.caster.ascendUntil,before);
  t.state.freeze=8;const age=t.state.arenaFrame,energy=t.caster.energy;t.run(8);assert.equal(t.state.arenaFrame,age);assert.equal(t.caster.energy,energy);
- t.run(449);assert.equal(t.caster.ascendUntil,undefined);assert.equal(t.caster.energy,150);assert.equal(t.caster.hp,612);
+ t.run(329);assert.equal(t.caster.ascendUntil,undefined);assert.equal(t.caster.energy,150);assert.equal(t.caster.hp,612);
 });
 
 test('post-cinematic transformation and cast trails retain their own clocks through hits, hitstop and replay',()=>{
@@ -80,17 +80,16 @@ test('buff expires on time while feather dissolution has an independent paused, 
  const next=setup(0,1200);next.caster.ascendUntil=1;next.tick();next.caster.energy=300;
  next.press('ULT');next.run(60);assert.equal(next.caster.ascendEndVisual,undefined);assert.ok(next.caster.ascendVisual);
 });
-test('angel basics extend horizontal reach another 1.2x, keeping damage and skill one unchanged',()=>{
- const t=setup();t.caster.ascendUntil=900;
- for(const raw of frog.fighter.actions.filter(a=>a.slot==='A')){t.caster.attack={id:raw.id,frame:0,connected:false,landed:false};const a=actionFor(t.config,t.state,0);assert.equal(a.damage,raw.damage*1.5);assert.ok(Math.abs(a.hitbox.w-raw.hitbox.w*1.8)<1e-9);assert.equal(a.hitbox.h,raw.hitbox.h*1.5);}
- t.caster.attack={id:'frog-laugh-global',frame:0,connected:false,landed:false};assert.equal(actionFor(t.config,t.state,0).entities[0].damage,35);
- const near=setup(0,330);near.caster.ascendUntil=900;near.caster.energy=100;near.press('B');const hits=near.run(85).filter(e=>e.kind==='hit');assert.deepEqual(hits.map(e=>e.amount),[39.2,39.2,61.6]);assert.equal(near.target.hp,860);
- // During ascension, confirmed hits do not refill the meter.
+test('angel basics scale reach and damage by 1.25x and do not refill energy while powered',()=>{
+ const t=setup();t.caster.ascendUntil=660;
+ for(const raw of frog.fighter.actions.filter(a=>a.slot==='A')){t.caster.attack={id:raw.id,frame:0,connected:false,landed:false};const a=actionFor(t.config,t.state,0);assert.equal(a.damage,raw.damage*1.25);assert.ok(Math.abs(a.hitbox.w-raw.hitbox.w*1.25)<1e-9);assert.equal(a.hitbox.h,raw.hitbox.h*1.25);}
+ t.caster.attack={id:'frog-laugh-global',frame:0,connected:false,landed:false};assert.equal(actionFor(t.config,t.state,0).entities[0].damage,31.25);
+ const near=setup(0,200);near.caster.ascendUntil=660;near.caster.energy=100;near.press('B');const hits=near.run(85).filter(e=>e.kind==='hit');assert.deepEqual(hits.map(e=>e.amount),[35,35,55]);assert.equal(near.target.hp,875);
  assert.equal(near.caster.energy,100);
 });
 test('extra empowered jab reach actually connects beyond the former range on both facings',()=>{
  for(const seat of [0,1])for(const powered of [false,true]){
-  const t=setup(seat,240);if(powered)t.caster.ascendUntil=900;
+  const t=setup(seat,170);if(powered)t.caster.ascendUntil=660;
   t.caster.attack={id:'common-jab',frame:4,connected:false,landed:false};
   assert.equal(t.tick().some(e=>e.kind==='hit'&&e.source===seat),powered);
  }
@@ -112,15 +111,15 @@ test('only empowered laugh can start in the air; ascension preserves height and 
   let aerialWave=false;for(let i=0;i<22;i++){t.tick();aerialWave ||= (t.state.entities??[]).some(e=>e.definition.behavior==='frog-wave'&&e.y<t.config.arena.floor-65);}
  assert.equal(aerialWave,true);assert.equal(t.caster.frogCasts[0].anchors[0].frame,16);assert.ok(t.caster.frogCasts[0].anchors[0].y<t.config.arena.floor);
   const u=setup(source,1200);u.caster.energy=300;u.press('jump');u.run(5);u.press('ULT');assert.equal(u.caster.attack.id,'frog-ascend');const y=u.caster.y,vy=u.caster.vy,clock=u.state.arenaFrame;
-  u.run(60);assert.equal(u.caster.y,y);assert.equal(u.caster.vy,vy);assert.equal(u.state.arenaFrame,clock);assert.equal(u.caster.ascendUntil-clock,900);
+  u.run(60);assert.equal(u.caster.y,y);assert.equal(u.caster.vy,vy);assert.equal(u.state.arenaFrame,clock);assert.equal(u.caster.ascendUntil-clock,660);
   u.tick();assert.equal(u.caster.ground,null);assert.equal(u.caster.vy,vy+1);
  }
 });
 
-test('empowered laugh reaches 1.4x radius and deals exactly 1.4x damage',()=>{
- const near=setup(0,330);near.caster.ascendUntil=900;near.press('B');const action=actionFor(near.config,near.state,0);assert.equal(action.entities[0].hitbox.w,672);
- assert.deepEqual(near.run(90).filter(e=>e.kind==='hit').map(e=>e.amount),[39.2,39.2,61.6]);
- const far=setup(0,400);far.caster.ascendUntil=900;far.press('B');assert.equal(far.run(90).some(e=>e.kind==='hit'),false);
+test('empowered laugh reaches 1.1x radius and deals 1.25x damage',()=>{
+ const near=setup(0,200);near.caster.ascendUntil=660;near.press('B');const action=actionFor(near.config,near.state,0);assert.ok(Math.abs(action.entities[0].hitbox.w-448.8)<1e-8);
+ assert.deepEqual(near.run(90).filter(e=>e.kind==='hit').map(e=>e.amount),[35,35,55]);
+ const far=setup(0,360);far.caster.ascendUntil=660;far.press('B');assert.equal(far.run(90).some(e=>e.kind==='hit'),false);
 });
 
 test('airborne laugh holds both coordinates through all three waves, then falls; bind and interruption release it',()=>{
@@ -142,22 +141,22 @@ test('airborne laugh holds both coordinates through all three waves, then falls;
  }
 });
 
-test('ascension multiplies controlled ground and aerial travel by 1.5 and restores speed on expiry',()=>{
+test('ascension multiplies controlled ground and aerial travel by 1.25 and restores speed on expiry',()=>{
  for(const source of [0,1])for(const airborne of [false,true]){
   const t=setup(source,1200);if(airborne){t.caster.ground=null;t.caster.y=400;t.caster.vy=-8;}
   const dir=source===0?1:-1,controls=source===0?[input([],dir),NEUTRAL]:[NEUTRAL,input([],dir)],normal=airborne?frog.fighter.airSpeed:frog.fighter.run;
   let x=t.caster.x;t.tick(...controls);assert.equal(Math.abs(t.caster.x-x),normal);
-  t.caster.ascendUntil=t.state.arenaFrame+3;x=t.caster.x;t.tick(...controls);assert.equal(Math.abs(t.caster.x-x),normal*1.5);
+  t.caster.ascendUntil=t.state.arenaFrame+3;x=t.caster.x;t.tick(...controls);assert.equal(Math.abs(t.caster.x-x),normal*1.25);
   t.tick(...controls);x=t.caster.x;t.tick(...controls);assert.equal(Math.abs(t.caster.x-x),normal);
  }
 });
 
-test('angel takes 0.7x actual melee and rice damage on either seat, without healing',()=>{
+test('angel takes 0.88x actual melee and rice damage on either seat, without healing',()=>{
  for(const source of [0,1])for(const projectile of [false,true]){
-  const t=setup(source,projectile?240:95);t.config.fighters[1-source]=whale.fighter;t.caster.ascendUntil=900;t.caster.energy=300;
+  const t=setup(source,projectile?240:95);t.config.fighters[1-source]=whale.fighter;t.caster.ascendUntil=660;t.caster.energy=300;
   const key=projectile?'B':'A',commands=source===0?[NEUTRAL,input([key])]:[input([key]),NEUTRAL];t.tick(...commands);
   const hits=t.run(70).filter(e=>e.kind==='hit'&&e.target===undefined&&e.source===1-source);
-  assert.equal(hits.length,1);assert.equal(hits[0].amount,projectile?21:31.5);assert.ok(Math.abs(t.caster.hp-(1000-hits[0].amount))<1e-9);
+  assert.equal(hits.length,1);assert.equal(hits[0].amount,projectile?26.4:39.6);assert.ok(Math.abs(t.caster.hp-(1000-hits[0].amount))<1e-9);
  }
 });
 
@@ -172,31 +171,33 @@ test('unempowered skill one rejects both airborne variants without delaying a ca
  }
 });
 
-test('held C stays crouched without energy or damage and releases immediately',()=>{
+test('held C stays crouched for up to 36 frames, then enters punishable 14f recovery and cooldown',()=>{
  for(const source of [0,1]){
   const t=setup(source,1200),commands=source===0?[hold(['C']),NEUTRAL]:[NEUTRAL,hold(['C'])];
-  t.tick(...commands);const x=t.caster.x;t.run(180,...(source===0?[hold(),NEUTRAL]:[NEUTRAL,hold()]));
-  assert.equal(t.caster.attack.id,'frog-crouch');assert.equal(t.caster.attack.frame,0);assert.equal(t.caster.x,x);
+  t.tick(...commands);const x=t.caster.x;t.run(20,...(source===0?[hold(),NEUTRAL]:[NEUTRAL,hold()]));
+  assert.equal(t.caster.attack.id,'frog-crouch');assert.equal(t.caster.attack.frame,20);assert.equal(t.caster.x,x);
   assert.equal(t.caster.energy,0);assert.equal(t.target.hp,1000);assert.equal(t.caster.frogWarps,undefined);
-  t.tick();assert.equal(t.caster.attack,null);
+  t.tick();assert.equal(t.caster.attack.id,'frog-crouch');assert.equal(t.caster.attack.frame,39);
+  t.run(13);assert.equal(t.caster.attack,null);
   t.target.x=t.caster.x+(source===0?90:-90);t.target.facing=source===0?-1:1;
   t.tick(...(source===0?[NEUTRAL,input(['A'])]:[input(['A']),NEUTRAL]));t.run(12);
   assert.equal(t.caster.hp,900);assert.equal(t.caster.frogWarps,undefined);
  }
 });
 
-test('crouch evades frontal and rear melee, teleports behind the attacker and gains energy only on a real trigger',()=>{
+test('crouch evades frontal and rear melee during its active window and gains 15 energy only on a real trigger',()=>{
  for(const source of [0,1])for(const rear of [false,true]){
   const t=setup(source,90),side=source===0?1:-1;
   t.tick(...(source===0?[hold(['C']),NEUTRAL]:[NEUTRAL,hold(['C'])]));
+  t.tick(...(source===0?[hold(),NEUTRAL]:[NEUTRAL,hold()]));
   t.caster.facing=rear?side*-1:side;
   t.target.attack={id:'test-a',frame:4,connected:false,landed:false};
   const events=t.tick(...(source===0?[hold(),NEUTRAL]:[NEUTRAL,hold()]));
-  assert.equal(t.caster.hp,1000);assert.equal(t.caster.energy,20);assert.equal(t.target.energy,0);
+  assert.equal(t.caster.hp,1000);assert.equal(t.caster.energy,FROG_RULES.warpGain);assert.equal(t.target.energy,0);
   assert.equal(t.caster.frogWarps.length,1);assert.equal(t.caster.attack.id,'frog-evade');
   assert.ok((t.caster.x-t.target.x)*t.target.facing<0);assert.ok(events.some(e=>e.kind==='parry'&&e.source===source));
   assert.equal(events.some(e=>e.kind==='hit'),false);assert.equal(t.target.attack.landed,false);
-  t.run(30);assert.equal(t.caster.attack,null);assert.equal(t.caster.energy,20);
+  t.run(30);assert.equal(t.caster.attack,null);assert.equal(t.caster.energy,FROG_RULES.warpGain);
  }
 });
 
@@ -205,19 +206,19 @@ test('crouch intercepts real rice projectiles without damage or root, using the 
   const t=setup(source,320);t.config.fighters[1-source]=whale.fighter;
   const attackFacing=t.target.facing;
   const c=source===0?[hold(['C']),input(['B'])]:[input(['B']),hold(['C'])];t.tick(...c);
-  t.run(40,...(source===0?[hold(),NEUTRAL]:[NEUTRAL,hold()]));
-  assert.equal(t.caster.hp,1000);assert.equal(t.caster.bindUntil,undefined);assert.equal(t.caster.energy,20);
+  t.run(35,...(source===0?[hold(),NEUTRAL]:[NEUTRAL,hold()]));
+  assert.equal(t.caster.hp,1000);assert.equal(t.caster.bindUntil,undefined);assert.equal(t.caster.energy,FROG_RULES.warpGain);
   assert.equal(t.caster.frogWarps.length,1);assert.equal(t.state.entities?.some(e=>e.definition.behavior==='rice')??false,false);
   assert.ok((t.caster.frogWarps[0].toX-t.target.x)*attackFacing<0);
  }
 });
 
 test('simultaneous contacts produce one warp and one energy award; stale pre-warp hits are consumed',()=>{
- const t=setup(0,95);t.tick(hold(['C']));t.target.attack={id:'test-a',frame:4,connected:false,landed:false};
+ const t=setup(0,95);t.tick(hold(['C']));t.tick(hold());t.target.attack={id:'test-a',frame:4,connected:false,landed:false};
  const raw=whale.fighter.actions.find(a=>a.id==='whale-rice')??whale.fighter.actions.find(a=>a.whale==='rice');
  const definition={...raw.entities[0],velocity:{x:0,y:0},riceRadial:true};
  t.state.entities=[0,1].map(id=>({id,owner:1,slot:'B',x:t.caster.x,y:t.caster.y-65,vx:0,vy:0,facing:-1,age:0,definition}));
- const ev=t.tick(hold());assert.equal(ev.filter(e=>e.kind==='parry').length,1);assert.equal(t.caster.energy,20);assert.equal(t.caster.hp,1000);assert.equal(t.caster.frogWarps.length,1);assert.equal(t.caster.bindUntil,undefined);
+ const ev=t.tick(hold());assert.equal(ev.filter(e=>e.kind==='parry').length,1);assert.equal(t.caster.energy,FROG_RULES.warpGain);assert.equal(t.caster.hp,1000);assert.equal(t.caster.frogWarps.length,1);assert.equal(t.caster.bindUntil,undefined);
 });
 
 test('up C emerges under the opponent on their support, without damage or energy; short transit is replayable',()=>{
@@ -236,12 +237,12 @@ test('warp destinations respect walls and empty air; empowered warps retain rune
  const t=setup();t.target.x=t.config.arena.right;t.target.facing=-1;warpFrog(t.state,t.config,0,1,'behind');
  assert.ok(t.caster.x<=t.config.arena.right);assert.ok(t.target.x-t.caster.x>=80);
  const a=setup(0,900);a.target.ground=null;a.target.y=350;warpFrog(a.state,a.config,0,1,'burrow');assert.equal(a.caster.y,800);assert.equal(a.caster.ground,'floor');
- const p=setup(0,90);p.caster.ascendUntil=900;p.caster.energy=100;p.tick(hold(['C']));const before=p.caster.energy;
- p.target.attack={id:'test-a',frame:4,connected:false,landed:false};p.tick(hold());assert.equal(p.caster.frogWarps[0].powered,true);assert.equal(p.caster.ascendUntil,900);assert.equal(p.caster.energy,before+FROG_RULES.warpGain);
+ const p=setup(0,90);p.caster.ascendUntil=660;p.caster.energy=100;p.tick(hold(['C']));p.tick(hold());const before=p.caster.energy;
+ p.target.attack={id:'test-a',frame:4,connected:false,landed:false};p.tick(hold());assert.equal(p.caster.frogWarps[0].powered,true);assert.equal(p.caster.ascendUntil,660);assert.equal(p.caster.energy,before+FROG_RULES.warpGain);
 });
 test('burrow seal settles at the real emergence position after body separation, then stays at that landing point',()=>{
  for(const source of [0,1]){
-  const t=setup(source,700);t.caster.ascendUntil=900;t.press('C',-1);
+  const t=setup(source,700);t.caster.ascendUntil=660;t.press('C',-1);
   t.run(6);const w=t.caster.frogWarps[0];
   assert.equal(w.toX,t.caster.x);assert.equal(w.toY,t.caster.y);
   assert.notEqual(w.toX,t.target.x);
@@ -250,7 +251,7 @@ test('burrow seal settles at the real emergence position after body separation, 
 });
 test('only empowered dodge records its real ground/air transit, preserving motion and replay through hitstop',()=>{
  for(const source of [0,1])for(const air of [false,true]){
-  const plain=setup(source,1400),power=setup(source,1400);power.caster.ascendUntil=900;
+  const plain=setup(source,1400),power=setup(source,1400);power.caster.ascendUntil=660;
   if(air)for(const t of [plain,power]){t.caster.y=550;t.caster.ground=null;t.caster.vy=2;}
   plain.press('dash');power.press('dash');assert.equal(plain.caster.frogDodge,undefined);
   assert.ok(power.caster.frogDodge);assert.equal(power.caster.frogDodge.arrivedAt,undefined);
@@ -258,31 +259,32 @@ test('only empowered dodge records its real ground/air transit, preserving motio
   const start=structuredClone(power.caster.frogDodge);
   for(let i=0;i<3;i++){assert.deepEqual(power.tick(),step(clone,[NEUTRAL,NEUTRAL],power.config));assert.deepEqual(power.state,clone);assert.deepEqual(power.caster.frogDodge,start);}
   for(let i=0;i<(air?5:7);i++){plain.tick();assert.deepEqual(power.tick(),step(clone,[NEUTRAL,NEUTRAL],power.config));assert.deepEqual(power.state,clone);}
-  assert.ok(Math.abs(Math.abs(power.caster.x-power.caster.frogDodge.fromX)-2*Math.abs(plain.caster.x-power.caster.frogDodge.fromX))<1e-7);assert.equal(power.caster.y,plain.caster.y);
+  assert.ok(Math.abs(Math.abs(power.caster.x-power.caster.frogDodge.fromX)-FROG_RULES.poweredDashScale*Math.abs(plain.caster.x-power.caster.frogDodge.fromX))<1e-7);assert.equal(power.caster.y,plain.caster.y);
   assert.equal(power.caster.frogDodge.toX,power.caster.x);assert.equal(power.caster.frogDodge.toY,power.caster.y);
   assert.notEqual(power.caster.frogDodge.arrivedAt,undefined);
   assert.equal(power.caster.frogWarps,undefined);assert.equal(power.caster.frogFollowup,undefined);assert.equal(power.caster.frogCasts,undefined);
  }
 });
 test('empowered dodge seals stop at an actual wall and expire on arena time, without automatic attacks',()=>{
- const t=setup(0,1400);t.caster.ascendUntil=900;t.caster.x=t.config.arena.right-10;t.caster.facing=1;
+ const t=setup(0,1400);t.caster.ascendUntil=660;t.caster.x=t.config.arena.right-10;t.caster.facing=1;
  t.tick(input(['dash'],1));t.run(8);const d=t.caster.frogDodge;
  assert.equal(d.toX,t.config.arena.right);assert.equal(d.toX,t.caster.x);
  const arrival=d.arrivedAt;t.run(25);assert.equal(d.toX,t.config.arena.right);assert.equal(d.arrivedAt,arrival);
  assert.equal(t.caster.frogCasts,undefined);assert.equal(t.target.hp,1000);t.run(40);assert.equal(t.caster.frogDodge,undefined);
 });
 
-test('empowered reactive warp automatically casts skill one once after reappearing; proactive warp does not',()=>{
+test('empowered reactive warp does not auto-cast skill one and can be followed up manually',()=>{
  for(const source of [0,1]){
-  const t=setup(source,90);t.caster.ascendUntil=900;
+  const t=setup(source,90);t.caster.ascendUntil=660;
   t.tick(...(source===0?[hold(['C']),NEUTRAL]:[NEUTRAL,hold(['C'])]));
+  t.tick(...(source===0?[hold(),NEUTRAL]:[NEUTRAL,hold()]));
   t.target.attack={id:'test-a',frame:4,connected:false,landed:false};t.tick(...(source===0?[hold(),NEUTRAL]:[NEUTRAL,hold()]));
-  assert.equal(t.caster.frogFollowup,true);assert.equal(t.caster.frogCasts,undefined);
-  const clone=structuredClone(t.state);const hits=[];
-  for(let i=0;i<120;i++){const ev=t.tick();assert.deepEqual(ev,step(clone,[NEUTRAL,NEUTRAL],t.config));assert.deepEqual(t.state,clone);hits.push(...ev.filter(e=>e.kind==='hit'&&e.source===source));}
-  assert.equal(t.caster.frogCasts.filter(c=>c.id==='frog-laugh').length,1);assert.equal(t.caster.frogFollowup,undefined);
-  assert.deepEqual(hits.map(e=>e.amount),[39.2,39.2,61.6]);assert.equal(t.caster.hp,1000);assert.equal(t.target.hp,860);
-  const up=setup(source,700);up.caster.ascendUntil=900;up.press('C',-1);up.run(90);
+  assert.equal(t.caster.frogFollowup,undefined);assert.equal(t.caster.frogCasts,undefined);
+  t.run(20);assert.equal(t.caster.frogCasts,undefined);assert.equal(t.target.hp,1000);
+  t.press('B');const hits=t.run(85).filter(e=>e.kind==='hit'&&e.source===source);
+  assert.equal(t.caster.frogCasts.filter(c=>c.id==='frog-laugh').length,1);
+  assert.deepEqual(hits.map(e=>e.amount),[35,35,55]);assert.equal(t.target.hp,875);
+  const up=setup(source,700);up.caster.ascendUntil=660;up.press('C',-1);up.run(90);
   assert.equal(up.caster.frogCasts,undefined);assert.equal(up.caster.frogFollowup,undefined);assert.equal(up.target.hp,1000);
  }
 });
@@ -330,7 +332,7 @@ test('holding C during a normal or laugh enters crouch on the exact recovery-end
   assert.equal(t.caster.attack.frame,0);assert.equal(t.caster.energy,0);
   t.run(25,...(source===0?[hold(),NEUTRAL]:[NEUTRAL,hold()]));
   assert.equal(t.caster.attack.id,'frog-crouch');
-  t.tick();assert.equal(t.caster.attack,null);
+  t.tick();assert.equal(t.caster.attack.id,'frog-crouch');t.run(13);assert.equal(t.caster.attack,null);
  }
 });
 test('releasing C before recovery ends cannot leave a stale crouch intent',()=>{

@@ -1,6 +1,6 @@
 import banana from '../../assets/fighters/banana-knockdown.webp';
 import bananaJo from '../../assets/fighters/banana-jo-combat.webp';
-import gaga from '../../assets/fighters/gaga-knockdown.webp';
+import gaga from '../../assets/fighters/gaga-original-handdrawn-v1/motion/registered/gaga-knockdown.webp';
 import type { FighterState } from '../core/types.js';
 import { drawPixelEffect } from './pixelfx.js';
 
@@ -16,7 +16,7 @@ const sheets: Partial<Record<string, HTMLImageElement>> = {
   gaga: load(gaga)
 };
 const tile = { width: 320, height: 280, anchorX: 160, anchorY: 260, ref: 210 };
-const gagaTile = { width: 512, height: 448, anchorX: 256, anchorY: 416, ref: 385 };
+const gagaTile = { width: 320, height: 280, anchorX: 160, anchorY: 260, ref: 210 };
 const joTile = { width: 384, height: 352, anchorX: 176, anchorY: 334 };
 
 export function knockdownPose(id: string, fighter: FighterState, riseProgress: number) {

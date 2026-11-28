@@ -22,6 +22,12 @@ export function cpuInput(state: MatchState, config: MatchConfig): InputFrame {
   const pressure = bananaMoves.find(action => action.id === bananaActionIds.pressure)?.hitbox;
   const uppercut = bananaMoves.find(action => action.id === bananaActionIds.uppercut)?.hitbox;
   const sprayReach = pressure ? pressure.x + pressure.w : 0;
+  const canUseWave = cpu.ground && tears >= 30 && distance >= 300 && distance < 850 &&
+    Math.abs(higher) < 70 && direction === cpu.facing &&
+    (cpu.bananaWaveCooldownUntil ?? 0) <= state.arenaFrame && beat % 24 === 6;
+  if (canUseWave && (!cpu.attack || cpu.attack.id === bananaActionIds.recharge)) {
+    return { x: 0, y: -1, pressed: ['C'] };
+  }
   if (cpu.attack?.id === bananaActionIds.pressure && distance < sprayReach + 22 && direction === cpu.facing && Math.abs(higher) < 80) {
     return { x: distance > 135 ? direction : 0, y: 0, pressed: [], held: ['B'] };
   }
@@ -87,14 +93,14 @@ export function cpuInput(state: MatchState, config: MatchConfig): InputFrame {
     if (tears >= 35 && uppercut && higher > 60 && higher < -uppercut.y - 25 && distance < 110 && beat % 8 === 0) {
       return { x: 0, y: -1, pressed: ['B'] };
     }
-    if (tears >= 20 && Math.abs(higher) < 54 && distance >= 105 && distance <= sprayReach - 8 && beat % 12 === 0) {
+    if (tears >= 16 && Math.abs(higher) < 54 && distance >= 105 && distance <= sprayReach - 8 && beat % 12 === 0) {
       return { x: 0, y: 0, pressed: ['B'], held: ['B'] };
     }
   }
   const route = approachPlatform(state, config);
   if (route) return route;
   if (!cpu.ground) {
-    if (cpu.jumpCount !== 2 && airJump && cpu.vy >= -3 && higher > 60 && higher < 131 &&
+    if (!cpu.airJumpUsed && airJump && cpu.vy >= -3 && higher > 60 && higher < 131 &&
       distance < 164 && beat % 9 === 2) {
       return { x: direction, y: 0, pressed: ['jump'] };
     }

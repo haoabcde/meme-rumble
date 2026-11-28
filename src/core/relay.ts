@@ -1,5 +1,5 @@
 import { createMatch, step } from './match.js';
-import { MAX_ENERGY, MAX_TEARS, TEAR_UNITS_PER_POINT } from './types.js';
+import { MAX_ENERGY, MAX_TEARS, MAX_WHALE_MANA, TEAR_UNITS_PER_POINT } from './types.js';
 import type { CombatEvent, Duo, FighterDefinition, FighterState, InputFrame, MatchConfig, MatchState, RoundResult } from './types.js';
 
 type RosterIndex = 0 | 1;
@@ -65,6 +65,7 @@ function clamp(value: number, max: number) {
 function carryResources(previous: FighterState, next: FighterState) {
   next.hp = clamp(previous.hp, next.hp);
   next.energy = clamp(previous.energy, MAX_ENERGY);
+  if (next.whaleMana !== undefined && previous.whaleMana !== undefined) next.whaleMana = clamp(previous.whaleMana, MAX_WHALE_MANA);
   if (next.tearUnits !== undefined && previous.tearUnits !== undefined) {
     next.tearUnits = clamp(previous.tearUnits, MAX_TEARS * TEAR_UNITS_PER_POINT);
   }

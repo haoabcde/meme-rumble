@@ -43,7 +43,7 @@ function replay(state, config, ticks) {
   }
 }
 
-test('a held iron-basin guard counters Gaga’s airborne pole on either seat after its tap window expires', () => {
+test('a timed iron-basin guard counters Gaga’s airborne pole while holding past 8 frames blocks normally', () => {
   for (const gagaSeat of [0, 1]) {
     const whaleSeat = 1 - gagaSeat;
     const { state, config } = match(gagaSeat === 0 ? [gaga, whale] : [whale, gaga], 195);
@@ -56,17 +56,24 @@ test('a held iron-basin guard counters Gaga’s airborne pole on either seat aft
     assert.equal(defender.guarding, true);
 
     Object.assign(attacker, { y: config.arena.floor - 170, ground: null });
-    const unguarded = structuredClone(state);
+    const heldBlocked = structuredClone(state);
     const poleInput = [...neutral];
     poleInput[gagaSeat] = press('B');
-    const plainHit = [...step(unguarded, poleInput, config), ...advance(unguarded, config, 24)];
-    assert.deepEqual(plainHit.filter(event => event.kind === 'hit').map(event => event.actionId), [gagaActionIds.airThrow]);
-
     poleInput[whaleSeat] = guard;
-    const countered = [...step(state, poleInput, config), ...advance(state, config, 24, heldGuard)];
+    const blockedEvents = [...step(heldBlocked, poleInput, config), ...advance(heldBlocked, config, 24, heldGuard)];
+    assert.equal(blockedEvents.some(event => event.kind === 'parry'), false);
+    assert.ok(blockedEvents.some(event => event.kind === 'block'));
+
+    // Release and perform a fresh timed press within the 8-frame parry window as the thrown pole arrives.
+    advance(state, config, 1, neutral);
+    const poleOnly = [...neutral];
+    poleOnly[gagaSeat] = press('B');
+    step(state, poleOnly, config);
+    advance(state, config, 7, neutral);
+    const countered = [...advance(state, config, 20, heldGuard)];
     assert.deepEqual(countered.filter(event => event.kind === 'parry').map(event => event.source), [whaleSeat]);
     assert.ok(countered.some(event => event.kind === 'swing' && event.actionId === 'whale-counter'));
-    assert.equal(state.entities?.filter(entity => entity.definition.behavior === 'rice').length, 8);
+    assert.equal(state.entities?.filter(entity => entity.definition.behavior === 'rice').length, 7);
     assert.equal(defender.hp, whale.fighter.maxHp);
     assert.equal(defender.guard, rules.guardMax);
   }
@@ -78,16 +85,21 @@ test('two Banana tear blasts on the same tick trigger one Frog warp and are both
   const action = banana.fighter.actions.find(move => move.id === bananaActionIds.tear);
   const { vx, vy } = action.projectile;
   // Restore two existing shots one tick before both reach the same defender.
-  state.projectiles = [
+  const twoShots = [
     { x: defender.x - 65, y: defender.y - 70 },
     { x: defender.x - 70, y: defender.y - 80 }
   ].map(position => ({ ...position, actionId: action.id, source: 0, facing: 1, vx, vy, connected: false }));
   const unguarded = structuredClone(state);
+  unguarded.projectiles = structuredClone(twoShots);
   assert.equal(step(unguarded, neutral, config).filter(event => event.kind === 'hit').length, 2);
 
   const initialTears = attacker.tearUnits;
   const crouch = { ...press('C'), held: ['C'] };
-  const contact = step(state, [NEUTRAL, crouch], config);
+  // Enter active crouch window (2-frame startup) before the tear blasts arrive.
+  step(state, [NEUTRAL, crouch], config);
+  step(state, [NEUTRAL, { ...NEUTRAL, held: ['C'] }], config);
+  state.projectiles = structuredClone(twoShots);
+  const contact = step(state, [NEUTRAL, { ...NEUTRAL, held: ['C'] }], config);
   assert.equal(contact.filter(event => event.kind === 'tear-splash').length, 2);
   assert.deepEqual(contact.filter(event => event.kind === 'parry').map(event => event.source), [1]);
   assert.ok(!contact.some(event => event.kind === 'hit'));
@@ -117,7 +129,7 @@ test('Frog ascension and a pending Banana wave resume in order with resources an
   assert.ok(cat.energy > initialEnergy);
   const wave = banana.fighter.actions.find(move => move.id === bananaActionIds.joAwaken);
   cat.energy = naiva.energy = MAX_ENERGY;
-  assert.ok(step(state, [vertical('ULT', 1), NEUTRAL], config).some(event => event.kind === 'wave-windup'));
+  assert.ok(step(state, [press('ULT'), NEUTRAL], config).some(event => event.kind === 'wave-windup'));
   assert.ok(step(state, [NEUTRAL, press('ULT')], config).some(event => event.actionId === 'frog-ascend'));
   const pendingWave = structuredClone(cat.attack);
   const frogStart = state.arenaFrame;
@@ -248,11 +260,10 @@ test('roles with an authored launcher can confirm early J into jump cancel and a
   }
 });
 
-test('production O, W+O, and Banana S+O consult stock while unbound S+O never spends energy', () => {
+test('production O and W+O consult the current stock and S+O never spends an unbound stock', () => {
   for (const entry of production) {
-    const downCost = entry.fighter.id === 'banana' ? MAX_ENERGY : 0;
     for (const seat of [0, 1]) {
-      for (const [direction, y, cost] of [[undefined, 0, MAX_ENERGY], ['up', -1, tacticals.includes(entry) ? ENERGY_PER_STOCK : 0], ['down', 1, downCost]]) {
+      for (const [direction, y, cost] of [[undefined, 0, MAX_ENERGY], ['up', -1, ENERGY_PER_STOCK], ['down', 1, 0]]) {
         for (const energy of [0, 100, 200, 300]) {
           const fighters = seat === 0 ? [entry, dummy] : [dummy, entry];
           const { config, state } = match(fighters, 600);
@@ -261,12 +272,13 @@ test('production O, W+O, and Banana S+O consult stock while unbound S+O never sp
           const frozen = structuredClone(state);
           const availability = ultimateAvailability(state, config, seat, direction);
           assert.deepEqual(state, frozen);
-          assert.equal(availability.cost, cost);
+          const expectedCost = entry.fighter.id === 'banana' && direction === 'up' ? 0 : cost;
+          assert.equal(availability.cost, expectedCost);
           const command = vertical('ULT', y);
           const events = step(state, seat === 0 ? [command, NEUTRAL] : [NEUTRAL, command], config);
-          assert.equal(fighter.energy, cost && energy >= cost ? energy - cost : energy);
-          if (!cost) assert.equal(events.find(event => event.source === seat)?.ultimateReason, 'unbound');
-          else if (energy < cost) assert.equal(availability.reason, 'energy');
+          assert.equal(fighter.energy, expectedCost && energy >= expectedCost ? energy - expectedCost : energy);
+          if (!expectedCost) assert.equal(events.find(event => event.source === seat)?.ultimateReason, 'unbound');
+          else if (energy < expectedCost) assert.equal(availability.reason, 'energy');
           else {
             assert.equal(availability.reason, undefined);
             assert.equal(fighter.attack.id, availability.action.id);
@@ -276,13 +288,6 @@ test('production O, W+O, and Banana S+O consult stock while unbound S+O never sp
       }
     }
   }
-  const { config, state } = match([banana, dummy], 600);
-  state.fighters[0].joAwakened = true;
-  state.fighters[0].energy = MAX_ENERGY;
-  assert.equal(ultimateAvailability(state, config, 0, 'down').reason, 'unbound');
-  const events = step(state, [vertical('ULT', 1), NEUTRAL], config);
-  assert.equal(events.find(event => event.source === 0)?.ultimateReason, 'unbound');
-  assert.equal(state.fighters[0].energy, MAX_ENERGY);
 });
 
 test('an authored directional launcher cannot fall back to the neutral chain after a whiff', () => {
@@ -308,18 +313,7 @@ test('exclusive entrances clash at equal cost and the higher stock wins symmetri
       assert.deepEqual(mirror.state.fighters.map(fighter => fighter.attack), [null, null]);
     }
   }
-  for (const seat of [0, 1]) {
-    const { state, config } = match(seat === 0 ? [whale, banana] : [banana, whale], 900);
-    state.fighters.forEach(fighter => { fighter.energy = MAX_ENERGY; });
-    const actions = [vertical('ULT', -1), vertical('ULT', -1)];
-    actions[seat] = press('ULT');
-    const events = step(state, actions, config);
-    assert.equal(events.find(event => event.kind === 'ultimate').source, seat);
-    assert.equal(events.find(event => event.ultimateReason === 'contested').source, 1 - seat);
-    assert.equal(state.fighters[seat].energy, 0);
-    assert.equal(state.fighters[1 - seat].energy, MAX_ENERGY);
-  }
-  const { state, config } = match([banana, gaga], 600);
+  const { state, config } = match([frog, gaga], 600);
   state.fighters.forEach(fighter => { fighter.energy = ENERGY_PER_STOCK; });
   const events = step(state, [vertical('ULT', -1), vertical('ULT', -1)], config);
   assert.deepEqual(events.filter(event => event.kind === 'ultimate').map(event => event.source), [0, 1]);
@@ -359,18 +353,17 @@ test('clearing pending controls preserves the current strike without playing its
 });
 
 
-test('approved Whale and Frog have no invented up-O, independent launcher or shelter on either seat', () => {
+test('Whale and Frog can use their tactical ultimate and launcher on either seat', () => {
   for (const entry of [whale, frog]) for (const seat of [0, 1]) {
-    assert.ok(!entry.fighter.actions.some(a => a.slot === 'ULT' && a.direction));
-    assert.ok(!entry.fighter.actions.some(a => ['common-launch', 'whale-shelter'].includes(a.id)));
+    assert.ok(entry.fighter.actions.some(a => a.slot === 'ULT' && a.direction === 'up'));
+    assert.ok(entry.fighter.actions.some(a => a.id === 'common-launch'));
+    assert.ok(!entry.fighter.actions.some(a => a.id === 'whale-shelter'));
     const {state,config}=match(seat===0?[entry,dummy]:[dummy,entry],100);
     state.fighters[seat].energy=MAX_ENERGY;
     const cmd=vertical('ULT',-1);
     const events=step(state,seat===0?[cmd,NEUTRAL]:[NEUTRAL,cmd],config);
-    assert.equal(state.fighters[seat].attack,null);
-    assert.equal(state.fighters[seat].energy,MAX_ENERGY);
-    assert.ok(events.some(e=>e.ultimateReason==='unbound'&&e.source===seat));
-    advance(state,config,30);
-    assert.equal(state.fighters[seat].attack,null,'unbound up-O must not launch an attack later');
+    assert.ok(state.fighters[seat].attack);
+    assert.equal(state.fighters[seat].energy,MAX_ENERGY-ENERGY_PER_STOCK);
+    assert.ok(events.some(e=>e.kind==='ultimate'&&e.source===seat));
   }
 });
