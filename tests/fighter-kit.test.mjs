@@ -367,7 +367,7 @@ test('guard counters require a frontal contact and a legal new guard press', () 
   const rear = counterDuel(0, riposte, 9);
   rear.tick(guard);
   rear.target.x = rear.player.x - 90;
-  rear.tick(guard, jab);
+  rear.tick(guard, { ...jab, x: 1 });
   assert.deepEqual(rear.hold(basicAttack.startup, guard).map(e => e.kind), ['hit']);
   assert.equal(rear.player.hp, 1000 - basicAttack.damage);
   for (const status of ['hitstun', 'blockstun', 'guardBreak']) {

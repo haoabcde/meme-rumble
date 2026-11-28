@@ -113,7 +113,7 @@ export function cpuInput(state: MatchState, config: MatchConfig): InputFrame {
     return { x: direction, y: 0, pressed: ['dash'] };
   }
   if (cpu.ground && distance < 113 && Math.abs(higher) < 87 && beat % 11 === 7) {
-    return { x: 0, y: 0, pressed: ['A'] };
+    return { x: direction, y: 0, pressed: ['A'] };
   }
   return { x: distance > 76 ? direction : 0, y: 0, pressed: [] };
 }

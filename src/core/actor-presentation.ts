@@ -12,7 +12,6 @@ export function updateActorPresentation(state:MatchState,config:MatchConfig){
   if(previous&&f.moving&&f.ground&&!f.attack&&!f.hitstun){const dx=f.x-previous.x;if(Math.abs(dx)<35)phase=((phase+dx*f.facing/(id==='frog'?126:74)*8)%8+8)%8;}
   const stamp=motionStamp(f,state.arenaFrame,phase),changed=previous?.mode!==stamp.mode;
   f.motionVisual={stamp,from:changed?previous:old?.from,changed:changed?state.arenaFrame:old?.changed??state.arenaFrame,
-   turnTick:previous&&previous.facing!==f.facing?state.arenaFrame:old?.turnTick??-999,
-   turnFrom:previous&&previous.facing!==f.facing?previous.facing:old?.turnFrom??f.facing};
+   turnTick:previous&&previous.facing!==f.facing?state.arenaFrame:old?.turnTick??-999};
  }
 }

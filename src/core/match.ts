@@ -128,6 +128,7 @@ function queueInputs(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   for (const seat of seats) {
     if (carriedBySummon(state, seat)) continue;
     const fighter = state.fighters[seat];
+    const opponent = state.fighters[other(seat)];
     const input = inputs[seat];
     const action = attackFor(config, state, seat);
     if (!input.pressed.length) continue;
@@ -140,7 +141,11 @@ function queueInputs(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
           (key === action.slot || key === 'dash')) continue;
       const directions: Direction[] = [];
       if (y) directions.push(y === -1 ? 'up' : 'down');
-      else if (x) directions.push(x === fighter.facing ? 'forward' : 'back');
+      else if (x) {
+        // Ground chords keep their meaning even after walking away from the opponent.
+        const forward = fighter.ground ? sideToward(fighter, opponent) : fighter.facing;
+        directions.push(x === forward ? 'forward' : 'back');
+      }
       fighter.buffer.push({
         key, keys, x, directions, down: y === 1, sampledAt: state.frame, remaining: config.rules.inputBuffer
       });
@@ -399,7 +404,8 @@ function startUltimates(state: MatchState, config: MatchConfig, events: CombatEv
   }
   for (const { seat, fighter, command, action, cost } of selected) {
     const target = state.fighters[other(seat)];
-    faceOpponentWhenFree(fighter, target);
+    if (!fighter.ground) faceOpponentWhenFree(fighter, target);
+    else if (!fighter.attack && command.x) fighter.facing = command.x;
     startAction(fighter, action, seat, events, cost);
     startFrog(action, fighter, state, config, seat);
     fighter.buffer = fighter.buffer.filter(item => item.sampledAt !== command.sampledAt);
@@ -422,7 +428,7 @@ function startUltimates(state: MatchState, config: MatchConfig, events: CombatEv
     }
     if (action.summon) {
       state.summon = {
-        source: seat, actionId: action.id, ...aimSummon(config.arena, target, facing, state.arenaFrame),
+        source: seat, actionId: action.id, ...aimSummon(config.arena, target, sideToward(fighter, target), state.arenaFrame),
         phase: 'cut-in', frame: 0
       };
       events.push(summonEvent(state.summon, 'summon-start'));
@@ -461,10 +467,14 @@ function updateGuardWindow(fighter: FighterState, input: InputFrame, windowFrame
   }
 }
 
+function sideToward(fighter: FighterState, opponent: FighterState): Side {
+  return fighter.x === opponent.x ? fighter.facing : fighter.x < opponent.x ? 1 : -1;
+}
+
 function faceOpponentWhenFree(fighter: FighterState, opponent: FighterState) {
   if (fighter.hitstun || fighter.launched || fighter.blockstun || fighter.guardBreak || fighter.recovery ||
-      fighter.attack || fighter.dash || fighter.guarding || fighter.x === opponent.x) return;
-  fighter.facing = fighter.x < opponent.x ? 1 : -1;
+      fighter.attack || fighter.dash || fighter.guarding) return;
+  fighter.facing = sideToward(fighter, opponent);
 }
 
 function updateControl(
@@ -559,7 +569,7 @@ function updateControl(
     }
   }
 
-  faceOpponentWhenFree(f, opponent);
+  if (!f.ground) faceOpponentWhenFree(f, opponent);
   if (locked) {
     f.guarding = f.blockstun > 0 && f.guardBreak === 0 && f.hitstun === 0;
     return;
@@ -626,6 +636,9 @@ function updateControl(
     }
     const selectedId = isAttack(action) ? startWhale(action, f, state) : action.id;
     const selectedAction = definition.actions.find(move => move.id === selectedId) ?? action;
+    if (f.ground && !f.attack && command.x) {
+      f.facing = action.direction === 'back' ? sideToward(f, opponent) : command.x;
+    }
     if (!startAction(f, selectedAction, seat, events)) {
       f.buffer = f.buffer.filter(item => item !== command);
       continue;
@@ -788,6 +801,7 @@ function motion(
       walking = Boolean(f.ground && move);
     }
   } else if (!f.hitstun && !f.launched && !f.blockstun && !f.guardBreak && !f.guarding && !f.recovery && !f.attack) {
+    if (f.ground && input.x && (f.bindUntil ?? 0) <= state.arenaFrame) f.facing = input.x;
     move = input.x * (f.ground ? definition.run : definition.airSpeed) * speedScale;
     walking = Boolean(f.ground && move);
   }
@@ -1727,6 +1741,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   const waking: Duo<boolean> = [false, false];
   advanceArena(state, config);
   const walkStart: Duo<number> = [state.fighters[0].x, state.fighters[1].x];
+  const walkFacing: Duo<Side> = [state.fighters[0].facing, state.fighters[1].facing];
   for (const seat of seats) {
     if (carriedBySummon(state, seat) || diveCarrierFor(state, config, seat) !== undefined) continue;
     const fighter = state.fighters[seat];
@@ -1766,6 +1781,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   if (state.fighters.every(fighter => fighter.combo === 0 && fighter.blockstun === 0)) {
     state.comboFreeze = 0;
   }
+  const airborne = seats.map(seat => !state.fighters[seat].ground);
   const walking = seats.map(seat => {
     const fighter = state.fighters[seat];
     fighter.dashActive = fighter.dash > 0;
@@ -1791,7 +1807,10 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
   }
   for (const fighter of state.fighters) settleFrogWarp(fighter, state);
   for (const fighter of state.fighters) releaseUnsupportedGround(fighter, config.arena, state.arenaFrame);
-  for (const seat of seats) faceOpponentWhenFree(state.fighters[seat], state.fighters[other(seat)]);
+  for (const seat of seats) {
+    const fighter = state.fighters[seat];
+    if (airborne[seat] || !fighter.ground) faceOpponentWhenFree(fighter, state.fighters[other(seat)]);
+  }
   for (const seat of seats) {
     const f = state.fighters[seat];
     const act = attackFor(config, state, seat);
@@ -1896,7 +1915,7 @@ export function step(state: MatchState, inputs: Duo<InputFrame>, config: MatchCo
       continue;
     }
     const direction = delta * f.facing > 0 ? 'forward' : 'back';
-    const distance = f.walk?.direction === direction ? f.walk.distance : 0;
+    const distance = f.facing === walkFacing[seat] && f.walk?.direction === direction ? f.walk.distance : 0;
     f.walk = { direction, distance: distance + Math.abs(delta) };
   }
 

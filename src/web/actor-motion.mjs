@@ -160,17 +160,15 @@ export function drawActorMotion(g,kind,f,state,action,actions){
  if(f.attack&&action?.slot!=='A')return false;
  let p=plan(b,kind,s,actions),im=renderPlan(p,kind);if(!im)return false;
  const age=state.arenaFrame-v.changed;
- if(s.mode==='idle'&&age>=8&&state.arenaFrame-v.turnTick>=6)return false;
+ if(s.mode==='idle'&&age>=8&&state.arenaFrame-v.turnTick>=3)return false;
  if(v.from&&age<3&&!(kind==='whale'&&(s.mode.startsWith('attack:')||v.from.mode.startsWith('attack:')))&&!['hurt','land'].includes(s.mode)&&!v.from.mode.includes('special')&&v.from.mode!=='guard'){
   const from=renderPlan(plan(b,kind,v.from,actions),kind);if(from)im=tween(descriptorCached(from),descriptorCached(im),ease((age+1)/3),undefined,kind==='frog');
  }
  const turn=state.arenaFrame-v.turnTick;
  g.save();g.imageSmoothingEnabled=true;
- if(turn<6&&['idle','walk','brake'].includes(s.mode)){
+ if(turn<3&&['idle','walk','brake'].includes(s.mode)){
   const front=b.loco[kind==='frog'?11:10];
-  if(turn<2){g.scale(v.turnFrom/f.facing,1);im=tween(descriptorCached(im),front,ease((turn+1)/2),undefined,kind==='frog');}
-  else if(turn<4)im=front.canvas;
-  else im=tween(front,descriptorCached(im),ease((turn-3)/3),undefined,kind==='frog');
+  im=tween(front,descriptorCached(im),ease((turn+1)/3),undefined,kind==='frog');
  }
  g.drawImage(im,-128,-236+(p.dy??0));g.restore();return true;
 }

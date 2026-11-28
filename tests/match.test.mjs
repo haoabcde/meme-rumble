@@ -363,6 +363,66 @@ test('a ground dash applies gravity immediately after leaving a platform', () =>
   assert.equal(fighter.vy, 2);
 });
 
+test('every fighter can turn and immediately attack in either direction on either seat', () => {
+  for (const { fighter } of roster) {
+    const settings = { ...trainingOn(arenas.at(-1)), fighters: [fighter, fighter] };
+    for (const seat of [0, 1]) {
+      for (const direction of [-1, 1]) {
+        const pair = (keys, x = 0) => inputForSeat(seat, input(keys, x));
+        for (const sameTick of [false, true]) {
+          const state = begin(settings);
+          const actor = state.fighters[seat];
+          Object.assign(actor, { x: 1800, facing: -direction });
+          state.fighters[1 - seat].x = 1800 + 86 * direction;
+          const label = `${fighter.id} / ${seat} / ${direction} / ${sameTick}`;
+          if (!sameTick) {
+            step(state, pair([], direction), settings);
+            const advance = (actor.x - 1800) * direction;
+            assert.ok(advance > 0 && advance <= fighter.run, label);
+            assert.equal(actor.facing, direction, label);
+            step(state, pair([]), settings);
+            assert.equal(actor.facing, direction, label);
+          }
+          const opening = step(state, pair(['A'], sameTick ? direction : 0), settings);
+          assert.equal(actor.attack?.frame, 0, label);
+          assert.equal(actor.facing, direction, label);
+          const hit = opening.find(event => event.kind === 'hit') ??
+            waitForEvent(state, settings, 'hit', seat, pair([], -direction));
+          assert.equal(hit.direction, direction, label);
+        }
+      }
+    }
+  }
+});
+
+test('every fighter dashes immediately along the retained or sampled ground direction', () => {
+  for (const { fighter } of roster) {
+    const settings = { ...trainingOn(arenas.at(-1)), fighters: [fighter, fighter] };
+    for (const seat of [0, 1]) {
+      for (const direction of [-1, 1]) {
+        const state = begin(settings);
+        const actor = state.fighters[seat];
+        Object.assign(actor, { x: 1800, facing: -direction });
+        state.fighters[1 - seat].x = 1800 - 400 * direction;
+        step(state, inputForSeat(seat, input([], direction)), settings);
+        step(state, inputForSeat(seat, input()), settings);
+        const start = actor.x;
+        const dash = step(state, inputForSeat(seat, input(['dash'])), settings)[0];
+        assert.equal(dash?.kind, 'dash');
+        assert.equal(dash.direction, direction);
+        assert.equal(actor.x, start + direction * fighter.dash);
+        stepFor(state, 7, undefined, settings);
+
+        const both = { ...input(['dash'], direction), sampled: [{ x: -direction, y: 0 }] };
+        const reversal = step(state, inputForSeat(seat, both), settings)[0];
+        assert.equal(reversal?.kind, 'dash');
+        assert.equal(reversal.direction, -direction);
+        assert.equal(actor.facing, -direction);
+      }
+    }
+  }
+});
+
 test('either seat spends public stamina once per legal dash and resets it between rounds', () => {
   for (const seat of [0, 1]) {
     const settings = { ...trainingOn(arenas[3]), training: false };
@@ -438,7 +498,7 @@ test('public dash crosses fighters and avoids melee and entities through its las
     assert.equal(fighter.dashActive, true);
     assert.equal(fighter.x, startingX + direction * baseline.dash * 8);
     assert.ok((fighter.x - opponent.x) * direction > 0);
-    assert.equal(fighter.facing, -direction);
+    assert.equal(fighter.facing, direction);
     assert.equal(fighter.hp, baseline.maxHp);
     assert.equal(fighter.guard, rules.guardMax - rules.dashGuardCost.ground);
     assert.equal(state.entities.length, 1);

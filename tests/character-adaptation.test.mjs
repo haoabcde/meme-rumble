@@ -960,7 +960,7 @@ test('Gaga down + J exits guard and slides 784 units in either facing direction'
     const state = begin(gagaConfig);
     const [attacker, defender] = state.fighters;
     [attacker.x, defender.x] = [1900, 1900 + 1100 * direction];
-    step(state, [NEUTRAL, NEUTRAL], gagaConfig);
+    attacker.facing = direction;
     step(state, [input([], 0, 1), NEUTRAL], gagaConfig);
     assert.ok(attacker.guarding);
     step(state, [input(['A'], 0, 1), NEUTRAL], gagaConfig);
@@ -1119,9 +1119,14 @@ test('Gaga selects back+U ground throw, U air throw and J air strike at 0 energy
   ]) {
     const state = begin(gagaConfig);
     if (air) step(state, [input(['jump']), NEUTRAL], gagaConfig);
+    else {
+      step(state, [input([], x), NEUTRAL], gagaConfig);
+      assert.equal(state.fighters[0].facing, x);
+    }
     step(state, [input([key], x), NEUTRAL], gagaConfig);
     assert.equal(state.fighters[0].attack.id, actionId);
     assert.equal(state.fighters[0].energy, 0);
+    assert.equal(state.fighters[0].facing, 1);
   }
 });
 
@@ -1513,6 +1518,7 @@ test('Gaga throws downward in either facing direction, hits once and then impact
       const state = begin(settings);
       const [attacker, defender] = state.fighters;
       [attacker.x, defender.x] = facing === 1 ? [650, 900] : [900, 650];
+      defender.facing = -facing;
       const target = guarding ? input([], 0, 1) : NEUTRAL;
       step(state, [input(['jump']), target], settings);
       step(state, [input(['B']), target], settings);
@@ -1553,7 +1559,7 @@ test('a descending pole passes through platforms and impacts the bottom floor on
   assert.deepEqual(state.projectiles, []);
 });
 
-test('Gaga switches between forward and backstep according to facing and actual distance', () => {
+test('Gaga restarts the forward walk cycle when turning around', () => {
   for (const facing of [-1, 1]) {
     const state = begin(gagaConfig);
     const [attacker, defender] = state.fighters;
@@ -1562,10 +1568,11 @@ test('Gaga switches between forward and backstep according to facing and actual 
     assert.equal(attacker.facing, facing);
     assert.deepEqual(attacker.walk, { direction: 'forward', distance: gaga.run * 4 });
     stepFor(state, 3, [input([], -facing), NEUTRAL], gagaConfig);
-    assert.equal(attacker.facing, facing);
-    assert.deepEqual(attacker.walk, { direction: 'back', distance: gaga.run * 3 });
+    assert.equal(attacker.facing, -facing);
+    assert.deepEqual(attacker.walk, { direction: 'forward', distance: gaga.run * 3 });
     step(state, [NEUTRAL, NEUTRAL], gagaConfig);
     assert.equal(attacker.walk, undefined);
+    assert.equal(attacker.facing, -facing);
   }
 });
 

@@ -31,7 +31,7 @@ test('presentation history records actual displacement, braking, turns and chain
  assert.equal(f.motionVisual.from.attackId,'common-jab');assert.equal(f.motionVisual.from.attackFrame,9);
  assert.equal(f.motionVisual.stamp.attackFrame,0);assert.equal(original.x+7.875,f.x);
  f.attack=null;f.moving=false;f.facing=-1;state.arenaFrame++;updateActorPresentation(state,config);
- assert.equal(f.motionVisual.turnFrom,1);assert.equal(f.motionVisual.turnTick,state.arenaFrame);
+ assert.equal(f.motionVisual.stamp.facing,-1);assert.equal(f.motionVisual.turnTick,state.arenaFrame);
 });
 test('frog cadence is slightly slower without changing travelled distance',()=>{
  const config={rules,arena:arenas[2],fighters:[frog.fighter,testFighter]},s=createMatch(config);s.phase='fight';

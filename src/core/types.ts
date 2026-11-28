@@ -328,7 +328,7 @@ export interface MotionStamp {
 }
 export interface FighterState {
   /** Serialized presentation history; never read by collision or control rules. */
-  motionVisual?: {stamp:MotionStamp;from?:MotionStamp;changed:number;turnTick:number;turnFrom:Side};
+  motionVisual?: {stamp:MotionStamp;from?:MotionStamp;changed:number;turnTick:number};
   ascendUntil?: number;
   /** Presentation clocks use arena time, independent of interruptible hit poses. */
   ascendVisual?: { tick: number; x: number; y: number };
